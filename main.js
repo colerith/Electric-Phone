@@ -550,10 +550,11 @@ document.addEventListener('DOMContentLoaded', () => {
         addMessageToChat(messageElement);
     }
 
-    // ----- 发送所有缓存消息 (修正版，恢复引用格式构建) -----
+    // ----- 发送所有缓存消息 (最终修复版) -----
     function sendAllCachedMessages() {
         if (userMessageCache.length === 0) return;
 
+        // --- 核心修复 2：使用 <br> 替换 \n 作为换行符 ---
         const formattedMessages = userMessageCache.map(msg => {
             const now = new Date();
             const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -561,14 +562,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             switch (msg.type) {
                 case 'text':
-                    // 关键修复：检查是否存在引用，并重新构建引用字符串
                     if (msg.data.quote) {
-                        const reconstructedQuote = `> 引用 ${msg.data.quote.author} 的消息: "${msg.data.quote.content}..."\n`;
+                        // 在构建引用时，也使用 <br>
+                        const reconstructedQuote = `> 引用 ${msg.data.quote.author} 的消息: "${msg.data.quote.content}..."<br>`;
                         contentStr = reconstructedQuote + msg.data.text;
                     } else {
                         contentStr = msg.data.text;
                     }
                     break;
+                // ... (其他 case 保持不变)
                 case 'sticker': contentStr = `<meme>${msg.data.name}</meme>`; break;
                 case 'voice': contentStr = `<voice>${msg.data.text}</voice>`; break;
                 case 'photo': contentStr = `<photo>;${msg.data.text}</photo>`; break;
@@ -576,13 +578,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'transfer': contentStr = `<transfer>${msg.data.amount}；${msg.data.memo}</transfer>`; break;
             }
             return `[用户消息|${time}|${contentStr}]`;
-        }).join('\n');
+        }).join('<br>'); // <-- 使用 <br> 连接多条消息
 
         console.log("准备发送的格式化消息:\n", formattedMessages);
         
         try {
             if (typeof triggerSlash === 'function') {
-                triggerSlash(`/send 回复和Ghost的聊天:\n${formattedMessages}|/trigger`);
+                // 使用 <br> 来拼接最终的字符串
+                triggerSlash(`/send 回复和Ghost的聊天:<br>${formattedMessages}|/trigger`);
             } else {
                 console.warn('triggerSlash 函数未定义，消息仅在控制台输出。');
             }
@@ -999,6 +1002,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         musicPlayer.onended = playNext;
 
+        // --- 核心修复 1：分离回车和点击事件 ---
+        // 发送按钮：负责处理输入框的最后内容，并发送所有缓存
+        sendBtn.onclick = () => {
+            handleSend(); // 处理输入框中可能遗留的内容
+            sendAllCachedMessages(); // 发送全部
+        };
+
+        // 回车键：只负责将当前内容显示并存入缓存
+        textarea.onkeydown = (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend(); // 只调用 handleSend，不发送全部
+            }
+        };
+
         // 4. 绑定其他弹窗和上下文菜单事件
         const imageModal = getEl('imageModal');
         const closeModalBtn = getEl('closeModalBtn');
@@ -1074,7 +1092,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // 关键修改：这里将 avatarContainer 作为参数传入
                     showPokeNotification(randomAction, avatarContainer);
                     
-                    if (typeof triggerSlash === 'function') { triggerSlash(`/send 戳戳头像：【 ${randomAction} 】|/trigger`); }
+                    if (typeof triggerSlash === 'function') { triggerSlash(`/send 戳戳头像：【 ${randomAction} 】`); }
                 });
             }
         }
