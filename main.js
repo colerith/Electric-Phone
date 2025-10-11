@@ -807,8 +807,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function hideContextMenu() { contextMenu.classList.remove('active'); }
 
-    // ----- Event Listeners -----
+    // ----- Event Listeners (最终修复版) -----
     function initializeEventListeners() {
+        // 1. 统一获取所有元素
         chatContent = getEl('chatContent');
         textarea = getEl('chat-textarea');
         sendBtn = getEl('send-btn');
@@ -820,7 +821,7 @@ document.addEventListener('DOMContentLoaded', () => {
         contextMenu = getEl('contextMenu');
         musicPlayer = getEl('music-player');
 
-        // ----- 核心修复：监听原生事件来更新状态 -----
+        // 2. 绑定音乐播放器原生事件
         musicPlayer.onplay = () => {
             musicState.isPlaying = true;
             updatePlayerUI();
@@ -831,7 +832,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         musicPlayer.onended = playNext;
 
-        // 2. 绑定核心聊天功能事件
+        // 3. 绑定核心聊天功能事件
         document.body.addEventListener('click', (e) => {
             if (!e.target.closest('#plus-btn') && !e.target.closest('.panel-menu')) {
                 plusMenu.classList.remove('visible');
@@ -846,18 +847,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 发送按钮：处理最后输入的内容，然后发送全部
         sendBtn.onclick = () => {
-            // 1. 处理输入框中最后一行可能未发送的内容
             const lastMessage = textarea.value.trim();
             if (lastMessage) {
-                handleSend(); // 调用 handleSend 来处理和缓存它
+                handleSend();
             }
-            
-            // 2. 发送所有已缓存的消息
             if (userMessageCache.length > 0) {
                 sendAllCachedMessages();
             }
-
-            // 3. 清空输入框（因为 sendAllCachedMessages 不再负责这个）
             textarea.value = '';
             textarea.dispatchEvent(new Event('input'));
         };
@@ -866,14 +862,15 @@ document.addEventListener('DOMContentLoaded', () => {
         textarea.onkeydown = (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                handleSend(); // 只调用 handleSend，不发送全部
+                handleSend();
             }
         };
-
-        textarea.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if(textarea.value.trim()) sendBtn.click(); } };
+        
+        // 其他输入框和按钮的事件
         textarea.oninput = () => { textarea.style.height = 'auto'; textarea.style.height = `${textarea.scrollHeight}px`; };
         plusBtn.onclick = (e) => { playSound(clickSound); e.stopPropagation(); stickerMenu.classList.remove('visible'); plusMenu.classList.toggle('visible'); };
         voiceBtn.onclick = () => toggleModal('voiceModal', true);
+
         plusMenu.onclick = (e) => { 
             const item = e.target.closest('.plus-menu-item'); if (!item) return; 
             const action = item.dataset.action; 
@@ -882,6 +879,7 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (action === 'transfer') { toggleModal('transferModal', true); }
             else if (action === 'sticker') { playSound(clickSound); stickerMenu.classList.add('visible'); }
         };
+
         stickerMenu.addEventListener('click', e => {
             const sticker = e.target.closest('.sticker-item');
             if (sticker) { sendSticker(sticker.dataset.name, sticker.src); }
