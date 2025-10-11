@@ -554,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function sendAllCachedMessages() {
         if (userMessageCache.length === 0) return;
 
-        // --- 核心修复 2：使用 <br> 替换 \n 作为换行符 ---
+        // 使用 \n 连接，因为 triggerSlash 可能需要它
         const formattedMessages = userMessageCache.map(msg => {
             const now = new Date();
             const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -563,14 +563,13 @@ document.addEventListener('DOMContentLoaded', () => {
             switch (msg.type) {
                 case 'text':
                     if (msg.data.quote) {
-                        // 在构建引用时，也使用 <br>
-                        const reconstructedQuote = `> 引用 ${msg.data.quote.author} 的消息: "${msg.data.quote.content}..."<br>`;
+                        // 在这里，我们仍然使用 \n，因为这是消息内部的换行
+                        const reconstructedQuote = `> 引用 ${msg.data.quote.author} 的消息: "${msg.data.quote.content}..."\n`;
                         contentStr = reconstructedQuote + msg.data.text;
                     } else {
                         contentStr = msg.data.text;
                     }
                     break;
-                // ... (其他 case 保持不变)
                 case 'sticker': contentStr = `<meme>${msg.data.name}</meme>`; break;
                 case 'voice': contentStr = `<voice>${msg.data.text}</voice>`; break;
                 case 'photo': contentStr = `<photo>;${msg.data.text}</photo>`; break;
@@ -578,14 +577,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'transfer': contentStr = `<transfer>${msg.data.amount}；${msg.data.memo}</transfer>`; break;
             }
             return `[用户消息|${time}|${contentStr}]`;
-        }).join('<br>'); // <-- 使用 <br> 连接多条消息
+        }).join('\n\n'); // <-- 关键修复1：用 \n 连接多条消息
 
         console.log("准备发送的格式化消息:\n", formattedMessages);
         
         try {
             if (typeof triggerSlash === 'function') {
-                // 使用 <br> 来拼接最终的字符串
-                triggerSlash(`/send 回复和Ghost的聊天:<br>${formattedMessages}|/trigger`);
+                // 关键修复2：完全复刻参考代码的格式，保留 <br> 和 \n
+                triggerSlash(`/send 回复和Ghost的聊天:<br>\n\n${formattedMessages}|/trigger`);
             } else {
                 console.warn('triggerSlash 函数未定义，消息仅在控制台输出。');
             }
@@ -596,30 +595,24 @@ document.addEventListener('DOMContentLoaded', () => {
         userMessageCache = [];
     }
 
-    // ----- handleSend -----
+    // ----- handleSend (最终版，只负责缓存) -----
     function handleSend() {
         const messageText = textarea.value.trim();
         if (messageText) {
             playSound(sendSound);
             
-            // 关键修复：将引用解析逻辑加回来
             let data = { text: messageText };
             const quoteMatch = messageText.match(/^> 引用 .*\n/);
             if (quoteMatch) {
                 const quoteLine = quoteMatch[0];
-                // 从 " > 引用 作者 的消息: "内容..." " 中提取信息
                 const contentMatch = quoteLine.match(/> 引用 (.*) 的消息: "(.*?)\.\.\."/);
                 if (contentMatch) {
                     data.quote = { author: contentMatch[1], content: contentMatch[2] };
                 }
-                // 从消息正文中移除引用语法行
                 data.text = data.text.replace(quoteLine, '').trim();
             }
 
-            // 1. 使用解析后的正确 data 对象临时显示在手机上
             displayMessageToPhone('text', data);
-            
-            // 2. 将同样正确的 data 对象存入缓存
             userMessageCache.push({ type: 'text', data: data });
             
             textarea.value = '';
@@ -851,11 +844,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
+        // 发送按钮：处理最后输入的内容，然后发送全部
         sendBtn.onclick = () => {
-            // 1. 先处理输入框里可能未缓存的内容
-            handleSend();
+            // 1. 处理输入框中最后一行可能未发送的内容
+            const lastMessage = textarea.value.trim();
+            if (lastMessage) {
+                handleSend(); // 调用 handleSend 来处理和缓存它
+            }
+            
             // 2. 发送所有已缓存的消息
-            sendAllCachedMessages();
+            if (userMessageCache.length > 0) {
+                sendAllCachedMessages();
+            }
+
+            // 3. 清空输入框（因为 sendAllCachedMessages 不再负责这个）
+            textarea.value = '';
+            textarea.dispatchEvent(new Event('input'));
+        };
+
+        // 回车键：只负责将当前内容显示并存入缓存
+        textarea.onkeydown = (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend(); // 只调用 handleSend，不发送全部
+            }
         };
 
         textarea.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if(textarea.value.trim()) sendBtn.click(); } };
@@ -1001,21 +1013,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         musicPlayer.onended = playNext;
-
-        // --- 核心修复 1：分离回车和点击事件 ---
-        // 发送按钮：负责处理输入框的最后内容，并发送所有缓存
-        sendBtn.onclick = () => {
-            handleSend(); // 处理输入框中可能遗留的内容
-            sendAllCachedMessages(); // 发送全部
-        };
-
-        // 回车键：只负责将当前内容显示并存入缓存
-        textarea.onkeydown = (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend(); // 只调用 handleSend，不发送全部
-            }
-        };
 
         // 4. 绑定其他弹窗和上下文菜单事件
         const imageModal = getEl('imageModal');
