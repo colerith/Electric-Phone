@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghost Phone</title>
+    <style>
+        :root {
+            --primary-bg: #f0f8ff;
+            --secondary-bg: #ffffff;
+            --header-bg: rgba(240, 248, 255, 0.75);
+            --panel-bg: rgba(255, 255, 255, 0.75);
+            --border-color: #d4eaf7;
+            --border-highlight: rgba(135, 206, 235, 0.5);
+            --text-primary: #0a4d68;
+            --text-secondary: #5f8a9f;
+            --accent-color: #87CEEB;
+            --accent-glow: rgba(135, 206, 235, 0.4);
+            --char-bubble-bg: rgba(255, 255, 255, 0.7);
+            --user-bubble-bg: #87CEEB;
+            --user-text-color: #ffffff;
+            --online-status-color: #4CAF50;
+            --danger-color: #f03e3e;
+            --wallpaper-blur: 0px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            display: flex; justify-content: center; align-items: center;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        .phone-outer-container {
+            position: relative; width: min(100%, 330px); height: 590px;
+            padding: 10px; border-radius: 60px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            background: #eafaff;
+        }
+
+        /* 音量键组（左侧） */
+        .volume-keys-outer {
+            position: absolute;
+            left: -6px;
+            top: 150px;
+            height: 100px;
+            width: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            z-index: 2;
+        }
+
+        /* 音量键（左侧） */
+        .volume-key-outer {
+            width: 6px;
+            height: 45px;
+            background: linear-gradient(to right, #a0e9ff, #b3f0ff 20%, #e0f7fa 50%, #b3f0ff 80%, #89cff0);
+            border-radius: 3px;
+            box-shadow: 1px 0 3px rgba(137, 207, 240, 0), inset 0 0 8px rgba(224, 247, 250, 0.6);
+            border: 0.1px solid rgba(135, 206, 235, 0.3);
+        }
+
+        /* 电源键（右侧） */
+        .power-key-outer {
+            position: absolute;
+            right: -6px;
+            top: 160px;
+            width: 6px;
+            height: 80px;
+            background: linear-gradient(to left, #a0e9ff, #b3f0ff 20%, #e0f7fa 50%, #b3f0ff 80%, #89cff0);
+            border-radius: 3px;
+            box-shadow: -1px 0 3px rgba(137, 207, 240, 0.2), inset 0 0 8px rgba(224, 247, 250, 0.6);
+            border: 0.5px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .phone-container {
+            position: relative; width: 100%; height: 100%;
+            border-radius: 45px; overflow: hidden;
+            box-shadow: 0 0 0 2px #b3f0ff, 0 0 0 6px #89cff0, 0 0 0 10px #a0e9ff, inset 0 0 20px rgba(255,255,255,0.3);
+            background-color: var(--primary-bg);
+            display: flex; flex-direction: column;
+        }
+
+        /* --- 手机挂饰 --- */
+        /* 1. 挂饰元素的样式 */
+        .phone-charm {
+            /* 定位 */
+            position: absolute;
+            top: -2px; 
+            right: 0px; 
+            z-index: 100; 
+            width: 75px;
+            transform-origin: top center; 
+            animation: pendulum-swing 1.5s ease-in-out infinite alternate;
+            pointer-events: none;
+        }
+
+        @keyframes pendulum-swing {
+            from {
+                transform: rotate(-10deg);
+            }
+            to {
+                transform: rotate(10deg);
+            }
+        }
+
+        .status-bar {
+            position: absolute; top: 10px; left: 20px; right: 20px;
+            height: 25px; display: flex; justify-content: space-between; align-items: center;
+            padding: 0 10px; z-index: 11; color: var(--text-secondary);
+        }
+        .status-bar .time { font-weight: 600; font-size: 14px; }
+        .status-bar .icons { display: flex; align-items: center; gap: 5px; }
+        .status-bar .icons svg, .status-bar .icons img { width: 18px; height: 18px; object-fit: contain; }
+
+        .dynamic-island {
+            position: absolute; top: 7px; left: 50%; transform: translateX(-50%);
+            width: 100px; height: 28px; background-color: black; border-radius: 16px; z-index: 10;
+            display: flex; align-items: center; justify-content: flex-end; padding: 0 8px;
+        }
+        .camera-lens { width: 8px; height: 8px; background: #333; border-radius: 50%; }
+
+        .chat-header {
+            flex-shrink: 0; padding: 10px 15px; background-color: var(--header-bg);
+            border-bottom: 1px solid var(--border-color); display: flex;
+            justify-content: space-between; align-items: center; z-index: 2;
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            margin-top: 35px;
+        }
+        .header-title { text-align: center; flex-grow: 1; cursor: pointer; }
+        .contact-name { font-size: 1.1em; color: var(--text-primary); font-weight: 600; }
+        .contact-status { font-size: 0.8em; color: var(--online-status-color); display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .status-light { width: 8px; height: 8px; background-color: var(--online-status-color); border-radius: 50%; animation: breathing 2s ease-in-out infinite; }
+        @keyframes breathing { 0%, 100% { box-shadow: 0 0 3px 1px rgba(76, 175, 80, 0.4); } 50% { box-shadow: 0 0 10px 2px rgba(76, 175, 80, 0.8); } }
+        .header-icon { width: 24px; height: 24px; cursor: pointer; opacity: 0.7; transition: opacity 0.3s; color: var(--text-secondary); }
+        .header-icon:hover { opacity: 1; }
+
+        .chat-content-wrapper { flex-grow: 1; position: relative; overflow: hidden; }
+        .chat-background { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; transition: background-image 0.5s ease-in-out, filter 0.3s ease; z-index: 0; filter: blur(var(--wallpaper-blur)); }
+        .chat-content { position: absolute; inset: 0; overflow-y: auto; padding: 15px; display: flex; flex-direction: column-reverse; }
+        .chat-content::-webkit-scrollbar,
+        #sticker-menu-container::-webkit-scrollbar { width: 5px; }
+        .chat-content::-webkit-scrollbar-thumb,
+        #sticker-menu-container::-webkit-scrollbar-thumb { background-color: var(--border-highlight); border-radius: 3px; }
+
+        .message-wrapper { display: flex; margin-bottom: 15px; max-width: 85%; align-items: flex-start; gap: 10px; animation: message-pop 0.3s ease-out; }
+
+        @keyframes message-pop { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .avatar-container {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            position: relative; 
+        }
+
+        .message-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        /* KEY 3: 使用 ::after 伪元素创建上层遮罩（头像框） */
+        .avatar-container::after {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: -5px;
+            width: 130%;
+            height: 130%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            pointer-events: none;
+        }
+
+        /* KEY 4: 为不同角色应用不同的头像框图片 */
+        .char-message .avatar-container::after {
+            background-image: url('https://files.catbox.moe/yf66c5.png');
+        }
+
+        .user-message .avatar-container::after {
+            background-image: url('https://files.catbox.moe/8fcdv7.png');
+        }
+
+        .avatar-container.poked {
+            animation: pokeRotate 0.3s ease;
+        }
+
+        .message-content { display: flex; flex-direction: column; max-width: calc(100% - 46px); gap: 5px; }
+        .message-bubble { 
+            padding: 8px 13px; 
+            border-radius: 18px; 
+            word-wrap: break-word; 
+            line-height: 1.5; 
+            position: relative; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+            white-space: pre-wrap; 
+            font-size: 0.9em; 
+            backdrop-filter: blur(5px); 
+            -webkit-backdrop-filter: blur(5px); 
+            margin-bottom: 5px;
+        }
+
+        .message-time {
+            font-size: 0.7em; 
+            color: var(--text-secondary); 
+            opacity: 0.8; 
+            padding: 0 5px; 
+        }
+
+        .char-message { align-self: flex-start; }
+        .char-message .message-bubble { background: var(--char-bubble-bg); border-bottom-left-radius: 4px; color: var(--text-primary); }
+        .user-message { align-self: flex-end; flex-direction: row-reverse; }
+        .user-message .message-bubble { background: var(--user-bubble-bg); border-bottom-right-radius: 4px; color: var(--user-text-color); }
+        .user-message .message-content { align-items: flex-end; }
+
+        .reply-quote { display: block; background: rgba(0,0,0,0.07); padding: 6px 10px; margin: -2px -5px 8px -5px; border-left: 3px solid var(--accent-color); border-radius: 4px; font-size: 0.85em; color: var(--text-secondary); }
+        .user-message .reply-quote { background: rgba(255,255,255,0.2); border-left-color: rgba(255,255,255,0.6); color: var(--user-text-color); }
+        .reply-quote .reply-author { font-weight: 600; }
+        .reply-quote .reply-content { 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            word-break: break-word;
+        }
+
+        .voice-bubble { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .voice-bars { display: flex; align-items: center; gap: 2px; height: 16px; }
+        .voice-bars span { width: 3px; background: var(--user-text-color); border-radius: 2px; transition: height 0.3s; }
+        .char-message .voice-bars span { background: var(--accent-color); }
+        .voice-bars.playing span:nth-child(1) { animation: voice-play 1.2s infinite ease-in-out 0.1s; }
+        .voice-bars.playing span:nth-child(2) { animation: voice-play 1.2s infinite ease-in-out 0.3s; }
+        .voice-bars.playing span:nth-child(3) { animation: voice-play 1.2s infinite ease-in-out 0.5s; }
+        @keyframes voice-play { 0%, 100% { height: 4px; } 50% { height: 16px; } }
+        .voice-transcript { display: none; }
+        .transcript-visible .voice-transcript { display: block; animation: message-pop 0.3s ease-out; }
+
+        .media-bubble {
+            padding: 5px !important;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            margin-bottom: 0; 
+            white-space: normal;
+        }
+
+        .media-card {
+            position: relative; 
+            width: 180px;
+            height: auto;
+            aspect-ratio: 4 / 3; 
+            border-radius: 12px;
+            overflow: hidden;  
+            cursor: pointer;
+            background-size: cover;
+            background-position: center; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+
+        .media-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .media-desc {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+            color: white;
+            padding: 20px 10px 10px;
+            font-size: 0.85em;
+            z-index: 2; 
+            border-radius: 0 0 12px 12px; 
+        }
+
+        .media-play-icon {
+            width: 44px;
+            height: 44px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+            z-index: 1; 
+            transition: background-color 0.2s;
+            margin-bottom: 20px;
+        }
+
+        .media-card:hover .media-play-icon {
+            background-color: rgba(0, 0, 0, 0.7); 
+        }
+
+        .media-play-icon svg {
+            width: 22px; 
+            height: 22px;
+            margin-left: px; 
+        }
+
+        #imageModal .modal-image-content {
+            position: relative;
+            max-width: 80vw;  
+            max-height: 80vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #modalImage {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 12px;
+            object-fit: contain;
+        }
+
+        .modal-close-button {
+            position: absolute;
+            top: -30px;
+            right: 10px;
+            width: 32px;
+            height: 32px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 2px solid white;
+            border-radius: 50%;
+            font-size: 22px;
+            line-height: 28px;
+            text-align: center;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .sticker-bubble { padding: 0; background: transparent !important; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
+        .sticker-bubble img { max-width: 120px; max-height: 120px; border-radius: 12px; display: block; }
+
+        .transfer-bubble { 
+            background: linear-gradient(135deg, #ff8a8a, #ff5252);
+            color: white; 
+            padding: 12px; 
+            width: 180px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px; 
+        }
+
+        .transfer-header { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            border-bottom: 1px solid rgba(255,255,255,0.3); 
+            padding-bottom: 8px; 
+            font-weight: 500;
+            margin-bottom: 0; 
+        }
+
+        .transfer-icon {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        .transfer-body {
+            display: flex;
+            flex-direction: column;
+            gap: 6px; 
+        }
+
+        .transfer-body .amount { 
+            font-size: 1.4em; 
+            font-weight: bold; 
+        }
+
+        .transfer-memo {
+            font-size: 0.8em;
+            opacity: 0.9;
+            padding-top: 6px; 
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            word-wrap: break-word;
+            margin-top: 0;
+        }
+
+        .input-area { position: relative; flex-shrink: 0; background: var(--header-bg); border-top: 1px solid var(--border-color); padding: 10px; z-index: 10; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        .main-input { display: flex; align-items: flex-end; gap: 8px; }
+        .input-wrapper { flex-grow: 1; display: flex; align-items: center; background: var(--secondary-bg); border: 1px solid var(--border-color); border-radius: 20px; padding: 0 10px; }
+        #chat-textarea { flex-grow: 1; background: none; border: none; padding: 10px 0; color: var(--text-primary); resize: none; font-family: inherit; font-size: 1em; max-height: 120px; outline: none; width: 65%;}
+        .input-button { flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; background: none; border: none; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: all 0.2s; color: var(--text-secondary); }
+        .input-button:hover { background-color: var(--border-color); }
+        #send-btn { background-color: var(--accent-color); color: white; }
+
+        .panel-menu { position: absolute; bottom: calc(100% + 5px); left: 10px; right: 10px; background: var(--panel-bg); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; z-index: 5; opacity: 0; visibility: hidden; transform: translateY(10px); transition: all 0.25s ease-out; }
+        .panel-menu.visible { opacity: 1; visibility: visible; transform: translateY(0); }
+
+        #plus-menu { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .plus-menu-item { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
+        .plus-menu-icon { width: 55px; height: 55px; background: var(--secondary-bg); border: 1px solid var(--border-color); border-radius: 15px; display: flex; justify-content: center; align-items: center; font-size: 24px; transition: all 0.2s; }
+        .plus-menu-icon img { width: 30px; height: 30px; object-fit: contain; }
+        .plus-menu-item:hover .plus-menu-icon { background-color: var(--border-color); transform: scale(1.05); }
+        .plus-menu-label { font-size: 12px; color: var(--text-secondary); }
+
+        #sticker-menu-container { max-height: 250px; overflow-y: auto; overflow-x: hidden; margin-bottom: 10px; }
+        #sticker-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .sticker-item-wrapper { position: relative; }
+        .sticker-item { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 10px; cursor: pointer; transition: transform 0.2s; }
+        .sticker-item:hover { transform: scale(1.1); }
+        #sticker-menu-actions { display: flex; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; }
+        .sticker-action-btn { flex: 1; background: var(--secondary-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; font-size: 13px; cursor: pointer; text-align: center; }
+
+        .context-menu { position: fixed; background: var(--panel-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: 8px; padding: 5px; z-index: 1001; opacity: 0; transform: scale(0.9); pointer-events: none; transition: all 0.2s; }
+        .context-menu.active { opacity: 1; transform: scale(1); pointer-events: auto; }
+        .context-menu-item { background: none; border: none; color: var(--text-primary); padding: 8px 12px; cursor: pointer; width: 100%; text-align: left; border-radius: 4px; font-size: 14px; }
+        .context-menu-item:hover { background-color: var(--border-color); }
+        .context-menu-item.danger { color: var(--danger-color); }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0, 0.3); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 1000; display: flex; justify-content: center; align-items: center; opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0s 0.3s; }
+        .modal-overlay.visible { opacity: 1; visibility: visible; transition-delay: 0s; }
+        .modal-content { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; width: 90%; max-width: 380px; animation: modal-pop-in 0.3s ease-out; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        @keyframes modal-pop-in { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .modal-title { font-size: 1.2em; color: var(--text-primary); margin-bottom: 15px; font-weight: 600; }
+        .modal-label { display: block; margin-bottom: 5px; font-size: 0.9em; color: var(--text-secondary); }
+        .modal-input { width: 100%; background: var(--secondary-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; color: var(--text-primary); margin-bottom: 15px; }
+        .wallpaper-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .wallpaper-thumb-wrapper { position: relative; }
+        .wallpaper-thumb { width: 100%; height: 80px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; object-fit: cover; transition: border-color 0.2s; }
+        .wallpaper-thumb.active { border-color: var(--accent-color); }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .modal-button { background: var(--border-color); border: none; color: var(--text-primary); padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+        .modal-button.primary { background: var(--accent-color); color: white; }
+        .slider-container { display: flex; align-items: center; gap: 10px; }
+
+        .loading-dots span { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent-color); animation: bounce 1.4s infinite ease-in-out both; }
+        .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+
+        /* --- 一起听 --- */
+        /* 1. 头部图标 */
+        #listenBtn {
+            margin-right: auto;
+            width: 33px; 
+            height: 33px;
+        }
+
+        /* 2. 主弹窗容器 */
+        .listen-together-content {
+            background: var(--panel-bg); 
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            color: var(--text-primary);
+            border-radius: 24px;
+            padding: 20px;
+            width: 95%;
+            max-width: 320px;
+            height: 90%;
+            max-height: 550px;
+            display: flex;
+            flex-direction: column;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            box-shadow: 0 5px 25px rgba(10, 77, 104, 0.2);
+            border: 1px solid var(--border-highlight);
+            z-index: 10;
+        }
+
+        /* 3. 头部：头像和计时器 */
+        .listen-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #588097; 
+        }
+
+        .listen-avatars {
+            position: relative;
+            width: 60px;
+            height: 40px;
+        }
+        .listen-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--accent-color); 
+            object-fit: cover;
+            position: absolute;
+        }
+        #listenCharAvatar { top: 0; left: 0; z-index: 1; }
+        #listenUserAvatar { top: 0; left: 20px; }
+
+        .listen-timer-container { text-align: left; }
+        .listen-status-text {
+            font-size: 12px;
+            color: var(--text-secondary); 
+        }
+        .listen-timer-display {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        /* 4. 歌曲信息 */
+        .listen-song-info {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+        }
+        .song-cover-art {
+            width: 120px; 
+            height: 120px;
+            background-color: var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 15px;
+            background-size: cover; 
+            background-position: center;
+            box-shadow: 0 4px 10px rgba(10, 77, 104, 0.1);
+        }
+        .song-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .song-artist {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* 5. 播放控件 */
+        .listen-player-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 10px 0 20px;
+        }
+        .player-btn {
+            background: none;
+            border: none;
+            color: var(--text-primary); 
+            cursor: pointer;
+            padding: 0;
+        }
+        .player-btn svg {
+            width: 28px;
+            height: 28px;
+            fill: currentColor;
+            opacity: 0.7;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .player-btn:hover svg { opacity: 1; }
+        .play-btn svg {
+            width: 48px;
+            height: 48px;
+            color: var(--accent-color); 
+        }
+        .player-btn:active svg { transform: scale(0.9); }
+
+        /* 6. 播放列表 (含滚动条样式) */
+        .listen-playlist-container {
+            flex-grow: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 8px;
+            border: 1px solid #588097;
+        }
+        .playlist-header {
+            font-size: 12px;
+            color: var(--text-secondary);
+            padding: 8px 12px;
+            border-bottom: 1px solid #588097;
+            flex-shrink: 0;
+        }
+        .playlist-ui {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto; 
+            scrollbar-width: thin; 
+            scrollbar-color: var(--border-highlight) transparent;
+        }
+        .playlist-ui::-webkit-scrollbar { width: 5px; }
+        .playlist-ui::-webkit-scrollbar-thumb {
+            background: var(--border-highlight);
+            border-radius: 3px;
+        }
+        .playlist-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .playlist-item:last-child { border-bottom: none; }
+        .playlist-item:hover { background-color: var(--border-color); }
+        .playlist-item-index {
+            font-size: 14px;
+            color: var(--text-secondary);
+            width: 25px;
+            text-align: center;
+        }
+        .playlist-item-info { flex-grow: 1; }
+        .playlist-item-title {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .playlist-item-artist {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .playlist-item.active { background-color: var(--border-color); }
+        .playlist-item.active .playlist-item-title {
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        .playlist-item-delete-btn {
+            background-color: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 20px;
+            line-height: 1;
+            padding: 5px 8px;
+            border-radius: 50%;
+            
+            /* 把它推到最右边 */
+            margin-left: auto;
+            
+            opacity: 0.6;
+            transition: opacity 0.2s, background-color 0.2s;
+        }
+
+        .playlist-item-delete-btn:hover {
+            opacity: 1;
+            background-color: var(--border-highlight);
+        }
+
+        /* 7. 底部操作按钮 */
+        .listen-actions {
+            flex-shrink: 0;
+            display: flex;
+            gap: 10px;
+            padding-top: 15px;
+        }
+        .listen-action-btn {
+            flex: 1;
+            padding: 8px; 
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-size: 13px; 
+            font-weight: 500;
+            cursor: pointer;
+            background-color: var(--secondary-bg);
+            color: var(--text-primary);
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .listen-action-btn:hover { background-color: var(--border-color); }
+        .listen-action-btn.danger {
+            background-color: rgb(105, 172, 198);
+            border-color: transparent;
+            color: white;
+        }
+        .listen-action-btn.danger:hover { background-color: rgb(77, 129, 150); }
+
+        /* --- 戳一戳 --- */
+        .poke-notification {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.95);
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 999;
+            text-align: center;
+        }
+        .poke-notification .poke-avatar-img {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            margin-bottom: 8px;
+        }
+        .poke-notification .poke-text {
+            font-size: 14px;
+            color: #333;
+        }
+
+        @keyframes pokeIn {
+            from { opacity: 0; transform: translate(-50%, -60%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+        @keyframes pokeOut {
+            from { opacity: 1; transform: translate(-50%, -50%); }
+            to { opacity: 0; transform: translate(-50%, -40%); }
+        }
+        @keyframes pokeRotate {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(-15deg); }
+            75% { transform: rotate(15deg); }
+            100% { transform: rotate(0deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-outer-container">
+        <img src="https://files.catbox.moe/415zxi.png" class="phone-charm">
+        <div class="volume-keys-outer">
+            <div class="volume-key-outer"></div>
+            <div class="volume-key-outer"></div>
+        </div>
+        <div class="power-key-outer"></div>
+        <div class="phone-container">
+            <div class="poke-notification">
+                <img src="" class="poke-avatar-img">
+                <div class="poke-text"></div>
+            </div>
+            <div class="status-bar">
+                <span class="time" id="phoneTime">9:41</span>
+                <span class="icons">
+                    <img src="https://i.postimg.cc/05GGddWF/xinhao.png" alt="signal">
+                    <img src="https://i.postimg.cc/J733cc6F/WIFI.png" alt="wifi">
+                    <img src="https://files.catbox.moe/zdbjcu.png" alt="battery">
+                </span>
+            </div>
+            <div class="dynamic-island"><div class="camera-lens"></div></div>
+            <div class="chat-header">
+                <img id="listenBtn" class="header-icon" src="https://files.catbox.moe/m72cdd.png" alt="一起听">
+
+                <div class="header-title" id="headerTitle">
+                    <div class="contact-name" id="contactName">Ghost</div>
+                    <div class="contact-status"><div class="status-light"></div>Online</div>
+                </div>
+                <img id="settingsBtn" class="header-icon" src="https://i.postimg.cc/4ytXVxbW/shezhi.png" alt="settings">
+            </div>
+            <div class="chat-content-wrapper">
+                <div class="chat-background" id="chatBackground"></div>
+                <div class="chat-content" id="chatContent"></div>
+            </div>
+            <div class="input-area">
+                <div class="main-input">
+                    <button id="plus-btn" class="input-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                    <div class="input-wrapper">
+                        <textarea id="chat-textarea" placeholder="text messages..." rows="1"></textarea>
+                    </div>
+                    <button id="voice-btn" class="input-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
+                    </button>
+                    <button id="send-btn" class="input-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </div>
+                <div id="plus-menu" class="panel-menu">
+                    <div class="plus-menu-item" data-action="photo"><div class="plus-menu-icon"><img src="https://i.postimg.cc/262fW9tT/tupian.png" alt="照片"></div><span class="plus-menu-label">照片</span></div>
+                    <div class="plus-menu-item" data-action="video"><div class="plus-menu-icon"><img src="https://i.postimg.cc/pTqtjcSC/shipin.png" alt="视频"></div><span class="plus-menu-label">视频</span></div>
+                    <div class="plus-menu-item" data-action="transfer"><div class="plus-menu-icon"><img src="https://i.postimg.cc/bJ3jnV53/zhuanzhang.png" alt="转账"></div><span class="plus-menu-label">转账</span></div>
+                    <div class="plus-menu-item" data-action="sticker"><div class="plus-menu-icon"><img src="https://i.postimg.cc/1tJZF7dK/biaoqingbao.png" alt="表情"></div><span class="plus-menu-label">表情</span></div>
+                </div>
+                <div id="sticker-menu" class="panel-menu">
+                    <div id="sticker-menu-container"><div id="sticker-grid"></div></div>
+                    <div id="sticker-menu-actions">
+                        <button id="uploadStickerFile" class="sticker-action-btn">上传图片</button>
+                        <button id="uploadStickerUrl" class="sticker-action-btn">使用图链</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="listenTogetherModal">
+        <div class="listen-together-content">
+            <div class="listen-header">
+                <div class="listen-avatars">
+                    <img src="" id="listenCharAvatar" class="listen-avatar">
+                    <img src="" id="listenUserAvatar" class="listen-avatar">
+                </div>
+                <div class="listen-timer-container">
+                    <div class="listen-status-text">一起听了</div>
+                    <div id="listenTimer" class="listen-timer-display">0小时 0分钟</div>
+                </div>
+            </div>
+            <div class="listen-song-info">
+                <div id="songCoverArt" class="song-cover-art"></div>
+                <div id="songTitle" class="song-title">暂无歌曲</div>
+                <div id="songArtist" class="song-artist">请添加歌曲</div>
+            </div>
+            <div class="listen-player-controls">
+                <button id="prevSongBtn" class="player-btn"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"></path></svg></button>
+                <button id="playPauseBtn" class="player-btn play-btn"><svg viewBox="0 0 24 24"><path id="playPauseIcon" d="M8 5v14l11-7z"></path></svg></button>
+                <button id="nextSongBtn" class="player-btn"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"></path></svg></button>
+            </div>
+            <div class="listen-playlist-container">
+                <div class="playlist-header">播放列表</div>
+                <ul id="playlistUI" class="playlist-ui">
+                    <!-- 歌曲列表将在这里动态生成 -->
+                </ul>
+            </div>
+            <div class="listen-actions">
+                <button id="addSongBtn" class="listen-action-btn">添加歌曲</button>
+                <button id="returnToChatBtn" class="listen-action-btn secondary">返回聊天</button>
+                <button id="exitListenBtn" class="listen-action-btn danger">退出一起听</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增：添加歌曲 弹窗 -->
+    <div class="modal-overlay" id="addSongModal">
+        <div class="modal-content">
+            <div class="modal-title">添加歌曲</div>
+            <div class="modal-input-group">
+                <label class="modal-label">歌曲名</label>
+                <input type="text" id="addSongTitle" class="modal-input" placeholder="必填">
+            </div>
+            <div class="modal-input-group">
+                <label class="modal-label">歌手</label>
+                <input type="text" id="addSongArtist" class="modal-input" placeholder="必填">
+            </div>
+            <div class="modal-input-group">
+                <label class="modal-label">歌曲封面 (选填)</label>
+                <input type="file" id="addSongCoverFileInput" accept="image/*" class="modal-input">
+                <input type="text" id="addSongCoverUrlInput" class="modal-input" placeholder="或粘贴图片链接..." style="margin-top: 5px;">
+            </div>
+            <hr style="border:none; border-top: 1px solid var(--border-color); margin: 15px 0;">
+            <div class="modal-input-group">
+                <label class="modal-label">从本地上传 (MP3, M4A, WAV)</label>
+                <input type="file" id="addSongFileInput" accept=".mp3,.m4a,.wav" class="modal-input">
+            </div>
+            <div class="modal-input-group">
+                <label class="modal-label">或使用网络链接</label>
+                <input type="text" id="addSongUrlInput" class="modal-input" placeholder="粘贴音频链接...">
+            </div>
+            <div class="modal-actions">
+                <button class="modal-button" data-action="close-modal">取消</button>
+                <button id="confirmAddSongBtn" class="modal-button primary">确认添加</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-title">设置</div>
+            <div class="modal-input-group"><label class="modal-label">修改角色昵称</label><input type="text" id="nicknameInput" class="modal-input"></div>
+            <div class="modal-input-group"><label class="modal-label">角色头像 (上传图片)</label><input type="file" id="charAvatarInput" accept="image/*" class="modal-input"></div>
+            <div class="modal-input-group"><label class="modal-label">你的头像 (上传图片)</label><input type="file" id="userAvatarInput" accept="image/*" class="modal-input"></div>
+            <hr style="border:none; border-top: 1px solid var(--border-color); margin: 15px 0;">
+            <div class="modal-input-group"><label class="modal-label">聊天壁纸 (点击下方+号上传)</label></div>
+            <div class="wallpaper-grid" id="wallpaperGrid"></div>
+            <div class="modal-input-group"><label class="modal-label">壁纸模糊度</label><div class="slider-container"><input type="range" id="wallpaperBlurSlider" min="0" max="20" value="0" step="1" style="width:100%"></div></div>
+            <div class="modal-actions">
+                <button id="defaultSettingsBtn" class="modal-button" style="margin-right: auto;">恢复默认</button>
+                <button id="settingsSave" class="modal-button primary">保存</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="voiceModal">
+        <div class="modal-content">
+            <div class="modal-title">发送语音</div>
+            <textarea id="voiceContentInput" class="modal-input" placeholder="请在此输入语音的文字内容..." rows="4"></textarea>
+            <div class="modal-actions"><button class="modal-button" data-action="close-modal">取消</button><button id="voiceSend" class="modal-button primary">发送</button></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="mediaModal">
+        <div class="modal-content">
+            <div id="mediaModalTitle" class="modal-title">发送照片</div>
+            <textarea id="mediaDescInput" class="modal-input" placeholder="输入描述..." rows="3"></textarea>
+            <div class="modal-actions"><button class="modal-button" data-action="close-modal">取消</button><button id="mediaSend" class="modal-button primary">发送</button></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="transferModal">
+        <div class="modal-content">
+            <div class="modal-title">转账</div>
+            <label class="modal-label">金额</label><input type="number" id="transferAmountInput" class="modal-input" placeholder="0.00">
+            <label class="modal-label">备注</label><input type="text" id="transferMemoInput" class="modal-input" placeholder="（选填）" maxlength="20">
+            <div class="modal-actions"><button class="modal-button" data-action="close-modal">取消</button><button id="transferSend" class="modal-button primary">发送</button></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="stickerUrlModal">
+        <div class="modal-content">
+            <div class="modal-title">发送网络图片</div>
+            <input type="text" id="stickerUrlInput" class="modal-input" placeholder="粘贴图片链接...">
+            <div class="modal-actions"><button class="modal-button" data-action="close-modal">取消</button><button id="stickerUrlSend" class="modal-button primary">发送</button></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="imageModal">
+        <div class="modal-image-content">
+            <img src="" id="modalImage" alt="放大的图片">
+            <button id="closeModalBtn" class="modal-close-button">&times;</button>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu">
+        <button class="context-menu-item" data-action="reply">引用</button>
+        <button class="context-menu-item" data-action="delete">删除</button>
+        <button class="context-menu-item danger" data-action="recall">撤回</button>
+    </div>
+    
+    <!-- Hidden Inputs -->
+    <input type="file" id="stickerFileInput" accept="image/*" style="display: none;">
+    <input type="file" id="customWallpaperInput" accept="image/*" style="display: none;">
+
+    <div id="chat-data" style="display: none;">
+    $1
+    
+    <script src="js/main.js"></script>
+</body>
+</html>
