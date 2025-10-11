@@ -247,14 +247,22 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'photo':
             case 'video': {
                 bubbleClass += ' media-bubble';
-                const finalImageUrl = data.imageUrl || '';
-                let overlayHTML = ''; 
+                let finalImageUrl = data.imageUrl;
+                let overlayHTML = '';
+
+                // ----- 关键修复：在这里添加默认封面逻辑 -----
+                if (!finalImageUrl) { // 如果传入的 imageUrl 为空或未定义
+                    if (type === 'photo') {
+                        finalImageUrl = 'https://files.catbox.moe/9bkivz.jpg'; // 用户照片默认图
+                    } else if (type === 'video') {
+                        finalImageUrl = 'https://files.catbox.moe/nj8ts3.jpg'; // 用户视频默认图
+                    }
+                }
                 
                 if (type === 'video') { 
                     overlayHTML = `<div class="media-play-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg></div>`;
                 }
                 
-                // 直接应用 finalImageUrl
                 innerHTML = `<div class="${bubbleClass}">
                                ${bubbleContent}
                                <div class="media-card" style="background-image: url('${finalImageUrl}')">
@@ -382,83 +390,58 @@ document.addEventListener('DOMContentLoaded', () => {
         }, thinkingTime);
     }
 
-    // ----- REFACTORED: Chat Parsing and Rendering Logic -----
+    // ----- REFACTORED: Chat Parsing and Rendering Logic (兼容半/全角符号) -----
     function parseAndRenderChat() {
         const dataContainer = getEl('chat-data');
         if (!dataContainer) return;
 
-        const currentMessages = new Set([...chatContent.querySelectorAll('.message-wrapper')].map(el => el.dataset.id));
-        
-        const rawText = dataContainer.innerHTML;
-        const decodedText = rawText.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-        const messageRegex = /\[(角色消息|用户消息)\s*\|\s*([^|]+?)\s*\|\s*([\s\S]+?)\]/g;
-        const matches = [...decodedText.matchAll(messageRegex)];
-
-        let hasNewCharMessage = false;
-
-        for (const match of matches) {
-            const [, senderRaw, timeRaw, contentRaw] = match;
-            const uniqueId = senderRaw + timeRaw + contentRaw;
-
-            
-            const sender = senderRaw === '用户消息' ? 'user' : 'char';
-            const time = timeRaw.trim();
-            const content = contentRaw.trim();
-            
-            let type, data;
-            let richMatch;
-
-            if (richMatch = /<voice>([\s\S]*?)<\/voice>/.exec(content)) {
-                type = 'voice'; data = { text: richMatch[1] };
-            } 
-            else if (richMatch = /<transfer>([^;]+?)(?:；\s*(.*?))?<\/transfer>/.exec(content)) {
-                type = 'transfer'; data = { amount: (richMatch[1] || '0.00').trim(), memo: (richMatch[2] || '').trim() };
-            }
-            else if (richMatch = /<video>([^;]+?)(?:；\s*(.*?))?<\/video>/.exec(content)) {
-                type = 'video'; data = { text: (richMatch[2] || '').trim(), imageUrl: (richMatch[1] || '').trim() };
-            }
-            else if (richMatch = /<photo>([^;]+?)(?:；\s*(.*?))?<\/photo>/.exec(content)) {
-                type = 'photo'; data = { text: (richMatch[2] || '').trim(), imageUrl: (richMatch[1] || '').trim() };
-            }
-            else if (richMatch = /<(?:meme|表情)>([\s\S]*?)<\/(?:meme|表情)>/.exec(content)) {
-                 const sticker = defaultStickers.find(s => s.name === richMatch[1].trim());
-                 if (sticker) {
-                    type = 'sticker'; data = { name: sticker.name, url: sticker.url };
-                 }
-            }
-            else {
-                type = 'text'; data = { text: content };
-            }
-
-            if (chatContent.children.length === 0) {
-                 const messageElement = createMessage(type, sender, data, time);
-                 if(messageElement) addMessageToChat(messageElement);
-            } else if (sender === 'char') {
-            }
-        }
-        
         // --- Simplified Full Re-render Logic ---
         chatContent.innerHTML = ''; 
         charMessageQueue = []; 
 
+        const rawText = dataContainer.innerHTML;
+        const decodedText = rawText.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+
+        // 关键修复 1: 匹配半角或全角的 |
+        const messageRegex = /\[(角色消息|用户消息)\s*[|｜]\s*([^|｜]+?)\s*[|｜]\s*([\s\S]+?)\]/g;
+        
+        const matches = [...decodedText.matchAll(messageRegex)];
+
         for (const match of matches) {
-             const [, senderRaw, timeRaw, contentRaw] = match;
+            const [, senderRaw, timeRaw, contentRaw] = match;
             const sender = senderRaw === '用户消息' ? 'user' : 'char';
             const time = timeRaw.trim();
             const content = contentRaw.trim();
             
-            let type, data; let richMatch;
-            if (richMatch = /<voice>([\s\S]*?)<\/voice>/.exec(content)) { type = 'voice'; data = { text: richMatch[1] }; } 
-            else if (richMatch = /<transfer>([^;]+?)(?:；\s*(.*?))?<\/transfer>/.exec(content)) { type = 'transfer'; data = { amount: (richMatch[1] || '0.00').trim(), memo: (richMatch[2] || '').trim() }; }
-            else if (richMatch = /<video>([^;]+?)(?:；\s*(.*?))?<\/video>/.exec(content)) { type = 'video'; data = { text: (richMatch[2] || '').trim(), imageUrl: (richMatch[1] || '').trim() }; }
-            else if (richMatch = /<photo>([^;]+?)(?:；\s*(.*?))?<\/photo>/.exec(content)) { type = 'photo'; data = { text: (richMatch[2] || '').trim(), imageUrl: (richMatch[1] || '').trim() }; }
-            else if (richMatch = /<(?:meme|表情)>([\s\S]*?)<\/(?:meme|表情)>/.exec(content)) { const sticker = defaultStickers.find(s => s.name === richMatch[1].trim()); if (sticker) { type = 'sticker'; data = { name: sticker.name, url: sticker.url }; } }
-            else { type = 'text'; data = { text: content }; }
+            let type, data, richMatch;
+
+            // 关键修复 2: 在所有特殊消息的正则中，匹配半角或全角的 ;
+            if (richMatch = /<voice>([\s\S]*?)<\/voice>/.exec(content)) { 
+                type = 'voice'; data = { text: richMatch[1] }; 
+            } 
+            else if (richMatch = /<transfer>([^;；]+?)(?:[;；]\s*(.*?))?<\/transfer>/.exec(content)) { 
+                type = 'transfer'; data = { amount: (richMatch[1] || '0.00').trim(), memo: (richMatch[2] || '').trim() }; 
+            }
+            else if (richMatch = /<video>([^;；]+?)(?:[;；]\s*(.*?))?<\/video>/.exec(content)) { 
+                type = 'video'; data = { text: (richMatch[2] || '').trim(), imageUrl: (richMatch[1] || '').trim() }; 
+            }
+            else if (richMatch = /<photo>([^;；]+?)(?:[;；]\s*(.*?))?<\/photo>/.exec(content)) { 
+                type = 'photo'; data = { text: (richMatch[2] || '').trim(), imageUrl: (richMatch[1] || '').trim() }; 
+            }
+            else if (richMatch = /<(?:meme|表情)>([\s\S]*?)<\/(?:meme|表情)>/.exec(content)) { 
+                const sticker = defaultStickers.find(s => s.name === richMatch[1].trim()); 
+                if (sticker) { type = 'sticker'; data = { name: sticker.name, url: sticker.url }; } 
+            }
+            else { 
+                type = 'text'; data = { text: content }; 
+            }
+
+            if (!type) continue; // 如果是未找到的表情等情况，就跳过
 
             if (sender === 'user') {
-                 const messageElement = createMessage(type, sender, data, time);
-                 if(messageElement) addMessageToChat(messageElement);
-            } else { // It's a character message, queue it up!
+                const messageElement = createMessage(type, sender, data, time);
+                if(messageElement) addMessageToChat(messageElement);
+            } else {
                 charMessageQueue.push({ type, data, time });
             }
         }
@@ -488,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const pokeAvatarImg = notification.querySelector('.poke-avatar-img');
         
         pokeText.textContent = text;
-        pokeAvatarImg.src = 'https://i.postimg.cc/j2N1G0gM/9da5456f04ede72061a169b82cd6adf7.jpg';
+        pokeAvatarImg.src = 'https://files.catbox.moe/4ck13y.jpg';
     
         notification.style.display = 'block';
         notification.style.animation = 'pokeIn 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards';
@@ -539,7 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
         }
 
-        const messageStr = `\n[用户消息|${time}|${contentStr}]`;
+        const messageStr = `\n[用户消息｜${time}｜${contentStr}]`;
         
         dataContainer.innerHTML += messageStr;
     }
@@ -551,10 +534,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ----- 发送所有缓存消息 (最终修复版) -----
-    function sendAllCachedMessages() {
+     function sendAllCachedMessages() {
         if (userMessageCache.length === 0) return;
 
-        // 使用 \n 连接，因为 triggerSlash 可能需要它
         const formattedMessages = userMessageCache.map(msg => {
             const now = new Date();
             const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -563,7 +545,6 @@ document.addEventListener('DOMContentLoaded', () => {
             switch (msg.type) {
                 case 'text':
                     if (msg.data.quote) {
-                        // 在这里，我们仍然使用 \n，因为这是消息内部的换行
                         const reconstructedQuote = `> 引用 ${msg.data.quote.author} 的消息: "${msg.data.quote.content}..."\n`;
                         contentStr = reconstructedQuote + msg.data.text;
                     } else {
@@ -576,15 +557,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'video': contentStr = `<video>;${msg.data.text}</video>`; break;
                 case 'transfer': contentStr = `<transfer>${msg.data.amount}；${msg.data.memo}</transfer>`; break;
             }
-            return `[用户消息|${time}|${contentStr}]`;
-        }).join('\n\n'); // <-- 关键修复1：用 \n 连接多条消息
+            // 关键修复：使用全角竖线 `｜` 作为我们自己的定界符
+            return `[用户消息｜${time}｜${contentStr}]`; // <-- 注意！这里的竖线是全角的！
+        }).join('\n\n'); // <-- 使用 \n 连接多条消息
 
-        console.log("准备发送的格式化消息:\n", formattedMessages);
-        
+        console.log("准备发送的格式化消息 (使用全角符号):\n", formattedMessages);
+
         try {
             if (typeof triggerSlash === 'function') {
-                // 关键修复2：完全复刻参考代码的格式，保留 <br> 和 \n
-                triggerSlash(`/send 回复和Ghost的聊天:<br>\n\n${formattedMessages}|/trigger`);
+                // 在最终命令里，我们仍然需要一个 <br> 和 \n 来确保格式正确
+                const finalCommand = `/send 回复和Ghost的聊天:\n\n${formattedMessages}
+                \n\n<!-- request:以上消息,每一行都是一条单独的消息，每一行用户消息都要生成完整的格式，参考世界书的Ghost_phone，禁止省略；根据语境，可以一条一条分开回复，也可以一起回复，但要保证仍维持在同一个聊天界面内 -->
+                |/trigger`;
+                console.log("最终发送的命令:", finalCommand);
+                triggerSlash(finalCommand);
             } else {
                 console.warn('triggerSlash 函数未定义，消息仅在控制台输出。');
             }
@@ -662,19 +648,42 @@ document.addEventListener('DOMContentLoaded', () => {
     function getCustomWallpapers() { return JSON.parse(localStorage.getItem('ghost_custom_wallpapers') || '[]'); }
     function saveCustomWallpapers(wallpapers) { localStorage.setItem('ghost_custom_wallpapers', JSON.stringify(wallpapers)); }
 
-    // ----- Settings Logic (最终修复版) -----
+    // ----- 全局UI刷新函数 (最终升级版) -----
+    function refreshUI() {
+        // 1. 更新顶部的联系人昵称
+        getEl('contactName').textContent = localStorage.getItem('ghost_chat_nickname') || 'Ghost';
+
+        // 2. 更新JS变量中的头像URL
+        userAvatar = localStorage.getItem('ghost_user_avatar') || 'https://i.postimg.cc/28FHXK0k/1040g008318macbkbjk004ap6ggeu186bojtt370-nd-dft-wlteh-webp-3.webp';
+        charAvatar = localStorage.getItem('ghost_char_avatar') || 'https://files.catbox.moe/ae0qp5.jpg';
+
+        // 3. 遍历屏幕上所有已存在的消息，并更新它们的头像
+        document.querySelectorAll('.message-avatar').forEach(avatarImg => {
+            if (avatarImg.dataset.sender === 'user') {
+                avatarImg.src = userAvatar;
+            } else if (avatarImg.dataset.sender === 'char') {
+                avatarImg.src = charAvatar;
+            }
+        });
+
+        // 4. 关键修复：新增更新壁纸和模糊度的逻辑
+        const savedWallpaper = localStorage.getItem('ghost_chat_wallpaper') || defaultWallpapers[0];
+        getEl('chatBackground').style.backgroundImage = `url(${savedWallpaper})`;
+
+        const savedBlur = localStorage.getItem('ghost_wallpaper_blur') || '0';
+        document.documentElement.style.setProperty('--wallpaper-blur', `${savedBlur}px`);
+    }
+
+    // ----- Settings Logic (最终修复版，修正恢复默认功能) -----
+    // ----- Settings Logic (最终精简版) -----
     function setupSettings() {
         const load = () => {
-            getEl('contactName').textContent = localStorage.getItem('ghost_chat_nickname') || 'Ghost';
-            userAvatar = localStorage.getItem('ghost_user_avatar') || 'https://i.postimg.cc/28FHXK0k/1040g008318macbkbjk004ap6ggeu186bojtt370-nd-dft-wlteh-webp-3.webp';
-            charAvatar = localStorage.getItem('ghost_char_avatar') || 'https://i.postimg.cc/j2N1G0gM/9da5456f04ede72061a169b82cd6adf7.jpg';
+            // load 函数现在只负责加载设置面板本身的内容
+            getEl('nicknameInput').value = localStorage.getItem('ghost_chat_nickname') || 'Ghost';
             
-            const savedWallpaper = localStorage.getItem('ghost_chat_wallpaper') || defaultWallpapers[0]; 
-            getEl('chatBackground').style.backgroundImage = `url(${savedWallpaper})`;
-
-            const savedBlur = localStorage.getItem('ghost_wallpaper_blur') || '0';
-            document.documentElement.style.setProperty('--wallpaper-blur', `${savedBlur}px`);
-            getEl('wallpaperBlurSlider').value = savedBlur;
+            // 从 DOM 或 CSS 变量中读取当前状态，而不是 localStorage
+            const savedWallpaper = getEl('chatBackground').style.backgroundImage.slice(5, -2);
+            const savedBlur = getEl('wallpaperBlurSlider').value || '0'; // 从滑块读取
             
             const wallpaperGrid = getEl('wallpaperGrid');
             wallpaperGrid.innerHTML = '';
@@ -684,34 +693,24 @@ document.addEventListener('DOMContentLoaded', () => {
             allWallpapers.forEach((url) => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'wallpaper-thumb-wrapper';
-
                 const thumb = document.createElement('img');
                 thumb.src = url;
                 thumb.className = 'wallpaper-thumb';
                 thumb.dataset.url = url;
-                
-                if (url === savedWallpaper) {
-                    thumb.classList.add('active');
-                }
-
-                // --- 核心修复在这里 ---
+                if (url === savedWallpaper) { thumb.classList.add('active'); }
                 thumb.onclick = () => {
                     playSound(clickSound);
-                    // 移除旧的选中状态
                     const currentActive = wallpaperGrid.querySelector('.active');
-                    if (currentActive) {
-                        currentActive.classList.remove('active');
-                    }
-                    // 添加新的选中状态
+
+                    if (currentActive) { currentActive.classList.remove('active'); }
                     thumb.classList.add('active');
-                    
-                    // 新增：点击缩略图时，立即更新聊天背景以实现实时预览
                     getEl('chatBackground').style.backgroundImage = `url(${thumb.dataset.url})`;
                 };
-                
                 wrapper.appendChild(thumb);
                 wallpaperGrid.appendChild(wrapper);
             });
+            
+            getEl('wallpaperBlurSlider').value = savedBlur;
 
             const uploadWrapper = document.createElement('div');
             uploadWrapper.className = 'wallpaper-thumb-wrapper';
@@ -723,38 +722,44 @@ document.addEventListener('DOMContentLoaded', () => {
         const save = () => {
             playSound(clickSound);
             const newName = getEl('nicknameInput').value.trim();
-            if (newName) localStorage.setItem('ghost_chat_nickname', newName);
-            
-            // 保存当前选中的壁纸
+            if (newName) { localStorage.setItem('ghost_chat_nickname', newName); }
             const activeWallpaper = getEl('wallpaperGrid').querySelector('.active');
-            if (activeWallpaper) {
-                localStorage.setItem('ghost_chat_wallpaper', activeWallpaper.dataset.url);
-            }
-
+            if (activeWallpaper) { localStorage.setItem('ghost_chat_wallpaper', activeWallpaper.dataset.url); }
             localStorage.setItem('ghost_wallpaper_blur', getEl('wallpaperBlurSlider').value);
             toggleModal('settingsModal', false);
-            // 保存后不再需要重新加载，因为预览已经是最终效果
-            // load(); 
-            // 也不需要重新渲染聊天，因为壁纸不影响消息内容
-            // parseAndRenderChat(); 
+            refreshUI();
         };
 
         const handleAvatarChange = (e, type) => {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = (event) => { localStorage.setItem(`ghost_${type}_avatar`, event.target.result); if (type === 'user') userAvatar = event.target.result; else if (type === 'char') charAvatar = event.target.result; };
+                reader.onload = (event) => {
+                    localStorage.setItem(`ghost_${type}_avatar`, event.target.result);
+                    refreshUI();
+                };
                 reader.readAsDataURL(file);
             }
         };
 
-        settingsBtn.onclick = () => { getEl('nicknameInput').value = getEl('contactName').textContent; toggleModal('settingsModal', true); };
+        settingsBtn.onclick = () => { 
+            load(); 
+            toggleModal('settingsModal', true); 
+        };
+
+        getEl('defaultSettingsBtn').onclick = () => {
+            playSound(clickSound);
+            localStorage.clear();
+            refreshUI(); // 全局刷新，一步到位
+            load(); 
+            populateStickerMenu();
+        };
+        
         getEl('settingsModal').onclick = (e) => { if (e.target === e.currentTarget) toggleModal('settingsModal', false); };
         getEl('settingsSave').onclick = save;
         getEl('userAvatarInput').onchange = (e) => handleAvatarChange(e, 'user');
         getEl('charAvatarInput').onchange = (e) => handleAvatarChange(e, 'char');
         getEl('wallpaperBlurSlider').oninput = (e) => document.documentElement.style.setProperty('--wallpaper-blur', `${e.target.value}px`);
-        
         getEl('customWallpaperInput').onchange = (e) => {
             const file = e.target.files[0];
             if (file) {
@@ -768,15 +773,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 reader.readAsDataURL(file);
             }
         };
-
-        getEl('defaultSettingsBtn').onclick = () => {
-            playSound(clickSound);
-            localStorage.clear();
-            load(); // 恢复默认后，重新加载
-            populateStickerMenu();
-        };
-
-        load(); // 初始加载
     }
 
     // ----- Context Menu Logic -----
@@ -1131,10 +1127,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ----- Initialization -----
     setupAudio();
-    initializeEventListeners();
+    initializeEventListeners(); // 它会调用 setupSettings
+    refreshUI(); // 初始加载昵称和头像
     updateTime();
     setInterval(updateTime, 30000);
-
     parseAndRenderChat();
 
     const dataObserver = new MutationObserver(parseAndRenderChat);
