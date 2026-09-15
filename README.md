@@ -6,7 +6,15 @@
 
 ## 酒馆助手版本
 
-当前可运行的酒馆助手脚本源码与构建文件位于 [`tavern-helper`](./tavern-helper)。该版本包含完整的电波手机界面、聊天与多应用数据同步、ZIP 备份恢复以及移动端全屏适配。
+当前可运行的酒馆助手脚本源码位于 [`tavern-helper`](./tavern-helper)，版本化生产构建位于 [`file`](./file)。该版本包含完整的电波手机界面、聊天与多应用数据同步、ZIP 备份恢复以及移动端全屏适配。
+
+酒馆助手在线导入：
+
+```js
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.0.0/file/index-1.0.0.js';
+```
+
+发布与更新步骤见 [`tavern-helper/发布流程.md`](./tavern-helper/发布流程.md)。
 
 ## 当前内容
 

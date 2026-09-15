@@ -626,7 +626,8 @@
                   </button>
                 </div>
                 <p class="settings-storage-mark">
-                  电波手机 · v{{ WAVE_PHONE_STORAGE_VERSION }} · {{ WAVE_PHONE_IDENTIFIER }}
+                  电波手机 · v{{ WAVE_PHONE_RELEASE_VERSION }} · 数据格式 {{ WAVE_PHONE_STORAGE_VERSION }} ·
+                  {{ WAVE_PHONE_IDENTIFIER }}
                 </p>
               </template>
 
@@ -945,6 +946,7 @@ import { useMusicStore } from './stores/music';
 import WaveToggle from './components/WaveToggle.vue';
 import {
   WAVE_PHONE_IDENTIFIER,
+  WAVE_PHONE_RELEASE_VERSION,
   WAVE_PHONE_STORAGE_VERSION,
   type AppId,
   type Identity,
