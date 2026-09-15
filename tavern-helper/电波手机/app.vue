@@ -415,7 +415,7 @@
                     </div>
                   </article>
                 </div>
-                <div v-if="showTypingBubble" class="typing-row" aria-live="polite">
+                <div v-if="showTypingBubble" class="message-row char typing-row" aria-live="polite">
                   <span class="chat-avatar typing-avatar" aria-hidden="true">
                     <img
                       v-if="store.activeIdentity?.avatar"
@@ -1419,6 +1419,7 @@ function scheduleMessageReveal(): void {
       const hidden = new Set(hiddenMessageIds.value);
       hidden.delete(id);
       hiddenMessageIds.value = hidden;
+      if (message?.sender === 'char') sound('message');
       if (store.activeThread?.id) replyMessageVisibleThreadId.value = store.activeThread.id;
       if (revealQueue.length) scheduleMessageReveal();
       else {
@@ -2224,7 +2225,14 @@ watch(
     ),
   }),
   (next, previous) => {
-    if (previous && next.chat === previous.chat && next.ids.some(id => !previous.ids.includes(id))) sound('message');
+    if (
+      previous &&
+      next.chat === previous.chat &&
+      next.ids.some(
+        id => !previous.ids.includes(id) && !hiddenMessageIds.value.has(id) && !revealQueue.includes(id),
+      )
+    )
+      sound('message');
   },
 );
 
