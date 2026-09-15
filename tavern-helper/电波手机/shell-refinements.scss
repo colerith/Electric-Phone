@@ -1,0 +1,574 @@
+// Shared phone canvas and component controls. Keep after legacy app styles.
+#wave-phone-script-root .wave-device {
+  &.is-subpage:not(.music-immersive):not(.playlist-immersive) {
+    background: var(--wave-surface, #f2f4f8);
+  }
+  .wave-statusbar,
+  .wave-appbar,
+  .wave-screen,
+  .wave-homebar {
+    background: transparent !important;
+  }
+  .wave-appbar {
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    padding: 4px 16px 12px;
+    min-height: 60px;
+  }
+  .wave-appbar > button {
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #ffffff70;
+    color: var(--wave-navy, #405779);
+  }
+  .wave-appbar strong {
+    font-size: 20px;
+    line-height: 1.35;
+  }
+  .wave-appbar small {
+    font-size: 9px;
+    line-height: 1.5;
+    opacity: 0.7;
+  }
+  &.is-subpage .wave-screen > :is(section, .wave-app-content) {
+    background: transparent;
+  }
+  &.is-subpage:not(.music-immersive):not(.playlist-immersive)
+    .wave-screen
+    > :is(.wave-music-player, .app-function-settings, .settings-page, .profile-page, .generic-app, .conversation-list) {
+    background: transparent;
+  }
+  .wave-toggle-control {
+    appearance: none !important;
+    display: inline-block !important;
+    position: relative !important;
+    box-sizing: border-box !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    height: 26px !important;
+    min-height: 26px !important;
+    max-height: 26px !important;
+    flex: 0 0 auto !important;
+    align-self: flex-start;
+    padding: 0 !important;
+    margin: 0;
+    border: 0 !important;
+    border-radius: 20px !important;
+    background: #ccd3de !important;
+    box-shadow: none !important;
+  }
+  .wave-toggle-control > span {
+    display: block !important;
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 20px !important;
+    height: 20px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0;
+    border-radius: 50%;
+    background: white !important;
+    transform: translateX(0);
+    box-shadow: 0 1px 4px #23334730;
+  }
+  .wave-toggle-control.active {
+    background: var(--wave-blue, #5f83c2) !important;
+  }
+  .wave-toggle-control.active > span {
+    transform: translateX(18px);
+  }
+  .playlist-create {
+    align-items: center;
+  }
+  .playlist-create > button {
+    white-space: nowrap;
+    border-radius: 14px;
+    padding: 12px 14px;
+    background: #e3ebf8;
+    font-size: 13px;
+  }
+  .playlist-hero > button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 14px;
+    min-height: 42px;
+  }
+  .playlist-hero header button {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    font-size: 18px;
+  }
+  .playlist-edit {
+    margin: 12px;
+    gap: 12px;
+    color: #3b4e6b;
+    border: 1px solid #ffffff60;
+  }
+  .playlist-edit > label {
+    font-size: 12px;
+  }
+  .playlist-edit > button {
+    font-size: 13px;
+    min-height: 40px;
+  }
+  .playlist-edit .wave-upload-dialog {
+    width: 100%;
+    max-width: none;
+    padding: 14px;
+    border-radius: 18px;
+    box-shadow: none;
+    box-sizing: border-box;
+  }
+  .playlist-edit .wave-dialog-bar small {
+    display: none;
+  }
+  .playlist-edit .wave-dialog-bar strong {
+    font-size: 14px;
+  }
+  .playlist-edit .wave-upload-preview.artwork-preview {
+    width: 100%;
+    height: 125px;
+    min-height: 0;
+    aspect-ratio: 2.5;
+    border-radius: 14px;
+    margin: 12px 0;
+    border-width: 2px;
+  }
+  .playlist-edit .wave-upload-preview img {
+    object-fit: cover;
+  }
+  .playlist-edit .wave-upload-dialog button {
+    font-size: 12px;
+  }
+  .playlist-edit .wave-upload-dialog small {
+    font-size: 10px;
+  }
+  .playlist-edit .wave-upload-actions {
+    gap: 8px;
+  }
+  .music-library-sheet {
+    color: #405579;
+  }
+  .music-library-sheet > button,
+  .music-library-sheet form button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    gap: 8px;
+  }
+  .music-library-sheet header > button {
+    min-width: 36px;
+    min-height: 36px;
+    font-size: 20px;
+  }
+  &.playlist-immersive {
+    background: #425e87 !important;
+    isolation: isolate;
+    &::before {
+      content: '';
+      display: block;
+      position: absolute;
+      inset: 0 0 auto;
+      height: min(65%, 440px);
+      z-index: -1;
+      pointer-events: none;
+      background-image: linear-gradient(180deg, #18253e25, #425e8700 35%, #425e87 100%), var(--playlist-cover);
+      background-color: #8694b5;
+      background-size: cover;
+      background-position: center top;
+    }
+    .wave-statusbar {
+      color: white;
+    }
+    .wave-screen {
+      z-index: 0;
+    }
+    .wave-music-player {
+      padding: 0 0 28px;
+      background: transparent;
+      color: #f5f8ff;
+    }
+    .playlist-hero {
+      margin: 0;
+      padding: 0 20px 22px;
+      border-radius: 0;
+      min-height: 320px;
+      background: transparent;
+    }
+    .playlist-hero > strong {
+      font-size: 27px;
+      line-height: 1.4;
+    }
+    .playlist-hero > small {
+      color: #edf2ff;
+      opacity: 0.8;
+    }
+    .playlist-hero header {
+      padding-top: 4px;
+      padding-bottom: 120px;
+    }
+    .playlist-hero header button {
+      background: #17294320;
+    }
+    .playlist-song {
+      margin: 0 20px;
+      border-color: #ffffff20;
+    }
+    .playlist-song strong {
+      font-size: 15px;
+      color: #f7f9ff;
+    }
+    .playlist-song small,
+    .playlist-song > span {
+      color: #dce6f5;
+    }
+    .playlist-browser > p {
+      margin: 18px 20px;
+      font-size: 12px;
+      opacity: 0.75;
+    }
+  }
+  .music-island-v2 .island-marquee strong {
+    animation: none;
+    transform: none;
+    min-width: 0;
+    width: max-content;
+  }
+  .music-island-v2 .island-marquee.is-overflowing strong {
+    animation: wave-island-overflow var(--marquee-duration, 12s) linear infinite alternate;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .music-island-v2 .island-marquee.is-overflowing strong {
+      animation: none;
+    }
+  }
+}
+@keyframes wave-island-overflow {
+  0%,
+  15% {
+    transform: translateX(0);
+  }
+  85%,
+  100% {
+    transform: translateX(var(--marquee-distance));
+  }
+}
+
+#wave-phone-script-root .wave-device {
+  &.has-music-dock .wave-screen {
+    padding-bottom: 82px;
+    box-sizing: border-box;
+  }
+  .music-bottom-dock {
+    position: absolute;
+    z-index: 25;
+    left: 14px;
+    right: 14px;
+    bottom: 20px;
+    height: 62px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: 22px;
+    background: #fbfdfff2;
+    backdrop-filter: blur(18px);
+    box-shadow: 0 5px 25px #17284925;
+    color: #344761;
+    overflow: hidden;
+  }
+  .music-bottom-dock button {
+    appearance: none;
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    color: #344761;
+    padding: 8px;
+    flex-shrink: 0;
+    min-width: 32px;
+  }
+  .music-bottom-dock .dock-track {
+    display: flex;
+    align-items: center;
+    text-align: left;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+  }
+  .dock-track > img,
+  .dock-art {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .dock-art {
+    display: grid;
+    place-items: center;
+    background: #dbe4f3;
+  }
+  .dock-track > span:last-child {
+    min-width: 0;
+  }
+  .dock-track strong,
+  .dock-track small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dock-track strong {
+    font-size: 13px;
+    color: #344761;
+  }
+  .dock-track small {
+    font-size: 10px;
+    color: #8b98ad;
+    margin-top: 4px;
+  }
+  .dock-progress {
+    position: absolute;
+    bottom: 0;
+    height: 2px;
+    background: #dfe6f2;
+    left: 16px;
+    right: 16px;
+  }
+  .dock-progress i {
+    display: block;
+    height: 100%;
+    background: #7b9bcc;
+  }
+  .playlist-song {
+    gap: 10px;
+  }
+  .playlist-song > button:not(:first-of-type) {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 36px;
+    padding: 0;
+    position: relative;
+  }
+  .playlist-song button[aria-pressed='true'] {
+    color: #ff839f;
+  }
+  .playlist-song sup {
+    font-size: 9px;
+    position: absolute;
+    right: 0;
+    top: 1px;
+  }
+  .music-mode-caption {
+    display: block;
+    font-size: 8px;
+    margin-top: 4px;
+    white-space: nowrap;
+  }
+  .music-queue-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 95;
+    display: flex;
+    align-items: flex-end;
+    background: #15243a55;
+  }
+  .music-queue-sheet {
+    width: 100%;
+    max-height: 65%;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    padding: 20px 18px 28px;
+    background: #f3f8f8;
+    color: #283b42;
+    border-radius: 28px 28px 0 0;
+    box-shadow: 0 -6px 30px #15383b16;
+  }
+  .music-queue-sheet button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 8px;
+  }
+  .music-queue-sheet button:disabled {
+    opacity: 0.45;
+  }
+  .music-queue-sheet header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .music-queue-sheet header strong {
+    font-size: 18px;
+    border-bottom: 3px solid #314b50;
+    padding-bottom: 8px;
+  }
+  .music-queue-sheet header small {
+    font-size: 12px;
+    margin-left: 5px;
+  }
+  .queue-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 10px 0;
+    color: #7b898e;
+  }
+  .queue-toolbar > button:first-child {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .queue-modes {
+    display: flex;
+    gap: 5px;
+    padding: 0 0 12px;
+  }
+  .queue-modes button {
+    font-size: 10px;
+    flex: 1;
+    padding: 8px 2px;
+    border-radius: 10px;
+    background: #e7eeee;
+  }
+  .queue-modes button[aria-pressed='true'] {
+    color: #239775;
+    background: #d8eee4;
+  }
+  .queue-rows {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .queue-row {
+    display: flex;
+    align-items: center;
+    min-height: 50px;
+    gap: 2px;
+    border-top: 2px solid transparent;
+  }
+  .queue-row .queue-song {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-left: 0;
+  }
+  .queue-song strong {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .queue-song span {
+    font-size: 11px;
+    opacity: 0.6;
+  }
+  .queue-row > button:not(.queue-song) {
+    flex: 0 0 28px;
+    min-width: 28px;
+    color: #829292;
+  }
+  .queue-row.current {
+    color: #26b881;
+  }
+  .queue-current-icon {
+    font-size: 11px;
+    opacity: 0.5;
+  }
+  .queue-current-icon.playing {
+    opacity: 1;
+  }
+  .queue-drag {
+    touch-action: none;
+    cursor: grab !important;
+  }
+  .queue-row.dragging {
+    opacity: 0.6;
+    background: #e1ece7;
+  }
+  .queue-row.drop-target {
+    border-top-color: #39b48c;
+  }
+  .queue-hint {
+    text-align: center;
+    font-size: 10px;
+    color: #8b999c;
+    padding-top: 15px;
+  }
+  .queue-empty {
+    text-align: center;
+    line-height: 2;
+    font-size: 13px;
+    color: #8b999c;
+  }
+  .queue-empty small {
+    font-size: 10px;
+  }
+  .music-action-notice {
+    position: absolute;
+    z-index: 110;
+    left: 50%;
+    bottom: 95px;
+    transform: translateX(-50%);
+    padding: 10px 16px;
+    border-radius: 18px;
+    background: #27394bdc;
+    color: white;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+}
+
+// Queue colors follow the same semantic palette as the phone's controls.
+#wave-phone-script-root .wave-device {
+  .music-queue-sheet {
+    background: var(--wave-surface, #f3f5f9);
+    color: var(--wave-navy, #405579);
+  }
+  .music-queue-sheet header strong {
+    border-bottom-color: var(--wave-blue, #6485bb);
+  }
+  .queue-toolbar,
+  .queue-row > button:not(.queue-song),
+  .queue-hint,
+  .queue-empty {
+    color: var(--wave-muted, #8995ab);
+  }
+  .queue-modes button {
+    background: var(--wave-tint, #e8edf6);
+    color: var(--wave-navy, #405579);
+  }
+  .queue-modes button[aria-pressed='true'] {
+    color: var(--wave-blue, #6485bb);
+    background: var(--wave-card, #fff);
+    box-shadow: inset 0 0 0 1px var(--wave-blue, #6485bb);
+  }
+  .queue-row.current {
+    color: var(--wave-blue, #6485bb);
+  }
+  .queue-row.dragging {
+    background: var(--wave-tint, #e8edf6);
+  }
+  .queue-row.drop-target {
+    border-top-color: var(--wave-blue, #6485bb);
+  }
+}

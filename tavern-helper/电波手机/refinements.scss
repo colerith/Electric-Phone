@@ -1,0 +1,574 @@
+#wave-phone-script-root {
+  .wave-device .app-function-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 22px 18px 32px;
+    background: #f3f4f6;
+  }
+  .function-settings-intro {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .function-settings-intro > span {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    background: #e5eaf2;
+    border-radius: 16px;
+    color: #6280af;
+  }
+  .function-settings-intro strong {
+    font-size: 19px;
+    color: #34465f;
+  }
+  .function-settings-intro p,
+  .function-settings-footnote {
+    font-size: 12px;
+    line-height: 1.7;
+    color: #8a929e;
+    margin: 6px 0 0;
+  }
+  .function-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px;
+  }
+  .function-section-heading b {
+    font-size: 13px;
+    color: #57667b;
+  }
+  .function-section-heading small {
+    font-size: 10px;
+    color: #9aa1ac;
+  }
+  .function-settings-group {
+    border-radius: 20px;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid #e8ebef;
+  }
+  .wave-device .app-function-settings .function-setting-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    border: 0;
+    border-radius: 18px;
+    background: #fff;
+    padding: 17px 14px;
+    text-align: left;
+  }
+  .function-settings-group .function-setting-row + .function-setting-row {
+    border-top: 1px solid #eff1f4;
+    border-radius: 0;
+  }
+  .function-setting-row > i:first-child {
+    width: 30px;
+    color: #6683b0;
+    font-size: 18px;
+    text-align: center;
+  }
+  .function-setting-row > i:last-child {
+    margin-left: auto;
+    color: #b1b8c3;
+    font-size: 11px;
+  }
+  .function-setting-row span {
+    display: grid;
+    gap: 5px;
+  }
+  .function-setting-row strong {
+    font-size: 14px;
+    color: #3d4c62;
+  }
+  .function-setting-row small {
+    font-size: 11px;
+    color: #929aa6;
+  }
+  .artwork-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 9px;
+  }
+  .wave-device .artwork-options button {
+    min-width: 0;
+    border: 2px solid transparent;
+    border-radius: 16px;
+    background: #fff;
+    padding: 5px;
+    overflow: hidden;
+  }
+  .wave-device .artwork-options button[aria-pressed='true'] {
+    border-color: #7090bf;
+  }
+  .artwork-options img,
+  .artwork-options .default-artwork {
+    width: 100%;
+    aspect-ratio: 1.5;
+    object-fit: cover;
+    display: block;
+    border-radius: 10px;
+  }
+  .default-artwork {
+    background: linear-gradient(120deg, #d7e4ee, #eee0e9 55%, #e0e8eb);
+  }
+  .artwork-options b {
+    display: block;
+    font-size: 11px;
+    color: #62718a;
+    padding: 7px 0 3px;
+  }
+  .app-function-settings .wave-upload-subpage {
+    padding: 0;
+  }
+  .app-function-settings .wave-upload-dialog {
+    padding: 14px;
+    border-radius: 20px;
+    background: #fff;
+  }
+  .app-function-settings .wave-upload-preview.artwork-preview {
+    aspect-ratio: 1.6;
+    height: auto;
+    min-height: 0;
+    border-radius: 14px;
+  }
+  .app-function-settings .wave-upload-preview.artwork-preview img {
+    object-fit: cover;
+    border-radius: 0;
+  }
+  .app-function-settings .wave-dialog-bar strong {
+    font-size: 16px;
+  }
+  .app-function-settings .wave-field-help {
+    font-size: 11px;
+  }
+  .app-function-settings .wave-upload-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .app-function-settings .wave-upload-actions button {
+    font-size: 12px;
+    padding: 10px;
+  }
+  .wave-message-content:has(.wave-message-quote) {
+    align-items: flex-start;
+  }
+  .message-row.user .wave-message-content:has(.wave-message-quote) {
+    align-items: flex-end;
+  }
+  .message-row .wave-message-content .wave-message-text {
+    width: fit-content;
+    max-width: 100%;
+    align-self: flex-start;
+  }
+  .message-row.user .wave-message-content .wave-message-text {
+    align-self: flex-end;
+  }
+  .wave-device .extra-modal label {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #7485a1;
+  }
+  .extra-modal input[type='file'] {
+    font-size: 11px;
+    width: 100%;
+    padding: 8px;
+  }
+  .extra-modal input[type='file']::file-selector-button {
+    border: 0;
+    background: #e8eef7;
+    color: #5878aa;
+    padding: 9px 12px;
+    border-radius: 12px;
+    margin-right: 8px;
+    cursor: pointer;
+  }
+  .wave-device .photo-selection {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding: 3px;
+  }
+  .photo-selection > div {
+    min-width: 0;
+    display: grid;
+    gap: 6px;
+    background: #fff;
+    padding: 6px;
+    border: 1px solid #e9edf3;
+    border-radius: 14px;
+  }
+  .wave-device .photo-selection img {
+    aspect-ratio: 3/4;
+    border-radius: 9px;
+  }
+  .wave-device .photo-selection input {
+    font-size: 10px;
+    padding: 6px;
+    border-radius: 8px;
+  }
+  .wave-device .photo-selection button {
+    border: 0;
+    border-radius: 9px;
+    padding: 6px;
+    background: #f7edef;
+    color: #ac7380;
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .wave-device .wave-photo-album {
+    width: min(245px, 58vw);
+    min-height: 215px;
+    margin: 10px 10px 14px 0;
+    padding: 0 12px 0 60px;
+  }
+  .wave-device .album-photo {
+    width: calc(100% - 72px);
+    left: calc(60px + var(--photo-index) * 5px);
+    top: calc(var(--photo-index) * 4px);
+    border-radius: 12px;
+    border-width: 5px;
+  }
+  .wave-device .album-photo img {
+    height: auto;
+    aspect-ratio: 3/4;
+    object-fit: cover;
+    border-radius: 7px;
+  }
+  .wave-device .album-photo figcaption {
+    font-size: 9px;
+  }
+  .wave-device .album-toggle {
+    position: absolute;
+    left: 0;
+    top: 45%;
+    margin: 0;
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+  .wave-device .wave-photo-album.expanded {
+    padding: 0;
+  }
+  .wave-device .wave-photo-album.expanded .album-toggle {
+    position: static;
+    justify-self: end;
+  }
+  .wave-device .wave-photo-album.expanded .album-photo {
+    width: 100%;
+  }
+  .wave-device .wallet-page {
+    background: transparent;
+    padding: 20px 18px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 17px;
+    color: #34445c;
+  }
+  .wallet-overview {
+    position: relative;
+    background: var(--wave-card, #fff);
+    border-radius: 20px;
+    padding: 20px 94px 20px 20px;
+    display: grid;
+    gap: 6px;
+  }
+  .wallet-overview > span {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: #8791a0;
+  }
+  .wallet-overview button {
+    border: 0;
+    background: transparent;
+    color: #8290a3;
+    padding: 6px;
+  }
+  .wallet-overview > strong {
+    font-size: 34px;
+    font-weight: 650;
+    letter-spacing: -1px;
+    font-variant-numeric: tabular-nums;
+  }
+  .wallet-overview .wallet-account-name {
+    overflow-wrap: anywhere;
+    font-size: 11px;
+    color: #a0a8b2;
+  }
+  .wallet-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: #fff;
+    border: 1px solid #e9edf1;
+    padding: 15px;
+    border-radius: 18px;
+  }
+  .wallet-summary > div {
+    display: grid;
+    gap: 7px;
+  }
+  .wallet-summary > div + div {
+    padding-left: 16px;
+    border-left: 1px solid #eceff3;
+  }
+  .wallet-summary small {
+    font-size: 10px;
+    color: #9aa3ae;
+  }
+  .wallet-summary b {
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+  }
+  .wallet-page .income {
+    color: #659c90;
+  }
+  .wave-device .wallet-bank-card {
+    width: 100%;
+    aspect-ratio: 1.65;
+    padding: 20px;
+    border: 1px solid #ffffff;
+    border-radius: 20px;
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    color: #334660;
+    box-shadow: 0 8px 24px #34465e12;
+  }
+  .wallet-bank-card > span {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 1px;
+  }
+  .wallet-bank-card .card-chip {
+    font-size: 24px;
+    opacity: 0.6;
+    margin-top: auto;
+  }
+  .wallet-bank-card > strong {
+    font-size: 18px;
+  }
+  .wallet-bank-card > small {
+    font-size: 10px;
+    color: #677990;
+  }
+  .wallet-tabs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .wave-device .wallet-tabs button {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    min-height: 34px;
+    line-height: 1.4;
+    margin: 0;
+    box-shadow: none;
+    border: 0;
+    border-radius: 13px;
+    background: transparent;
+    color: #8793a4;
+    font-size: 12px;
+    padding: 9px 11px;
+    white-space: nowrap;
+  }
+  .wave-device .wallet-tabs button[aria-pressed='true'] {
+    background: #e7edf5;
+    color: #587bb2;
+  }
+
+  .wave-device .wallet-tabs button:last-child {
+    margin-left: auto;
+    background: #fff;
+    border: 1px solid #e4e9f1;
+  }
+  .wallet-search {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    background: #fff;
+    padding: 10px 13px;
+    border-radius: 14px;
+    color: #9aa4b2;
+  }
+  .wallet-page .wallet-search input {
+    border: 0;
+    background: transparent;
+    width: 100%;
+    font-size: 12px;
+    padding: 0;
+    color: #52627a;
+  }
+  .wallet-record {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 12px;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid #edf0f4;
+  }
+  .wallet-category-icon {
+    flex: 0 0 33px;
+    height: 33px;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+    font-size: 13px;
+  }
+  .wallet-record > div {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+    flex: 1;
+  }
+  .wallet-record strong {
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  .wallet-record small {
+    font-size: 9px;
+    color: #a0a8b4;
+  }
+  .wallet-record > b {
+    font-size: 13px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .wallet-empty {
+    font-size: 12px;
+    text-align: center;
+    color: #9ba5b2;
+    padding: 20px 0;
+  }
+  .wallet-add-form {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    background: #fff;
+    border-radius: 18px;
+  }
+  .wallet-add-form input {
+    min-width: 0;
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #e0e6ef;
+    border-radius: 12px;
+    background: #fafbfd;
+    color: #566781;
+    font-size: 12px;
+  }
+  .wallet-form-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .wallet-add-form > button {
+    background: #6685b6;
+    color: white;
+    border: 0;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+  .wallet-statistics {
+    padding: 18px;
+    background: #fff;
+    border-radius: 18px;
+    display: grid;
+    gap: 18px;
+  }
+  .wallet-donut-chart {
+    width: min(100%, 360px);
+    height: auto;
+    justify-self: center;
+    overflow: visible;
+    font-family: var(--wave-font);
+  }
+  .wallet-donut-track,
+  .wallet-donut-segment {
+    fill: none;
+    stroke-width: 34px;
+  }
+  .wallet-donut-track {
+    stroke: #f0f2f5;
+  }
+  .wallet-donut-segment {
+    transform: rotate(-90deg);
+    transform-origin: 160px 116px;
+  }
+  .wallet-donut-label polyline {
+    fill: none;
+    stroke-width: 1.5px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .wallet-donut-label text {
+    fill: #657187;
+    font-size: 9px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .wallet-donut-caption {
+    fill: #a0a7b2;
+    font-size: 10px;
+  }
+  .wallet-donut-total {
+    fill: #29374c;
+    font-size: 15px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .wallet-pie-legend {
+    display: grid;
+    gap: 14px;
+  }
+  .wallet-pie-legend-row {
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .wallet-pie-legend-row > i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+  }
+  .wallet-pie-legend-row > small,
+  .wallet-stat-note {
+    color: #8791a0;
+    font-size: 11px;
+  }
+  .wallet-pie-legend-row > b {
+    min-width: 60px;
+    text-align: right;
+    font-weight: 500;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .artwork-options button,
+    .album-photo,
+    .wallet-bank-card {
+      transition:
+        transform 0.2s ease,
+        border-color 0.2s ease;
+    }
+    .wallet-bank-card:active {
+      transform: scale(0.985);
+    }
+  }
+}

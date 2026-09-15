@@ -1,0 +1,317 @@
+/* Shared SwiftUI-inspired grouped surfaces. Keep app identity in content, not backgrounds. */
+#wave-phone-script-root {
+  .wave-device.is-subpage {
+    --wave-line: rgba(35, 35, 38, 0.08);
+    --wave-muted: #76767c;
+    --wave-ink: #35363b;
+  }
+  .wave-device.is-subpage.theme-dark {
+    --wave-line: rgba(255, 255, 255, 0.09);
+    --wave-muted: #aaaab0;
+    --wave-ink: #ebebee;
+  }
+  .wave-app-content {
+    background: var(--wave-surface);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    container-type: inline-size;
+  }
+  .wave-app-content::-webkit-scrollbar {
+    display: none;
+  }
+  .wave-app-content .app-title,
+  .wave-app-content .app-item-title {
+    display: block;
+  }
+  .wave-app-content .app-card,
+  .wave-app-content .balance-card {
+    background: var(--wave-card);
+    border: 1px solid var(--wave-line);
+    border-radius: 22px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.025);
+    color: var(--wave-ink);
+  }
+  .wave-app-content .balance-card button {
+    color: var(--wave-blue);
+  }
+  .wave-app-content .zone-cover,
+  .wave-app-content .record-sleeve {
+    background: var(--wave-card);
+  }
+  .wave-app-content .music-record {
+    background: #303033;
+    border-color: #3c3c3f;
+    box-shadow:
+      inset 0 0 0 2px #626265,
+      inset 0 0 0 16px #303033,
+      inset 0 0 0 17px #535356;
+  }
+  .wave-app-content .music-record > span {
+    background: #e4e4e4;
+    color: #65656a;
+  }
+  .wave-app-content .thought-card {
+    background: var(--wave-card);
+  }
+  .wave-status-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    font-family: var(--wave-ui-font);
+    font-size: calc(13px * var(--wave-font-scale));
+    padding-bottom: 8px;
+  }
+  .wave-status-panel .app-card {
+    padding: 18px;
+    min-width: 0;
+  }
+  .status-section-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 9px;
+    letter-spacing: 1.8px;
+    color: var(--wave-muted);
+    line-height: 1.5;
+  }
+  .status-section-label i {
+    font-size: 12px;
+    letter-spacing: 0;
+    color: var(--wave-blue);
+    opacity: 0.75;
+  }
+  .status-profile-main {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    margin-top: 17px;
+  }
+  .status-avatar {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--wave-tint);
+    font-size: 21px;
+    color: var(--wave-blue);
+  }
+  .status-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .status-profile-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .status-profile-name {
+    color: var(--wave-ink);
+    font-family: var(--wave-display-font);
+    font-size: calc(23px * var(--wave-font-scale));
+    font-weight: var(--wave-serif-weight, 600);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+  .status-terminal {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--wave-muted);
+    font-size: 10px;
+  }
+  .status-terminal > span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #9a9aa0;
+  }
+  .status-vitals-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .status-section-name {
+    display: block;
+    margin-top: 6px;
+    color: var(--wave-ink);
+    font-size: calc(12px * var(--wave-font-scale));
+    font-weight: 500;
+  }
+  .status-vital-number {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+    margin: 16px 0 12px;
+    color: var(--wave-blue-strong);
+    font-variant-numeric: tabular-nums;
+  }
+  .status-vital-number strong {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: calc(36px * var(--wave-font-scale));
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -1.4px;
+  }
+  .status-vital-number > span {
+    font-size: 15px;
+    color: var(--wave-muted);
+  }
+  .status-progress {
+    height: 5px;
+    border-radius: 5px;
+    background: var(--wave-tint);
+    overflow: hidden;
+  }
+  .status-progress > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--wave-blue);
+    transition: width 280ms ease;
+  }
+  .status-vital-desire .status-progress > span {
+    background: #ba899c;
+  }
+  .status-vital-desire .status-section-label i {
+    color: #ad7d90;
+  }
+  .wave-status-panel .status-vital-note {
+    margin: 13px 0 0;
+    padding-top: 11px;
+    border-top: 1px solid var(--wave-line);
+    color: var(--wave-muted);
+    font-size: calc(11px * var(--wave-font-scale));
+    line-height: 1.7;
+  }
+  .status-section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    margin-bottom: 15px;
+  }
+  .status-section-heading strong {
+    font-size: calc(13px * var(--wave-font-scale));
+    font-weight: 600;
+    color: var(--wave-ink);
+  }
+  .status-section-heading > span {
+    font-size: 8px;
+    letter-spacing: 1.7px;
+    color: var(--wave-muted);
+  }
+  .status-mood-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .status-mood-list > span {
+    padding: 7px 11px;
+    background: var(--wave-tint);
+    color: var(--wave-ink);
+    border-radius: 12px;
+    font-size: calc(11px * var(--wave-font-scale));
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+  .status-thought-body {
+    position: relative;
+    padding: 0 0 0 16px;
+    border-left: 2px solid var(--wave-line);
+  }
+  .status-quote-mark {
+    display: block;
+    height: 20px;
+    font-family: Georgia, serif;
+    font-size: 36px;
+    line-height: 1;
+    color: var(--wave-blue);
+    opacity: 0.4;
+  }
+  .wave-status-panel .status-thought-body > p {
+    margin: 3px 0 0;
+    font-size: calc(13px * var(--wave-font-scale));
+    line-height: 1.95;
+    color: var(--wave-ink);
+    text-align: start;
+  }
+  .status-organ-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .status-organ-item {
+    padding: 14px 0;
+    border-top: 1px solid var(--wave-line);
+  }
+  .status-organ-item:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+  .status-organ-item:last-child {
+    padding-bottom: 0;
+  }
+  .status-organ-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .status-organ-heading strong {
+    font-weight: 500;
+    font-size: calc(12px * var(--wave-font-scale));
+    color: var(--wave-blue-strong);
+  }
+  .status-organ-dot {
+    width: 5px;
+    height: 5px;
+    flex: 0 0 5px;
+    border-radius: 50%;
+    background: var(--wave-blue);
+    opacity: 0.55;
+  }
+  .wave-status-panel .status-organ-item > p {
+    margin: 7px 0 0 13px;
+    line-height: 1.85;
+    font-size: calc(12px * var(--wave-font-scale));
+  }
+  .wave-status-panel .status-placeholder {
+    color: var(--wave-muted);
+    font-size: 12px;
+  }
+  .status-footnote {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 0 8px;
+    color: var(--wave-muted);
+    font-size: 9px;
+    letter-spacing: 0.6px;
+  }
+  .theme-dark .status-vital-number,
+  .theme-dark .status-organ-heading strong {
+    color: #a9bcdd;
+  }
+  @container (max-width: 285px) {
+    .status-vitals-grid {
+      gap: 8px;
+    }
+    .status-vitals-grid .app-card {
+      padding: 12px;
+    }
+    .status-vital-number strong {
+      font-size: calc(30px * var(--wave-font-scale));
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .status-progress > span {
+      transition: none;
+    }
+  }
+}

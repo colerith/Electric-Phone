@@ -1,0 +1,136 @@
+#wave-phone-script-root .wave-device {
+  .wave-image-modal {
+    position: absolute;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 12px 24px;
+    background: #26344970;
+    backdrop-filter: blur(6px);
+  }
+  .wave-image-modal .wave-upload-subpage {
+    width: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0;
+    border-radius: 22px;
+    background: var(--wave-card, #fff);
+    box-shadow: 0 18px 50px #15223a40;
+    overscroll-behavior: contain;
+  }
+  .wave-image-modal .wave-upload-dialog {
+    width: 100%;
+    max-width: none;
+    padding: 18px;
+    margin: 0;
+    background: var(--wave-card, #fff);
+    border: 0;
+  }
+  .wave-image-modal .wave-dialog-bar {
+    position: relative;
+    padding-right: 36px;
+  }
+  .wave-image-modal .wave-modal-close {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: var(--wave-tint, #edf2fa);
+    color: var(--wave-navy);
+  }
+  .wave-image-modal .wave-upload-preview {
+    width: 100%;
+    height: auto;
+    max-height: 230px;
+    aspect-ratio: 4 / 3;
+  }
+  .wave-image-modal .wave-upload-preview img {
+    max-height: 230px;
+  }
+  .home-appearance-editor .appearance-icon-row {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) auto auto;
+    align-items: end;
+    gap: 8px;
+  }
+  .home-appearance-editor .appearance-icon-row > img {
+    width: 32px;
+    height: 32px;
+    align-self: end;
+    margin-bottom: 4px;
+  }
+  .home-appearance-editor .appearance-icon-row label {
+    display: grid;
+    gap: 7px;
+    min-width: 0;
+    padding: 0;
+  }
+  .home-appearance-editor .appearance-icon-row label > span {
+    line-height: 1.4;
+  }
+  .home-appearance-editor .appearance-icon-row input,
+  .home-appearance-editor .appearance-icon-row > button {
+    height: 40px;
+    min-height: 40px;
+    margin: 0;
+    box-sizing: border-box;
+  }
+  .home-appearance-editor .appearance-icon-row > button {
+    padding: 8px;
+    white-space: nowrap;
+  }
+  .appearance-wallpaper-row {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 0;
+  }
+  .appearance-wallpaper-preview {
+    width: 48px;
+    height: 64px;
+    border: 1px solid var(--wave-line);
+    border-radius: 10px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(145deg, #dce8fa, #f7e2ee);
+    color: var(--wave-blue);
+  }
+  .appearance-wallpaper-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .appearance-wallpaper-row strong {
+    font: 500 12px/1.5 var(--wave-ui-font);
+  }
+  .appearance-wallpaper-row > button {
+    appearance: none;
+    min-height: 36px;
+    padding: 9px 12px;
+    border: 1px solid var(--wave-line);
+    border-radius: 12px;
+    background: #edf2fa;
+    color: var(--wave-navy);
+    font: 500 11px/1.4 var(--wave-ui-font);
+    cursor: pointer;
+    box-shadow: none;
+  }
+}
+
+// Override shared form rules only for controls with deliberate fixed dimensions.
+#wave-phone-script-root .wave-device .home-appearance-editor .appearance-icon-row input,
+#wave-phone-script-root .wave-device .home-appearance-editor .appearance-icon-row > button {
+  height: 40px !important;
+  min-height: 40px !important;
+  box-sizing: border-box !important;
+}

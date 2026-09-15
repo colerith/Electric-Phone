@@ -1,0 +1,1397 @@
+// 设置页的唯一布局规则；仅选择具体组件，不用泛化 button 覆盖子组件。
+#wave-phone-script-root .wave-device {
+  --settings-text: var(--wave-ink, #374558);
+  --settings-muted: var(--wave-muted, #6e7682);
+  --settings-accent: var(--wave-blue, #5e80be);
+  --settings-line: rgba(35, 35, 38, 0.1);
+  --settings-control: var(--wave-tint, #f3f3f3);
+  --settings-radius: 12px;
+  --settings-gap: 16px;
+  &.theme-dark {
+    --settings-line: rgba(255, 255, 255, 0.12);
+  }
+
+  .settings-page,
+  .app-function-settings {
+    width: 100%;
+    min-width: 0;
+    padding: 16px 18px 28px;
+    background: var(--wave-surface, #f2f2f2);
+    color: var(--settings-text);
+    font-family: var(--wave-ui-font);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .app-function-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .settings-hub-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    overflow: visible;
+  }
+  .settings-hub-grid > button {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    min-height: 72px;
+    margin: 0;
+    padding: 16px 12px;
+    gap: 10px;
+    border: 0;
+    border-radius: 18px;
+    box-shadow: none;
+    background: var(--wave-card, #fff);
+    color: var(--settings-text);
+    text-align: left;
+  }
+  .settings-hub-grid > button > i:last-child {
+    display: none;
+  }
+  .settings-hub-grid > button > span {
+    min-width: 0;
+  }
+  .settings-hub-grid > button strong {
+    font-size: 13px;
+    color: var(--settings-text);
+    line-height: 1.5;
+  }
+  .settings-hub-grid > button small {
+    font-size: 11px;
+    color: var(--settings-muted);
+    line-height: 1.5;
+  }
+  .settings-hub-grid > button > i:first-child {
+    font-size: 21px;
+    color: var(--settings-accent);
+  }
+  .settings-detail {
+    display: grid;
+    gap: 16px;
+    padding: 0;
+    min-width: 0;
+  }
+
+  .settings-card,
+  .chat-settings-group,
+  .function-settings-group,
+  .voice-service-card,
+  .browser-preferences {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+    margin: 0;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 18px;
+    background: var(--wave-card, #fff);
+    box-shadow: none;
+    overflow: visible;
+  }
+  // 一个分组内部不再叠加语音卡片与开关卡片。
+  .settings-card .voice-service-card {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .voice-service-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+  }
+  .voice-service-settings > .voice-service-card {
+    border-top: 1px solid var(--settings-line);
+  }
+  .wave-settings-title,
+  .voice-section-title,
+  .function-section-heading {
+    display: block;
+    margin: 0;
+    padding: 18px 0 4px;
+    border: 0;
+    background: transparent;
+    color: var(--settings-text);
+    font: 600 15px/1.5 var(--wave-ui-font);
+    letter-spacing: 0;
+    box-shadow: none;
+  }
+  .wave-settings-title::before,
+  .wave-settings-title::after {
+    content: none;
+  }
+  .function-section-heading {
+    padding: 0 4px;
+  }
+  .browser-preferences .function-section-heading {
+    padding: 16px 0 8px;
+  }
+  .function-section-heading b {
+    color: var(--settings-text);
+    font: inherit;
+  }
+  .function-section-heading > small {
+    display: none;
+  }
+  .wave-settings-caption {
+    margin: 0 0 12px;
+    color: var(--settings-muted);
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .voice-section-title small {
+    display: block;
+    margin-top: 3px;
+    color: var(--settings-muted);
+    font-size: 11px;
+    font-weight: 400;
+  }
+
+  .settings-card > label,
+  .voice-service-card > label,
+  .service-preference,
+  .chat-setting-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    margin: 0;
+    padding: 16px 0;
+    border: 0;
+    border-bottom: 1px solid var(--settings-line);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--settings-text);
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+  .toggle-row,
+  .chat-setting-row,
+  .settings-slider-row {
+    min-width: 0;
+    margin: 0;
+    padding: 16px 0;
+    border: 0;
+    border-bottom: 1px solid var(--settings-line);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .toggle-row,
+  .chat-setting-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .toggle-row > span,
+  .chat-setting-row > span {
+    flex: 1;
+    min-width: 0;
+  }
+  .toggle-row strong,
+  .settings-slider-row strong,
+  .chat-setting-row > span,
+  .voice-service-card label > span {
+    color: var(--settings-text);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+  .settings-slider-row {
+    display: grid;
+    gap: 12px;
+  }
+  .settings-slider-row b,
+  .voice-service-card label b {
+    color: var(--settings-accent);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .settings-card label > span {
+    color: var(--settings-text);
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+  .settings-card small,
+  .toggle-row small,
+  .chat-setting-row small,
+  .chat-setting-block small,
+  .service-preference small,
+  .voice-service-card small,
+  .voice-help,
+  .function-settings-footnote {
+    display: block;
+    margin: 3px 0 0;
+    color: var(--settings-muted);
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.6;
+    opacity: 1;
+  }
+  .settings-card input:not([type='range']):not([type='file']),
+  .settings-card textarea,
+  .voice-service-card input:not([type='range']):not([type='file']),
+  .service-preference input,
+  .chat-setting-block input {
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--settings-line);
+    border-radius: var(--settings-radius);
+    background: var(--settings-control);
+    color: var(--settings-text);
+    box-shadow: none;
+    font: 400 13px/1.5 var(--wave-ui-font);
+    letter-spacing: 0;
+  }
+  .settings-card input:not([type='range']):not([type='file'])::placeholder,
+  .service-preference input::placeholder,
+  .chat-setting-block input::placeholder {
+    color: var(--settings-muted);
+    opacity: 0.8;
+  }
+  .settings-card textarea {
+    resize: vertical;
+  }
+  .settings-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0;
+    padding: 16px 0;
+  }
+  .settings-columns > label {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 8px;
+    margin: 0;
+  }
+  .chat-setting-row > .wave-select {
+    flex: 0 1 52%;
+    width: 52%;
+    max-width: 52%;
+    min-width: 0;
+  }
+  .chat-setting-block > label {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.55fr);
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+  }
+  .chat-setting-block > label > input,
+  .chat-setting-block > label > .wave-select {
+    width: 100%;
+    min-width: 0;
+  }
+  .service-preference:has(> .wave-toggle-control) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    align-items: center;
+    gap: 8px 16px;
+  }
+  .service-preference:has(> .wave-toggle-control) > small {
+    grid-column: 1 / -1;
+  }
+  .browser-preferences > .wave-select {
+    margin-bottom: 16px;
+  }
+  .browser-preferences > .function-settings-footnote {
+    margin: 0;
+    padding: 0 0 16px;
+  }
+  .chat-settings-note,
+  .chat-clock-preview,
+  .voice-help {
+    margin: 0;
+    padding: 14px 0;
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--settings-muted);
+    opacity: 1;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+  .chat-profile-settings > .wave-image-upload {
+    padding: 14px 0 0;
+  }
+  .chat-profile-settings .wave-image-preview {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    box-shadow: none;
+  }
+  .function-setting-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    width: 100%;
+    min-height: 64px;
+    margin: 0;
+    padding: 14px 0;
+    border: 0;
+    border-bottom: 1px solid var(--settings-line);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .function-setting-row strong {
+    color: var(--settings-text);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .function-setting-row small {
+    color: var(--settings-muted);
+    font-size: 11px;
+  }
+  .function-setting-row:last-child,
+  .chat-setting-block:last-child,
+  .chat-setting-row:last-child,
+  .voice-service-card > label:last-child {
+    border-bottom: 0;
+  }
+  .function-settings-group .function-setting-row + .function-setting-row {
+    border-top: 0;
+  }
+  .chat-segments {
+    display: flex;
+    gap: 8px;
+    margin: 4px 0 0;
+  }
+  .chat-segments > button {
+    flex: 1;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px;
+    border: 1px solid var(--settings-line);
+    border-radius: 10px;
+    background: var(--settings-control);
+    color: var(--settings-text);
+    font: 500 13px/1.5 var(--wave-ui-font);
+    box-shadow: none;
+  }
+  .chat-segments > button[aria-pressed='true'] {
+    background: var(--settings-accent);
+    border-color: var(--settings-accent);
+    color: #fff;
+  }
+  .chat-location-link {
+    align-self: flex-start;
+    margin: 0;
+    padding: 4px 0;
+    border: 0;
+    background: transparent;
+    color: var(--settings-accent);
+    font: 500 12px/1.5 var(--wave-ui-font);
+    box-shadow: none;
+  }
+  .settings-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+    margin: 0;
+    padding: 16px 0;
+  }
+  .settings-actions > button,
+  .settings-save-wide,
+  .settings-sound-preview {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--settings-line);
+    border-radius: 12px;
+    background: var(--settings-control);
+    color: var(--settings-text);
+    font: 500 13px/1.5 var(--wave-ui-font);
+    box-shadow: none;
+  }
+  .settings-actions > .primary-action,
+  .settings-save-wide {
+    background: var(--wave-navy, #204075);
+    color: #fff;
+    border-color: transparent;
+  }
+  .settings-card > .settings-save-wide {
+    margin: 16px 0;
+  }
+  .settings-sound-preview {
+    margin-top: 16px;
+  }
+  .wave-select {
+    min-width: 0;
+    position: relative;
+  }
+  .wave-select.open {
+    z-index: 90;
+  }
+  .wave-select > .wave-select-trigger,
+  .wave-select > .wave-select-menu > button {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    height: auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 14px;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--settings-line);
+    border-radius: 12px;
+    background: var(--settings-control);
+    color: var(--settings-text);
+    box-shadow: none;
+    text-align: left;
+    font: 400 13px/1.5 var(--wave-ui-font);
+    letter-spacing: 0;
+  }
+  .wave-select > .wave-select-trigger strong,
+  .wave-select > .wave-select-menu strong {
+    color: var(--settings-text);
+    font: inherit;
+    overflow-wrap: anywhere;
+  }
+  .wave-select > .wave-select-trigger small,
+  .wave-select > .wave-select-menu small {
+    color: var(--settings-muted);
+    font: 400 11px/1.5 var(--wave-ui-font);
+  }
+  .wave-select > .wave-select-trigger > i,
+  .wave-select > .wave-select-menu > button > i {
+    color: var(--settings-accent);
+    font-size: 11px;
+  }
+  .wave-select > .wave-select-menu {
+    box-sizing: border-box;
+    position: absolute;
+    top: calc(100% + 6px);
+    bottom: auto;
+    left: 0;
+    right: 0;
+    display: block;
+    max-height: 240px;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    margin: 0;
+    padding: 4px;
+    border: 1px solid var(--settings-line);
+    border-radius: 12px;
+    background: var(--wave-card, #fff);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+    backdrop-filter: none;
+  }
+  .wave-select > .wave-select-menu::-webkit-scrollbar {
+    display: none;
+  }
+  .wave-select.opens-up > .wave-select-menu {
+    top: auto;
+    bottom: calc(100% + 6px);
+  }
+  .wave-select > .wave-select-menu > button {
+    min-height: 38px;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+  }
+  .wave-select > .wave-select-menu > button:hover,
+  .wave-select > .wave-select-menu > button.selected {
+    background: var(--settings-control);
+  }
+  .wave-select > .wave-select-menu > button:focus-visible,
+  .wave-select-trigger:focus-visible {
+    outline: 2px solid var(--settings-accent);
+    outline-offset: -2px;
+  }
+  .wave-translation {
+    margin-top: 9px;
+    padding-top: 7px;
+    border-top: 1px solid currentColor;
+    border-color: #8883;
+  }
+  .wave-translation button {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    opacity: 0.65;
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .wave-translation p {
+    margin: 7px 0 0;
+    font-size: 0.92em;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    opacity: 0.8;
+  }
+  .wave-translation small {
+    display: block;
+    margin-top: 5px;
+    font-size: 10px;
+  }
+}
+
+#wave-phone-script-root .wave-device .wave-backup-settings {
+  .backup-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    color: #526f9f;
+    background: #edf3fc;
+  }
+  .backup-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: #fbf2f5;
+    color: #a86479;
+  }
+  .backup-warning i {
+    margin-top: 3px;
+  }
+  .backup-confirm {
+    display: grid;
+    gap: 12px;
+    padding: 13px;
+    border: 1px solid var(--settings-line);
+    border-radius: 14px;
+    background: var(--settings-control);
+  }
+  .backup-confirm > span {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    color: var(--settings-text);
+    font: 500 11px/1.4 var(--wave-ui-font);
+  }
+  .backup-confirm > span b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .backup-confirm > span small {
+    white-space: nowrap;
+  }
+  .backup-danger {
+    background: #b9657e;
+    color: #fff;
+  }
+  .backup-error {
+    color: #b4516e;
+  }
+}
+
+#wave-phone-script-root .wave-device {
+  .wave-appbar {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr) 72px;
+    align-items: center;
+    gap: 0;
+  }
+  .wave-appbar > button {
+    justify-self: start;
+  }
+  .wave-appbar > div:not(.appbar-tools) {
+    min-width: 0;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+  }
+  .wave-appbar .wave-page-title {
+    display: block;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .wave-appbar > .appbar-tools {
+    justify-self: end;
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .chat-profile-settings .wave-image-upload > .wave-image-preview {
+    display: block;
+    width: 72px;
+    height: 72px;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    position: relative;
+  }
+  .wave-image-upload > .wave-image-preview > img,
+  .wave-image-upload .wave-upload-preview > img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    object-fit: cover;
+  }
+  .chat-page > .music-together {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) 16px;
+    gap: 8px;
+    align-self: center;
+    width: calc(100% - 32px);
+    max-width: 280px;
+    min-height: 48px;
+    margin: 4px auto 10px;
+    padding: 8px 10px;
+    border-radius: 14px;
+  }
+  .chat-page > .music-together .together-avatars {
+    padding: 0;
+  }
+  .chat-page > .music-together .together-avatars > * {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+  }
+  .chat-page > .music-together strong {
+    font-size: 11px;
+  }
+  .chat-page > .music-together small {
+    font-size: 10px;
+    margin-top: 2px;
+  }
+  .api-model-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    min-width: 0;
+  }
+  .api-model-row > button,
+  .api-inline-actions > button {
+    min-height: 42px;
+    padding: 8px 12px;
+    border: 1px solid var(--settings-line);
+    border-radius: 12px;
+    background: var(--settings-control);
+    color: var(--settings-text);
+    box-shadow: none;
+    font: 500 12px/1.5 var(--wave-ui-font);
+  }
+  .api-inline-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 0;
+  }
+  .api-note,
+  .api-feedback {
+    margin: 0;
+    padding: 10px 0;
+    color: var(--settings-muted);
+    font-size: 11px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  .api-feedback {
+    color: var(--settings-text);
+  }
+  .api-parameters input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+#wave-phone-script-root .wave-device {
+  .appearance-settings-card > .appearance-preview {
+    margin: 18px 0 0;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .voice-service-settings > .wave-settings-title + .voice-service-card {
+    border-top: 0;
+  }
+  .translation-service-settings,
+  .notification-sound-settings {
+    min-width: 0;
+  }
+  .translation-service-settings > label,
+  .notification-sound-settings > label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--settings-line);
+    font-size: 13px;
+    color: var(--settings-text);
+  }
+  .wave-sound-file {
+    display: none !important;
+  }
+  .draft-translation {
+    flex-shrink: 0;
+    margin: 6px 14px;
+    padding: 9px 12px;
+    border-radius: 12px;
+    background: var(--wave-tint);
+    max-height: 108px;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+  }
+  .draft-translation > span,
+  .draft-translation > small {
+    display: block;
+    font-size: 10px;
+    color: var(--settings-muted);
+  }
+  .draft-translation > p {
+    margin: 4px 0;
+    white-space: pre-wrap;
+    font-size: 12px;
+    color: var(--settings-text);
+  }
+  .wave-bilingual-message {
+    white-space: normal;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .wave-original-text {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .wave-translation-bubble {
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px dashed var(--message-primary, #9aa8b9);
+  }
+  .wave-translation-bubble > p {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .wave-translation-bubble > small {
+    display: block;
+    margin-top: 5px;
+    font-size: 10px;
+    opacity: 0.65;
+  }
+  .wave-translation-toggle {
+    display: block;
+    min-height: 24px;
+    margin: 5px 0 0 auto;
+    padding: 2px 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    opacity: 0.65;
+    font: 400 10px/1.5 var(--wave-ui-font);
+    box-shadow: none;
+  }
+  .wave-translation-error {
+    display: block;
+    margin-top: 8px;
+    font-size: 11px;
+  }
+  .sound-event-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 12px 0;
+  }
+  .sound-event-tabs button {
+    padding: 10px;
+    border: 1px solid var(--settings-line);
+    border-radius: 10px;
+    background: var(--settings-control);
+    color: var(--settings-text);
+    font-size: 12px;
+  }
+  .sound-event-tabs button[aria-pressed='true'] {
+    color: var(--settings-accent);
+    background: var(--wave-tint);
+    border-color: var(--settings-accent);
+  }
+  .translation-guide {
+    padding: 12px 0;
+    font-size: 11px;
+    color: var(--settings-muted);
+    line-height: 1.7;
+  }
+  .translation-guide a {
+    color: var(--settings-accent);
+    margin-right: 12px;
+  }
+  .chat-avatar {
+    touch-action: manipulation;
+    cursor: pointer;
+  }
+  .composer .mobile-return {
+    display: none;
+  }
+  @media (pointer: coarse) {
+    .composer {
+      grid-template-columns: 38px minmax(0, 1fr) 38px 38px;
+    }
+    .composer textarea {
+      min-width: 0;
+    }
+    .composer .mobile-return {
+      display: block;
+      touch-action: none;
+      user-select: none;
+    }
+  }
+}
+
+#wave-phone-script-root .wave-device {
+  .wave-statusbar {
+    box-sizing: border-box;
+    height: 42px;
+    padding: 7px 19px 11px;
+    align-items: center;
+  }
+  .wave-status-time,
+  .device-status {
+    width: 76px;
+    flex: 0 0 76px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .wave-status-time {
+    min-width: 0;
+    font-family:
+      'PingFang SC',
+      'PingFang TC',
+      -apple-system,
+      BlinkMacSystemFont,
+      'Microsoft YaHei',
+      sans-serif;
+    font-size: 10px !important;
+    font-weight: 600;
+    justify-content: flex-start;
+    line-height: 1;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .device-status {
+    position: relative;
+    margin-left: auto;
+  }
+  .device-status-trigger {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--wave-navy);
+    box-shadow: none;
+    font:
+      600 9px/1 'PingFang SC',
+      'PingFang TC',
+      -apple-system,
+      BlinkMacSystemFont,
+      'Microsoft YaHei',
+      sans-serif;
+    letter-spacing: 0;
+  }
+  .device-signal {
+    display: block;
+    width: 16px;
+    height: 15px;
+    flex: none;
+    overflow: visible;
+  }
+  .device-signal rect {
+    fill: currentColor;
+    opacity: 0.2;
+    transition: opacity 1.2s ease;
+  }
+  .device-signal rect.active {
+    opacity: 1;
+  }
+  .device-battery {
+    display: block;
+    width: 24px;
+    height: 15px;
+    flex: none;
+    overflow: visible;
+  }
+  .device-battery.low {
+    color: #c95b64;
+  }
+  .device-battery.charging {
+    color: #4f9674;
+  }
+  .device-charge-mark {
+    fill: var(--wave-card);
+  }
+  .device-percent {
+    width: 24px;
+    min-width: 24px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .device-power-panel {
+    position: absolute;
+    right: 0;
+    top: 35px;
+    width: min(260px, calc(100vw - 64px));
+    box-sizing: border-box;
+    padding: 16px;
+    border: 1px solid var(--wave-line);
+    border-radius: 16px;
+    background: var(--wave-card);
+    color: var(--wave-navy);
+    box-shadow: 0 8px 24px #18233422;
+    letter-spacing: 0;
+  }
+  .device-power-panel .wave-settings-title {
+    display: flex;
+    justify-content: space-between;
+    margin: 0;
+  }
+  .device-power-panel p,
+  .device-power-panel small {
+    display: block;
+    margin: 10px 0;
+    font: 400 11px/1.6 var(--wave-ui-font);
+    color: var(--wave-muted);
+  }
+  .device-power-panel progress {
+    width: 100%;
+    height: 6px;
+    accent-color: var(--wave-blue);
+  }
+  .device-power-panel button {
+    width: 100%;
+    min-height: 38px;
+    margin-top: 12px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--wave-blue);
+    color: white;
+    font: 500 12px/1.5 var(--wave-ui-font);
+  }
+}
+
+#wave-phone-script-root .wave-device {
+  .message-row.is-poke {
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    padding: 8px 0;
+  }
+  .wave-poke-notice {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
+    max-width: 90%;
+    padding: 5px 12px;
+    border-radius: 18px;
+    background: var(--wave-card);
+    color: var(--wave-muted);
+    font: 400 11px/1.5 var(--wave-ui-font);
+    overflow-wrap: anywhere;
+    box-shadow: none;
+  }
+  .wave-poke-target {
+    color: var(--wave-blue);
+  }
+  .wave-poke-notice small {
+    margin-left: 5px;
+    font-size: 10px;
+  }
+}
+
+// 基础设置、世界书与调试共用设置页的中性控件和层级。
+#wave-phone-script-root .wave-device {
+  .system-settings {
+    display: grid;
+    gap: var(--settings-gap);
+    min-width: 0;
+  }
+  .system-settings-card {
+    padding: 0 18px 18px;
+    gap: 12px;
+  }
+  .system-settings-card .wave-settings-title {
+    padding-bottom: 0;
+  }
+  .system-settings-card p,
+  .system-settings-card small,
+  .system-settings > p {
+    margin: 0;
+    color: var(--settings-muted);
+    font: 400 11px/1.6 var(--wave-ui-font);
+    overflow-wrap: anywhere;
+  }
+  .system-settings-card > label {
+    display: grid;
+    gap: 8px;
+    padding: 16px 0;
+    margin: 0;
+    border-bottom: 1px solid var(--settings-line);
+    font: 400 13px/1.5 var(--wave-ui-font);
+  }
+  .system-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--settings-line);
+    font: 400 13px/1.5 var(--wave-ui-font);
+  }
+  .system-settings input,
+  .wave-multiselect-search {
+    appearance: none;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--settings-line);
+    border-radius: var(--settings-radius);
+    background: var(--settings-control);
+    color: var(--settings-text);
+    font: 400 13px/1.5 var(--wave-ui-font);
+    box-shadow: none;
+    letter-spacing: 0;
+    text-transform: none;
+    opacity: 1;
+  }
+  .system-button-row,
+  .system-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+  }
+  .system-button-row input {
+    flex: 1;
+    width: 0;
+  }
+  .system-action,
+  .system-chip {
+    appearance: none;
+    width: auto;
+    min-width: 0;
+    min-height: 42px;
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--settings-line);
+    border-radius: var(--settings-radius);
+    background: var(--settings-control);
+    color: var(--settings-text);
+    font: 500 13px/1.5 var(--wave-ui-font);
+    box-shadow: none;
+    letter-spacing: 0;
+    text-transform: none;
+    opacity: 1;
+    cursor: pointer;
+  }
+  .system-chip {
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+    text-align: left;
+  }
+  .system-chip span {
+    margin-left: 6px;
+    color: var(--settings-muted);
+  }
+  .system-action:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .system-action:focus-visible,
+  .system-chip:focus-visible,
+  .wave-multiselect-search:focus-visible {
+    outline: 2px solid var(--settings-accent);
+    outline-offset: 2px;
+  }
+  .system-settings pre {
+    max-height: 280px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font: 11px/1.6 monospace;
+    color: var(--settings-text);
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--settings-control);
+  }
+  .system-settings summary {
+    color: var(--settings-text);
+    font: 400 13px/1.5 var(--wave-ui-font);
+    cursor: pointer;
+  }
+  .wave-multiselect {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+  }
+  .wave-multiselect-check {
+    display: grid;
+    place-items: center;
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--settings-line);
+    border-radius: 5px;
+  }
+  .selected .wave-multiselect-check {
+    background: var(--settings-accent);
+    border-color: var(--settings-accent);
+    color: white;
+  }
+  .wave-multiselect-empty {
+    padding: 12px;
+    color: var(--settings-muted);
+    font: 400 11px/1.6 var(--wave-ui-font);
+  }
+}
+
+#wave-phone-script-root .wave-device .wave-multiselect .wave-select-menu > button {
+  appearance: none;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  border-radius: 0;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 1;
+  overflow-wrap: anywhere;
+}
+
+// 外观页每个逻辑分组独立成卡片，保存操作放在分组之外。
+#wave-phone-script-root .wave-device .appearance-settings-page {
+  display: grid;
+  gap: var(--settings-gap);
+  min-width: 0;
+  .home-appearance-editor {
+    gap: var(--settings-gap);
+    padding: 0;
+    min-width: 0;
+  }
+  .appearance-group {
+    padding: 0 18px 16px;
+  }
+  .appearance-group > p {
+    margin: 4px 0 0;
+    color: var(--settings-muted);
+    font: 400 11px/1.6 var(--wave-ui-font);
+  }
+  .appearance-ecot-toggle {
+    margin: 0;
+    padding: 15px 0;
+  }
+  .appearance-ecot-toggle > span {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+  .appearance-ecot-toggle strong {
+    color: var(--settings-text);
+    font: 500 13px/1.5 var(--wave-ui-font);
+  }
+  .appearance-ecot-toggle small {
+    color: var(--settings-muted);
+    font: 400 10px/1.55 var(--wave-ui-font);
+  }
+  .appearance-date-field {
+    margin: 0;
+    padding: 16px 0 0;
+    border: 0;
+  }
+  .appearance-wallpaper-row,
+  .appearance-icon-row {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--settings-line);
+  }
+  .appearance-wallpaper-row:last-child,
+  .appearance-icon-row:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+  .appearance-preview {
+    margin: 16px 0 0;
+    border: 0;
+    border-radius: 12px;
+    box-shadow: none;
+    background: var(--settings-control);
+  }
+  .settings-slider-row:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+}
+
+#wave-phone-script-root .wave-device .generation-settings {
+  .generation-module-group {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--settings-line);
+    display: grid;
+    gap: 10px;
+  }
+  .generation-group-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font: 500 13px/1.5 var(--wave-ui-font);
+  }
+  .generation-group-heading span,
+  .generation-selection-summary {
+    color: var(--settings-muted);
+    font: 400 11px/1.6 var(--wave-ui-font);
+  }
+  .generation-module-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .generation-module-grid button {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    margin: 0;
+    padding: 10px 8px;
+    border: 1px solid var(--settings-line);
+    border-radius: 12px;
+    background: var(--settings-control);
+    color: var(--settings-muted);
+    font: 500 12px/1.4 var(--wave-ui-font);
+    box-shadow: none;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .generation-module-grid button[aria-pressed='true'] {
+    color: var(--settings-accent);
+    border-color: var(--settings-accent);
+    background: color-mix(in srgb, var(--settings-accent) 12%, var(--wave-card));
+  }
+  .generation-module-grid button:focus-visible {
+    outline: 2px solid var(--settings-accent);
+    outline-offset: 2px;
+  }
+}
+
+#wave-phone-script-root .wave-device {
+  .wave-content-delete {
+    appearance: none;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 28px;
+    min-height: 28px;
+    margin: 0;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 9px;
+    background: #f9eef2;
+    color: #bd7088;
+    font: 500 10px/1 var(--wave-ui-font);
+    box-shadow: none;
+  }
+  .wave-content-delete:active {
+    background: #f2dce4;
+  }
+  .wave-clear-section {
+    margin-top: 4px;
+  }
+  .wave-clear-button {
+    appearance: none;
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid #efd7df;
+    border-radius: 13px;
+    background: #fbf1f4;
+    color: #b75f79;
+    font: 500 12px/1.4 var(--wave-ui-font);
+  }
+  .wave-clear-button i {
+    margin-right: 6px;
+  }
+  .wave-clear-confirm {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 13px;
+    background: var(--settings-control);
+  }
+  .wave-clear-confirm span {
+    color: var(--settings-text);
+    font: 400 11px/1.5 var(--wave-ui-font);
+  }
+  .wave-clear-confirm button {
+    appearance: none;
+    min-height: 32px;
+    padding: 7px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: var(--wave-card);
+    color: var(--settings-muted);
+    font: 500 10px/1 var(--wave-ui-font);
+  }
+  .wave-clear-confirm button.danger {
+    background: #b9657e;
+    color: #fff;
+  }
+}

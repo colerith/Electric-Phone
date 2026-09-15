@@ -1,0 +1,608 @@
+#wave-phone-script-root .wave-device {
+  .translation-service-settings {
+    padding-bottom: 18px;
+  }
+  .translation-service-settings > .settings-sound-preview {
+    margin-bottom: 0;
+  }
+  .messenger-filters button[aria-selected='true'] {
+    background: var(--wave-navy, #294774);
+    color: #fff;
+  }
+  .messenger-dock button[aria-current] {
+    color: var(--settings-accent);
+    background: color-mix(in srgb, var(--settings-accent) 12%, var(--wave-card));
+  }
+  .messenger-bottom {
+    padding-bottom: 28px;
+  }
+  .messenger-row-actions {
+    visibility: hidden;
+  }
+  .messenger-swipe-row.revealed .messenger-row-actions {
+    visibility: visible;
+  }
+  .contact-letter-group {
+    scroll-margin-top: 10px;
+    margin-right: 15px;
+  }
+  .contact-alphabet {
+    position: absolute;
+    z-index: 3;
+    right: 3px;
+    top: 12px;
+    bottom: 160px;
+    width: 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: auto;
+    scrollbar-width: none;
+  }
+  .contact-alphabet button {
+    padding: 3px 0;
+    width: 22px;
+    min-height: 20px;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--settings-accent);
+    font-size: 10px;
+  }
+  &.moments-immersive {
+    background-image: var(--moments-cover);
+    background-size: 100% 310px;
+    background-repeat: no-repeat;
+    background-color: var(--wave-card);
+  }
+  &.page-messages.is-subpage .wave-screen > .messenger-app.is-moments {
+    background: transparent;
+  }
+  .messenger-app.is-moments .messenger-scroll {
+    padding: 0;
+  }
+  .moments-view {
+    min-width: 0;
+  }
+  .moments-cover {
+    height: 155px;
+    position: relative;
+    background-image: var(--moments-cover);
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+  }
+  .moments-cover-edit {
+    position: absolute;
+    left: 18px;
+    bottom: 28px;
+    padding: 6px 10px;
+    border-radius: 15px;
+    background: #ffffffc9;
+    color: #344e70;
+    font-size: 10px;
+  }
+  .moments-cover-person {
+    position: absolute;
+    bottom: -22px;
+    right: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .moments-cover-person > strong {
+    color: #fff;
+    text-shadow: 0 1px 5px #142a4860;
+    font: 600 17px/1.4 var(--wave-ui-font);
+  }
+  .moments-avatar {
+    display: grid;
+    place-items: center;
+    width: 66px;
+    height: 66px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--settings-control);
+    color: var(--settings-accent);
+    padding: 0;
+    font-size: 24px;
+  }
+  .moments-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .moments-signature {
+    padding: 32px 18px 20px;
+    background: var(--wave-card);
+    text-align: right;
+    font: 400 11px/1.5 var(--wave-ui-font);
+    color: var(--settings-muted);
+    min-height: 65px;
+  }
+  .moments-feed {
+    background: var(--wave-card);
+    min-height: 150px;
+  }
+  .moment-post {
+    display: flex;
+    gap: 10px;
+    padding: 20px 18px;
+    border-bottom: 1px solid var(--settings-line);
+  }
+  .moment-author-avatar {
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    background: var(--settings-control);
+    border-radius: 9px;
+    overflow: hidden;
+    color: var(--settings-accent);
+    font: 600 15px/1 var(--wave-ui-font);
+  }
+  .moment-author-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .moment-post-main {
+    flex: 1;
+    min-width: 0;
+  }
+  .moment-author {
+    color: var(--settings-accent);
+    font: 600 13px/1.5 var(--wave-ui-font);
+  }
+  .moment-text {
+    margin: 6px 0 10px;
+    color: var(--settings-text);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font: 400 13px/1.6 var(--wave-ui-font);
+  }
+  .moment-media-grid,
+  .moment-draft-images {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .moment-media-grid.single {
+    grid-template-columns: minmax(0, 180px);
+  }
+  .moment-media-grid button,
+  .moment-draft-images > div > button:first-child {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+    width: 100%;
+    padding: 0;
+    border-radius: 5px;
+    overflow: hidden;
+    background: var(--settings-control);
+    color: var(--settings-muted);
+  }
+  .moment-media-grid img,
+  .moment-draft-images img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .moment-media-grid button > span {
+    padding: 9px;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font: 400 10px/1.5 var(--wave-ui-font);
+  }
+  .moment-media-grid i {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 16px;
+    color: var(--settings-accent);
+  }
+  .moment-location,
+  .moment-mentions {
+    margin-top: 8px;
+    color: var(--settings-accent);
+    font-size: 10px;
+    line-height: 1.5;
+  }
+  .moment-location i {
+    margin-right: 5px;
+  }
+  .moment-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0;
+  }
+  .moment-meta small {
+    flex: 1;
+    font-size: 10px;
+    color: var(--settings-muted);
+  }
+  .moment-meta button {
+    background: transparent;
+    color: var(--settings-accent);
+    padding: 4px 2px;
+    border-radius: 6px;
+    font-size: 10px;
+  }
+  .moment-meta button[aria-pressed='true'] {
+    color: #ad687e;
+  }
+  .moment-meta i {
+    margin-right: 3px;
+  }
+  .moment-interactions {
+    background: var(--settings-control);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font: 400 11px/1.6 var(--wave-ui-font);
+  }
+  .moment-interactions p {
+    margin: 3px 0;
+    color: var(--settings-text);
+    overflow-wrap: anywhere;
+  }
+  .moment-interactions strong,
+  .moment-likes {
+    color: var(--settings-accent);
+    font-weight: 500;
+  }
+  .moment-comment-form {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .moment-comment-form input {
+    min-width: 0;
+    flex: 1;
+    padding: 8px;
+    border: 1px solid var(--settings-line);
+    border-radius: 8px;
+    background: var(--settings-control);
+    color: var(--settings-text);
+    font-size: 11px;
+  }
+  .moment-comment-form button {
+    background: var(--settings-accent);
+    color: #fff;
+    padding: 8px;
+    border-radius: 8px;
+    font-size: 11px;
+  }
+  .moments-me-profile {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 0 30px;
+  }
+  .moments-me-profile > div {
+    min-width: 0;
+    flex: 1;
+  }
+  .moments-me-profile strong {
+    font-size: 18px;
+  }
+  .moments-me-profile small,
+  .moments-me-profile p {
+    display: block;
+    margin: 6px 0 0;
+    font: 400 11px/1.5 var(--wave-ui-font);
+    color: var(--settings-muted);
+    overflow-wrap: anywhere;
+  }
+  .moments-me-menu {
+    padding: 4px 12px;
+    background: var(--settings-control);
+    border-radius: 18px;
+  }
+  .moments-me-menu button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 18px 2px;
+    background: transparent;
+    color: var(--settings-text);
+    text-align: left;
+    font-size: 13px;
+  }
+  .moments-me-menu button + button {
+    border-top: 1px solid var(--settings-line);
+  }
+  .moments-me-menu span {
+    flex: 1;
+  }
+  .moments-me-menu small {
+    color: var(--settings-muted);
+  }
+  .moments-me-menu i {
+    color: var(--settings-accent);
+  }
+  .moments-subheading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 0 18px;
+  }
+  .moments-subheading strong {
+    font: 600 14px/1.5 var(--wave-ui-font);
+  }
+  .moments-subheading button {
+    padding: 7px 0;
+    color: var(--settings-accent);
+    background: transparent;
+    font-size: 12px;
+  }
+  .moments-form {
+    margin-bottom: 16px;
+    background: var(--settings-control);
+  }
+  .moments-form input,
+  .moments-form textarea {
+    appearance: none;
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--settings-line);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: var(--wave-card);
+    color: var(--settings-text);
+    font: 400 13px/1.5 var(--wave-ui-font);
+    box-sizing: border-box;
+    box-shadow: none;
+  }
+  .moments-profile-avatar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: transparent;
+    color: var(--settings-accent);
+    text-align: left;
+    padding: 12px 0;
+    font-size: 13px;
+  }
+  .moments-profile-avatar img {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    object-fit: cover;
+  }
+  .moments-choices {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    max-height: 230px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .moments-choices button {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    min-height: 42px;
+    border: 1px solid var(--settings-line);
+    border-radius: 12px;
+    background: var(--wave-card);
+    color: var(--settings-muted);
+    font: 400 12px/1.5 var(--wave-ui-font);
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+  .moments-choices button[aria-pressed='true'] {
+    color: var(--settings-accent);
+    border-color: var(--settings-accent);
+  }
+  .moments-number-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .moments-number-pair label {
+    display: grid;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .moments-notice {
+    padding: 10px;
+    color: var(--settings-muted);
+    font-size: 11px;
+  }
+  .moment-composer {
+    position: absolute;
+    inset: 42px 0 22px;
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    background: var(--wave-card);
+    color: var(--settings-text);
+    border-radius: 0 0 22px 22px;
+    overflow: hidden;
+  }
+  .moment-compose-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--settings-line);
+  }
+  .moment-compose-bar strong {
+    font: 600 14px/1.5 var(--wave-ui-font);
+  }
+  .moment-composer button,
+  .moments-media-modal button {
+    appearance: none;
+    box-shadow: none;
+    border: 0;
+    letter-spacing: 0;
+    text-transform: none;
+    font-family: var(--wave-ui-font);
+    cursor: pointer;
+  }
+  .moment-compose-bar button {
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: var(--settings-control);
+    color: var(--settings-text);
+    font-size: 12px;
+  }
+  .moment-compose-bar .moment-publish {
+    background: var(--settings-accent);
+    color: white;
+  }
+  .moment-compose-body {
+    padding: 18px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: grid;
+    gap: 16px;
+  }
+  .moment-compose-body > textarea {
+    border: 0;
+    resize: vertical;
+  }
+  .moment-compose-body input,
+  .moment-compose-body textarea,
+  .moments-media-modal textarea {
+    appearance: none;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid var(--settings-line);
+    border-radius: 12px;
+    background: var(--settings-control);
+    color: var(--settings-text);
+    font: 400 13px/1.6 var(--wave-ui-font);
+    box-shadow: none;
+  }
+  .moment-compose-body label {
+    display: grid;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .moment-compose-body p {
+    color: var(--settings-muted);
+    font-size: 11px;
+    margin: 0;
+  }
+  .moment-draft-images > div {
+    position: relative;
+  }
+  .moment-draft-images span {
+    padding: 8px;
+    font: 400 10px/1.5 var(--wave-ui-font);
+    overflow: hidden;
+    max-height: 90px;
+  }
+  .moment-draft-images .moment-remove-image {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    padding: 0;
+    color: white;
+    background: #455875bd;
+  }
+  .moment-add-media {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .moment-add-media button {
+    padding: 10px;
+    background: var(--settings-control);
+    color: var(--settings-accent);
+    border-radius: 12px;
+    font-size: 11px;
+  }
+  .moment-add-media button:disabled {
+    opacity: 0.45;
+  }
+  .moment-add-media small {
+    color: var(--settings-muted);
+    font-size: 10px;
+  }
+  .moment-compose-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    width: 100%;
+    background: transparent;
+    color: var(--settings-text);
+    padding: 12px 0;
+    border-bottom: 1px solid var(--settings-line);
+    text-align: left;
+    font-size: 13px;
+  }
+  .moment-compose-row small {
+    flex: 1;
+    text-align: right;
+    color: var(--settings-muted);
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+  .moments-media-modal {
+    position: absolute;
+    inset: 0;
+    z-index: 1100;
+    display: grid;
+    place-items: center;
+    padding: 54px 18px 30px;
+    background: #17264090;
+  }
+  .moments-media-modal > section {
+    position: relative;
+    max-height: 100%;
+    overflow: auto;
+    background: var(--wave-card);
+    border-radius: 18px;
+    padding: 22px;
+    width: 100%;
+    display: grid;
+    gap: 14px;
+  }
+  .moments-media-modal > section > img {
+    width: 100%;
+    max-height: 500px;
+    object-fit: contain;
+  }
+  .moments-media-modal p {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font: 400 13px/1.6 var(--wave-ui-font);
+    color: var(--settings-text);
+  }
+  .moments-media-modal .moment-media-close {
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--settings-control);
+    color: var(--settings-text);
+  }
+  .moments-view .settings-save-wide {
+    background: var(--wave-navy);
+    color: #fff;
+    min-height: 42px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+  }
+}

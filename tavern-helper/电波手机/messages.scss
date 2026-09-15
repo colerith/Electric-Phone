@@ -1,0 +1,199 @@
+/* Conversation layout: avatars anchor the first line; text and media keep independent shapes. */
+#wave-phone-script-root {
+  .message-row {
+    align-items: flex-start;
+    gap: 8px;
+    margin: 5px 0;
+  }
+  .message-unit.char + .message-unit.user .message-row,
+  .message-unit.user + .message-unit.char .message-row {
+    margin-top: 11px;
+  }
+  .message-row.user {
+    flex-direction: row-reverse;
+    justify-content: flex-start;
+  }
+  .message-row .chat-avatar {
+    display: grid;
+    place-items: center;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    margin-top: 1px;
+    border: 1.5px solid #86a5d2;
+    border-radius: 50%;
+    background: #fff;
+    overflow: hidden;
+    color: #5e80be;
+  }
+  .message-row.user .chat-avatar {
+    border-color: #f3aec4;
+    color: #c67795;
+  }
+  .message-row .chat-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .message-row .message-stack {
+    min-width: 0;
+    width: fit-content;
+    max-width: min(76%, 300px);
+  }
+  .message-row:has(.message-select-control) .message-stack {
+    max-width: min(70%, 280px);
+  }
+  .message-row.system .message-stack {
+    max-width: 100%;
+  }
+  .message-row .wave-message-text {
+    border-radius: 2px 21px 21px 21px;
+    padding: 10px 14px;
+    background: #dce8f8;
+    color: #374558;
+    box-shadow: none;
+    border: 0;
+    overflow-wrap: anywhere;
+    font-size: calc(12px * var(--wave-font-scale));
+  }
+  .message-row.user .wave-message-text {
+    border-radius: 21px 2px 21px 21px;
+    background: #fedce7;
+  }
+  .wave-message-media.video-card {
+    width: 250px;
+    max-width: 100%;
+    height: auto;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0;
+    padding: 24px 16px;
+    border: 0;
+    border-radius: 20px;
+    background: #101728;
+    color: #f6f6f8;
+    box-shadow: 0 4px 12px #00000008;
+  }
+  .wave-video-screen {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    padding: 0;
+  }
+  .wave-video-screen.has-video {
+    margin: -24px -16px 0;
+    background: #090e18;
+  }
+  .wave-message-media.video-card video {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 135px;
+    max-height: 270px;
+    object-fit: contain;
+  }
+  .wave-message-media.video-card .wave-video-play {
+    position: static;
+    width: 46px;
+    height: 46px;
+    margin: 0;
+    transform: none;
+    background: #ffffff30;
+    color: #fff;
+    border: 0;
+    border-radius: 50%;
+    transition:
+      scale 180ms ease,
+      background 180ms ease;
+  }
+  .wave-message-media.video-card .has-video .wave-video-play {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .wave-message-media.video-card .wave-video-play:hover {
+    background: #ffffff45;
+    box-shadow: 0 0 0 5px #ffffff08;
+  }
+  .wave-message-media.video-card .wave-video-description {
+    position: static;
+    margin: 17px 0 0;
+    padding: 0;
+    color: #f6f6f8;
+    font-size: calc(12px * var(--wave-font-scale));
+    font-weight: 500;
+    line-height: 1.8;
+    text-align: center;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .wave-message-media.video-card .wave-video-feedback {
+    display: block;
+    margin-top: 12px;
+    text-align: center;
+    font-size: 10px;
+    line-height: 1.5;
+    color: #b5bbca;
+  }
+  .wave-message-media.image-card {
+    width: 226px;
+    max-width: 100%;
+    height: auto;
+    margin: 0;
+    padding: 9px 9px 0;
+    border: 1px solid #e4e4e7;
+    border-radius: 13px;
+    background: #fff;
+    box-shadow: 0 4px 12px #0000000a;
+  }
+  .wave-polaroid-frame {
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 5px;
+    background: #f0f0f2;
+  }
+  .wave-message-media.image-card .wave-polaroid-frame img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .wave-photo-placeholder {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    color: #a4a6ad;
+    font-size: 28px;
+  }
+  .wave-polaroid-caption {
+    position: static;
+    padding: 15px 7px 19px;
+    color: #555964;
+    text-align: center;
+    font-size: calc(11px * var(--wave-font-scale));
+    line-height: 1.8;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .profile-name,
+  .profile-entry-copy strong,
+  .conversation-copy strong,
+  .wave-appbar strong {
+    overflow-wrap: anywhere;
+  }
+  .wave-appbar > div {
+    min-width: 0;
+  }
+  .wave-appbar strong {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

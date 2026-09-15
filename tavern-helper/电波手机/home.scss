@@ -1,0 +1,1123 @@
+#wave-phone-script-root .wave-device {
+  &.page-home .wave-screen {
+    padding: 0;
+    overflow: hidden;
+  }
+  .portrait-home {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    height: 100%;
+    min-height: 0;
+    isolation: isolate;
+  }
+  .portrait-pages {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    width: 100%;
+    height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .portrait-pages::-webkit-scrollbar {
+    display: none;
+  }
+  .portrait-page {
+    position: relative;
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    overflow: hidden;
+  }
+  .portrait-cover-page {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    padding: 3px 10px 2px 0;
+    gap: 2px;
+  }
+  .portrait-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 19px 0 21px;
+    color: var(--wave-navy);
+  }
+  .portrait-rail-clock {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    font:
+      300 24px/1.1 'PingFang SC',
+      sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .portrait-rail-clock i {
+    width: 18px;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.35;
+  }
+  .portrait-rail button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 34px;
+    min-height: 32px;
+    padding: 5px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    box-shadow: none;
+    font-size: 13px;
+  }
+  .portrait-rail small {
+    writing-mode: vertical-rl;
+    font: 500 8px/1 var(--wave-ui-font);
+    letter-spacing: 1.2px;
+  }
+  .portrait-rail-spacer {
+    flex: 1;
+  }
+  .portrait-cover {
+    position: relative;
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 20px;
+    background: var(--wave-card);
+    border: 1px solid var(--wave-line);
+  }
+  .portrait-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 78%;
+    object-fit: cover;
+    object-position: center 20%;
+  }
+  .portrait-empty {
+    display: grid;
+    place-content: center;
+    gap: 10px;
+    text-align: center;
+    height: 65%;
+    color: var(--wave-muted);
+    background: linear-gradient(145deg, var(--wave-tint), var(--wave-card));
+    font-size: 12px;
+  }
+  .portrait-empty i {
+    font-size: 32px;
+  }
+  .portrait-cover-fade {
+    position: absolute;
+    inset: 36% 0 0;
+    background: linear-gradient(180deg, transparent 0%, var(--wave-card) 54%);
+    pointer-events: none;
+  }
+  .portrait-greeting {
+    position: absolute;
+    inset: auto 15px 18px;
+    color: var(--wave-navy);
+  }
+  .portrait-greeting-en {
+    font:
+      400 22px/1.2 'PingFang SC',
+      sans-serif;
+    margin-bottom: 7px;
+  }
+  .portrait-greeting-name {
+    font:
+      600 17px/1.4 'PingFang SC',
+      sans-serif;
+    margin-bottom: 17px;
+    overflow-wrap: anywhere;
+  }
+  .portrait-search {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 6px 4px 10px;
+    border: 1px solid var(--wave-line);
+    border-radius: 25px;
+    background: var(--wave-card);
+    box-shadow: 0 2px 8px #26364b0a;
+  }
+  .portrait-search > i {
+    font-size: 12px;
+    color: var(--wave-muted);
+  }
+  .portrait-search input {
+    width: 0;
+    min-width: 0;
+    flex: 1;
+    height: 29px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--wave-navy);
+    font: 400 11px/1.5 var(--wave-ui-font);
+    box-shadow: none;
+    outline-offset: 3px;
+  }
+  .portrait-search button {
+    padding: 5px 7px;
+    border: 0;
+    background: transparent;
+    color: var(--wave-muted);
+    font: 500 10px/1.5 var(--wave-ui-font);
+    box-shadow: none;
+  }
+  .portrait-agenda {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 12px;
+    width: 100%;
+    gap: 4px 10px;
+    padding: 18px 2px 0;
+    text-align: right;
+    border: 0;
+    background: transparent;
+    color: var(--wave-navy);
+    box-shadow: none;
+  }
+  .portrait-agenda > span {
+    font-size: 10px;
+    color: var(--wave-muted);
+  }
+  .portrait-agenda strong {
+    grid-column: 1;
+    font: 500 11px/1.5 var(--wave-ui-font);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .portrait-agenda > i {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: center;
+    font-size: 12px;
+  }
+  .portrait-app-page {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 8px 17px 3px;
+    background:
+      radial-gradient(ellipse at 0% 10%, #dbe8fa70, transparent 55%),
+      radial-gradient(ellipse at 100% 90%, #f6dce66b, transparent 55%);
+    color: var(--wave-navy);
+  }
+  .ios-home-scroll {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+    padding: 2px 2px 8px;
+  }
+  .ios-day-widget {
+    width: 100%;
+    padding: 13px 15px 11px;
+    border: 1px solid var(--wave-line);
+    border-radius: 20px;
+    background: var(--wave-card);
+    color: var(--wave-navy);
+    text-align: left;
+    box-shadow: 0 5px 14px #455c8310;
+  }
+  .ios-widget-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    color: var(--wave-muted);
+    font: 600 8px/1.2 var(--wave-ui-font);
+    letter-spacing: 1.7px;
+  }
+  .ios-widget-heading i {
+    font-size: 14px;
+    color: var(--wave-blue);
+  }
+  .ios-day-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 7px 0 9px;
+  }
+  .ios-date-number {
+    font:
+      600 36px/0.95 'PingFang SC',
+      sans-serif;
+    letter-spacing: -1.5px;
+  }
+  .ios-day-main > div {
+    display: grid;
+    gap: 4px;
+  }
+  .ios-day-main strong {
+    font: 600 11px/1.3 var(--wave-ui-font);
+  }
+  .ios-day-main small {
+    font: 400 9px/1.3 var(--wave-ui-font);
+    color: var(--wave-muted);
+  }
+  .ios-widget-clock {
+    margin-left: auto;
+    padding: 5px 9px;
+    border-radius: 9px;
+    background: var(--wave-tint);
+    font:
+      500 13px/1.3 'PingFang SC',
+      sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .ios-day-agenda {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--wave-line);
+    font: 400 10px/1.4 var(--wave-ui-font);
+    color: var(--wave-muted);
+  }
+  .ios-day-agenda span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .ios-home-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: 63px;
+    gap: 13px 12px;
+    margin-top: 17px;
+    align-items: start;
+  }
+  .ios-app-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--wave-navy);
+    box-shadow: none;
+  }
+  .ios-app-icon > span {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 43px;
+    height: 43px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, var(--wave-card), var(--wave-tint));
+    border: 1px solid var(--wave-line);
+    color: var(--wave-blue);
+    box-shadow:
+      inset 0 1px 1px #ffffffa0,
+      0 3px 8px #405c7810;
+    font-size: 20px;
+  }
+  .ios-icon-status > span,
+  .ios-icon-zone > span,
+  .ios-icon-music > span {
+    background: linear-gradient(145deg, var(--wave-card), #f0dce74d);
+    color: #b47d99;
+  }
+  .ios-app-icon strong {
+    font: 500 10px/1.3 var(--wave-ui-font);
+    white-space: nowrap;
+  }
+  .ios-unread-badge {
+    position: absolute;
+    top: -4px;
+    right: -5px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: #bf7992;
+    color: white;
+    font: 600 8px/15px var(--wave-ui-font);
+    text-align: center;
+  }
+  .ios-update-dot {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--wave-card);
+    border-radius: 50%;
+    background: #d8435a;
+    box-shadow: 0 1px 4px #6d162a55;
+  }
+  .ios-photo-widget {
+    grid-column: span 2;
+    grid-row: span 2;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 9px;
+    border: 1px solid var(--wave-line);
+    border-radius: 18px;
+    background: var(--wave-card);
+    color: var(--wave-navy);
+    box-shadow: 0 5px 14px #455c8310;
+    overflow: hidden;
+  }
+  .ios-photo-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 5px;
+    font: 600 7px/1.3 var(--wave-ui-font);
+    letter-spacing: 0.7px;
+  }
+  .ios-photo-heading i {
+    color: #b47d99;
+    font-size: 10px;
+  }
+  .ios-photo-frame {
+    position: relative;
+    display: grid;
+    place-items: center;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 7px 0 5px;
+    border-radius: 9px;
+    overflow: hidden;
+    background: var(--wave-tint);
+  }
+  .ios-photo-frame > img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 20%;
+  }
+  .ios-photo-stamp {
+    position: absolute;
+    right: 5px;
+    bottom: 4px;
+    transform: rotate(-8deg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: #fff9;
+    color: #516c90;
+    font:
+      400 16px/1 'Wave Greeting',
+      cursive;
+  }
+  .ios-photo-caption {
+    display: block;
+    max-width: 100%;
+    color: var(--wave-muted);
+    font: 400 9px/1.4 var(--wave-ui-font);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .ios-home-dock {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    flex: 0 0 auto;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--wave-line);
+    border-radius: 22px;
+    background: color-mix(in srgb, var(--wave-tint) 70%, transparent);
+    backdrop-filter: blur(12px);
+  }
+  .ios-home-dock .ios-app-icon > span {
+    width: 41px;
+    height: 41px;
+  }
+  .portrait-search-state {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 12px;
+    color: var(--wave-muted);
+    font-size: 11px;
+  }
+  .portrait-search-state button {
+    padding: 3px 0;
+    border: 0;
+    background: transparent;
+    color: var(--wave-blue);
+    font-size: 11px;
+  }
+  .portrait-no-results {
+    font-size: 12px;
+    text-align: center;
+    padding: 20px 0;
+    color: var(--wave-muted);
+  }
+  .portrait-pager {
+    position: relative;
+    display: flex;
+    flex: 0 0 25px;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    width: 100%;
+    height: 25px;
+  }
+  &.page-home .wave-homebar {
+    position: relative;
+    inset: auto;
+    flex: 0 0 20px;
+    height: 20px;
+    margin: 0;
+    padding: 6px 0 10px;
+  }
+  .portrait-pager button {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 20px;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .portrait-pager button::after {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 10px;
+    background: #919cac70;
+  }
+  .portrait-pager button[aria-current='page']::after {
+    width: 16px;
+    background: var(--wave-blue);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .portrait-pages {
+      flex: 1 1 0;
+      min-height: 0;
+      scroll-behavior: auto;
+    }
+  }
+}
+
+#wave-phone-script-root .wave-device {
+  .ios-home-scroll {
+    display: flex;
+    flex-direction: column;
+  }
+  .ios-six-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: repeat(6, minmax(52px, 1fr));
+    gap: 14px 12px;
+    flex: 1;
+    min-height: 430px;
+    padding: 2px;
+  }
+  .ios-six-grid.is-searching {
+    align-content: start;
+  }
+  .ios-anniversary-widget {
+    grid-column: 1 / 5;
+    grid-row: 1 / 3;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 16px;
+    border-radius: 22px;
+    overflow: hidden;
+    background: linear-gradient(125deg, #ccd9ee, #eed5e1);
+    color: var(--wave-navy);
+  }
+  .anniversary-portrait {
+    width: 44%;
+    height: 100%;
+    position: relative;
+    min-width: 0;
+  }
+  .anniversary-portrait img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 20%;
+    border-radius: 50% 50% 44% 44%;
+    border: 3px solid #fff9;
+  }
+  .anniversary-portrait > span {
+    position: absolute;
+    bottom: 0;
+    right: -8px;
+    font:
+      28px/1 'Wave Greeting',
+      cursive;
+    transform: rotate(-9deg);
+    color: #fff;
+    text-shadow: 0 1px 3px #4f638a;
+  }
+  .anniversary-copy {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .anniversary-copy > small {
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .anniversary-copy > strong {
+    font: 600 32px/1.1 var(--wave-ui-font);
+  }
+  .anniversary-copy em {
+    font: 500 12px var(--wave-ui-font);
+  }
+  .anniversary-copy label {
+    font-size: 9px;
+    display: grid;
+    gap: 4px;
+  }
+  .anniversary-copy input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    border-radius: 7px;
+    background: #ffffff70;
+    padding: 4px;
+    color: var(--wave-navy);
+    font: 11px var(--wave-ui-font);
+  }
+  .ios-ipod-widget {
+    grid-column: 1 / 3;
+    grid-row: 3 / 5;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    padding: 12px;
+    border: 1px solid var(--wave-line);
+    border-radius: 20px;
+    background: linear-gradient(145deg, #fff, #dfe6f0);
+    box-shadow: inset 0 1px 2px white;
+    color: var(--wave-navy);
+  }
+  .ipod-screen {
+    width: 100%;
+    flex: 1;
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px;
+    border: 3px solid #536580;
+    border-radius: 8px;
+    background: #f3f5fa;
+    overflow: hidden;
+  }
+  .ipod-screen > img {
+    width: 34%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 3px;
+  }
+  .ipod-screen > span {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+    font: 7px var(--wave-ui-font);
+    letter-spacing: 0.5px;
+  }
+  .ipod-screen strong {
+    font: 500 10px/1.4 var(--wave-ui-font);
+    max-height: 42px;
+    overflow: hidden;
+  }
+  .ipod-wheel {
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #fff;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 16px 1fr 16px;
+    align-items: center;
+    justify-items: center;
+    color: #7b8bab;
+  }
+  .ipod-wheel small {
+    grid-column: 1 / 4;
+    font-size: 7px;
+  }
+  .ipod-wheel b {
+    border-radius: 50%;
+    background: #e6dce9;
+    padding: 5px;
+    font-size: 12px;
+  }
+  .ios-note-widget {
+    grid-column: 3 / 5;
+    grid-row: 5 / 7;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 13px;
+    border: 1px solid var(--wave-line);
+    border-radius: 20px;
+    background: repeating-linear-gradient(0deg, #fdfbfc 0px, #fdfbfc 23px, #e9e5ef 24px);
+    color: var(--wave-navy);
+    text-align: left;
+    overflow: hidden;
+  }
+  .ios-note-widget small {
+    font: 600 8px var(--wave-ui-font);
+    letter-spacing: 1px;
+  }
+  .ios-note-widget > span {
+    padding: 5px 8px;
+    border-radius: 10px;
+    background: #e8d5e6;
+    font-size: 9px;
+  }
+  .ios-note-widget > span:last-child {
+    align-self: flex-end;
+    background: #dbe6f2;
+  }
+  .ios-note-widget strong {
+    font: 500 12px/1.65 var(--wave-ui-font);
+    white-space: pre-line;
+    max-height: 65%;
+    overflow: hidden;
+  }
+  .ios-six-grid .ios-app-icon {
+    align-self: center;
+    justify-self: center;
+    width: 100%;
+    gap: 6px;
+  }
+  .ios-app-icon > span {
+    width: clamp(46px, 14cqw, 64px);
+    height: auto;
+    aspect-ratio: 1;
+    overflow: visible;
+    border-radius: 16px;
+  }
+  .ios-app-icon > span > img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+  }
+  .ios-app-icon strong {
+    font-size: 11px;
+  }
+  .ios-home-dock {
+    grid-template-columns: repeat(3, minmax(0, 64px));
+    justify-content: center;
+    gap: 22px;
+    padding: 9px 18px;
+    margin-top: 3px;
+  }
+  .ios-home-dock .ios-app-icon > span {
+    width: 54px;
+    height: 54px;
+  }
+  .portrait-app-page {
+    gap: 12px;
+    padding-top: 8px;
+  }
+}
+
+// Home chrome shares the wallpaper, without separate tinted bars.
+#wave-phone-script-root .wave-device.page-home {
+  .wave-statusbar,
+  .wave-homebar,
+  .portrait-pager {
+    background: transparent !important;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .portrait-app-page {
+    background: transparent;
+  }
+  .ios-home-dock {
+    background: linear-gradient(135deg, #ffffff45, #ffffff18);
+    border: 1px solid #ffffff80;
+    box-shadow:
+      inset 0 1px 0 #ffffff90,
+      0 8px 24px #26364b12;
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+  }
+  .ios-home-dock .ios-app-icon {
+    gap: 0;
+  }
+  .ios-anniversary-widget {
+    gap: 12px;
+    padding: 14px;
+    color: #344764;
+  }
+  .anniversary-portraits {
+    width: 48%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 8px 0 18px;
+    flex-shrink: 0;
+  }
+  .anniversary-avatar {
+    display: grid;
+    place-items: center;
+    width: 58%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 50%;
+    border: 2px solid white;
+    background: #f1e5ec;
+    box-shadow: 0 3px 8px #34476418;
+  }
+  .anniversary-avatar + .anniversary-avatar {
+    margin-left: -16%;
+    background: #e1eaf5;
+  }
+  .anniversary-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .anniversary-portraits > i {
+    position: absolute;
+    bottom: 0;
+    left: 44%;
+    font-size: 14px;
+    color: #526482;
+  }
+  .anniversary-copy {
+    gap: 6px;
+  }
+  .anniversary-copy > small {
+    color: #455673;
+    font: 500 10px/1.4 var(--wave-ui-font);
+    letter-spacing: 0.4px;
+  }
+  .anniversary-copy > strong {
+    color: #30486e;
+    font-size: clamp(24px, 8cqw, 40px);
+  }
+  .anniversary-copy > span {
+    color: #344764;
+    font: 600 12px/1.4 var(--wave-ui-font);
+  }
+  .anniversary-copy > small:last-child {
+    font-size: 9px;
+  }
+  .ios-ipod-widget {
+    gap: 8px;
+    padding: 10px;
+  }
+  .ipod-screen {
+    justify-content: center;
+    text-align: center;
+    color: #344764;
+    box-shadow: inset 0 1px 5px #34476420;
+  }
+  .ipod-screen > span {
+    width: 100%;
+  }
+  .ipod-screen small {
+    color: #526482;
+    font-size: 8px;
+  }
+  .ipod-wheel {
+    position: relative;
+    display: block;
+    width: 76px;
+    height: 76px;
+    background: linear-gradient(145deg, #fff, #efeff1);
+    box-shadow:
+      inset 0 0 0 1px #d5d8de,
+      0 1px 2px #34476415;
+  }
+  .ipod-wheel button {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    min-height: 0;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    color: #697181;
+    box-shadow: none;
+    font: 600 8px/1 var(--wave-ui-font);
+  }
+  .ipod-wheel .ipod-menu {
+    left: 18px;
+    top: 0;
+    width: 40px;
+    height: 24px;
+  }
+  .ipod-wheel .ipod-prev {
+    left: 0;
+    top: 25px;
+    width: 24px;
+    height: 26px;
+  }
+  .ipod-wheel .ipod-next {
+    right: 0;
+    top: 25px;
+    width: 24px;
+    height: 26px;
+  }
+  .ipod-wheel .ipod-play {
+    bottom: 0;
+    left: 23px;
+    width: 30px;
+    height: 23px;
+    gap: 2px;
+  }
+  .ipod-wheel .ipod-center {
+    left: 24px;
+    top: 24px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #e5e7eb, #f9f9fa);
+    border: 1px solid #d6d8dd;
+  }
+}
+#wave-phone-script-root .home-appearance-editor {
+  display: grid;
+  gap: 12px;
+  p {
+    font-size: 11px;
+    color: var(--wave-muted);
+  }
+  .appearance-icon-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .appearance-icon-row > img {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    object-fit: cover;
+  }
+  .appearance-icon-row label {
+    flex: 1;
+    min-width: 90px;
+  }
+  .appearance-icon-row input {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+// Keep an opaque canvas behind wallpapers, including transparent image files.
+#wave-phone-script-root .wave-device.page-home {
+  background-color: #f2f4fb;
+  &.theme-dark {
+    background-color: #171b30;
+  }
+}
+
+#wave-phone-script-root .wave-device .home-appearance-editor {
+  > button,
+  .appearance-icon-row > button {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    margin: 0;
+    padding: 8px 12px;
+    border: 1px solid var(--wave-line);
+    border-radius: 12px;
+    background: #edf2fa;
+    color: var(--wave-navy);
+    font: 500 11px/1.4 var(--wave-ui-font);
+    text-shadow: none;
+    box-shadow: none;
+    cursor: pointer;
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease;
+    &:hover {
+      background: #e0e9f6;
+      border-color: #a9bddb;
+    }
+    &:active {
+      background: #d5e1f2;
+    }
+    &:focus-visible {
+      outline: 2px solid var(--wave-blue);
+      outline-offset: 2px;
+    }
+  }
+  > button {
+    width: 100%;
+    min-height: 40px;
+  }
+  .appearance-icon-row > button:last-child {
+    background: transparent;
+    color: var(--wave-muted);
+  }
+  .appearance-icon-row {
+    padding: 8px 0;
+  }
+}
+
+// Let the desktop extend beneath both bottom controls; neither owns a surface.
+#wave-phone-script-root .wave-device.page-home {
+  .portrait-page {
+    padding-bottom: 48px;
+  }
+  .portrait-pager {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    z-index: 2;
+  }
+  .wave-homebar {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: 3;
+  }
+  .wave-screen,
+  .portrait-home,
+  .portrait-pages,
+  .portrait-pager,
+  .wave-homebar {
+    background: transparent !important;
+    border: 0;
+    box-shadow: none;
+  }
+  .portrait-pager::before,
+  .wave-homebar::before,
+  .wave-homebar::after {
+    display: none;
+  }
+  .ios-home-dock {
+    background: #ffffff24;
+    border-color: #ffffff55;
+    box-shadow: inset 0 1px 0 #ffffff50;
+  }
+  .ios-anniversary-widget {
+    background: linear-gradient(115deg, #d7e3f3 0%, #e4e3f1 55%, #f0dfe9 100%);
+    color: #344e76;
+    border: 1px solid #ffffff70;
+    gap: 12px;
+    padding: 14px 16px 14px 10px;
+  }
+  .anniversary-portraits {
+    width: 51%;
+    aspect-ratio: 240 / 180;
+    padding: 0;
+    display: block;
+    align-self: center;
+    position: relative;
+  }
+  .anniversary-avatar {
+    position: absolute;
+    left: 6%;
+    top: 6%;
+    width: 55%;
+    height: auto;
+    aspect-ratio: 1;
+    border: 2px solid #ffffff;
+    background: #e8eef8;
+    z-index: 1;
+    box-shadow: none;
+  }
+  .anniversary-avatar + .anniversary-avatar {
+    left: auto;
+    right: 6%;
+    margin-left: 0;
+    z-index: 2;
+    background: #f3e5ee;
+  }
+  .anniversary-headphones {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 3;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .anniversary-copy {
+    gap: 7px;
+  }
+  .anniversary-copy > strong,
+  .anniversary-copy > span,
+  .anniversary-copy > small {
+    color: #344e76;
+  }
+  .anniversary-copy > strong {
+    font-weight: 500;
+  }
+  .anniversary-copy > small {
+    color: #5b6c88;
+    letter-spacing: 0.5px;
+  }
+}
+#wave-phone-script-root .wave-device .home-appearance-editor {
+  padding-top: 18px;
+  .appearance-anniversary-setting {
+    display: grid;
+    gap: 9px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--wave-line);
+  }
+  .appearance-anniversary-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+    margin: 0;
+  }
+  .appearance-anniversary-heading > span {
+    font: 600 14px/1.5 var(--wave-ui-font);
+    color: var(--wave-navy);
+  }
+  .appearance-anniversary-heading > i {
+    color: #a96e83;
+    font-size: 14px;
+  }
+  .appearance-anniversary-setting p {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  .appearance-anniversary-setting input {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+  }
+}

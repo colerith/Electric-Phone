@@ -1,0 +1,301 @@
+/* Memo stationery shares the neutral app surface; paper details stay inside cards. */
+#wave-phone-script-root {
+  .wave-memo-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-bottom: 12px;
+  }
+  .memo-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .memo-search {
+    background: var(--wave-card);
+    border: 1px solid var(--wave-line);
+    font-size: 12px;
+  }
+  .memo-search input {
+    font-size: inherit;
+  }
+  .memo-search button {
+    flex-shrink: 0;
+    padding: 3px;
+    background: transparent;
+  }
+  .memo-filter-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .memo-filter {
+    display: flex;
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid var(--wave-line);
+    border-radius: 14px;
+  }
+  .memo-filter button {
+    border-radius: 10px;
+    padding: 6px 12px;
+    background: transparent;
+    color: var(--wave-muted);
+    font-size: 11px;
+  }
+  .memo-filter button[aria-pressed='true'] {
+    background: var(--wave-card);
+    color: var(--wave-ink);
+    box-shadow: 0 1px 4px #00000008;
+  }
+  .memo-paper-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 12px;
+    align-items: start;
+  }
+  .memo-paper {
+    position: relative;
+    min-width: 0;
+    padding: 23px 14px 12px;
+    border: 1px solid var(--wave-line);
+    border-radius: 17px;
+    background: var(--wave-card);
+    box-shadow: 0 3px 7px #00000006;
+  }
+  .memo-paper.expanded {
+    grid-column: 1 / -1;
+    padding: 26px 20px 15px;
+  }
+  .memo-tape {
+    position: absolute;
+    top: -6px;
+    left: calc(50% - 20px);
+    width: 40px;
+    height: 15px;
+    border-radius: 4px;
+    background: #dededbcc;
+    transform: rotate(-3deg);
+    pointer-events: none;
+  }
+  .paper-1 .memo-tape {
+    background: #decdd4bb;
+    transform: rotate(4deg);
+  }
+  .paper-2 .memo-tape {
+    background: #cad4dcbb;
+  }
+  .memo-paper-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    color: var(--wave-muted);
+  }
+  .memo-paper-meta i {
+    font-size: 10px;
+    opacity: 0.5;
+  }
+  .memo-paper-title {
+    display: block;
+    margin: 15px 0 10px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--wave-line);
+    color: var(--wave-blue-strong);
+    font-family: var(--wave-display-font);
+    font-size: calc(14px * var(--wave-font-scale));
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+  }
+  .memo-paper.expanded .memo-paper-title {
+    font-size: calc(18px * var(--wave-font-scale));
+  }
+  .wave-memo-panel .memo-paper-copy {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: calc(12px * var(--wave-font-scale));
+    line-height: 1.95;
+    color: var(--wave-ink);
+  }
+  .memo-paper.expanded .memo-paper-copy {
+    display: block;
+    overflow: visible;
+  }
+  .wave-app-content .memo-paper-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    margin-top: 15px;
+    padding: 8px 0 0;
+    border-top: 1px solid var(--wave-line);
+    border-radius: 0;
+    color: var(--wave-muted);
+    background: transparent;
+    font-size: 10px;
+  }
+  .memo-paper-toggle i {
+    font-size: 9px;
+  }
+  .memo-doodle-ticket {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--wave-line);
+    border-radius: 22px;
+    background: var(--wave-card);
+    padding: 20px;
+    box-shadow: 0 3px 7px #00000006;
+  }
+  .memo-ticket-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 17px;
+    border-bottom: 1px dashed var(--wave-line);
+  }
+  .memo-ticket-heading > div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .memo-ticket-heading small {
+    font-size: 8px;
+    letter-spacing: 2px;
+  }
+  .memo-ticket-heading strong {
+    font-family: var(--wave-display-font);
+    font-size: calc(19px * var(--wave-font-scale));
+    color: var(--wave-ink);
+  }
+  .memo-paperclip {
+    position: relative;
+    width: 11px;
+    height: 29px;
+    border: 1.5px solid #a9abb1;
+    border-radius: 8px;
+    transform: rotate(20deg);
+    margin-right: 6px;
+  }
+  .memo-paperclip::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 3px;
+    width: 5px;
+    height: 19px;
+    border: 1px solid #a9abb1;
+    border-radius: 5px;
+  }
+  .memo-doodle-sheet {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    margin-top: 17px;
+    border: 1px solid var(--wave-line);
+    border-radius: 12px;
+    background: var(--wave-tint);
+  }
+  .memo-doodle-sheet pre {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 16px 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+    white-space: pre;
+    tab-size: 4;
+    font:
+      11px/1.65 'Cascadia Mono',
+      'Consolas',
+      monospace;
+    color: var(--wave-ink);
+    background: transparent;
+    scrollbar-width: none;
+  }
+  .memo-doodle-sheet pre::-webkit-scrollbar {
+    display: none;
+  }
+  .memo-interpretation {
+    margin-top: 16px;
+  }
+  .memo-interpretation > span {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 7px;
+    background: var(--wave-tint);
+    color: var(--wave-muted);
+    font-size: 10px;
+  }
+  .wave-memo-panel .memo-interpretation p {
+    margin-top: 9px;
+    font-size: calc(12px * var(--wave-font-scale));
+    line-height: 1.85;
+  }
+  .memo-ticket-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--wave-line);
+    color: var(--wave-muted);
+    font-size: 9px;
+  }
+  .memo-barcode {
+    flex: 0 0 42px;
+    height: 20px;
+    opacity: 0.25;
+    background: repeating-linear-gradient(
+      90deg,
+      currentColor 0 1px,
+      transparent 1px 3px,
+      currentColor 3px 5px,
+      transparent 5px 7px
+    );
+  }
+  .memo-empty {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 12px;
+    padding: 45px 12px;
+    text-align: center;
+    color: var(--wave-muted);
+  }
+  .memo-empty > i {
+    font-size: 29px;
+  }
+  .memo-empty > strong {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .memo-empty > p {
+    font-size: 11px;
+  }
+  .theme-dark .memo-paper-title {
+    color: #a9bcdd;
+  }
+  @container (max-width: 270px) {
+    .memo-paper-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .memo-doodle-ticket {
+      padding: 16px;
+    }
+  }
+}
