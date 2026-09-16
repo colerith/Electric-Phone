@@ -1,6 +1,14 @@
 <template>
   <div class="home-appearance-editor">
     <section class="settings-card appearance-group">
+      <div class="wave-settings-title">顶部状态栏</div>
+      <div class="system-toggle-row">
+        <span><strong>显示状态栏信息</strong><small>显示左侧时间，以及右侧信号、电量信息</small></span>
+        <WaveToggle v-model="appearance.showStatusBar" aria-label="显示状态栏信息" />
+      </div>
+      <p>此开关不会隐藏中间的灵动岛。</p>
+    </section>
+    <section class="settings-card appearance-group">
       <div class="wave-settings-title">Ecot 内容</div>
       <div class="system-toggle-row appearance-ecot-toggle">
         <span><strong>显示 Ecot</strong><small>以折叠形式查看模型附带的剧情辅助信息</small></span>

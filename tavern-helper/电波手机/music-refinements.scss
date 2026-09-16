@@ -656,6 +656,36 @@
 }
 
 #wave-phone-script-root .wave-device {
+  .music-track-swipe {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+  }
+  .music-track-swipe > article {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    background: var(--wave-bg, #f6f7f9);
+    transition: transform 180ms ease;
+    touch-action: pan-y;
+  }
+  .music-track-swipe.deletable.revealed > article {
+    transform: translateX(-62px);
+  }
+  .music-track-delete-action {
+    position: absolute;
+    z-index: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 62px;
+    border: 0;
+    border-radius: 0 14px 14px 0;
+    background: #f8dce5;
+    color: #bd5f7e;
+    font-size: 11px;
+    font-weight: 700;
+  }
   &.music-immersive .wave-statusbar {
     z-index: 30;
   }

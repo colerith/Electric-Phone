@@ -26,7 +26,7 @@
         @click.capture="onInteractionSound"
       >
         <div class="wave-statusbar">
-          <span class="wave-status-time">{{ clock }}</span>
+          <span v-if="store.settings.appearance.showStatusBar" class="wave-status-time">{{ clock }}</span>
           <WaveGenerationIsland
             v-if="store.manualGeneratingApp"
             :app="store.manualGeneratingApp"
@@ -40,7 +40,7 @@
               appSettingsOpen = false;
             "
           />
-          <WaveDeviceStatus />
+          <WaveDeviceStatus v-if="store.settings.appearance.showStatusBar" />
         </div>
 
         <div v-if="!store.isReady" class="wave-loading">

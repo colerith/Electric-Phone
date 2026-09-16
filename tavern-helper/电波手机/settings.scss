@@ -1106,6 +1106,18 @@
     text-transform: none;
     opacity: 1;
   }
+  .system-settings input:not([type='range']):not([type='file']) {
+    border: 1px solid var(--settings-line) !important;
+    border-radius: var(--settings-radius) !important;
+    outline: 0 !important;
+    background-color: var(--settings-control) !important;
+    background-image: none !important;
+    color: var(--settings-text) !important;
+    box-shadow: none !important;
+    filter: none !important;
+    text-shadow: none !important;
+    color-scheme: light;
+  }
   .system-button-row,
   .system-chip-row {
     display: flex;

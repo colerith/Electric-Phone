@@ -67,21 +67,46 @@
         </p>
         <p v-if="music.error" class="music-feedback" role="alert">{{ music.error }}</p>
         <div class="music-results">
-          <article v-for="track in displayTracks" :key="track.source + track.id">
-            <img v-if="track.cover" :src="track.cover" alt="" /><span v-else class="music-cover-placeholder"
-              ><i class="fa-solid fa-music"></i></span
-            ><button type="button" :disabled="music.busy" @click="playTrack(track)">
-              <strong>{{ track.title }}</strong
-              ><small>{{ track.artist }} · {{ track.album }} · {{ musicSourceLabel(track.source) }}</small></button
-            ><button type="button" aria-label="喜欢歌曲" :aria-pressed="isFavorite(track)" @click="favorite(track)">
-              <i :class="isFavorite(track) ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i></button
-            ><button type="button" aria-label="加入歌单或播放队列" @click="collecting = track">
-              <i class="fa-solid fa-plus"></i>
+          <div
+            v-for="track in displayTracks"
+            :key="track.source + track.id"
+            class="music-track-swipe"
+            :class="{ deletable: favoritesOnly, revealed: revealedTrack === trackKey(track) }"
+          >
+            <button
+              v-if="favoritesOnly"
+              type="button"
+              class="music-track-delete-action"
+              :tabindex="revealedTrack === trackKey(track) ? 0 : -1"
+              :aria-label="`删除歌曲：${track.title}`"
+              @click="deleteTrack(track)"
+            >
+              删除
             </button>
-            <button type="button" class="wave-content-delete" aria-label="删除歌曲" @click="music.deleteTrack(track)">
-              <i class="fa-regular fa-trash-can"></i>
-            </button>
-          </article>
+            <article
+              @click.capture="suppressTrackAction"
+              @contextmenu.prevent="revealTrack(track)"
+              @pointerdown="startTrackSwipe($event, track)"
+              @pointerup="endTrackSwipe"
+              @pointercancel="trackSwipe = null"
+            >
+              <img v-if="track.cover" :src="track.cover" alt="" /><span v-else class="music-cover-placeholder"
+                ><i class="fa-solid fa-music"></i></span
+              ><button type="button" :disabled="music.busy" @click="playTrack(track)">
+                <strong>{{ track.title }}</strong
+                ><small>{{ track.artist }} · {{ track.album }} · {{ musicSourceLabel(track.source) }}</small></button
+              ><button
+                type="button"
+                aria-label="喜欢歌曲"
+                :aria-pressed="isFavorite(track)"
+                @click="favorite(track)"
+              >
+                <i :class="isFavorite(track) ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i></button
+              ><button type="button" aria-label="加入歌单或播放队列" @click="collecting = track">
+                <i class="fa-solid fa-plus"></i>
+              </button>
+            </article>
+          </div>
         </div>
         <p v-if="!displayTracks.length && !music.busy && !music.searching" class="music-feedback">
           {{ favoritesOnly ? '搜索并收藏喜欢的歌曲，在这里重逢。' : '输入歌名或歌手，寻找新的旋律。' }}
@@ -292,6 +317,9 @@ function createAndCollect() {
 const query = ref(''),
   favoritesOnly = ref(false),
   followLyrics = ref(true);
+const revealedTrack = ref('');
+let trackSwipe: { x: number; y: number; key: string } | null = null;
+let suppressTrackClickUntil = 0;
 const intent = computed(() => musicIntent(props.raw));
 const trackKey = (track: Track) => `${track.source}:${track.id}`;
 const isFavorite = music.isFavorite;
@@ -317,9 +345,39 @@ function findIntent() {
   if (query.value) search();
 }
 function playTrack(track: Track) {
+  if (revealedTrack.value === trackKey(track)) {
+    revealedTrack.value = '';
+    return;
+  }
   music.view = 'player';
   followLyrics.value = true;
   void music.select(track);
+}
+function revealTrack(track: Track) {
+  if (favoritesOnly.value) revealedTrack.value = trackKey(track);
+}
+function startTrackSwipe(event: PointerEvent, track: Track) {
+  if (!favoritesOnly.value || event.button !== 0) return;
+  trackSwipe = { x: event.clientX, y: event.clientY, key: trackKey(track) };
+}
+function endTrackSwipe(event: PointerEvent) {
+  if (!trackSwipe) return;
+  const dx = event.clientX - trackSwipe.x;
+  const dy = event.clientY - trackSwipe.y;
+  if (Math.abs(dx) > 42 && Math.abs(dy) < 35) {
+    revealedTrack.value = dx < 0 ? trackSwipe.key : '';
+    suppressTrackClickUntil = Date.now() + 400;
+  }
+  trackSwipe = null;
+}
+function suppressTrackAction(event: MouseEvent) {
+  if (Date.now() >= suppressTrackClickUntil) return;
+  event.preventDefault();
+  event.stopPropagation();
+}
+function deleteTrack(track: Track) {
+  music.deleteTrack(track);
+  revealedTrack.value = '';
 }
 watch(
   () => [
@@ -373,4 +431,5 @@ watch(
     void scrollLyric();
   },
 );
+watch(favoritesOnly, () => (revealedTrack.value = ''));
 </script>
