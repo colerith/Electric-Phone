@@ -94,28 +94,45 @@
           保存歌单</button
         ><button type="button" @click="editing = false">取消</button>
       </div>
-      <article v-for="(track, index) in selected.tracks" :key="track.source + track.id" class="playlist-song">
-        <span>{{ String(index + 1).padStart(2, '0') }}</span
-        ><button
+      <div
+        v-for="(track, index) in selected.tracks"
+        :key="track.source + track.id"
+        class="playlist-song-swipe"
+        :class="{ revealed: removingTrack === trackKey(track) }"
+      >
+        <button
           type="button"
-          @click="
-            music.select(track);
-            music.view = 'player';
-          "
+          class="playlist-song-remove"
+          :tabindex="removingTrack === trackKey(track) ? 0 : -1"
+          :aria-label="`从歌单移出：${track.title}`"
+          @click="removeTrack(track)"
         >
-          <strong>{{ track.title }}</strong
-          ><small>{{ track.artist }}</small></button
-        ><button
-          type="button"
-          aria-label="喜欢歌曲"
-          :aria-pressed="music.isFavorite(track)"
-          @click="music.favorite(track)"
-        >
-          <i :class="music.isFavorite(track) ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i></button
-        ><button type="button" aria-label="加入播放队列" @click="music.enqueue(track, true)">
-          <i class="fa-solid fa-list-ul"></i><sup>＋</sup>
+          移出歌单
         </button>
-      </article>
+        <article
+          class="playlist-song"
+          @click.capture="suppressSongAction"
+          @contextmenu.prevent="removingTrack = trackKey(track)"
+          @pointerdown="startSongSwipe($event, track)"
+          @pointerup="endSongSwipe"
+          @pointercancel="songSwipe = null"
+        >
+          <span>{{ String(index + 1).padStart(2, '0') }}</span
+          ><button type="button" @click="playSong(track)">
+            <strong>{{ track.title }}</strong
+            ><small>{{ track.artist }}</small></button
+          ><button
+            type="button"
+            aria-label="喜欢歌曲"
+            :aria-pressed="music.isFavorite(track)"
+            @click="music.favorite(track)"
+          >
+            <i :class="music.isFavorite(track) ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i></button
+          ><button type="button" aria-label="加入播放队列" @click="music.enqueue(track, true)">
+            <i class="fa-solid fa-list-ul"></i><sup>＋</sup>
+          </button>
+        </article>
+      </div>
       <p v-if="!selected.tracks.length">从歌曲旁的 ＋ 添加到这张歌单。</p>
     </template>
   </section>
@@ -123,6 +140,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount } from 'vue';
 import { useMusicStore } from '../stores/music';
+import type { Track } from '../services/music';
 import WaveImageUpload from './WaveImageUpload.vue';
 const music = useMusicStore();
 const emit = defineEmits<{ detail: [value: boolean] }>();
@@ -131,16 +149,23 @@ const name = ref(''),
   deleting = ref(''),
   editing = ref(false),
   editName = ref(''),
-  editCover = ref('');
+  editCover = ref(''),
+  removingTrack = ref('');
 const touch = ref([0, 0]);
 let suppressClickUntil = 0;
+let songSwipe: { x: number; y: number; key: string } | null = null;
+let suppressSongClickUntil = 0;
+const trackKey = (track: Track) => `${track.source}:${track.id}`;
 function openPlaylist(id: string) {
   if (Date.now() < suppressClickUntil) return;
   selectedId.value = id;
   deleting.value = '';
 }
 const selected = computed(() => music.playlists.find(list => list.id === selectedId.value));
-watch(selected, value => emit('detail', Boolean(value)));
+watch(selected, value => {
+  removingTrack.value = '';
+  emit('detail', Boolean(value));
+});
 onBeforeUnmount(() => emit('detail', false));
 const cover = (list: (typeof music.playlists)[number]) =>
   list.cover || list.tracks.find(track => track.cover)?.cover || '';
@@ -162,5 +187,37 @@ function swipe(event: TouchEvent, id: string) {
     deleting.value = id;
     suppressClickUntil = Date.now() + 400;
   }
+}
+function playSong(track: Track) {
+  if (removingTrack.value === trackKey(track)) {
+    removingTrack.value = '';
+    return;
+  }
+  void music.select(track);
+  music.view = 'player';
+}
+function startSongSwipe(event: PointerEvent, track: Track) {
+  if (event.button !== 0) return;
+  songSwipe = { x: event.clientX, y: event.clientY, key: trackKey(track) };
+}
+function endSongSwipe(event: PointerEvent) {
+  if (!songSwipe) return;
+  const dx = event.clientX - songSwipe.x;
+  const dy = event.clientY - songSwipe.y;
+  if (Math.abs(dx) > 42 && Math.abs(dy) < 35) {
+    removingTrack.value = dx < 0 ? songSwipe.key : '';
+    suppressSongClickUntil = Date.now() + 400;
+  }
+  songSwipe = null;
+}
+function suppressSongAction(event: MouseEvent) {
+  if (Date.now() >= suppressSongClickUntil) return;
+  event.preventDefault();
+  event.stopPropagation();
+}
+function removeTrack(track: Track) {
+  if (!selected.value) return;
+  music.removeFromPlaylist(selected.value.id, track);
+  removingTrack.value = '';
 }
 </script>

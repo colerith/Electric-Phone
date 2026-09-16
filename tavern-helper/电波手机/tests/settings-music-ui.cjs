@@ -7,6 +7,8 @@ const schemas = fs.readFileSync(path.join(root, 'schemas.ts'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'app.vue'), 'utf8');
 const appearance = fs.readFileSync(path.join(root, 'components/WaveHomeAppearance.vue'), 'utf8');
 const music = fs.readFileSync(path.join(root, 'components/WaveMusicPanel.vue'), 'utf8');
+const playlists = fs.readFileSync(path.join(root, 'components/WavePlaylists.vue'), 'utf8');
+const musicStore = fs.readFileSync(path.join(root, 'stores/music.ts'), 'utf8');
 const settingsStyle = fs.readFileSync(path.join(root, 'settings.scss'), 'utf8');
 const musicStyle = fs.readFileSync(path.join(root, 'music-refinements.scss'), 'utf8');
 
@@ -23,6 +25,10 @@ assert.match(music, /@contextmenu\.prevent="revealTrack\(track\)"/);
 assert.match(music, /@pointerdown="startTrackSwipe\(\$event, track\)"/);
 assert.match(music, /@click\.capture="suppressTrackAction"/);
 assert.match(musicStyle, /\.music-track-swipe > article[\s\S]*?background: transparent;/);
-assert.match(musicStyle, /\.music-track-swipe\.deletable > article[\s\S]*?background:/);
+assert.doesNotMatch(musicStyle, /\.music-track-swipe\.deletable > article\s*{[\s\S]*?background:/);
+assert.match(playlists, /@contextmenu\.prevent="removingTrack = trackKey\(track\)"/);
+assert.match(playlists, /@pointerdown="startSongSwipe\(\$event, track\)"/);
+assert.match(playlists, /class="playlist-song-remove"/);
+assert.match(musicStore, /function removeFromPlaylist\(id: string, track: Track\)/);
 
 console.log('PASS: settings isolation, API defaults, status-bar toggle and music swipe deletion are wired.');

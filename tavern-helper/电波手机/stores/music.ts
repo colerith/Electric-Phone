@@ -197,6 +197,14 @@ export const useMusicStore = defineStore('wave-music', () => {
     phone.saveMusicLibrary();
     inform(`已收藏到「${list.name}」`);
   }
+  function removeFromPlaylist(id: string, track: Track) {
+    const list = playlists.value.find(row => row.id === id);
+    if (!list) return;
+    const key = `${track.source}:${track.id}`;
+    list.tracks = list.tracks.filter(item => `${item.source}:${item.id}` !== key);
+    phone.saveMusicLibrary();
+    inform(`已从「${list.name}」移出`);
+  }
   function playPlaylist(id: string) {
     const list = playlists.value.find(row => row.id === id);
     if (!list?.tracks.length) return;
@@ -461,6 +469,7 @@ export const useMusicStore = defineStore('wave-music', () => {
     removeQueue,
     createPlaylist,
     collect,
+    removeFromPlaylist,
     playPlaylist,
     togetherSeconds,
     view,
