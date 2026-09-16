@@ -1230,6 +1230,38 @@
   overflow-wrap: anywhere;
 }
 
+// 双语模块始终保持与聊天语言设置一致的左右两列布局。
+// 放在设置样式末层，避免 system-settings-card 与宿主样式再次压缩下拉控件。
+#wave-phone-script-root .wave-device .wave-bilingual-settings {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0 18px 18px;
+  border-radius: 20px;
+  background: var(--settings-control);
+}
+
+#wave-phone-script-root .wave-device .wave-bilingual-settings > .chat-setting-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 16px;
+}
+
+#wave-phone-script-root .wave-device .wave-bilingual-settings > .chat-setting-row > .wave-select {
+  justify-self: stretch;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+#wave-phone-script-root .wave-device .wave-bilingual-settings > .chat-setting-row > .wave-toggle-control {
+  justify-self: end;
+}
+
+#wave-phone-script-root .wave-device .wave-bilingual-settings .wave-select-trigger {
+  background: var(--wave-card, #fff);
+}
+
 // 外观页每个逻辑分组独立成卡片，保存操作放在分组之外。
 #wave-phone-script-root .wave-device .appearance-settings-page {
   display: grid;

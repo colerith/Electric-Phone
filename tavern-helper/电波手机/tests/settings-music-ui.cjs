@@ -19,6 +19,15 @@ assert.match(app, /v-if="store\.settings\.appearance\.showStatusBar" class="wave
 assert.match(app, /<WaveDeviceStatus v-if="store\.settings\.appearance\.showStatusBar"/);
 assert.match(appearance, /v-model="appearance\.showStatusBar"/);
 assert.match(settingsStyle, /background-image: none !important;/);
+assert.match(settingsStyle, /\.wave-bilingual-settings\s*\{[\s\S]*?background: var\(--settings-control\);/);
+assert.match(
+  settingsStyle,
+  /\.wave-bilingual-settings > \.chat-setting-row\s*\{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
+);
+assert.match(
+  settingsStyle,
+  /\.wave-bilingual-settings > \.chat-setting-row > \.wave-select\s*\{[\s\S]*?width: 100%;[\s\S]*?max-width: none;/,
+);
 assert.doesNotMatch(music, /class="wave-content-delete" aria-label="删除歌曲"/);
 assert.match(music, /v-if="favoritesOnly"[\s\S]*?class="music-track-delete-action"/);
 assert.match(music, /@contextmenu\.prevent="revealTrack\(track\)"/);

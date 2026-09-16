@@ -72,22 +72,3 @@ function update<K extends keyof typeof props.prefs>(key: K, value: (typeof props
 const phone = usePhoneStore();
 const current = computed(() => ChatPreferencesSchema.parse(phone.state.chatPreferences[phone.state.activeCharKey]));
 </script>
-
-<style scoped>
-.wave-bilingual-settings > .chat-setting-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(138px, 46%);
-  align-items: center;
-  gap: 12px;
-}
-.wave-bilingual-settings > .chat-setting-row > .wave-select {
-  width: 100%;
-  max-width: none;
-  min-width: 0;
-}
-@media (max-width: 390px) {
-  .wave-bilingual-settings > .chat-setting-row:has(.wave-select) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-</style>
