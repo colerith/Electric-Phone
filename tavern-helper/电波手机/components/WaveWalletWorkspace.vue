@@ -150,8 +150,13 @@ const sharedOptions = computed(() => [
 const currencyOptions = currencies.map(value => ({ value, label: value }));
 const draft = reactive({ name: '', currency: 'CNY', balance: '', bankName: '', cardLabel: '', cardLastFour: '' });
 watch(
-  () => [phone.state.activeCharKey, props.mode, accounts.value.map(a => a.id).join('|')],
+  () => [phone.state.activeCharKey, props.mode, accounts.value.map(a => a.id).join('|'), phone.walletSelectedAccountId],
   () => {
+    const updatedAccountId = props.mode === 'app' ? phone.walletSelectedAccountId : '';
+    if (updatedAccountId && accounts.value.some(a => a.id === updatedAccountId)) {
+      selectedId.value = updatedAccountId;
+      return;
+    }
     if (!accounts.value.some(a => a.id === selectedId.value))
       selectedId.value = props.mode === 'mine' ? 'user' : `char:${phone.activeIdentity?.charKey}`;
   },
@@ -261,6 +266,13 @@ function selectShared(id: string): void {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+.wallet-account-pair > label {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.wallet-account-pair > label > input {
+  font-size: 14px;
 }
 .wallet-account-action {
   padding: 12px 16px;

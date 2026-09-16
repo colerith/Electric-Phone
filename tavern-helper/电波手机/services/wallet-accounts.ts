@@ -105,7 +105,12 @@ export function validateWalletPatch(
     }),
   };
 }
-export function applyWalletPatch(book: WalletBook, update: unknown, grant: WalletAuthorization, layer: string): void {
+export function applyWalletPatch(
+  book: WalletBook,
+  update: unknown,
+  grant: WalletAuthorization,
+  layer: string,
+): boolean {
   const account = book.accounts[grant.accountId];
   if (
     !account ||
@@ -114,6 +119,7 @@ export function applyWalletPatch(book: WalletBook, update: unknown, grant: Walle
     account.ownerId !== grant.ownerId
   )
     throw Error('钱包账户不可写入');
+  const before = JSON.stringify(accountWallet(book, account));
   const patch = validateWalletPatch(update, grant);
   for (const row of patch.transactions) {
     const previous = accountRows(book, account).find(item => item.id === row.id);
@@ -126,6 +132,7 @@ export function applyWalletPatch(book: WalletBook, update: unknown, grant: Walle
     account.opening[grant.currency] = patch.balance - total.income + total.expense;
   }
   account.layers[layer] = patch.transactions.filter(row => !Object.hasOwn(account.manual, row.id));
+  return JSON.stringify(accountWallet(book, account)) !== before;
 }
 export function saveAccount(
   book: WalletBook,

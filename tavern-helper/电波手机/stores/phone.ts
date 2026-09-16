@@ -921,6 +921,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       applyMomentUserProfile(nextState);
       hydrateCardRoster(nextState, runtime);
       const previousSnapshots = klona(nextState.snapshots);
+      const previousWalletSignatures = new Map(
+        Object.values(nextState.walletBook.accounts).map(account => [
+          account.id,
+          JSON.stringify(accountWallet(nextState.walletBook, account)),
+        ]),
+      );
       const previousThreadMessages = new Map(
         Object.values(nextState.threads).map(thread => [thread.charKey, thread.messages.map(message => message.id)]),
       );
@@ -943,6 +949,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const parsedStableIds = new Set(blocks.map(block => block.stableId.trim()).filter(Boolean));
       let policyConsumed = false;
       const roundBudgets = new Map<string, RoundBudget>();
+      const updatedWalletAccountByChar = new Map<string, string>();
       const blocksPerMessage = _.countBy(blocks, block => block.messageId);
       const ambiguousNames = new Set(
         blocks
@@ -1084,12 +1091,15 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             identity.charKey,
           )!);
           try {
-            applyWalletPatch(
-              nextState.walletBook,
-              block.delta ? walletUpdate : parseWallet(String(walletUpdate)),
-              grant,
-              `floor:${walletGrantKey}:${block.ordinal}`,
-            );
+            if (
+              applyWalletPatch(
+                nextState.walletBook,
+                block.delta ? walletUpdate : parseWallet(String(walletUpdate)),
+                grant,
+                `floor:${walletGrantKey}:${block.ordinal}`,
+              )
+            )
+              updatedWalletAccountByChar.set(identity.charKey, grant.accountId);
           } catch (error) {
             logDiagnostic('钱包更新跳过', stringifyError(error));
           }
@@ -1176,7 +1186,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           const before = previousSnapshots[charKey] || AppSnapshotSchema.parse({});
           const updated = new Set<AppId>();
           for (const app of APP_IDS) {
-            if (app !== 'messages' && snapshot[app] !== before[app]) updated.add(app);
+            if (app !== 'messages' && app !== 'wallet' && snapshot[app] !== before[app]) updated.add(app);
           }
           const thread = Object.values(nextState.threads).find(item => item.charKey === charKey);
           if (
@@ -1186,6 +1196,15 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           )
             updated.add('messages');
           if (updated.size) updatedByChar.set(charKey, updated);
+        }
+        for (const account of Object.values(nextState.walletBook.accounts)) {
+          if (account.ownerType === 'user') continue;
+          const signature = JSON.stringify(accountWallet(nextState.walletBook, account));
+          if (signature === previousWalletSignatures.get(account.id)) continue;
+          const updated = updatedByChar.get(account.ownerId) || new Set<AppId>();
+          updated.add('wallet');
+          updatedByChar.set(account.ownerId, updated);
+          updatedWalletAccountByChar.set(account.ownerId, account.id);
         }
         if (JSON.stringify(nextState.moments) !== previousMoments) {
           const charKey = nextState.activeCharKey || Object.keys(nextState.identities)[0];
@@ -1217,6 +1236,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (token !== syncToken) return;
       context.value = runtime;
       state.value = ChatStateSchema.parse(nextState);
+      const updatedWalletAccount = updatedWalletAccountByChar.get(state.value.activeCharKey);
+      if (updatedWalletAccount) walletSelectedAccountId.value = updatedWalletAccount;
       updatedByChar.forEach((apps, charKey) => markAppsUnread(charKey, apps));
       syncError.value = '';
       isReady.value = true;
@@ -1448,9 +1469,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const value = delta.app_updates[module];
       let changed = false;
       if (module === 'wallet' && value !== undefined && runtime.input.walletAuthorization) {
-        const before = JSON.stringify(state.value.walletBook);
-        applyWalletPatch(state.value.walletBook, value, runtime.input.walletAuthorization, `manual:${id}`);
-        changed = JSON.stringify(state.value.walletBook) !== before;
+        changed = applyWalletPatch(state.value.walletBook, value, runtime.input.walletAuthorization, `manual:${id}`);
+        if (changed) walletSelectedAccountId.value = runtime.input.walletAuthorization.accountId;
       } else if (value !== undefined) {
         changed = rememberIndependentAppUpdate(charKey, module, value, requestModuleSettings, id);
       }
@@ -1615,13 +1635,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!settings.value.api.enabled) return;
     const runtime = moduleInput();
     if (!runtime || moduleGenerating.value || zoneGenerating.value) return;
-    const plan = planMomentReply(
-      state.value.moments,
-      identities.value,
-      momentsFeed.value.posts,
-      postId,
-      comment.id,
-    );
+    const plan = planMomentReply(state.value.moments, identities.value, momentsFeed.value.posts, postId, comment.id);
     if (!plan) return;
     const id = createPhoneGenerationId();
     moduleGenerating.value = true;
@@ -2222,9 +2236,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         try {
           if (appId === 'wallet') {
             if (requestWalletGrant) {
-              const before = JSON.stringify(state.value.walletBook);
-              applyWalletPatch(state.value.walletBook, value, requestWalletGrant, `reply:${result.generationId}`);
-              if (JSON.stringify(state.value.walletBook) !== before) updatedApps.add('wallet');
+              if (applyWalletPatch(state.value.walletBook, value, requestWalletGrant, `reply:${result.generationId}`)) {
+                updatedApps.add('wallet');
+                walletSelectedAccountId.value = requestWalletGrant.accountId;
+              }
             }
             return;
           }

@@ -167,10 +167,11 @@ global.getChatMessages = id => (typeof id === 'number' ? floors.filter(f => f.me
   // ID deduplication and pending -> received -> refunded modify one entry only.
   const grant = accounts.walletAuthorization(book(), char);
   const patch = state => ({ ...grant, transactions: [row('model-shared', 30, state)] });
-  accounts.applyWalletPatch(book(), patch('pending'), grant, 'test:1');
+  assert.equal(accounts.applyWalletPatch(book(), { ...grant, transactions: [] }, grant, 'test:empty'), false);
+  assert.equal(accounts.applyWalletPatch(book(), patch('pending'), grant, 'test:1'), true);
   assert.equal(accounts.accountWallet(book(), book().accounts[shared]).balance, 190);
-  accounts.applyWalletPatch(book(), patch('received'), grant, 'test:2');
-  accounts.applyWalletPatch(book(), patch('received'), grant, 'test:2');
+  assert.equal(accounts.applyWalletPatch(book(), patch('received'), grant, 'test:2'), true);
+  assert.equal(accounts.applyWalletPatch(book(), patch('received'), grant, 'test:2'), false);
   assert.equal(accounts.accountWallet(book(), book().accounts[shared]).balance, 160);
   accounts.applyWalletPatch(book(), patch('refunded'), grant, 'test:3');
   assert.equal(accounts.accountWallet(book(), book().accounts[shared]).balance, 190);
@@ -213,6 +214,7 @@ global.getChatMessages = id => (typeof id === 'number' ? floors.filter(f => f.me
   floors = [{ message_id: 0, role: 'assistant', message: serializeDelta(delta) }];
   await phone.synchronize();
   assert.equal(accounts.accountWallet(book(), book().accounts[shared]).balance, 185);
+  assert.equal(phone.walletSelectedAccountId, shared);
   phone.selectSharedWallet('');
   await phone.synchronize();
   assert.equal(accounts.accountWallet(book(), book().accounts[shared]).balance, 185);
