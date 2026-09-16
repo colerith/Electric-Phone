@@ -734,16 +734,19 @@
     font-size: 11px;
   }
   .ios-home-dock {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    justify-content: stretch;
+    grid-template-columns: repeat(4, calc((100% - 36px) / 4 + 3px));
+    justify-content: start;
     gap: 12px;
     padding: 9px 4px;
     margin-top: 3px;
   }
 
   .ios-home-dock .ios-app-icon {
-    width: 100%;
-    justify-self: center;
+    display: grid;
+    place-items: center;
+    width: auto;
+    justify-self: stretch;
+    transform: translateX(4px);
   }
   .ios-home-dock .ios-app-icon > span {
     width: 54px;
