@@ -665,9 +665,12 @@
     position: relative;
     z-index: 1;
     margin: 0;
-    background: var(--wave-bg, #f6f7f9);
+    background: transparent;
     transition: transform 180ms ease;
     touch-action: pan-y;
+  }
+  .music-track-swipe.deletable > article {
+    background: var(--wave-bg, #f6f7f9);
   }
   .music-track-swipe.deletable.revealed > article {
     transform: translateX(-62px);

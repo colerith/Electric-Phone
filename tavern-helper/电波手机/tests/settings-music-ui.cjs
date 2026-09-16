@@ -8,6 +8,7 @@ const app = fs.readFileSync(path.join(root, 'app.vue'), 'utf8');
 const appearance = fs.readFileSync(path.join(root, 'components/WaveHomeAppearance.vue'), 'utf8');
 const music = fs.readFileSync(path.join(root, 'components/WaveMusicPanel.vue'), 'utf8');
 const settingsStyle = fs.readFileSync(path.join(root, 'settings.scss'), 'utf8');
+const musicStyle = fs.readFileSync(path.join(root, 'music-refinements.scss'), 'utf8');
 
 assert.match(schemas, /contextLength:[\s\S]*?prefault\(100000\)/);
 assert.match(schemas, /maxTokens:[\s\S]*?prefault\(30000\)/);
@@ -21,5 +22,7 @@ assert.match(music, /v-if="favoritesOnly"[\s\S]*?class="music-track-delete-actio
 assert.match(music, /@contextmenu\.prevent="revealTrack\(track\)"/);
 assert.match(music, /@pointerdown="startTrackSwipe\(\$event, track\)"/);
 assert.match(music, /@click\.capture="suppressTrackAction"/);
+assert.match(musicStyle, /\.music-track-swipe > article[\s\S]*?background: transparent;/);
+assert.match(musicStyle, /\.music-track-swipe\.deletable > article[\s\S]*?background:/);
 
 console.log('PASS: settings isolation, API defaults, status-bar toggle and music swipe deletion are wired.');
