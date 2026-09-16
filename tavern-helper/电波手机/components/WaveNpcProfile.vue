@@ -85,7 +85,13 @@ function act(): void {
 .npc-profile-avatar {
   width: 76px;
   height: 76px;
-  flex: 0 0 76px;
+  min-width: 76px;
+  min-height: 76px;
+  max-width: 76px;
+  max-height: 76px;
+  aspect-ratio: 1 / 1;
+  flex: none;
+  box-sizing: border-box;
   overflow: hidden;
   border-radius: 50%;
   display: grid;
@@ -93,8 +99,11 @@ function act(): void {
   background: #f3f3f3;
 }
 .npc-profile-avatar img {
+  display: block;
   width: 100%;
   height: 100%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
 }
 .npc-profile-row {

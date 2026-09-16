@@ -783,6 +783,7 @@
   .anniversary-portraits {
     width: 48%;
     position: relative;
+    container-type: inline-size;
     display: flex;
     align-items: center;
     padding: 8px 0 18px;
@@ -804,9 +805,13 @@
     background: #e1eaf5;
   }
   .anniversary-avatar img {
+    display: block;
     width: 100%;
     height: 100%;
+    max-width: none;
+    max-height: none;
     object-fit: cover;
+    object-position: center;
   }
   .anniversary-portraits > i {
     position: absolute;
@@ -1048,8 +1053,11 @@
     left: 6%;
     top: 6%;
     width: 55%;
-    height: auto;
+    height: 55cqw;
     aspect-ratio: 1;
+    min-width: 0;
+    min-height: 0;
+    box-sizing: border-box;
     border: 2px solid #ffffff;
     background: #e8eef8;
     z-index: 1;

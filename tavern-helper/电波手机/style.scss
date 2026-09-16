@@ -1274,6 +1274,9 @@
 }
 
 #wave-phone-script-root .wave-image-upload.is-avatar .wave-image-preview {
+  aspect-ratio: 1 / 1;
+  flex: none;
+  box-sizing: border-box;
   border-radius: 50%;
 }
 
@@ -1699,6 +1702,7 @@
 
 #wave-phone-script-root .wave-upload-preview.avatar-preview,
 #wave-phone-script-root .wave-upload-preview.avatar-preview .wave-crop-frame {
+  aspect-ratio: 1 / 1;
   border-radius: 50%;
 }
 
