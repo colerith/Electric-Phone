@@ -16,6 +16,8 @@ assert.match(upload, /'is-avatar': purpose === 'avatar'/);
 assert.match(upload, /'avatar-preview': purpose === 'avatar'/);
 assert.match(home, /\.anniversary-portraits\s*\{[\s\S]*?container-type: inline-size;/);
 assert.match(home, /\.anniversary-avatar\s*\{[\s\S]*?width: 55%;[\s\S]*?height: 55cqw;/);
+assert.match(home, /\.ios-home-dock\s*\{[\s\S]*?grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);[\s\S]*?gap: 12px;[\s\S]*?padding: 9px 4px;/);
+assert.doesNotMatch(home, /\.ios-home-dock\s*\{[\s\S]*?grid-template-columns: repeat\(3,/);
 assert.match(moments, /\.moments-avatar\s*\{[\s\S]*?border-radius: 50%;/);
 assert.match(moments, /\.moment-author-avatar\s*\{[\s\S]*?border-radius: 50%;/);
 assert.match(moments, /\.moments-profile-avatar img\s*\{[\s\S]*?border-radius: 50%;/);
