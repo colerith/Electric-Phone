@@ -66,7 +66,9 @@
     max-height: none;
     object-fit: cover;
     object-position: center;
-    border-radius: 50%;
+    // The square parent owns the circular crop. Rounding a portrait-ratio img
+    // itself creates an ellipse before the parent clips it.
+    border-radius: 0 !important;
     background: transparent;
   }
   .messenger-avatar.large {

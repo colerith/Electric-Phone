@@ -27,7 +27,8 @@ assert.match(style, /\.wave-image-upload\.is-avatar \.wave-image-preview\s*\{[\s
 assert.match(style, /\.wave-upload-preview\.avatar-preview[\s\S]*?border-radius: 50%;/);
 assert.doesNotMatch(messenger, /clip-path: circle/);
 assert.match(messenger, /\.messenger-avatar\s*\{[\s\S]*?min-width: 42px;[\s\S]*?max-height: 42px;/);
-assert.match(messenger, /\.messenger-avatar img\s*\{[\s\S]*?object-position: center;/);
+assert.match(messenger, /\.messenger-avatar img\s*\{[\s\S]*?object-position: center;[\s\S]*?border-radius: 0 !important;/);
+assert.match(messenger, /\.wave-device \.messenger-avatar\s*\{[\s\S]*?overflow: hidden;/);
 assert.match(npcProfile, /\.npc-profile-avatar\s*\{[\s\S]*?border-radius: 50%;/);
 
 console.log('PASS: profile, moments, messenger and character-setting avatars use consistent circular crops.');
