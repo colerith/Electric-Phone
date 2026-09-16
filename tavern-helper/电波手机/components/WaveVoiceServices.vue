@@ -58,10 +58,14 @@ import { usePhoneStore } from '../stores/phone';
 import WaveToggle from './WaveToggle.vue';
 import WaveSelect from './WaveSelect.vue';
 const phone = usePhoneStore();
-const miniModels = ['speech-02-hd', 'speech-02-turbo', 'speech-2.6-hd', 'speech-2.6-turbo'].map(value => ({
-  value,
-  label: value,
-}));
+const miniModels = [
+  { value: 'speech-2.8-hd', label: 'Speech 2.8 HD' },
+  { value: 'speech-2.8-turbo', label: 'Speech 2.8 Turbo' },
+  { value: 'speech-02-hd', label: 'Speech 02 HD' },
+  { value: 'speech-02-turbo', label: 'Speech 02 Turbo' },
+  { value: 'speech-2.6-hd', label: 'Speech 2.6 HD' },
+  { value: 'speech-2.6-turbo', label: 'Speech 2.6 Turbo' },
+];
 const elevenModels = [
   { value: 'eleven_multilingual_v2', label: 'Multilingual v2' },
   { value: 'eleven_flash_v2_5', label: 'Flash v2.5' },

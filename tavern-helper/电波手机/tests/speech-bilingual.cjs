@@ -12,6 +12,7 @@ require.extensions['.ts'] = (m, f) =>
 global.SillyTavern = { name1: 'User' };
 global._ = require('lodash');
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
+const voiceServicesUi = fs.readFileSync(path.join(base, 'components/WaveVoiceServices.vue'), 'utf8');
 const { displaySpeechText } = require(base + '/services/speech-tags.ts');
 const { splitElectric } = require(base + '/services/electric.ts');
 const { VoiceServicesSchema, CharacterVoiceSchema, speechRequest } = require(base + '/services/speech.ts');
@@ -40,7 +41,13 @@ const services = VoiceServicesSchema.parse({
   elevenlabs: { enabled: true, apiKey: 'test' },
 });
 const voice = CharacterVoiceSchema.parse({ provider: 'minimax', voiceId: 'test' });
+assert.match(voiceServicesUi, /value: 'speech-2\.8-hd', label: 'Speech 2\.8 HD'/);
+assert.match(voiceServicesUi, /value: 'speech-2\.8-turbo', label: 'Speech 2\.8 Turbo'/);
 assert.equal(JSON.parse(speechRequest(raw, services, voice).init.body).text, raw);
+services.minimax.model = 'speech-2.8-turbo';
+assert.equal(JSON.parse(speechRequest(raw, services, voice).init.body).model, 'speech-2.8-turbo');
+services.minimax.model = 'speech-2.8-hd';
+assert.equal(JSON.parse(speechRequest(raw, services, voice).init.body).model, 'speech-2.8-hd');
 const chat = ChatPreferencesSchema.parse({ autoTranslate: true, sourceLanguage: '日语', targetLanguage: '英语' });
 const local = ModuleSettingsSchema.parse({ memo: { maxNew: 1 } });
 const effective = resolveModuleSettings(local, chat);
