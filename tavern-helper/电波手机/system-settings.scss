@@ -52,6 +52,15 @@
     max-height: 230px;
     aspect-ratio: 4 / 3;
   }
+  .wave-image-modal .wave-upload-preview.avatar-preview {
+    width: min(100%, 230px);
+    height: auto;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+  }
+  .wave-image-modal .wave-upload-preview.avatar-preview .wave-crop-frame {
+    border-radius: 50%;
+  }
   .wave-image-modal .wave-upload-preview img {
     max-height: 230px;
   }

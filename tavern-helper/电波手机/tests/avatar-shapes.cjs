@@ -9,6 +9,7 @@ const home = read('home.scss');
 const moments = read('moments.scss');
 const messenger = read('messenger.scss');
 const settings = read('settings.scss');
+const systemSettings = read('system-settings.scss');
 const style = read('style.scss');
 const npcProfile = read('components/WaveNpcProfile.vue');
 
@@ -25,6 +26,10 @@ assert.match(moments, /\.moments-profile-avatar img\s*\{[\s\S]*?border-radius: 5
 assert.match(settings, /\.chat-profile-settings \.wave-image-preview\s*\{[\s\S]*?border-radius: 50%;/);
 assert.match(style, /\.wave-image-upload\.is-avatar \.wave-image-preview\s*\{[\s\S]*?border-radius: 50%;/);
 assert.match(style, /\.wave-upload-preview\.avatar-preview[\s\S]*?border-radius: 50%;/);
+assert.match(
+  systemSettings,
+  /\.wave-image-modal \.wave-upload-preview\.avatar-preview\s*\{[\s\S]*?width: min\(100%, 230px\);[\s\S]*?aspect-ratio: 1 \/ 1;[\s\S]*?border-radius: 50%;/,
+);
 assert.doesNotMatch(messenger, /clip-path: circle/);
 assert.match(messenger, /\.messenger-avatar\s*\{[\s\S]*?min-width: 42px;[\s\S]*?max-height: 42px;/);
 assert.match(messenger, /\.messenger-avatar img\s*\{[\s\S]*?object-position: center;[\s\S]*?border-radius: 0 !important;/);
