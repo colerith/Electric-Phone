@@ -1,5 +1,5 @@
 <template>
-  <div class="wave-image-upload">
+  <div class="wave-image-upload" :class="{ 'is-avatar': purpose === 'avatar' }">
     <button
       v-if="!inline"
       class="wave-image-preview"
@@ -46,7 +46,7 @@
 
             <div
               class="wave-upload-preview"
-              :class="{ 'artwork-preview': purpose === 'artwork' }"
+              :class="{ 'avatar-preview': purpose === 'avatar', 'artwork-preview': purpose === 'artwork' }"
               @pointerdown="startCropDrag"
               @pointermove="moveCropDrag"
               @pointerup="endCropDrag"

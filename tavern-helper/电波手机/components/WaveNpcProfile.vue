@@ -87,7 +87,7 @@ function act(): void {
   height: 76px;
   flex: 0 0 76px;
   overflow: hidden;
-  border-radius: 18px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
   background: #f3f3f3;

@@ -1273,6 +1273,10 @@
   object-fit: cover;
 }
 
+#wave-phone-script-root .wave-image-upload.is-avatar .wave-image-preview {
+  border-radius: 50%;
+}
+
 #wave-phone-script-root .wave-image-fallback {
   width: 100%;
   height: 100%;
@@ -1691,6 +1695,11 @@
 
 #wave-phone-script-root .wave-upload-preview:active {
   cursor: grabbing;
+}
+
+#wave-phone-script-root .wave-upload-preview.avatar-preview,
+#wave-phone-script-root .wave-upload-preview.avatar-preview .wave-crop-frame {
+  border-radius: 50%;
 }
 
 #wave-phone-script-root .wave-upload-preview img {

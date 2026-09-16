@@ -99,7 +99,7 @@
     place-items: center;
     width: 66px;
     height: 66px;
-    border-radius: 14px;
+    border-radius: 50%;
     overflow: hidden;
     background: var(--settings-control);
     color: var(--settings-accent);
@@ -136,7 +136,7 @@
     display: grid;
     place-items: center;
     background: var(--settings-control);
-    border-radius: 9px;
+    border-radius: 50%;
     overflow: hidden;
     color: var(--settings-accent);
     font: 600 15px/1 var(--wave-ui-font);
@@ -371,7 +371,7 @@
   .moments-profile-avatar img {
     width: 50px;
     height: 50px;
-    border-radius: 12px;
+    border-radius: 50%;
     object-fit: cover;
   }
   .moments-choices {
