@@ -70,7 +70,17 @@
         ><span class="memo-paperclip" aria-hidden="true"></span>
       </header>
       <div v-if="doodle.content" class="memo-doodle-sheet">
-        <pre tabindex="0" aria-label="涂鸦原文，可横向滚动查看">{{ doodle.content }}</pre>
+        <pre
+          tabindex="0"
+          aria-label="涂鸦原文，可横向滚动或拖动查看"
+          @pointerdown="startDoodleDrag"
+          @pointermove="moveDoodleDrag"
+          @pointerup="endDoodleDrag"
+          @pointercancel="endDoodleDrag"
+          @lostpointercapture="endDoodleDrag"
+          @dragstart.prevent
+          >{{ doodle.content }}</pre
+        >
       </div>
       <div v-if="doodle.interpretation" class="memo-interpretation">
         <span>涂鸦解析</span>
@@ -114,6 +124,28 @@ const visibleDoodles = computed(() =>
         `${d.title}\n${d.content}\n${d.interpretation}`.toLocaleLowerCase().includes(search.value),
       ),
 );
+let doodleDrag: { pointerId: number; startX: number; scrollLeft: number; target: HTMLElement } | undefined;
+function startDoodleDrag(event: PointerEvent): void {
+  if (event.pointerType !== 'mouse' || event.button !== 0) return;
+  const target = event.currentTarget as HTMLElement;
+  if (target.scrollWidth <= target.clientWidth) return;
+  event.preventDefault();
+  target.setPointerCapture?.(event.pointerId);
+  target.classList.add('is-dragging');
+  doodleDrag = { pointerId: event.pointerId, startX: event.clientX, scrollLeft: target.scrollLeft, target };
+}
+function moveDoodleDrag(event: PointerEvent): void {
+  if (!doodleDrag || doodleDrag.pointerId !== event.pointerId) return;
+  event.preventDefault();
+  doodleDrag.target.scrollLeft = doodleDrag.scrollLeft - (event.clientX - doodleDrag.startX);
+}
+function endDoodleDrag(event: PointerEvent): void {
+  if (!doodleDrag || doodleDrag.pointerId !== event.pointerId) return;
+  doodleDrag.target.classList.remove('is-dragging');
+  if (doodleDrag.target.hasPointerCapture?.(event.pointerId))
+    doodleDrag.target.releasePointerCapture?.(event.pointerId);
+  doodleDrag = undefined;
+}
 function toggleNote(index: number): void {
   if (expanded.value.has(index)) expanded.value.delete(index);
   else expanded.value.add(index);

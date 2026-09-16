@@ -229,6 +229,15 @@
   .memo-doodle-sheet pre::-webkit-scrollbar {
     display: none;
   }
+  @media (hover: hover) and (pointer: fine) {
+    .memo-doodle-sheet pre {
+      cursor: grab;
+      user-select: none;
+    }
+    .memo-doodle-sheet pre.is-dragging {
+      cursor: grabbing;
+    }
+  }
   .memo-interpretation {
     margin-top: 16px;
   }
