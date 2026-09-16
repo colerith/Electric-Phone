@@ -1238,7 +1238,7 @@
   margin: 0 0 var(--settings-gap, 16px);
   padding: 0 18px 18px;
   border-radius: 20px;
-  background: var(--settings-control);
+  background: var(--wave-card, #fff);
 }
 
 #wave-phone-script-root .wave-device .wave-bilingual-settings > .chat-setting-row {
@@ -1260,7 +1260,7 @@
 }
 
 #wave-phone-script-root .wave-device .wave-bilingual-settings .wave-select-trigger {
-  background: var(--wave-card, #fff);
+  background: var(--settings-control);
 }
 
 // 外观页每个逻辑分组独立成卡片，保存操作放在分组之外。

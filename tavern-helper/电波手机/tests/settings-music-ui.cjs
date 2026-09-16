@@ -21,7 +21,7 @@ assert.match(appearance, /v-model="appearance\.showStatusBar"/);
 assert.match(settingsStyle, /background-image: none !important;/);
 assert.match(
   settingsStyle,
-  /\.wave-bilingual-settings\s*\{[\s\S]*?margin: 0 0 var\(--settings-gap, 16px\);[\s\S]*?background: var\(--settings-control\);/,
+  /\.wave-bilingual-settings\s*\{[\s\S]*?margin: 0 0 var\(--settings-gap, 16px\);[\s\S]*?background: var\(--wave-card, #fff\);/,
 );
 assert.match(
   settingsStyle,
@@ -30,6 +30,10 @@ assert.match(
 assert.match(
   settingsStyle,
   /\.wave-bilingual-settings > \.chat-setting-row > \.wave-select\s*\{[\s\S]*?width: 100%;[\s\S]*?max-width: none;/,
+);
+assert.match(
+  settingsStyle,
+  /\.wave-bilingual-settings \.wave-select-trigger\s*\{[\s\S]*?background: var\(--settings-control\);/,
 );
 assert.doesNotMatch(music, /class="wave-content-delete" aria-label="删除歌曲"/);
 assert.match(music, /v-if="favoritesOnly"[\s\S]*?class="music-track-delete-action"/);

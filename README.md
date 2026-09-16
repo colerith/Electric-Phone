@@ -11,7 +11,7 @@
 酒馆助手在线导入：
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.12/file/index-1.1.12.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.13/file/index-1.1.13.js';
 ```
 
 发布与更新步骤见 [`tavern-helper/发布流程.md`](./tavern-helper/发布流程.md)。
