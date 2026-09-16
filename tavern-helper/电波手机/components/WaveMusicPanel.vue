@@ -224,7 +224,7 @@
           :title="music.modeLabel"
           @click="music.cycleMode()"
         >
-          <i :class="music.modeIcon"></i><small class="music-mode-caption">{{ music.modeLabel }}</small></button
+          <i :class="music.modeIcon"></i></button
         ><button
           type="button"
           aria-label="上一首"

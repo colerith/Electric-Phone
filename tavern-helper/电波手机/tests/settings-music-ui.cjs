@@ -24,6 +24,7 @@ assert.match(music, /v-if="favoritesOnly"[\s\S]*?class="music-track-delete-actio
 assert.match(music, /@contextmenu\.prevent="revealTrack\(track\)"/);
 assert.match(music, /@pointerdown="startTrackSwipe\(\$event, track\)"/);
 assert.match(music, /@click\.capture="suppressTrackAction"/);
+assert.doesNotMatch(music, /class="music-mode-caption"/);
 assert.match(musicStyle, /\.music-track-swipe > article[\s\S]*?background: transparent;/);
 assert.doesNotMatch(musicStyle, /\.music-track-swipe\.deletable > article\s*{[\s\S]*?background:/);
 assert.match(playlists, /@contextmenu\.prevent="removingTrack = trackKey\(track\)"/);
