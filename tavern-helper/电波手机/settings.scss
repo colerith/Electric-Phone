@@ -1235,6 +1235,7 @@
 #wave-phone-script-root .wave-device .wave-bilingual-settings {
   box-sizing: border-box;
   width: 100%;
+  margin: 0 0 var(--settings-gap, 16px);
   padding: 0 18px 18px;
   border-radius: 20px;
   background: var(--settings-control);

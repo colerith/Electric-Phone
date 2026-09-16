@@ -19,7 +19,10 @@ assert.match(app, /v-if="store\.settings\.appearance\.showStatusBar" class="wave
 assert.match(app, /<WaveDeviceStatus v-if="store\.settings\.appearance\.showStatusBar"/);
 assert.match(appearance, /v-model="appearance\.showStatusBar"/);
 assert.match(settingsStyle, /background-image: none !important;/);
-assert.match(settingsStyle, /\.wave-bilingual-settings\s*\{[\s\S]*?background: var\(--settings-control\);/);
+assert.match(
+  settingsStyle,
+  /\.wave-bilingual-settings\s*\{[\s\S]*?margin: 0 0 var\(--settings-gap, 16px\);[\s\S]*?background: var\(--settings-control\);/,
+);
 assert.match(
   settingsStyle,
   /\.wave-bilingual-settings > \.chat-setting-row\s*\{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
