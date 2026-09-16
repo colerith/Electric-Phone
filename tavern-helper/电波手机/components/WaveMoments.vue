@@ -205,7 +205,13 @@
               @click="phone.likeMoment(post.id)"
             >
               <i class="fa-regular fa-heart"></i>赞</button
-            ><button type="button" @click="commenting = commenting === post.id ? '' : post.id">
+            ><button
+              type="button"
+              @click="
+                commenting = commenting === post.id ? '' : post.id;
+                replyingComment = null;
+              "
+            >
               <i class="fa-regular fa-comment"></i>评论</button
             ><button
               type="button"
@@ -238,7 +244,12 @@
                 </button></template
               >
             </div>
-            <div v-for="comment in commentsFor(post.id)" :key="comment.id">
+            <div
+              v-for="comment in commentsFor(post.id)"
+              :key="comment.id"
+              class="moment-comment-row"
+              :class="{ reply: !!comment.parentId }"
+            >
               <button
                 type="button"
                 class="moment-person-link"
@@ -246,12 +257,30 @@
                 @click="viewingNpc = comment.authorKey"
               >
                 {{ nameFor(comment.authorKey, comment.authorName) }}</button
+              ><template v-if="comment.replyToAuthorName">
+                回复 {{ nameFor(comment.replyToAuthorKey, comment.replyToAuthorName) }}</template
               >：{{ comment.content }}
               <WaveModuleTranslation app="moments" :translation="comment.translation" />
+              <button
+                type="button"
+                class="moment-reply-action"
+                @click="startReply(post.id, comment)"
+              >
+                回复
+              </button>
             </div>
           </div>
           <form v-if="commenting === post.id" class="moment-comment-form" @submit.prevent="sendComment(post.id)">
-            <input v-model="commentText" maxlength="500" placeholder="写评论…" aria-label="评论内容" /><button
+            <div v-if="replyingComment" class="moment-reply-target">
+              回复 {{ nameFor(replyingComment.authorKey, replyingComment.authorName) }}
+              <button type="button" aria-label="取消回复" @click="replyingComment = null">×</button>
+            </div>
+            <input
+              v-model="commentText"
+              maxlength="500"
+              :placeholder="replyingComment ? `回复 ${nameFor(replyingComment.authorKey, replyingComment.authorName)}…` : '写评论…'"
+              aria-label="评论内容"
+            /><button
               type="submit"
             >
               发送
@@ -426,7 +455,7 @@ import { klona } from 'klona';
 import { usePhoneStore } from '../stores/phone';
 import { displayIdentityName } from '../services/identity';
 import { phoneSurfaceKey } from '../services/ui-context';
-import type { MomentMedia, MomentPost } from '../services/moments';
+import type { MomentComment, MomentMedia, MomentPost } from '../services/moments';
 import WaveImageUpload from './WaveImageUpload.vue';
 import WaveSelect from './WaveSelect.vue';
 import WaveToggle from './WaveToggle.vue';
@@ -613,11 +642,21 @@ function addDescription() {
 }
 const commenting = ref(''),
   commentText = ref('');
-function sendComment(id: string) {
-  phone.commentMoment(id, commentText.value);
-  commentText.value = '';
-  commenting.value = '';
-  now.value = Date.now();
+const replyingComment = ref<MomentComment | null>(null);
+function startReply(postId: string, comment: MomentComment) {
+  commenting.value = postId;
+  replyingComment.value = comment;
+}
+async function sendComment(id: string) {
+  try {
+    await phone.commentMoment(id, commentText.value, replyingComment.value || undefined);
+    commentText.value = '';
+    replyingComment.value = null;
+    commenting.value = '';
+    now.value = Date.now();
+  } catch (error) {
+    notice.value = `评论已保存，但后续回复生成失败：${String(error)}`;
+  }
 }
 const composerElement = ref<HTMLElement | null>(null),
   mediaElement = ref<HTMLElement | null>(null);

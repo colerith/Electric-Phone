@@ -682,10 +682,27 @@
     padding-top: 12px;
   }
   .zone-comment {
+    display: block;
+    width: 100%;
+    padding: 4px 6px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--wave-ink);
+    text-align: left;
     margin-bottom: 10px;
+  }
+  .zone-comment.reply {
+    margin-left: 12px;
+    width: calc(100% - 12px);
+    border-left: 2px solid #d9b8cb;
   }
   .zone-comment > strong {
     color: var(--wave-blue);
+    font-size: 10px;
+  }
+  .zone-comment > span {
+    color: var(--wave-muted);
     font-size: 10px;
   }
   .zone-comment > p,
@@ -697,6 +714,16 @@
     align-items: flex-end;
     gap: 7px;
     margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .zone-reply-target {
+    width: 100%;
+    color: var(--wave-muted);
+    font-size: 10px;
+  }
+  .zone-reply-target button {
+    padding: 2px 5px !important;
+    margin-left: 4px;
   }
   .zone-comments textarea {
     display: block;

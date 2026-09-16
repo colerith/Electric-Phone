@@ -101,18 +101,31 @@
         </button>
       </footer>
       <div v-if="commentsOpen.has(post.id)" class="zone-comments">
-        <div v-for="comment in comments(post)" :key="comment.id" class="zone-comment">
-          <strong>{{ comment.author || '匿名' }}</strong>
+        <button
+          v-for="comment in comments(post)"
+          :key="comment.id"
+          type="button"
+          class="zone-comment"
+          :class="{ reply: !!comment.parentId }"
+          :aria-label="`回复 ${comment.author || '匿名'}：${comment.content}`"
+          @click="replying[post.id] = comment"
+        >
+          <strong>{{ comment.author || '匿名' }}</strong
+          ><span v-if="comment.replyToAuthor"> 回复 {{ comment.replyToAuthor }}</span>
           <p>{{ comment.content }}</p>
-        </div>
+        </button>
         <p v-if="!comments(post).length" class="zone-no-comments">留下第一条评论。</p>
         <form @submit.prevent="submitComment(post.id)">
+          <div v-if="replying[post.id]" class="zone-reply-target">
+            回复 {{ replying[post.id]?.author || '匿名' }}
+            <button type="button" aria-label="取消回复" @click="delete replying[post.id]">×</button>
+          </div>
           <textarea
             v-model="drafts[post.id]"
             rows="2"
             maxlength="1000"
             aria-label="评论内容"
-            placeholder="写一条评论…"
+            :placeholder="replying[post.id] ? `回复 ${replying[post.id]?.author || '匿名'}…` : '写一条评论…'"
           ></textarea
           ><button type="submit" :disabled="busy || !drafts[post.id]?.trim()">评论</button>
         </form>
@@ -130,7 +143,7 @@
 import WaveModuleTranslation from './WaveModuleTranslation.vue';
 import { computed, nextTick, ref, watch } from 'vue';
 import { artworkUrl } from '../services/artworks';
-import { parseZonePage, type ZonePost, type ZoneInteraction } from '../services/zone';
+import { parseZonePage, type ZonePost, type ZoneInteraction, type ZoneComment } from '../services/zone';
 const props = defineProps<{
   raw: string;
   artwork: string;
@@ -147,7 +160,7 @@ const emit = defineEmits<{
   cover: [];
   message: [];
   like: [postId: string];
-  comment: [postId: string, content: string];
+  comment: [postId: string, content: string, parent?: ZoneComment];
   share: [post: ZonePost, author: string];
   delete: [postId: string];
 }>();
@@ -160,6 +173,7 @@ const likedOnly = ref(false);
 const expanded = ref(new Set<string>());
 const commentsOpen = ref(new Set<string>());
 const drafts = ref<Record<string, string>>({});
+const replying = ref<Record<string, ZoneComment>>({});
 function interaction(id: string): ZoneInteraction {
   return props.interactions[id] || { liked: false, comments: [], shares: 0 };
 }
@@ -200,7 +214,8 @@ function toggleComments(id: string): void {
 }
 function submitComment(id: string): void {
   if (!drafts.value[id]?.trim() || props.busy) return;
-  emit('comment', id, drafts.value[id].trim());
+  emit('comment', id, drafts.value[id].trim(), replying.value[id]);
   drafts.value[id] = '';
+  delete replying.value[id];
 }
 </script>

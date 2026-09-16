@@ -44,9 +44,16 @@ const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 const { usePhoneStore } = require(base + '/stores/phone.ts'),
   Moments = require(base + '/components/WaveMoments.vue').default,
   { phoneSurfaceKey } = require(base + '/services/ui-context.ts');
-const { MomentsStateSchema, MomentPostSchema, planMoments, syncMomentEvents, momentTimeline, canSeeMoment } = require(
-  base + '/services/moments.ts',
-);
+const {
+  MomentsStateSchema,
+  MomentPostSchema,
+  MomentCommentSchema,
+  planMoments,
+  planMomentReply,
+  syncMomentEvents,
+  momentTimeline,
+  canSeeMoment,
+} = require(base + '/services/moments.ts');
 const { buildMomentsPrompt } = require(base + '/prompts/moments.ts');
 const { contactLetter } = require(base + '/services/contact-alphabet.ts');
 let phone, component;
@@ -193,6 +200,55 @@ const input = (el, text) => {
   const forcedPlan = planMoments(forced, phone.identities, state.posts, now, () => 0, { force: true });
   assert(forcedPlan);
   assert.equal(forcedPlan.postActor, key);
+
+  const replyState = MomentsStateSchema.parse({ settings: { postingCharKeys: [key] } });
+  replyState.posts = [
+    MomentPostSchema.parse({
+      id: 'reply-post',
+      authorKey: key,
+      authorName: 'Alice',
+      content: '回复链测试',
+      createdAt: now,
+      availableAt: now,
+    }),
+  ];
+  replyState.comments.push(
+    MomentCommentSchema.parse({
+      id: 'user-comment',
+      postId: 'reply-post',
+      authorKey: 'user',
+      authorName: 'User',
+      content: '请回复这条',
+      createdAt: now,
+      availableAt: now,
+    }),
+  );
+  const replyPlan = planMomentReply(replyState, phone.identities, replyState.posts, 'reply-post', 'user-comment', now);
+  assert(replyPlan);
+  assert.equal(replyPlan.comments[0].replyToCommentId, 'user-comment');
+  replyState.requests[replyPlan.id] = replyPlan;
+  syncMomentEvents(
+    replyState,
+    [
+      '<wave_moments>' +
+        JSON.stringify({
+          request_id: replyPlan.id,
+          comments: [
+            {
+              authorKey: key,
+              postId: 'reply-post',
+              replyToCommentId: 'user-comment',
+              content: '这是后续回复',
+            },
+          ],
+        }) +
+        '</wave_moments>',
+    ],
+    now,
+  );
+  const reply = momentTimeline(replyState).comments.find(comment => comment.content === '这是后续回复');
+  assert.equal(reply.parentId, 'user-comment');
+  assert.equal(reply.replyToAuthorName, 'User');
 
   const fresh = MomentsStateSchema.parse({
     profile: { nickname: 'User' },

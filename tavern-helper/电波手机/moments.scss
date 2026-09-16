@@ -267,6 +267,19 @@
     color: var(--settings-text);
     overflow-wrap: anywhere;
   }
+  .moment-comment-row.reply {
+    margin-left: 12px;
+    padding-left: 8px;
+    border-left: 2px solid #d9b8cb;
+  }
+  .moment-reply-action {
+    margin-left: 6px;
+    padding: 1px 4px;
+    border: 0;
+    background: transparent;
+    color: var(--settings-muted);
+    font-size: 9px;
+  }
   .moment-interactions strong,
   .moment-likes {
     color: var(--settings-accent);
@@ -276,6 +289,18 @@
     display: flex;
     gap: 6px;
     margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .moment-reply-target {
+    width: 100%;
+    color: var(--settings-muted);
+    font-size: 10px;
+  }
+  .moment-reply-target button {
+    padding: 1px 4px;
+    border: 0;
+    background: transparent;
+    color: inherit;
   }
   .moment-comment-form input {
     min-width: 0;

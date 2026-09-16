@@ -38,6 +38,9 @@ export const MomentCommentSchema = z.object({
   translation: TranslationSchema.optional(),
   createdAt: z.number(),
   availableAt: z.number(),
+  parentId: z.string().default(''),
+  replyToAuthorKey: z.string().default(''),
+  replyToAuthorName: z.string().default(''),
 });
 export const MomentNpcSchema = z.object({
   npcId: z.string().min(1),
@@ -62,7 +65,9 @@ export const MomentPlanSchema = z.object({
   reservedNames: z.array(z.string()).default([]),
   likes: z.array(z.object({ actorKey: z.string(), postId: z.string() })).default([]),
   interactionLimit: z.number().int().min(1).max(3).default(1),
-  comments: z.array(z.object({ actorKey: z.string(), postId: z.string() })),
+  comments: z
+    .array(z.object({ actorKey: z.string(), postId: z.string(), replyToCommentId: z.string().default('') }))
+    .default([]),
   createdAt: z.number(),
   minDelay: z.number(),
   maxDelay: z.number(),
@@ -100,6 +105,7 @@ export const MomentBatchSchema = z.object({
         authorKey: z.string(),
         authorName: z.string().default(''),
         postId: z.string(),
+        replyToCommentId: z.string().default(''),
         content: z.string().min(1).max(500),
         translation: TranslationSchema.optional(),
         delaySeconds: z.number().min(0).max(86400).default(0),
@@ -164,6 +170,7 @@ export const MomentsStateSchema = z
   .prefault({});
 export type MomentsState = z.infer<typeof MomentsStateSchema>;
 export type MomentPost = z.infer<typeof MomentPostSchema>;
+export type MomentComment = z.infer<typeof MomentCommentSchema>;
 export type MomentPlan = z.infer<typeof MomentPlanSchema>;
 export type MomentMedia = z.infer<typeof MomentMediaSchema>;
 export const MOMENTS_PATTERN = /<wave_moments>\s*([\s\S]*?)\s*<\/wave_moments>/g;
@@ -255,7 +262,8 @@ export function planMoments(
   while (candidates.length && comments.length + likes.length < interactionLimit) {
     const selected = pick(candidates);
     candidates.splice(candidates.indexOf(selected), 1);
-    (selected.kind === 'like' ? likes : comments).push({ actorKey: selected.actorKey, postId: selected.postId });
+    if (selected.kind === 'like') likes.push({ actorKey: selected.actorKey, postId: selected.postId });
+    else comments.push({ actorKey: selected.actorKey, postId: selected.postId, replyToCommentId: '' });
   }
   if (!postActor && !comments.length && !likes.length) return null;
   return {
@@ -274,6 +282,65 @@ export function planMoments(
     minDelay: options.force ? 0 : settings.minDelaySeconds,
     maxDelay: options.force ? 0 : Math.max(settings.minDelaySeconds, settings.maxDelaySeconds),
   };
+}
+
+/** Build a single, targeted reply plan after User comments or replies in Moments. */
+export function planMomentReply(
+  state: MomentsState,
+  identities: Identity[],
+  posts: MomentPost[],
+  postId: string,
+  triggerCommentId: string,
+  now = Date.now(),
+): MomentPlan | null {
+  const post = posts.find(item => item.id === postId);
+  const trigger = state.comments.find(comment => comment.id === triggerCommentId);
+  if (!post || !trigger) return null;
+  const parent = trigger.parentId ? momentTimeline(state).comments.find(comment => comment.id === trigger.parentId) : null;
+  const actorKey =
+    (parent?.authorKey && parent.authorKey !== 'user' ? parent.authorKey : '') ||
+    (post.authorKey !== 'user' ? post.authorKey : '') ||
+    state.settings.postingCharKeys.find(key => key !== 'user') ||
+    '';
+  if (!actorKey) return null;
+  const identity = identities.find(item => item.charKey === actorKey);
+  const npc = state.npcs[actorKey];
+  if (!identity && !npc) return null;
+  const actor = identity
+    ? {
+        isNew: false,
+        avatarSeed: npc?.avatarSeed || '',
+        key: actorKey,
+        name: identity.name,
+        about: identity.actorType === 'npc' ? identity.npcProfile || identity.about || '' : identity.about || '',
+        relationshipToUser: identity.relationshipToUser || '',
+        npc: identity.actorType === 'npc',
+      }
+    : {
+        isNew: false,
+        avatarSeed: npc!.avatarSeed,
+        key: actorKey,
+        name: npc!.username,
+        about: npc!.profile,
+        relationshipToUser: '未建立关系',
+        npc: true,
+      };
+  return MomentPlanSchema.parse({
+    id: `moments-reply-${now}-${Math.floor(Math.random() * 1e9).toString(36)}`,
+    actors: [actor],
+    postActor: null,
+    user: {
+      key: 'user',
+      name: state.profile.nickname || (typeof SillyTavern !== 'undefined' ? SillyTavern.name1 : 'User') || 'User',
+    },
+    reservedNames: identities.map(item => item.name),
+    likes: [],
+    interactionLimit: 1,
+    comments: [{ actorKey, postId, replyToCommentId: triggerCommentId }],
+    createdAt: now,
+    minDelay: 0,
+    maxDelay: 0,
+  });
 }
 export function syncMomentEvents(state: MomentsState, messages: string[], now = Date.now()): void {
   // Persist the identities of previously validated legacy NPC events before rebuilding floors.
@@ -319,7 +386,12 @@ export function syncMomentEvents(state: MomentsState, messages: string[], now = 
           batch.posts.some(post => post.authorKey !== plan.postActor) ||
           batch.comments.some(
             comment =>
-              !plan.comments.some(target => target.actorKey === comment.authorKey && target.postId === comment.postId),
+              !plan.comments.some(
+                target =>
+                  target.actorKey === comment.authorKey &&
+                  target.postId === comment.postId &&
+                  (target.replyToCommentId || '') === comment.replyToCommentId,
+              ),
           )
         )
           continue;
@@ -437,6 +509,9 @@ export function momentTimeline(state: MomentsState, legacy: MomentPost[] = []) {
         translation: comment.translation,
         createdAt: when,
         availableAt: when,
+        parentId: comment.replyToCommentId,
+        replyToAuthorKey: comments.find(item => item.id === comment.replyToCommentId)?.authorKey || '',
+        replyToAuthorName: comments.find(item => item.id === comment.replyToCommentId)?.authorName || '',
       });
     });
   }

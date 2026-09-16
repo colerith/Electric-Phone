@@ -43,7 +43,10 @@
         <label
           ><span>{{ selectedDate.slice(0, 4) }} 年 {{ Number(selectedDate.slice(5, 7)) }} 月</span
           ><input v-model="selectedDate" type="date" aria-label="选择日程日期" @change="alignDays" /></label
-        ><button type="button" @click="today">今天</button>
+        ><div class="calendar-date-shortcuts">
+          <button type="button" :disabled="!firstEventDate" @click="firstEvent">日程起始</button
+          ><button type="button" @click="today">今天</button>
+        </div>
       </header>
       <div class="calendar-five-days">
         <button
@@ -110,6 +113,13 @@ const selectedDate = ref(dateKey(new Date()));
 const firstDay = ref(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 2));
 const allEvents = ref(true);
 const events = computed(() => parseCalendar(props.raw));
+const firstEventDate = computed(
+  () =>
+    events.value
+      .map(event => event.date)
+      .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date))
+      .sort()[0] || '',
+);
 const filtered = computed(() => events.value.filter(event => allEvents.value || event.date === selectedDate.value));
 const days = computed(() =>
   Array.from({ length: 5 }, (_, i) => {
@@ -133,6 +143,11 @@ function alignDays(): void {
 }
 function today(): void {
   selectedDate.value = dateKey(new Date());
+  alignDays();
+}
+function firstEvent(): void {
+  if (!firstEventDate.value) return;
+  selectedDate.value = firstEventDate.value;
   alignDays();
 }
 function moveDays(amount: number): void {

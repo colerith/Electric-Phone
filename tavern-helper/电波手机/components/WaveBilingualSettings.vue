@@ -1,5 +1,5 @@
 <template>
-  <section class="chat-settings-group system-settings-card">
+  <section class="chat-settings-group system-settings-card wave-bilingual-settings">
     <div class="wave-settings-title">双语阅读</div>
     <label class="chat-setting-row"
       ><span>同步私聊双语设置<small>跟随当前聊天对象的语言、翻译开关与展开方式</small></span
@@ -72,3 +72,22 @@ function update<K extends keyof typeof props.prefs>(key: K, value: (typeof props
 const phone = usePhoneStore();
 const current = computed(() => ChatPreferencesSchema.parse(phone.state.chatPreferences[phone.state.activeCharKey]));
 </script>
+
+<style scoped>
+.wave-bilingual-settings > .chat-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(138px, 46%);
+  align-items: center;
+  gap: 12px;
+}
+.wave-bilingual-settings > .chat-setting-row > .wave-select {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+@media (max-width: 390px) {
+  .wave-bilingual-settings > .chat-setting-row:has(.wave-select) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+</style>

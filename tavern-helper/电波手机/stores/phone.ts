@@ -22,10 +22,12 @@ import {
   MomentPostSchema,
   MomentCommentSchema,
   momentTimeline,
+  planMomentReply,
   planMoments,
   syncMomentEvents,
   type MomentPost,
   type MomentMedia,
+  type MomentComment,
   type MomentUserProfile,
 } from '../services/moments';
 import { registerMomentsFollow } from '../services/moments-follow';
@@ -1592,22 +1594,73 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     state.value.moments.posts.unshift(post);
     saveMoments();
   }
-  function commentMoment(postId: string, content: string): void {
+  async function commentMoment(postId: string, content: string, parent?: MomentComment): Promise<void> {
     if (!content.trim() || !momentsFeed.value.posts.some(post => post.id === postId && post.availableAt <= Date.now()))
       return;
     const now = Date.now();
-    state.value.moments.comments.push(
-      MomentCommentSchema.parse({
-        id: makeId('comment'),
-        postId,
-        authorKey: 'user',
-        authorName: state.value.moments.profile.nickname || SillyTavern.name1 || '我',
-        content: content.trim(),
-        createdAt: now,
-        availableAt: now,
-      }),
-    );
+    const comment = MomentCommentSchema.parse({
+      id: makeId('comment'),
+      postId,
+      authorKey: 'user',
+      authorName: state.value.moments.profile.nickname || SillyTavern.name1 || '我',
+      content: content.trim(),
+      createdAt: now,
+      availableAt: now,
+      parentId: parent?.id || '',
+      replyToAuthorKey: parent?.authorKey || '',
+      replyToAuthorName: parent?.authorName || '',
+    });
+    state.value.moments.comments.push(comment);
     saveMoments();
+    if (!settings.value.api.enabled) return;
+    const runtime = moduleInput();
+    if (!runtime || moduleGenerating.value || zoneGenerating.value) return;
+    const plan = planMomentReply(
+      state.value.moments,
+      identities.value,
+      momentsFeed.value.posts,
+      postId,
+      comment.id,
+    );
+    if (!plan) return;
+    const id = createPhoneGenerationId();
+    moduleGenerating.value = true;
+    manualGeneratingApp.value = 'moments';
+    moduleGenerationId = id;
+    state.value.moments.requests[plan.id] = plan;
+    saveMoments();
+    try {
+      const batch = await generateMomentsBatch(
+        {
+          ...klona(runtime.input),
+          settings: klona(runtime.settings),
+          latestUserText: content.trim(),
+          generationId: id,
+        },
+        plan,
+        klona(state.value.moments),
+        klona(momentsFeed.value.posts),
+      );
+      const current = getRuntimeContext();
+      if (
+        id !== moduleGenerationId ||
+        current?.cardKey !== runtime.input.cardKey ||
+        current?.chatKey !== runtime.input.chatKey
+      )
+        throw Error('生成已停止，旧结果未写入');
+      const encoded = JSON.stringify(batch).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e');
+      syncMomentEvents(state.value.moments, [`<wave_moments>${encoded}</wave_moments>`]);
+      const event = state.value.moments.events.find(item => item.requestId === plan.id);
+      if (!event) throw Error('朋友圈回复未通过身份或回复链校验');
+      event.independent = true;
+      saveMoments();
+    } finally {
+      if (moduleGenerationId === id) {
+        moduleGenerationId = '';
+        moduleGenerating.value = false;
+        manualGeneratingApp.value = null;
+      }
+    }
   }
   function likeMoment(postId: string): void {
     const current = state.value.moments.likes;
@@ -2387,22 +2440,29 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     interaction.liked = !interaction.liked;
     saveChat();
   }
-  function addZoneComment(postId: string, content: string): boolean {
+  function addZoneComment(
+    postId: string,
+    content: string,
+    parent?: { id: string; author: string },
+  ): { id: string; author: string } | null {
     const identity = activeIdentity.value;
     if (
       !identity ||
       !content.trim() ||
       !parseZonePage(activeSnapshot.value.zone).posts.some(post => post.id === postId)
     )
-      return false;
-    zoneInteraction(identity.charKey, postId).comments.push({
+      return null;
+    const comment = {
       id: makeId('comment'),
       author: SillyTavern.name1 || 'User',
       content: content.trim(),
       createdAt: nowIso(),
-    });
+      parentId: parent?.id || '',
+      replyToAuthor: parent?.author || '',
+    };
+    zoneInteraction(identity.charKey, postId).comments.push(comment);
     saveChat();
-    return true;
+    return { id: comment.id, author: comment.author };
   }
   async function refreshZone(instruction = '更新当前角色的空间资料与有依据的新动态。'): Promise<void> {
     const runtime = context.value;

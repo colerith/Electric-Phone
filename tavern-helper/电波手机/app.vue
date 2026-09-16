@@ -927,7 +927,7 @@ import { normalizeArtwork } from './services/artworks';
 import WaveWalletWorkspace from './components/WaveWalletWorkspace.vue';
 import WaveZonePanel from './components/WaveZonePanel.vue';
 import WaveForwardDialog from './components/WaveForwardDialog.vue';
-import type { ZonePost } from './services/zone';
+import type { ZoneComment, ZonePost } from './services/zone';
 import type { MomentPost } from './services/moments';
 import WaveApps from './components/WaveApps.vue';
 import WaveMusicPanel from './components/WaveMusicPanel.vue';
@@ -1883,12 +1883,13 @@ async function toggleMomentsGeneration(): Promise<void> {
     if (!/停止|取消/.test(String(error))) toastr.error(String(error), '朋友圈生成失败');
   }
 }
-async function commentZone(postId: string, content: string): Promise<void> {
-  if (!store.addZoneComment(postId, content)) return;
+async function commentZone(postId: string, content: string, parent?: ZoneComment): Promise<void> {
+  const saved = store.addZoneComment(postId, content, parent);
+  if (!saved) return;
   if (store.settings.api.enabled) {
     try {
       await store.refreshZone(
-        `User 已在动态 ${postId} 留下新评论。读取本地评论，仅按角色意愿在该动态 comments 追加回复；保留原动态内容，不替User发言。`,
+        `User 已在动态 ${postId} ${parent ? `回复评论 ${parent.id}（${parent.author}：${parent.content}）` : '留下新评论'}。读取本地评论，并在该动态 comments 追加一条承接 User 评论 ${saved.id} 的角色回复；回复必须设置 parentId="${saved.id}"、replyToAuthor="${saved.author}"。保留原动态内容，不替 User 发言。`,
       );
     } catch (error) {
       console.warn('[wave-phone] 评论已保存，空间回复生成失败', error);

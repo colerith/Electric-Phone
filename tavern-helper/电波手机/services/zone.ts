@@ -6,6 +6,8 @@ export const ZoneCommentSchema = z.object({
   author: z.string().prefault(''),
   content: z.string(),
   createdAt: z.string().prefault(''),
+  parentId: z.string().prefault(''),
+  replyToAuthor: z.string().prefault(''),
 });
 export const ZonePostSchema = z.object({
   translation: TranslationSchema.optional(),
@@ -49,6 +51,7 @@ export const ZoneUpdateSchema = z.object({
 });
 export type ZoneUpdate = z.infer<typeof ZoneUpdateSchema>;
 export type ZonePost = z.infer<typeof ZonePostSchema>;
+export type ZoneComment = z.infer<typeof ZoneCommentSchema>;
 export type ZonePage = z.infer<typeof ZonePageSchema>;
 export const ZoneInteractionSchema = z
   .object({
