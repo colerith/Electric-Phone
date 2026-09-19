@@ -419,6 +419,22 @@
                         </button>
                       </div>
                       <div
+                        v-if="!message.withdrawn && message.sender === 'user' && message.characterReactions?.length"
+                        class="message-reactions"
+                        aria-label="对方的消息反应"
+                        @pointerdown.stop
+                        @click.stop
+                      >
+                        <span
+                          v-for="reaction in message.characterReactions"
+                          :key="reaction.actorKey"
+                          class="message-reaction-received"
+                          :title="`${store.state.identities[reaction.actorKey]?.name || '对方'}贴了 ${reaction.emoji}`"
+                          ><span>{{ reaction.emoji }}</span
+                          ><small>1</small></span
+                        >
+                      </div>
+                      <div
                         v-if="message.editedAt || message.favorite || message.status === 'failed' || multiSelectMode"
                         class="message-state"
                       >
@@ -2030,7 +2046,7 @@ function submitExtra(): void {
     }
     input = {
       type: draft.kind === 'video' ? 'video' : 'image',
-      content: draft.content || (draft.kind === 'video' ? '一段视频' : '一张照片'),
+      content: draft.content || (draft.kind === 'video' ? '一段视频' : ''),
       payload: {
         url: selectedPhotos.value[0]?.url || draft.url,
         description: draft.content,

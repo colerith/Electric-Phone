@@ -14,7 +14,7 @@ import { ZoneInteractionsSchema } from './services/space/zone';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.1.25';
+export const WAVE_PHONE_RELEASE_VERSION = '1.1.26';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -325,6 +325,7 @@ export const PhoneMessageSchema = z.object({
   payload: z.record(z.string(), z.unknown()).prefault({}),
   quotedMessageId: z.string().prefault(''),
   reactions: z.array(z.string().max(32)).max(6).optional(),
+  characterReactions: z.array(z.object({ actorKey: z.string(), emoji: z.string().max(32) })).optional(),
   favorite: z.boolean().prefault(false),
   withdrawn: z.boolean().prefault(false),
   editedAt: z.string().prefault(''),
@@ -437,7 +438,13 @@ export const ModelMessageSchema = z.object({
   payload: z.record(z.string(), z.unknown()).prefault({}),
 });
 
+export const ModelReactionsSchema = z
+  .array(z.object({ message_id: z.string(), emoji: z.string().max(32), actor_key: z.string().optional() }))
+  .max(1)
+  .catch([])
+  .optional();
 export const PhoneChatResponseSchema = z.object({
+  reactions: ModelReactionsSchema,
   context_relation: z.enum(['linked', 'independent']).optional(),
   version: z.literal(1).prefault(1),
   thread_id: z.string().prefault(''),

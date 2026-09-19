@@ -128,6 +128,95 @@ let app;
   await vue.nextTick();
   assert(grape.disabled);
   assert(!document.querySelector('[aria-label="反应 ❤️"]').disabled);
+  const { applyCharacterReactions } = require(base + '/services/chat/message-reactions.ts');
+  const { PhoneChatResponseSchema } = require(base + '/schemas.ts');
+  const { ModuleDeltaSchema } = require(base + '/services/generation/module-protocol.ts');
+  const ownTarget = phone.activeThread.messages.find(m => m.id === own.id);
+  ownTarget.payload.awaitingReply = true;
+  ownTarget.content = '等待回复的情绪消息';
+  const { buildPhonePrompts, buildModulePrompt } = require(base + '/prompts/index.ts');
+  const promptInput = {
+    cardKey: 'card',
+    chatKey: 'chat-A',
+    cardName: 'Alice',
+    identity: phone.activeIdentity,
+    thread: phone.activeThread,
+    appSnapshot: phone.activeSnapshot,
+    availableStickers: '',
+  };
+  assert(
+    buildPhonePrompts(promptInput).some(
+      prompt => prompt.content?.includes('等待回复的情绪消息') && prompt.content.includes('message_id'),
+    ),
+  );
+  assert(buildModulePrompt(promptInput, ['messages'], true).includes('等待回复的情绪消息'));
+  const request = { message_id: own.id, emoji: '🥰' };
+  assert.equal(
+    PhoneChatResponseSchema.parse({ messages: [{ sender: 'char', content: '喜欢。' }], reactions: [request] }).reactions
+      .length,
+    1,
+  );
+  assert.equal(
+    ModuleDeltaSchema.parse({ version: 1, char_id: 'char', char_name: 'Char', reactions: [request] }).reactions.length,
+    1,
+  );
+  applyCharacterReactions(phone.activeThread.messages, [request], ['char']);
+  applyCharacterReactions(phone.activeThread.messages, [request], ['char']);
+  assert.deepEqual(ownTarget.characterReactions, [{ actorKey: 'char', emoji: '🥰' }]);
+  applyCharacterReactions(
+    phone.activeThread.messages,
+    [{ ...request, actor_key: 'outsider' }],
+    ['member-a', 'member-b'],
+  );
+  applyCharacterReactions(
+    phone.activeThread.messages,
+    [{ ...request, actor_key: 'member-a', emoji: 'not emoji' }],
+    ['member-a', 'member-b'],
+  );
+  applyCharacterReactions(
+    phone.activeThread.messages,
+    [{ ...request, message_id: message.id, actor_key: 'member-a' }],
+    ['member-a'],
+  );
+  assert.equal(ownTarget.characterReactions.length, 1);
+  applyCharacterReactions(
+    phone.activeThread.messages,
+    [{ ...request, actor_key: 'member-a' }],
+    ['member-a', 'member-b'],
+  );
+  assert.equal(ownTarget.characterReactions.length, 2);
+  phone.withdrawMessage(own.id);
+  applyCharacterReactions(phone.activeThread.messages, [request], ['char']);
+  assert.equal(ownTarget.characterReactions.length, 0);
+  app.unmount();
+  const Content = require(base + '/components/chat/WaveMessageContent.vue').default;
+  const photo = vue.ref(
+    PhoneMessageSchema.parse({
+      id: 'photo',
+      sender: 'char',
+      type: 'image',
+      createdAt: new Date().toISOString(),
+      content: '车厢昏黄的阅读灯下，他举起相机。',
+    }),
+  );
+  app = vue.createApp({ setup: () => () => vue.h(Content, { message: photo.value }) });
+  app.use(createPinia()).mount('#app');
+  await vue.nextTick();
+  assert.equal(document.querySelector('.wave-photo-description').textContent, photo.value.content);
+  assert(!document.querySelector('.wave-photo-placeholder i'));
+  assert(!document.querySelector('.wave-polaroid-caption').textContent.includes(photo.value.content));
+  photo.value = PhoneMessageSchema.parse({
+    ...photo.value,
+    content: '一张照片',
+    payload: { url: 'https://example.com/photo.jpg', description: '' },
+  });
+  await vue.nextTick();
+  assert(document.querySelector('.wave-polaroid-frame img'));
+  assert(!document.querySelector('.wave-photo-caption-text'));
+  assert(!document.body.textContent.includes('一张照片'));
+  photo.value.payload.description = '留下今天的晚霞';
+  await vue.nextTick();
+  assert.equal(document.querySelector('.wave-photo-caption-text').textContent, '留下今天的晚霞');
   phone.deleteMessage(message.id);
   assert(!phone.activeThread.messages.some(m => m.id === message.id));
   console.log(

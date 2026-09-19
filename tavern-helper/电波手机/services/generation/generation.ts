@@ -347,7 +347,7 @@ export async function generatePhoneModule(input: GenerationInput, module: import
       if (delta.char_id !== (input.identity.stableId || input.identity.charKey)) throw Error('模块结果角色 ID 不匹配');
       if (
         Object.keys(delta.app_updates).some(key => key !== module) ||
-        (module !== 'messages' && delta.messages.length)
+        (module !== 'messages' && (delta.messages.length || delta.reactions?.length))
       )
         throw Error('模块结果包含未请求的更新');
       if (isLimitedApp(module) && delta.app_updates[module] !== undefined)

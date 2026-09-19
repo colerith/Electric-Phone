@@ -2,7 +2,7 @@ import { isLimitedApp, limitModulePatch } from './module-updates';
 import { splitElectric } from './electric';
 import { mergeWallet } from '../wallet/wallet';
 import { z } from 'zod';
-import { APP_IDS, ModelMessageSchema } from '../../schemas';
+import { APP_IDS, ModelMessageSchema, ModelReactionsSchema } from '../../schemas';
 export const MODULE_LABELS = {
   status: '状态',
   messages: '消息',
@@ -18,6 +18,7 @@ export const ModuleDeltaSchema = z
     version: z.literal(1),
     char_id: z.string().min(1),
     char_name: z.string().min(1),
+    reactions: ModelReactionsSchema,
     messages: z.array(ModelMessageSchema).max(15).default([]),
     app_updates: z.partialRecord(z.enum(APP_IDS), z.union([z.string(), z.record(z.string(), z.unknown())])).default({}),
   })

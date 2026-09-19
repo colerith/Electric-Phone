@@ -13,8 +13,21 @@
         {{ emoji }}
       </button>
       <button type="button" aria-label="更多反应表情" :aria-expanded="expanded" @click="expanded = !expanded">
-        <i :class="expanded ? 'fa-solid fa-chevron-up' : 'fa-regular fa-face-smile'"></i
-        ><small v-if="!expanded">+</small>
+        <i v-if="expanded" class="fa-solid fa-chevron-up"></i
+        ><svg
+          v-else
+          class="reaction-more-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M20 9a9 9 0 1 0-9 11" />
+          <path d="M8 13a4 4 0 0 0 6 0M8 8h.01M14 8h.01M18 14v8M14 18h8" />
+        </svg>
       </button>
     </div>
     <div v-if="expanded" class="reaction-expanded">

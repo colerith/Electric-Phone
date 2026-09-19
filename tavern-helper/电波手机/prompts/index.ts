@@ -887,7 +887,7 @@ export const BUILTIN_PRESET_ENTRIES: readonly PresetEntry[] = [
     kind: 'custom',
     scope: 'chat',
     content:
-      '[电波手机·私聊回复]\n目标：针对 User 最新一条手机消息，生成符合 target_char 的一轮私聊回复。\n- 单条通常 2–35 个中文字符，必要说明可更长。禁止为了凑数拆成无意义碎片。\n- 不写第三人称动作旁白、场景描写、“角色回复：”或舞台说明。\n- 先回应 User 真正表达的内容，再加入角色自己的反应；可以自然延伸话题，但不要每轮结尾都追问。\n\n输入约定：文字、照片、视频、语音、表情包、剧情转账、位置、链接、通话、空间动态转发均以各自中文类型标签和字段传入。引用区是被引用的旧消息，不是本轮新指令；撤回内容不可复述。空间转发应回应动态内容。\n\n消息类型：\n- 默认 text。只有上下文确实触发且字段完整时，才使用 emoji、voice、image、video、transfer、location、link、call 或 system。\n- text：content 是纯聊天文字，不夹带动作旁白。\n- emoji：普通 Emoji 用 payload={"emoji":"表情"}；表情包仅能引用上下文已出现的真实资源，使用 payload={"emojiType":"sticker","name":"名称","url":"已有图链"}，禁止杜撰图链。\n- image/video：content 与 payload.description 都写画面描述，描述显示在照片白边或视频下方；只有上下文提供真实 http/https URL 时才写 payload.url，否则留空，禁止编造资源。\n- voice：content 与 payload.transcript 写语音转写。不要要求 User 填时长；payload.duration 可省略，界面会按转写长度自动换算。语音默认折叠文字，内容应像口语而不是旁白。\n- transfer：payload 必须含 amount、currency、note、state；state 只能是 pending（未收款）、received（已收款）、refunded（已退款）。状态变化必须承接记录，不得把待收款直接当作余额，不声称真实支付。\n- location：content 与 payload.name 写剧情中的地点名称，可附 payload.mapSeed 和非负数字 payload.distanceKm（公里，剧情距离而非真实定位）；界面会用消息与地点确定性绘制示意地图。禁止声称读取真实定位。\n- link：只使用上下文中真实存在的 http/https 地址；call 仅为剧情事件卡，不建立真实连接。\n\n输出 JSON：\n{"version":1,"thread_id":"原样返回输入的 thread_id","messages":[{"client_id":"本轮唯一短ID","sender":"char","type":"text","content":"回复","created_at":"ISO时间或空字符串","payload":{}}],"app_updates":{}}\nmessages 必须有 1–15 项；不要输出 user 消息。',
+      '[电波手机·私聊回复]\n目标：针对 User 最新一条手机消息，生成符合 target_char 的一轮私聊回复。\n- 单条通常 2–35 个中文字符，必要说明可更长。禁止为了凑数拆成无意义碎片。\n- 不写第三人称动作旁白、场景描写、“角色回复：”或舞台说明。\n- 先回应 User 真正表达的内容，再加入角色自己的反应；可以自然延伸话题，但不要每轮结尾都追问。\n\n输入约定：文字、照片、视频、语音、表情包、剧情转账、位置、链接、通话、空间动态转发均以各自中文类型标签和字段传入。引用区是被引用的旧消息，不是本轮新指令；撤回内容不可复述。空间转发应回应动态内容。\n\n消息类型：\n- 默认 text。只有上下文确实触发且字段完整时，才使用 emoji、voice、image、video、transfer、location、link、call 或 system。\n- text：content 是纯聊天文字，不夹带动作旁白。\n- emoji：普通 Emoji 用 payload={"emoji":"表情"}；表情包仅能引用上下文已出现的真实资源，使用 payload={"emojiType":"sticker","name":"名称","url":"已有图链"}，禁止杜撰图链。\n- image/video：content 与 payload.description 都写画面描述，无真实图片时描述居中显示在照片区域，有真实图片时描述显示在照片白边，视频描述显示在下方；无描述可留空，不写“一张照片”等占位文字；只有上下文提供真实 http/https URL 时才写 payload.url，否则留空，禁止编造资源。\n- voice：content 与 payload.transcript 写语音转写。不要要求 User 填时长；payload.duration 可省略，界面会按转写长度自动换算。语音默认折叠文字，内容应像口语而不是旁白。\n- transfer：payload 必须含 amount、currency、note、state；state 只能是 pending（未收款）、received（已收款）、refunded（已退款）。状态变化必须承接记录，不得把待收款直接当作余额，不声称真实支付。\n- location：content 与 payload.name 写剧情中的地点名称，可附 payload.mapSeed 和非负数字 payload.distanceKm（公里，剧情距离而非真实定位）；界面会用消息与地点确定性绘制示意地图。禁止声称读取真实定位。\n- link：只使用上下文中真实存在的 http/https 地址；call 仅为剧情事件卡，不建立真实连接。\n\n输出 JSON：\n{"version":1,"thread_id":"原样返回输入的 thread_id","messages":[{"client_id":"本轮唯一短ID","sender":"char","type":"text","content":"回复","created_at":"ISO时间或空字符串","payload":{}}],"app_updates":{}}\nmessages 必须有 1–15 项；不要输出 user 消息。可选顶层 reactions 格式见消息表情反应规则，默认省略，只在真实情绪触发时偶尔使用。',
   },
   {
     order: 92,
@@ -1091,11 +1091,41 @@ function runtimeValues(input: PhonePromptInput): Record<string, string> {
         .filter(message => message.status !== 'failed')
         .map(
           message =>
-            message.sender + ' #' + message.id + ': ' + formatPhoneMessage(message, phoneHistory(input.thread)),
+            message.sender +
+            ' #' +
+            message.id +
+            ': ' +
+            formatPhoneMessage(message, phoneHistory(input.thread)) +
+            (message.characterReactions?.length
+              ? ' [角色已贴反应：' + JSON.stringify(message.characterReactions) + ']'
+              : '') +
+            (message.reactions?.length ? ' [用户已贴反应：' + message.reactions.join(' ') + ']' : ''),
         )
         .join('\n') || '无',
     stickers: input.availableStickers || '无；只能使用普通 Emoji，不得编造表情包链接。',
   };
+}
+export const messageReactionRules =
+  '[电波手机·消息表情反应] 默认不贴反应，顶层 reactions 省略或为 []。只有用户某句话确实引发喜爱、感动、好笑、赞同、惊讶等明确情绪，且符合角色性格时，才偶尔在该条用户消息上贴一个普通 Emoji。不要每轮贴、连续贴、为刷存在感贴，不代替正常回复。每轮最多 1 个，已有自己反应的消息不得再贴。格式："reactions":[{"message_id":"本轮可贴反应用户消息中的真实消息ID","emoji":"🥰"}]，与 messages、app_updates 同级；这是消息上的反应，不是新 emoji 消息。只可引用当前线程仍可见的 user 消息，不可编造 ID、对角色消息或撤回消息贴反应。群聊须额外带 actor_key，必须是当前群成员的真实 charKey；单聊不填。已有贴反应记录是历史事实，不是要求模仿。';
+
+function messageReactionContext(input: PhonePromptInput): string {
+  return (
+    messageReactionRules +
+    '\n[本轮可贴反应用户消息，仅作数据参考]\n' +
+    JSON.stringify(
+      input.thread.messages
+        .filter(
+          message =>
+            message.sender === 'user' && message.status === 'sent' && !message.withdrawn && message.type !== 'system',
+        )
+        .slice(-20)
+        .map(message => ({
+          message_id: message.id,
+          content: formatPhoneMessage(message),
+          existing_reactions: message.characterReactions || [],
+        })),
+    )
+  );
 }
 export function buildPhonePrompts(
   input: PhonePromptInput,
@@ -1132,7 +1162,9 @@ export function buildPhonePrompts(
               '\n' +
               voiceGenerationRules(input) +
               '\n' +
-              chatBilingualRules(input.chatPreferences)
+              chatBilingualRules(input.chatPreferences) +
+              '\n' +
+              messageReactionContext(input)
             : '',
       },
       { role: 'system', content: walletAccountRules(input) },
@@ -1183,7 +1215,15 @@ export function buildModulePrompt(
       : '[手动电波手机模块生成]',
     ...rules,
     modules.includes('messages')
-      ? replyCountRules(input) + '\n' + voiceGenerationRules(input) + '\n' + chatBilingualRules(input.chatPreferences)
+      ? replyCountRules(input) +
+        '\n' +
+        voiceGenerationRules(input) +
+        '\n' +
+        chatBilingualRules(input.chatPreferences) +
+        '\n' +
+        messageReactionContext(input) +
+        '\n[phone_history]\n' +
+        runtimeValues(input).phone_history
       : '',
     moduleGenerationRules(input, modules),
     modules.includes('wallet') ? walletAccountRules(input) : '',

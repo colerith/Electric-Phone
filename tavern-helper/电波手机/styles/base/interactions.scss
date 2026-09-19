@@ -1168,7 +1168,8 @@
     margin-top: 5px;
     max-width: 100%;
   }
-  .message-reactions button {
+  .message-reactions button,
+  .message-reaction-received {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -1189,5 +1190,31 @@
     border-color: var(--wave-line);
     background: var(--wave-card);
     font-size: 12px;
+  }
+}
+
+#wave-phone-script-root {
+  .reaction-more-icon {
+    display: block;
+    width: 22px;
+    height: 22px;
+    margin: auto;
+  }
+  .message-reaction-received {
+    cursor: default;
+  }
+  .wave-photo-description {
+    box-sizing: border-box;
+    padding: 18px;
+    font-size: calc(12px * var(--wave-font-scale));
+    color: #656671;
+    line-height: 1.9;
+    text-align: center;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    overflow-y: auto;
+  }
+  .wave-polaroid-caption:not(:has(.wave-photo-caption-text)) .polaroid-stamp {
+    margin-top: 0;
   }
 }

@@ -5,7 +5,7 @@ import {
   treeHoleDay,
   TreeHolePostSchema,
 } from '../services/space/tree-hole';
-import { toggleMessageReaction } from '../services/chat/message-reactions';
+import { applyCharacterReactions, toggleMessageReaction } from '../services/chat/message-reactions';
 import { readChatFloors, writeChatFloor } from '../services/chat/chat-reader';
 import {
   CHARACTER_DEFAULTS_KEY,
@@ -1164,6 +1164,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         if (block.delta) {
           const thread = ensureThread(nextState, runtime, identity);
           if (block.messageId <= thread.displayFloorCutoff) return;
+          applyCharacterReactions(thread.messages, block.delta.reactions, [identity.charKey]);
           block.delta.messages.forEach((message, index) => {
             let hash = 2166136261;
             for (const char of JSON.stringify(message)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
@@ -1505,7 +1506,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         current?.chatKey !== runtime.input.chatKey
       )
         throw Error('生成已停止，旧结果未写入');
-      if (!delta.messages.length && !Object.keys(delta.app_updates).length) {
+      if (!delta.messages.length && !delta.reactions?.length && !Object.keys(delta.app_updates).length) {
         logDiagnostic('手动模块生成', '本轮没有新增内容');
         return '本轮没有新增内容';
       }
@@ -2300,6 +2301,11 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       pending.forEach(message => {
         message.payload.narrativeRelation = narrativeRelation;
       });
+      applyCharacterReactions(
+        currentThread.messages,
+        result.data.reactions,
+        identity.source === 'local_group' ? identity.memberKeys || [] : [identity.charKey],
+      );
       result.data.messages.forEach(modelMessage => {
         currentThread.messages.push({
           id: makeId(modelMessage.sender),
@@ -2502,6 +2508,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const message = thread?.messages.find(item => item.id === messageId);
     if (!thread || !message || message.sender !== 'user' || message.withdrawn) return;
     message.withdrawn = true;
+    message.characterReactions = [];
+    message.reactions = [];
     message.content = '';
     message.payload = {};
     message.quotedMessageId = '';
@@ -2523,6 +2531,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       status: 'sent',
       payload: { ...klona(source.payload), forwarded: true },
       reactions: [],
+      characterReactions: [],
       quotedMessageId: '',
       favorite: false,
       editedAt: '',

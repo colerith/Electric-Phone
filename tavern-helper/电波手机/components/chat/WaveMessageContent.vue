@@ -73,7 +73,7 @@
           :style="{ '--photo-index': index }"
         >
           <img :src="photo.url" :alt="photo.description || '照片'" />
-          <figcaption>{{ photo.description }}</figcaption>
+          <figcaption v-if="photo.description">{{ photo.description }}</figcaption>
         </figure>
       </div>
       <figure
@@ -83,11 +83,11 @@
       >
         <div class="wave-polaroid-frame">
           <img v-if="safeMediaUrl" :src="safeMediaUrl" :alt="mediaDescription || '聊天照片'" />
-          <div v-else class="wave-photo-placeholder"><i class="fa-regular fa-image" aria-hidden="true"></i></div>
+          <div v-else class="wave-photo-placeholder wave-photo-description">{{ photoDescription }}</div>
         </div>
         <figcaption class="wave-polaroid-caption">
-          {{ mediaDescription || '一张照片'
-          }}<span class="polaroid-stamp"
+          <span v-if="safeMediaUrl && photoDescription" class="wave-photo-caption-text">{{ photoDescription }}</span
+          ><span class="polaroid-stamp"
             ><small>Wave Memoirs</small
             ><time>{{
               new Date(message.createdAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
@@ -407,6 +407,12 @@ function hashText(text: string): number {
 }
 
 const mediaDescription = computed(() => payloadString('description') || props.message.content);
+const photoDescription = computed(() => {
+  const explicit = payloadString('description').trim();
+  if (explicit) return explicit;
+  const fallback = props.message.content.trim();
+  return /^(?:【|\[)?一张照片(?:】|\])?$/.test(fallback) ? '' : fallback;
+});
 const voiceTranscript = computed(() => payloadString('transcript') || props.message.content || '无转写内容');
 const voiceDuration = computed(
   () => actualDuration.value || payloadNumber('duration') || voiceSeconds(voiceTranscript.value),
