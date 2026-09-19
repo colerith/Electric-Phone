@@ -4513,3 +4513,12 @@
 #wave-phone-script-root .wave-statusbar > .device-status {
   z-index: 1;
 }
+
+#wave-phone-script-root .wave-device .sticker-search input {
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 3px 0;
+}
+#wave-phone-script-root .wave-device .sticker-search input::placeholder {
+  font-size: inherit;
+}

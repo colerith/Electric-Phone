@@ -2590,6 +2590,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     );
     saveChat();
   }
+  function deleteTreeHole(day: string, id: string): void {
+    const daily = state.value.treeHole[day];
+    if (!daily) return;
+    daily.posts = daily.posts.filter(post => post.id !== id);
+    saveChat();
+  }
   function likeTreeHole(day: string, id: string): void {
     const post = state.value.treeHole[day]?.posts.find(post => post.id === id);
     if (!post) return;
@@ -2768,6 +2774,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     refreshZone,
     publishTreeHole,
     likeTreeHole,
+    deleteTreeHole,
     commentTreeHole,
     refreshTreeHole,
     shareZonePost,

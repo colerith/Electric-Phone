@@ -15,31 +15,22 @@
       ><small v-if="!selected.length">选择最多 4 枚，表达你的兴趣与心情</small>
     </div>
     <input v-model="query" class="space-badge-search" placeholder="搜索徽章" aria-label="搜索徽章" />
-    <div class="space-badge-categories" role="tablist" aria-label="徽章分类">
-      <button
-        v-for="item in badgeCategories"
-        :key="item.id"
-        type="button"
-        role="tab"
-        :aria-selected="category === item.id"
-        @click="category = item.id"
-      >
-        {{ item.label }}
-      </button>
-    </div>
-    <div class="space-badge-grid">
-      <button
-        v-for="badge in visible"
-        :key="badge.id"
-        type="button"
-        :aria-pressed="modelValue.includes(badge.id)"
-        :disabled="!modelValue.includes(badge.id) && modelValue.length >= 4"
-        :aria-label="badge.label"
-        @click="toggle(badge.id)"
-      >
-        <img :src="badge.url" alt="" /><span>{{ badge.label }}</span>
-      </button>
-    </div>
+    <section v-for="group in groups" :key="group.id" class="space-badge-group" :aria-label="group.label">
+      <h3>{{ group.label }}</h3>
+      <div class="space-badge-grid">
+        <button
+          v-for="badge in group.badges"
+          :key="badge.id"
+          type="button"
+          :aria-pressed="modelValue.includes(badge.id)"
+          :disabled="!modelValue.includes(badge.id) && modelValue.length >= 4"
+          :aria-label="badge.label"
+          @click="toggle(badge.id)"
+        >
+          <img :src="badge.url" alt="" /><span>{{ badge.label }}</span>
+        </button>
+      </div>
+    </section>
     <small v-if="!visible.length">没有找到匹配的徽章</small>
   </fieldset>
 </template>
@@ -48,14 +39,16 @@ import { computed, ref } from 'vue';
 import { badgeCategories, profileBadges } from '../../services/space/profile-badges';
 const props = defineProps<{ modelValue: string[] }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string[]] }>();
-const category = ref('mood');
 const query = ref('');
 const visible = computed(() =>
   profileBadges.filter(badge =>
-    query.value.trim()
-      ? `${badge.label} ${badge.id}`.toLowerCase().includes(query.value.trim().toLowerCase())
-      : badge.category === category.value,
+    query.value.trim() ? `${badge.label} ${badge.id}`.toLowerCase().includes(query.value.trim().toLowerCase()) : true,
   ),
+);
+const groups = computed(() =>
+  badgeCategories
+    .map(group => ({ ...group, badges: visible.value.filter(badge => badge.category === group.id) }))
+    .filter(group => group.badges.length),
 );
 const selected = computed(() =>
   props.modelValue.map(id => profileBadges.find(badge => badge.id === id)).filter(badge => !!badge),

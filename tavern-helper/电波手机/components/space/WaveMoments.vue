@@ -1,5 +1,6 @@
 <template>
   <div class="moments-view" :class="{ 'space-moments': context === 'space' }">
+    <WaveDeleteConfirm v-if="deleting" title="删除这条动态？" @cancel="deleting = ''" @confirm="confirmDelete" />
     <WaveNpcProfile v-if="viewingNpc" :npc-id="viewingNpc" />
     <template v-else-if="view === 'feed' && !embedded">
       <div class="moments-cover">
@@ -300,12 +301,7 @@
             >
               <i class="fa-solid fa-arrow-up-from-bracket"></i>转发
             </button>
-            <button
-              type="button"
-              class="wave-content-delete"
-              aria-label="删除空间动态"
-              @click="phone.deleteMoment(post.id)"
-            >
+            <button type="button" class="wave-content-delete" aria-label="删除空间动态" @click="deleting = post.id">
               <i class="fa-regular fa-trash-can"></i>删除
             </button>
           </div>
@@ -559,6 +555,12 @@
   </div>
 </template>
 <script setup lang="ts">
+import WaveDeleteConfirm from '../shared/WaveDeleteConfirm.vue';
+const deleting = ref('');
+function confirmDelete() {
+  phone.deleteMoment(deleting.value);
+  deleting.value = '';
+}
 import { titleColors } from '../../services/space/profile-badges';
 import { PostTagsSchema, MAX_POST_TAGS } from '../../services/space/post-tags';
 import WaveProfileDecorations from './WaveProfileDecorations.vue';
@@ -885,7 +887,17 @@ function manageFocus(open: () => boolean, element: typeof composerElement) {
 }
 manageFocus(() => composing.value, composerElement);
 manageFocus(() => describing.value || !!preview.value, mediaElement);
+watch(
+  () => [phone.context?.cardKey, phone.context?.chatKey],
+  () => {
+    deleting.value = '';
+  },
+);
 function back() {
+  if (deleting.value) {
+    deleting.value = '';
+    return true;
+  }
   if (viewingNpc.value) {
     viewingNpc.value = '';
     return true;

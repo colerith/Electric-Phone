@@ -974,3 +974,114 @@
   --wave-navy: #284673;
   color: #284673;
 }
+
+#wave-phone-script-root .wave-device {
+  .space-char-profile .zone-profile-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .space-char-profile .zone-profile-actions button,
+  .space-user-card .moments-me-menu button {
+    background: var(--wave-tint);
+    color: var(--settings-text);
+    border: 0;
+    border-radius: 12px;
+    font-size: 11px;
+    padding: 10px 14px;
+    gap: 6px;
+  }
+  .space-char-profile .zone-profile-actions button i {
+    color: var(--settings-accent);
+  }
+  .space-badge-picker .space-badge-search {
+    display: block;
+    margin: 8px 0 22px;
+  }
+  .space-badge-group {
+    padding-top: 16px;
+    margin: 0 0 24px;
+  }
+  .space-badge-group h3 {
+    font: 600 12px/1.5 var(--wave-ui-font);
+    color: var(--wave-muted);
+    margin: 0 0 12px;
+  }
+  .space-badge-group .space-badge-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .space-badge-group .space-badge-grid button {
+    padding: 8px 2px;
+  }
+  .space-moments .moment-meta .wave-content-delete,
+  .space-hole .space-hole-actions .wave-content-delete {
+    color: #e56b94;
+    font-weight: 600;
+  }
+  .space-hole .space-anonymous-avatar,
+  .space-hole .space-comment-avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    flex: 0 0 32px;
+    aspect-ratio: 1;
+    border-radius: 50% !important;
+    overflow: hidden;
+    background: #e5e9f3;
+    color: #7185a8;
+  }
+  .space-anonymous-avatar img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50% !important;
+  }
+  .space-delete-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 160;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: #18233855;
+    backdrop-filter: blur(4px);
+  }
+  .space-delete-dialog {
+    width: 100%;
+    max-width: 300px;
+    border-radius: 22px;
+    background: var(--wave-card);
+    color: var(--wave-ink);
+    padding: 22px;
+    box-shadow: 0 18px 60px #18233822;
+  }
+  .space-delete-dialog > strong {
+    font-size: 16px;
+  }
+  .space-delete-dialog p {
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--wave-muted);
+    margin: 12px 0 22px;
+  }
+  .space-delete-dialog > div {
+    display: flex;
+    gap: 12px;
+  }
+  .space-delete-dialog button {
+    flex: 1;
+    border: 0;
+    border-radius: 12px;
+    padding: 11px 8px;
+    font-size: 13px;
+    background: var(--wave-tint);
+    color: var(--wave-ink);
+  }
+  .space-delete-dialog .space-delete-confirm {
+    color: white;
+    background: #e56b94;
+  }
+}

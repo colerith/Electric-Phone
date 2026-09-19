@@ -1,5 +1,6 @@
 <template>
   <section class="space-hole">
+    <WaveDeleteConfirm v-if="deleting" title="删除这条匿名动态？" @cancel="deleting = null" @confirm="confirmDelete" />
     <header class="space-hole-topic">
       <small>每日树洞 · {{ day }}</small>
       <h2>{{ topic }}</h2>
@@ -21,7 +22,7 @@
     <p v-if="error" class="zone-error" role="status">{{ error }}</p>
     <article v-for="post in posts" :key="post.id" class="space-hole-post">
       <header>
-        <span class="space-comment-avatar">☁</span><strong>{{ post.alias }}</strong
+        <WaveAnonymousAvatar :seed="`${day}:${post.mine ? 'self' : post.id}`" /><strong>{{ post.alias }}</strong
         ><time>{{ time(post.createdAt) }}</time>
       </header>
       <p class="space-hole-copy">{{ post.content }}</p>
@@ -30,11 +31,18 @@
         <button type="button" :aria-pressed="post.liked" @click="phone.likeTreeHole(day, post.id)">
           <i :class="post.liked ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i> 共鸣</button
         ><button type="button" @click="commenting = commenting === post.id ? '' : post.id">
-          {{ post.comments.length }} 条回应
+          {{ post.comments.length }} 条回应</button
+        ><button
+          type="button"
+          class="wave-content-delete"
+          aria-label="删除匿名动态"
+          @click="deleting = { day, id: post.id }"
+        >
+          <i class="fa-regular fa-trash-can"></i> 删除
         </button>
       </div>
       <div v-for="comment in post.comments" :key="comment.id" class="space-comment">
-        <span class="space-comment-avatar">☁</span>
+        <WaveAnonymousAvatar :seed="`${day}:${comment.alias === '匿名的我' ? 'self' : comment.id}`" />
         <div class="space-comment-main">
           <header>
             <strong>{{ comment.alias }}</strong
@@ -70,11 +78,31 @@
   </section>
 </template>
 <script setup lang="ts">
+import WaveAnonymousAvatar from './WaveAnonymousAvatar.vue';
+import WaveDeleteConfirm from '../shared/WaveDeleteConfirm.vue';
+const deleting = ref<{ day: string; id: string } | null>(null);
+function confirmDelete() {
+  if (deleting.value) {
+    phone.deleteTreeHole(deleting.value.day, deleting.value.id);
+    if (commenting.value === deleting.value.id) {
+      commenting.value = '';
+      reply.value = '';
+      replyTo.value = '';
+    }
+  }
+  deleting.value = null;
+}
 import WaveModuleTranslation from '../shared/WaveModuleTranslation.vue';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { dailyTopic, treeHoleDay } from '../../services/space/tree-hole';
 const phone = usePhoneStore();
+watch(
+  () => [phone.context?.cardKey, phone.context?.chatKey],
+  () => {
+    deleting.value = null;
+  },
+);
 const day = ref(treeHoleDay()),
   draft = ref(''),
   reply = ref(''),
