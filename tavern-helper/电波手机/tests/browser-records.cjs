@@ -42,7 +42,7 @@ const vue = require('vue'),
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 
 const { usePhoneStore } = require(base + '/stores/phone.ts'),
-  Browser = require(base + '/components/WaveBrowserPanel.vue').default;
+  Browser = require(base + '/components/apps/WaveBrowserPanel.vue').default;
 let phone;
 const app = vue.createApp({
   setup() {

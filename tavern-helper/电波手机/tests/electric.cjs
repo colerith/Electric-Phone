@@ -42,10 +42,11 @@ const vue = require('vue'),
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 
 global.MutationObserver = dom.window.MutationObserver;
-const { splitElectric } = require(base + '/services/electric.ts'),
-  { registerElectricDisplay } = require(base + '/services/electric-display.ts');
+const { splitElectric } = require(base + '/services/generation/electric.ts'),
+  { registerElectricDisplay } = require(base + '/services/generation/electric-display.ts');
 assert.deepEqual(splitElectric('<electric>one {x}</electric>\n{"ok":true}'), {
   electric: 'one {x}',
+  electricTitle: '',
   body: '{"ok":true}',
 });
 assert.equal(splitElectric('<electric>incomplete').body, '');

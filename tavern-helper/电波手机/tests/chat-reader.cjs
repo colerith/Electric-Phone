@@ -12,9 +12,9 @@ require.extensions['.ts'] = (m, f) =>
 global._ = require('lodash');
 global.SillyTavern = { chat: [] };
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
-const { readChatFloors, readChatFloor, writeChatFloor } = require(base + '/services/chat-reader.ts');
-const { parsePhoneMessage } = require(base + '/services/parser.ts');
-const { parseStatusProfile } = require(base + '/services/status.ts');
+const { readChatFloors, readChatFloor, writeChatFloor } = require(base + '/services/chat/chat-reader.ts');
+const { parsePhoneMessage } = require(base + '/services/generation/parser.ts');
+const { parseStatusProfile } = require(base + '/services/apps/status.ts');
 const delta = {
   version: 1,
   char_id: 'character:62',

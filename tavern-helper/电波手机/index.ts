@@ -2,13 +2,13 @@ import { createPinia } from 'pinia';
 import { createApp, watch, type App as VueApp, type WatchStopHandle } from 'vue';
 import { createScriptIdDiv, destroyScriptIdDiv, deteleportStyle, teleportStyle } from '../../script';
 import App from './app.vue';
-import './style.scss';
-import './apps.scss';
-import './messages.scss';
-import './memo.scss';
-import './interactions.scss';
-import './refinements.scss';
-import './calendar.scss';
+import './styles/base/style.scss';
+import './styles/apps/apps.scss';
+import './styles/apps/messages.scss';
+import './styles/apps/memo.scss';
+import './styles/base/interactions.scss';
+import './styles/base/refinements.scss';
+import './styles/apps/calendar.scss';
 import { usePhoneStore } from './stores/phone';
 
 const ROOT_ID = 'wave-phone-script-root';
@@ -136,21 +136,22 @@ $(() => {
 
 $(window).on('pagehide', cleanup);
 
-import './browser.scss';
-import './music.scss';
-import './music-refinements.scss';
+import './styles/apps/browser.scss';
+import './styles/apps/music.scss';
+import './styles/apps/music-refinements.scss';
 
-import './shell-refinements.scss';
+import './styles/base/shell-refinements.scss';
 
-import './settings.scss';
+import './styles/settings/settings.scss';
 
-import './greeting-font.scss';
-import './home.scss';
+import './styles/base/greeting-font.scss';
+import './styles/apps/home.scss';
 
-import './system-settings.scss';
+import './styles/settings/system-settings.scss';
 
-import './messenger.scss';
+import './styles/apps/messenger.scss';
 
-import './moments.scss';
+import './styles/apps/moments.scss';
+import './styles/apps/space.scss';
 
-import './presets.scss';
+import './styles/apps/presets.scss';

@@ -43,10 +43,14 @@ const vue = require('vue'),
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 
 const { usePhoneStore } = require(base + '/stores/phone.ts');
-const { MomentsStateSchema, planMoments, syncMomentEvents, momentTimeline } = require(base + '/services/moments.ts');
-const { npcAvatarUrl, npcAvatarSeed } = require(base + '/services/npc-avatar.ts');
+const { MomentsStateSchema, planMoments, syncMomentEvents, momentTimeline } = require(
+  base + '/services/space/moments.ts',
+);
+const { npcAvatarUrl, npcAvatarSeed } = require(base + '/services/space/npc-avatar.ts');
 const { buildMomentsPrompt } = require(base + '/prompts/index.ts');
-const Messenger = require(base + '/components/WaveMessenger.vue').default;
+const Messenger = require(base + '/components/chat/WaveMessenger.vue').default;
+const Moments = require(base + '/components/space/WaveMoments.vue').default;
+const screen = vue.ref('messenger');
 let phone,
   messenger,
   floors = [];
@@ -55,7 +59,14 @@ const app = vue.createApp({
   setup() {
     phone = usePhoneStore();
     phone.settings.basic.cacheEnabled = false;
-    return () => vue.h(Messenger, { ref: v => (messenger = v), userName: 'User', userAvatar: '' });
+    return () =>
+      vue.h(screen.value === 'space' ? Moments : Messenger, {
+        ref: v => (messenger = v),
+        view: 'feed',
+        context: 'space',
+        userName: 'User',
+        userAvatar: '',
+      });
   },
 });
 app.use(createPinia()).mount('#app');
@@ -105,7 +116,7 @@ const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments
   assert.equal(reuse.actors.find(a => a.key === id).isNew, false);
   assert(buildMomentsPrompt(reuse, phone.state.moments, []).includes('knownNpcs'));
   assert(buildMomentsPrompt(reuse, phone.state.moments, []).includes('附近咖啡店'));
-  click('.messenger-dock button', '动态');
+  screen.value = 'space';
   await tick();
   const author = document.querySelector('.moment-author');
   assert.equal(author.textContent, '小林');
@@ -114,8 +125,8 @@ const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments
   );
   author.click();
   await tick();
-  assert.equal(messenger.headerTitle, '详细资料');
-  assert.equal(messenger.headerIcon, '');
+  assert.equal(messenger.subpageTitle, '详细资料');
+  assert(messenger.isSubpage);
   assert(!document.querySelector('.messenger-dock'));
   assert(document.querySelector('.npc-profile-about').textContent.includes('摄影'));
   const avatar = document.querySelector('.npc-profile-avatar img');
@@ -129,13 +140,15 @@ const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments
   assert.equal(phone.state.identities[id].npcProfile, batch.npcs[0].profile);
   assert.equal(phone.addMomentNpc(id), id);
   assert.equal(Object.values(phone.state.identities).filter(i => i.charKey === id).length, 1);
-  assert.equal(messenger.handleBack(), true);
+  assert.equal(messenger.back(), true);
   await tick();
-  assert.equal(messenger.headerTitle, '朋友圈');
+  assert(!messenger.isSubpage);
+  screen.value = 'messenger';
+  await tick();
   click('.messenger-dock button', '联系人');
   await tick();
   assert([...document.querySelectorAll('.messenger-row')].some(el => el.textContent.includes('小林')));
-  click('.messenger-dock button', '动态');
+  screen.value = 'space';
   await tick();
   document.querySelector('.moment-author').click();
   await tick();

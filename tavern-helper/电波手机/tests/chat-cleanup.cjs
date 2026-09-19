@@ -42,14 +42,14 @@ const vue = require('vue'),
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 
 const { usePhoneStore } = require(base + '/stores/phone.ts'),
-  Contact = require(base + '/components/WaveContactSettings.vue').default,
-  Cleanup = require(base + '/components/WaveChatCleanup.vue').default,
-  { phoneSurfaceKey } = require(base + '/services/ui-context.ts');
+  Contact = require(base + '/components/chat/WaveContactSettings.vue').default,
+  Cleanup = require(base + '/components/chat/WaveChatCleanup.vue').default,
+  { phoneSurfaceKey } = require(base + '/services/core/ui-context.ts');
 const { buildPhonePrompts } = require(base + '/prompts/index.ts'),
-  { phoneHistory } = require(base + '/services/chat-history.ts'),
-  { prepareContext } = require(base + '/services/context-controls.ts'),
-  { buildChatReference } = require(base + '/services/narrative-context.ts');
-const { serializeDelta } = require(base + '/services/module-protocol.ts');
+  { phoneHistory } = require(base + '/services/chat/chat-history.ts'),
+  { prepareContext } = require(base + '/services/generation/context-controls.ts'),
+  { buildChatReference } = require(base + '/services/generation/narrative-context.ts');
+const { serializeDelta } = require(base + '/services/generation/module-protocol.ts');
 const delta = content =>
   serializeDelta({
     version: 1,
@@ -114,7 +114,7 @@ const tick = () => vue.nextTick(),
   assert.equal(phone.activeThread.messages.length, 0);
   assert(phoneHistory(phone.activeThread).some(message => message.content === 'OLD-FLOOR'));
   assert.equal(
-    require(base + '/services/memo.ts')
+    require(base + '/services/apps/memo.ts')
       .parseMemoData(phone.activeSnapshot.memo)
       .notes.map(n => n.content)
       .join('\n'),
@@ -147,7 +147,7 @@ const tick = () => vue.nextTick(),
   assert.equal(buildChatReference(phone.state), '');
   assert.equal(phone.activeIdentity.npcProfile, 'NPC-PROFILE-ONLY');
   assert.equal(
-    require(base + '/services/memo.ts')
+    require(base + '/services/apps/memo.ts')
       .parseMemoData(phone.activeSnapshot.memo)
       .notes.map(n => n.content)
       .join('\n'),

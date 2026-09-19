@@ -4,7 +4,7 @@ const path = require('node:path');
 
 const root = path.resolve('src/util/酒馆助手脚本/电波手机');
 const app = fs.readFileSync(path.join(root, 'app.vue'), 'utf8');
-const messagesStyle = fs.readFileSync(path.join(root, 'messages.scss'), 'utf8');
+const messagesStyle = fs.readFileSync(path.join(root, 'styles/apps/messages.scss'), 'utf8');
 
 assert.match(app, /class="message-row char typing-row"/);
 assert.match(messagesStyle, /\.message-row \.wave-message-text\s*{[\s\S]*?border-radius:\s*2px 21px 21px 21px;/);

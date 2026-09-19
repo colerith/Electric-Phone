@@ -12,8 +12,8 @@ function load(file, mocks = {}) {
   new Function('require', 'module', 'exports', code)(id => mocks[id] || require(id), module, module.exports);
   return module.exports;
 }
-const playback = load('services/music-playback.ts');
-const service = load('services/music.ts', { './network': {}, './browser': {} });
+const playback = load('services/music/music-playback.ts');
+const service = load('services/music/music.ts', { '../core/network': {}, '../apps/browser': {} });
 const raw = '歌曲名称：Here Comes the Sun\n歌手名称：The Beatles\n听歌感想：阳光还没出来。';
 assert.deepEqual(service.musicIntent(raw), {
   title: 'Here Comes the Sun',
@@ -80,7 +80,7 @@ function fixture(options = {}) {
     pinia: { defineStore: (_id, setup) => () => vue.proxyRefs(scope.run(setup)) },
     vue,
     './phone': { usePhoneStore: () => phone },
-    '../services/music': {
+    '../services/music/music': {
       musicIntent: service.musicIntent,
       parseLrc: () => [],
       searchMusic: async () => {
@@ -92,13 +92,13 @@ function fixture(options = {}) {
         return options.resolve ? options.resolve(t) : { ...t, url: 'https://audio/' + t.id };
       },
     },
-    '../services/music-discovery': {
+    '../services/music/music-discovery': {
       simplifyLyrics: s => s,
       extraLyrics: async () => '',
       fetchRecommendations: async () => ({ tracks: [] }),
     },
-    '../services/music-queue': { nextQueueIndex: () => -1 },
-    '../services/music-playback': {
+    '../services/music/music-queue': { nextQueueIndex: () => -1 },
+    '../services/music/music-playback': {
       startMusicPlayback: (audio, signal) => playback.startMusicPlayback(audio, signal, options.timeout || 12000),
     },
   });

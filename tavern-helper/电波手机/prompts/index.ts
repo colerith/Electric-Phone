@@ -1,11 +1,11 @@
-import { resolveBilingual } from '../services/module-settings';
-import type { ChatPreferences } from '../services/chat-preferences';
-import type { CharacterVoice, VoiceServices } from '../services/speech';
-import type { WalletAuthorization } from '../services/wallet-accounts';
-import { moduleSnapshot } from '../services/module-updates';
-import { ModuleSettingsSchema, type ModuleSettings, type LimitedApp } from '../services/module-settings';
-import { phoneHistory, actorContext } from '../services/chat-history';
-import { momentTimeline, type MomentPlan, type MomentsState, type MomentPost } from '../services/moments';
+import { resolveBilingual } from '../services/generation/module-settings';
+import type { ChatPreferences } from '../services/chat/chat-preferences';
+import type { CharacterVoice, VoiceServices } from '../services/chat/speech';
+import type { WalletAuthorization } from '../services/wallet/wallet-accounts';
+import { moduleSnapshot } from '../services/generation/module-updates';
+import { ModuleSettingsSchema, type ModuleSettings, type LimitedApp } from '../services/generation/module-settings';
+import { phoneHistory, actorContext } from '../services/chat/chat-history';
+import { momentTimeline, type MomentPlan, type MomentsState, type MomentPost } from '../services/space/moments';
 export const MOMENTS_RULES = `[电波手机·朋友圈身份与互动规则]
 User 是手机使用者，Char 是有稳定角色 ID 的联系人，NPC 是独立的场景人物。三者不可互换，不以消息在请求里的 role 推断人物身份。
 每条帖子的 authorKey/authorName 是发帖人；评论或点赞的 authorKey 是互动人，postId 是目标帖子。用目标的原作者决定称呼，绝不能把 NPC 或 Char 的帖子称为“你（User）发的”。
@@ -86,8 +86,8 @@ import {
   presetHeadingLevel,
   type PromptLibrary,
   type PresetItem,
-} from '../services/preset-schema';
-import { formatPhoneMessage } from '../services/message-format';
+} from '../services/apps/preset-schema';
+import { formatPhoneMessage } from '../services/chat/message-format';
 import type { AppSnapshot, Identity, Thread } from '../schemas';
 export type PhonePromptInput = {
   replyCount?: { minReplies: number; maxReplies: number };

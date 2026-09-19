@@ -1,19 +1,20 @@
-import { WalletBookSchema } from './services/wallet-accounts';
-import { ModuleSettingsSchema } from './services/module-settings';
-import { PromptLibrarySchema } from './services/preset-schema';
-import { MomentsStateSchema } from './services/moments';
-import { MusicTrackSchema } from './services/music';
-import { VoiceServicesSchema, CharacterVoiceSchema } from './services/speech';
-import { BrowserStateSchema, SearchEngineSchema } from './services/browser';
-import { WeatherLocationSchema } from './services/weather';
+import { TreeHoleStateSchema } from './services/space/tree-hole';
+import { WalletBookSchema } from './services/wallet/wallet-accounts';
+import { ModuleSettingsSchema } from './services/generation/module-settings';
+import { PromptLibrarySchema } from './services/apps/preset-schema';
+import { MomentsStateSchema } from './services/space/moments';
+import { MusicTrackSchema } from './services/music/music';
+import { VoiceServicesSchema, CharacterVoiceSchema } from './services/chat/speech';
+import { BrowserStateSchema, SearchEngineSchema } from './services/apps/browser';
+import { WeatherLocationSchema } from './services/core/weather';
 import { z } from 'zod';
-import { ChatPreferencesSchema } from './services/chat-preferences';
-import { ZoneInteractionsSchema } from './services/zone';
+import { ChatPreferencesSchema } from './services/chat/chat-preferences';
+import { ZoneInteractionsSchema } from './services/space/zone';
 
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.1.19';
+export const WAVE_PHONE_RELEASE_VERSION = '1.1.20';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -379,6 +380,7 @@ export type IndependentAppUpdate = z.infer<typeof IndependentAppUpdateSchema>;
 export const ChatStateSchema = z
   .object({
     moments: MomentsStateSchema,
+    treeHole: TreeHoleStateSchema,
     chatPreferences: z.record(z.string(), ChatPreferencesSchema).prefault({}),
     characterVoices: z.record(z.string(), CharacterVoiceSchema).prefault({}),
     musicCatalog: z.record(z.string(), z.array(MusicTrackSchema)).prefault({}),

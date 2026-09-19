@@ -14,9 +14,9 @@ global.z = require('zod').z;
 global.SillyTavern = { name1: 'User' };
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 const schema = require(base + '/schemas.ts'),
-  protocol = require(base + '/services/module-protocol.ts'),
-  parser = require(base + '/services/parser.ts'),
-  follow = require(base + '/services/follow-generation.ts');
+  protocol = require(base + '/services/generation/module-protocol.ts'),
+  parser = require(base + '/services/generation/parser.ts'),
+  follow = require(base + '/services/generation/follow-generation.ts');
 (async () => {
   const settings = schema.ScriptSettingsSchema.parse({});
   assert.equal(settings.generation.followEnabled, false);

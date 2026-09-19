@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia';
 import { computed, onScopeDispose, ref, watch } from 'vue';
-import { musicIntent, parseLrc, resolveTrack, searchMusic, type Track } from '../services/music';
-import { fetchRecommendations, extraLyrics, simplifyLyrics } from '../services/music-discovery';
-import { nextQueueIndex, type PlaybackMode } from '../services/music-queue';
-import { startMusicPlayback } from '../services/music-playback';
+import { musicIntent, parseLrc, resolveTrack, searchMusic, type Track } from '../services/music/music';
+import { fetchRecommendations, extraLyrics, simplifyLyrics } from '../services/music/music-discovery';
+import { nextQueueIndex, type PlaybackMode } from '../services/music/music-queue';
+import { startMusicPlayback } from '../services/music/music-playback';
 import { usePhoneStore } from './phone';
 export const useMusicStore = defineStore('wave-music', () => {
   const phone = usePhoneStore();

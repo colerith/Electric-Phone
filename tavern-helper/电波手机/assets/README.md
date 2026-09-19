@@ -4,7 +4,7 @@
 
 # 默认图案
 
-通过内置 image_gen 生成，供空间封面和钱包卡面共同选择。原图为 PNG，应用内嵌 960px WebP，避免依赖外部图床。`services/artworks.ts` 保存可直接打包的资源。
+通过内置 image_gen 生成，供空间封面和钱包卡面共同选择。原图为 PNG，应用内嵌 960px WebP，避免依赖外部图床。`services/core/artworks.ts` 保存可直接打包的资源。
 
 - `moon-sea.png` / `moon-sea.webp`：月色海岸。
 - `magnolia.png` / `magnolia.webp`：玉兰来信。

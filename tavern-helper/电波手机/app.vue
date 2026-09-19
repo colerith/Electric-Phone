@@ -14,11 +14,6 @@
             'music-is-playing': music.playing,
             'playlist-immersive': playlistImmersive,
             'has-music-dock': showMusicDock,
-            'moments-immersive':
-              store.currentPage === 'messages' &&
-              messengerTab === 'activity' &&
-              !messenger?.isSubpage &&
-              !appSettingsOpen,
             'has-extra-modal': Boolean(extraMode && extraMode !== '表情'),
           },
         ]"
@@ -67,7 +62,7 @@
               <button
                 v-if="canManualGenerateMoments && !appSettingsOpen"
                 type="button"
-                :aria-label="momentsGenerating ? '中止朋友圈生成' : 'AI 更新朋友圈'"
+                :aria-label="momentsGenerating ? '中止空间动态生成' : 'AI 更新空间动态'"
                 :disabled="Boolean(store.manualGeneratingApp && !momentsGenerating)"
                 @click="toggleMomentsGeneration"
               >
@@ -87,7 +82,7 @@
                 data-messenger-plus
                 type="button"
                 :aria-label="messenger?.headerLabel || '新增聊天或联系人'"
-                :aria-haspopup="messengerTab === 'activity' || messengerTab === 'me' ? undefined : 'menu'"
+                :aria-haspopup="messengerTab === 'me' ? undefined : 'menu'"
                 :aria-expanded="messenger?.menuOpen || false"
                 @click="messenger?.toggleMenu()"
               >
@@ -822,24 +817,22 @@
               </div>
             </section>
 
-            <WaveZonePanel
+            <WaveSpace
               v-else-if="store.currentPage === 'zone'"
               :key="`${store.context?.chatKey}-${store.activeIdentity?.charKey}`"
+              ref="space"
               :raw="store.activeSnapshot.zone"
               :artwork="currentArtwork"
               :name="displayIdentityName(store.activeIdentity)"
-              :remark="store.activeIdentity?.remark || ''"
               :avatar="store.activeIdentity?.avatar || ''"
               :avatar-style="avatarStyle(store.activeIdentity)"
-              :interactions="store.state.zoneInteractions[store.activeIdentity?.charKey || ''] || {}"
+              :user-name="userName"
+              :user-avatar="userAvatar"
               :busy="store.zoneGenerating"
               :error="store.zoneError"
               @cover="openZoneCover"
               @refresh="refreshZone"
-              @like="store.toggleZoneLike"
-              @comment="commentZone"
-              @share="shareZone"
-              @delete="id => store.deleteSnapshotItem('zone', 'post', id)"
+              @share="shareMoment"
               @message="store.currentPage = 'conversation'"
             />
             <WaveWalletWorkspace
@@ -918,50 +911,49 @@
 </template>
 
 <script setup lang="ts">
-import { parseCalendar } from './services/calendar';
-import WaveTogether from './components/WaveTogether.vue';
-import WaveSystemSettings from './components/WaveSystemSettings.vue';
-import WaveMessenger from './components/WaveMessenger.vue';
-import WaveGenerationSettings from './components/WaveGenerationSettings.vue';
-import WaveHomeAppearance from './components/WaveHomeAppearance.vue';
-import WavePresets from './components/WavePresets.vue';
-import WaveHome from './components/WaveHome.vue';
-import WaveMusicIsland from './components/WaveMusicIsland.vue';
-import WaveGenerationIsland from './components/WaveGenerationIsland.vue';
-import WaveDeviceStatus from './components/WaveDeviceStatus.vue';
-import WavePokeNotice from './components/WavePokeNotice.vue';
+import { parseCalendar } from './services/apps/calendar';
+import WaveTogether from './components/chat/WaveTogether.vue';
+import WaveSystemSettings from './components/settings/WaveSystemSettings.vue';
+import WaveMessenger from './components/chat/WaveMessenger.vue';
+import WaveGenerationSettings from './components/settings/WaveGenerationSettings.vue';
+import WaveHomeAppearance from './components/settings/WaveHomeAppearance.vue';
+import WavePresets from './components/apps/WavePresets.vue';
+import WaveHome from './components/shell/WaveHome.vue';
+import WaveMusicIsland from './components/music/WaveMusicIsland.vue';
+import WaveGenerationIsland from './components/shell/WaveGenerationIsland.vue';
+import WaveDeviceStatus from './components/shell/WaveDeviceStatus.vue';
+import WavePokeNotice from './components/chat/WavePokeNotice.vue';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, provide } from 'vue';
-import WaveImageUpload from './components/WaveImageUpload.vue';
-import WaveMessageContent from './components/WaveMessageContent.vue';
-import WaveSelect, { type WaveSelectOption } from './components/WaveSelect.vue';
-import WaveSlider from './components/WaveSlider.vue';
-import WaveStickerPicker from './components/WaveStickerPicker.vue';
-import { parseZonePage } from './services/zone';
-import WaveAppSettings from './components/WaveAppSettings.vue';
-import WaveBrowserPanel from './components/WaveBrowserPanel.vue';
-import type { BrowserEntry } from './services/browser';
-import WaveCalendarPanel from './components/WaveCalendarPanel.vue';
-import { normalizeArtwork } from './services/artworks';
-import WaveWalletWorkspace from './components/WaveWalletWorkspace.vue';
-import WaveZonePanel from './components/WaveZonePanel.vue';
-import WaveForwardDialog from './components/WaveForwardDialog.vue';
-import type { ZoneComment, ZonePost } from './services/zone';
-import type { MomentPost } from './services/moments';
-import WaveApps from './components/WaveApps.vue';
-import WaveMusicPanel from './components/WaveMusicPanel.vue';
-import WaveMusicDock from './components/WaveMusicDock.vue';
-import WaveMusicQueue from './components/WaveMusicQueue.vue';
-import { phoneSurfaceKey } from './services/ui-context';
+import WaveImageUpload from './components/shared/WaveImageUpload.vue';
+import WaveMessageContent from './components/chat/WaveMessageContent.vue';
+import WaveSelect, { type WaveSelectOption } from './components/shared/WaveSelect.vue';
+import WaveSlider from './components/shared/WaveSlider.vue';
+import WaveStickerPicker from './components/chat/WaveStickerPicker.vue';
+import { parseZonePage } from './services/space/zone';
+import WaveAppSettings from './components/settings/WaveAppSettings.vue';
+import WaveBrowserPanel from './components/apps/WaveBrowserPanel.vue';
+import type { BrowserEntry } from './services/apps/browser';
+import WaveCalendarPanel from './components/apps/WaveCalendarPanel.vue';
+import { normalizeArtwork } from './services/core/artworks';
+import WaveWalletWorkspace from './components/wallet/WaveWalletWorkspace.vue';
+import WaveSpace from './components/space/WaveSpace.vue';
+import WaveForwardDialog from './components/chat/WaveForwardDialog.vue';
+import type { MomentPost } from './services/space/moments';
+import WaveApps from './components/shell/WaveApps.vue';
+import WaveMusicPanel from './components/music/WaveMusicPanel.vue';
+import WaveMusicDock from './components/music/WaveMusicDock.vue';
+import WaveMusicQueue from './components/music/WaveMusicQueue.vue';
+import { phoneSurfaceKey } from './services/core/ui-context';
 const phoneSurface = ref<HTMLElement | null>(null);
 provide(phoneSurfaceKey, phoneSurface);
 
-import WaveVoiceServices from './components/WaveVoiceServices.vue';
-import WaveTranslationServices from './components/WaveTranslationServices.vue';
-import WaveDraftTranslation from './components/WaveDraftTranslation.vue';
-import WaveNotificationSound from './components/WaveNotificationSound.vue';
-import { playSoundEvent, stopNotification, type SoundEvent } from './services/notification';
+import WaveVoiceServices from './components/settings/WaveVoiceServices.vue';
+import WaveTranslationServices from './components/settings/WaveTranslationServices.vue';
+import WaveDraftTranslation from './components/chat/WaveDraftTranslation.vue';
+import WaveNotificationSound from './components/settings/WaveNotificationSound.vue';
+import { playSoundEvent, stopNotification, type SoundEvent } from './services/core/notification';
 import { useMusicStore } from './stores/music';
-import WaveToggle from './components/WaveToggle.vue';
+import WaveToggle from './components/shared/WaveToggle.vue';
 import {
   WAVE_PHONE_RELEASE_VERSION,
   type AppId,
@@ -970,11 +962,11 @@ import {
   type StickerLibrary,
 } from './schemas';
 import type { SendMessageInput } from './stores/phone';
-import WaveApiSettings from './components/WaveApiSettings.vue';
-import WaveBackupSettings from './components/WaveBackupSettings.vue';
-import { formatPhoneMessage } from './services/message-format';
-import { displayIdentityName } from './services/identity';
-import { parseLegacyMessages } from './services/parser';
+import WaveApiSettings from './components/settings/WaveApiSettings.vue';
+import WaveBackupSettings from './components/settings/WaveBackupSettings.vue';
+import { formatPhoneMessage } from './services/chat/message-format';
+import { displayIdentityName } from './services/core/identity';
+import { parseLegacyMessages } from './services/generation/parser';
 import { usePhoneStore } from './stores/phone';
 
 const store = usePhoneStore();
@@ -1009,7 +1001,11 @@ watch(
 const extrasOpen = ref(false);
 const extraMode = ref('');
 const manualGenerationApps: AppId[] = ['status', 'memo', 'zone', 'wallet', 'calendar', 'browse'];
-const canManualGeneratePage = computed(() => manualGenerationApps.includes(store.currentPage as AppId));
+const canManualGeneratePage = computed(
+  () =>
+    manualGenerationApps.includes(store.currentPage as AppId) &&
+    (store.currentPage !== 'zone' || space.value?.tab === 'char'),
+);
 const manualPageGenerating = computed(() => store.manualGeneratingApp === store.currentPage);
 
 const profileRemark = ref('');
@@ -1122,6 +1118,7 @@ let revealTimer = 0;
 let revealSequenceStarted = false;
 const messenger = ref<InstanceType<typeof WaveMessenger> | null>(null);
 const messengerTab = ref('messages');
+const space = ref<InstanceType<typeof WaveSpace> | null>(null);
 type ForwardDraft = {
   title: string;
   preview: string;
@@ -1131,9 +1128,7 @@ type ForwardDraft = {
   zoneSource?: { charKey: string; postId: string };
 };
 const forwardDraft = ref<ForwardDraft | null>(null);
-const canManualGenerateMoments = computed(
-  () => store.currentPage === 'messages' && messengerTab.value === 'activity' && !messenger.value?.isSubpage,
-);
+const canManualGenerateMoments = computed(() => store.currentPage === 'zone' && space.value?.tab === 'world');
 const momentsGenerating = computed(() => store.manualGeneratingApp === 'moments');
 const momentsSurfaceStyle = computed(() => ({
   '--moments-cover': store.state.moments.profile.cover
@@ -1330,16 +1325,18 @@ const pageTitle = computed(() =>
       ? '预设'
       : store.currentPage === 'messages'
         ? messenger.value?.headerTitle || '消息'
-        : store.currentPage === 'conversation'
-          ? displayIdentityName(store.activeIdentity)
-          : currentApp.value?.name ||
-            (store.currentPage === 'settings'
-              ? activeSettingsSection.value?.name || '设置'
-              : store.currentPage === 'profile'
-                ? 'Char 信息'
-                : store.currentPage === 'avatar'
-                  ? '修改头像'
-                  : '电波手机'),
+        : store.currentPage === 'zone'
+          ? space.value?.headerTitle || '空间'
+          : store.currentPage === 'conversation'
+            ? displayIdentityName(store.activeIdentity)
+            : currentApp.value?.name ||
+              (store.currentPage === 'settings'
+                ? activeSettingsSection.value?.name || '设置'
+                : store.currentPage === 'profile'
+                  ? 'Char 信息'
+                  : store.currentPage === 'avatar'
+                    ? '修改头像'
+                    : '电波手机'),
 );
 const profileSourceLabel = computed(() => {
   const source = store.activeIdentity?.source;
@@ -1553,6 +1550,7 @@ function goBack(): void {
     return;
   }
   if (store.currentPage === 'messages' && !appSettingsOpen.value && messenger.value?.handleBack()) return;
+  if (store.currentPage === 'zone' && !appSettingsOpen.value && space.value?.back()) return;
   if (appSettingsOpen.value) {
     appSettingsOpen.value = false;
     return;
@@ -1931,50 +1929,18 @@ async function toggleMomentsGeneration(): Promise<void> {
   }
   try {
     const notice = await store.generateMoments();
-    if (notice && store.settings.notifications.toastEnabled) toastr.success(notice, '朋友圈生成完成');
+    if (notice && store.settings.notifications.toastEnabled) toastr.success(notice, '空间动态生成完成');
   } catch (error) {
-    if (!/停止|取消/.test(String(error))) toastr.error(String(error), '朋友圈生成失败');
-  }
-}
-async function commentZone(postId: string, content: string, parent?: ZoneComment): Promise<void> {
-  const saved = store.addZoneComment(postId, content, parent);
-  if (!saved) return;
-  if (store.settings.api.enabled) {
-    try {
-      await store.refreshZone(
-        `User 已在动态 ${postId} ${parent ? `回复评论 ${parent.id}（${parent.author}：${parent.content}）` : '留下新评论'}。读取本地评论，并在该动态 comments 追加一条承接 User 评论 ${saved.id} 的角色回复；回复必须设置 parentId="${saved.id}"、replyToAuthor="${saved.author}"。保留原动态内容，不替 User 发言。`,
-      );
-    } catch (error) {
-      console.warn('[wave-phone] 评论已保存，空间回复生成失败', error);
-    }
+    if (!/停止|取消/.test(String(error))) toastr.error(String(error), '空间动态生成失败');
   }
 }
 function compactPreview(value: string, length = 88): string {
   const text = value.replace(/\s+/g, ' ').trim();
   return text.length > length ? `${text.slice(0, length)}…` : text;
 }
-function shareZone(post: ZonePost, author: string): void {
-  const sourceCharKey = store.activeIdentity?.charKey || '';
-  forwardDraft.value = {
-    title: post.title || `${author}的空间动态`,
-    preview: compactPreview(post.content),
-    content: post.content,
-    type: 'zone',
-    payload: {
-      shareKind: 'zone',
-      postId: post.id,
-      sourceCharKey,
-      author,
-      title: post.title,
-      postContent: post.content,
-      date: post.date,
-    },
-    zoneSource: { charKey: sourceCharKey, postId: post.id },
-  };
-}
 function shareMoment(post: MomentPost, author: string): void {
   forwardDraft.value = {
-    title: `${author}的朋友圈`,
+    title: `${author}的空间动态`,
     preview: compactPreview(post.content),
     content: post.content,
     type: 'zone',

@@ -42,8 +42,8 @@ const vue = require('vue'),
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 
 const { usePhoneStore } = require(base + '/stores/phone.ts'),
-  Moments = require(base + '/components/WaveMoments.vue').default,
-  { phoneSurfaceKey } = require(base + '/services/ui-context.ts');
+  Moments = require(base + '/components/space/WaveMoments.vue').default,
+  { phoneSurfaceKey } = require(base + '/services/core/ui-context.ts');
 const {
   MomentsStateSchema,
   MomentPostSchema,
@@ -53,9 +53,9 @@ const {
   syncMomentEvents,
   momentTimeline,
   canSeeMoment,
-} = require(base + '/services/moments.ts');
+} = require(base + '/services/space/moments.ts');
 const { buildMomentsPrompt } = require(base + '/prompts/moments.ts');
-const { contactLetter } = require(base + '/services/contact-alphabet.ts');
+const { contactLetter } = require(base + '/services/chat/contact-alphabet.ts');
 let phone, component;
 const surface = vue.ref(null),
   view = vue.ref('feed');
@@ -72,6 +72,7 @@ const app = vue.createApp({
           key: view.value,
           ref: v => (component = v),
           view: view.value,
+          context: 'space',
           userName: 'User',
           userAvatar: '',
         }),
@@ -150,7 +151,6 @@ const input = (el, text) => {
   phone.selectUserScope('User');
   assert.equal(phone.state.moments.profile.nickname, 'Sarah');
   assert.equal(phone.state.moments.profile.cover, 'https://example.com/user-cover.jpg');
-  clickText('.moments-me-menu button', '我的朋友圈');
   await tick();
   assert.equal(document.querySelectorAll('.moment-post').length, 2);
   const state = MomentsStateSchema.parse({});

@@ -1,5 +1,15 @@
-import { readChatFloors, writeChatFloor } from '../services/chat-reader';
-import { npcAvatarUrl } from '../services/npc-avatar';
+import { dailyTopic, treeHoleDay, TreeHolePostSchema } from '../services/space/tree-hole';
+import { readChatFloors, writeChatFloor } from '../services/chat/chat-reader';
+import {
+  CHARACTER_DEFAULTS_KEY,
+  CharacterDefaultsMapSchema,
+  CharacterDefaultsSchema,
+  walletChatPrefix,
+  inheritCharacterDefaults,
+  captureMissingDefaults,
+  type CharacterDefaults,
+} from '../services/core/character-defaults';
+import { npcAvatarUrl } from '../services/space/npc-avatar';
 import {
   ensureWalletAccounts,
   walletAuthorization,
@@ -10,11 +20,11 @@ import {
   applyWalletPatch,
   saveAccount,
   type WalletAuthorization,
-} from '../services/wallet-accounts';
-import { isLimitedApp, mergeLimitedModule, type RoundBudget } from '../services/module-updates';
-import { resolveModuleSettings, type ModuleSettings } from '../services/module-settings';
-import { clearThreadHistory } from '../services/chat-history';
-import { registerElectricDisplay } from '../services/electric-display';
+} from '../services/wallet/wallet-accounts';
+import { isLimitedApp, mergeLimitedModule, type RoundBudget } from '../services/generation/module-updates';
+import { resolveModuleSettings, type ModuleSettings } from '../services/generation/module-settings';
+import { clearThreadHistory } from '../services/chat/chat-history';
+import { registerElectricDisplay } from '../services/generation/electric-display';
 import {
   MomentsStateSchema,
   MomentUserProfileMapSchema,
@@ -29,42 +39,42 @@ import {
   type MomentMedia,
   type MomentComment,
   type MomentUserProfile,
-} from '../services/moments';
-import { registerMomentsFollow } from '../services/moments-follow';
+} from '../services/space/moments';
+import { registerMomentsFollow } from '../services/space/moments-follow';
 import {
   buildChatReference,
   contactPrompt,
   narrativePrompt,
   resolveNarrativeRelation,
-} from '../services/narrative-context';
-import { installPhoneRegexes, registerFollowGeneration } from '../services/follow-generation';
-import { stripInlineCards } from '../services/module-protocol';
-import { cachedParse } from '../services/local-cache';
-import { isCardExcluded, stripExcludedTags } from '../services/context-controls';
-import { logDiagnostic } from '../services/diagnostics';
+} from '../services/generation/narrative-context';
+import { installPhoneRegexes, registerFollowGeneration } from '../services/generation/follow-generation';
+import { stripInlineCards } from '../services/generation/module-protocol';
+import { cachedParse } from '../services/core/local-cache';
+import { isCardExcluded, stripExcludedTags } from '../services/generation/context-controls';
+import { logDiagnostic } from '../services/core/diagnostics';
 import { useDeviceStore } from './device';
 import { buildPhoneBridgePrompt } from '../prompts';
-import { playSoundEvent } from '../services/notification';
-import { translateText } from '../services/translation';
+import { playSoundEvent } from '../services/core/notification';
+import { translateText } from '../services/generation/translation';
 import {
   ChatPreferencesSchema,
   worldContext,
   languageContext,
   type ChatPreferences,
-} from '../services/chat-preferences';
-import type { Track } from '../services/music';
-import { CharacterVoiceSchema, type CharacterVoice } from '../services/speech';
+} from '../services/chat/chat-preferences';
+import type { Track } from '../services/music/music';
+import { CharacterVoiceSchema, type CharacterVoice } from '../services/chat/speech';
 import {
   BrowserStateSchema,
   parseBrowseNotes,
   safeBrowserUrl,
   type BrowserEntry,
   type SearchEngine,
-} from '../services/browser';
-import { parseCalendar } from '../services/calendar';
-import { parseMemoData } from '../services/memo';
-import { WeatherLocationSchema, type WeatherLocation } from '../services/weather';
-import { parseWallet, walletTotals, type WalletTransaction } from '../services/wallet';
+} from '../services/apps/browser';
+import { parseCalendar } from '../services/apps/calendar';
+import { parseMemoData } from '../services/apps/memo';
+import { WeatherLocationSchema, type WeatherLocation } from '../services/core/weather';
+import { parseWallet, walletTotals, type WalletTransaction } from '../services/wallet/wallet';
 import { klona } from 'klona';
 import { defineStore } from 'pinia';
 import { computed, ref, watch } from 'vue';
@@ -101,19 +111,20 @@ import {
   makeSingleCardIdentity,
   makeThreadId,
   type RuntimeContext,
-} from '../services/identity';
+} from '../services/core/identity';
 import {
   createPhoneGenerationId,
   generateMomentsBatch,
   generatePhoneReply,
   generatePhoneModule,
   generateZonePage,
+  generateTreeHolePage,
   stopPhoneGeneration,
-} from '../services/generation';
-import { mergeAppSnapshot, parsePhoneMessage } from '../services/parser';
+} from '../services/generation/generation';
+import { mergeAppSnapshot, parsePhoneMessage } from '../services/generation/parser';
 
-import { mergeZoneSnapshot, parseZonePage, ZoneInteractionSchema, type ZonePost } from '../services/zone';
-import { editedMessagePayload, formatPhoneMessage } from '../services/message-format';
+import { mergeZoneSnapshot, parseZonePage, ZoneInteractionSchema, type ZonePost } from '../services/space/zone';
+import { editedMessagePayload, formatPhoneMessage } from '../services/chat/message-format';
 
 const LOG_PREFIX = '[wave-phone]';
 
@@ -540,6 +551,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!key) return;
     state.value.appArtwork[key] ||= {};
     state.value.appArtwork[key][app] = value;
+    updateCharacterDefaults(defaults => {
+      (defaults.artwork[key] ||= {})[app] = value;
+    });
     saveChat();
   }
   function setZoneCover(url: string): void {
@@ -777,7 +791,27 @@ export const usePhoneStore = defineStore('wave-phone', () => {
 
   function saveChat(): void {
     if (!context.value || !state.value.chatKey) return;
+    updateCharacterDefaults(defaults => {
+      defaults.walletBook = klona(state.value.walletBook);
+    });
     persistChatState(ChatStateSchema.parse(state.value));
+  }
+  function updateCharacterDefaults(update: (defaults: CharacterDefaults) => void): void {
+    if (!context.value) return;
+    const all = CharacterDefaultsMapSchema.parse(readPersistentData(CHARACTER_DEFAULTS_KEY) || {});
+    const key = context.value.cardKey;
+    const defaults = (all[key] ||= CharacterDefaultsSchema.parse({}));
+    captureMissingDefaults(state.value, defaults);
+    update(defaults);
+    persistData(CHARACTER_DEFAULTS_KEY, all);
+  }
+  function hydrateCharacterDefaults(nextState: ChatState, runtime: RuntimeContext): void {
+    const all = CharacterDefaultsMapSchema.parse(readPersistentData(CHARACTER_DEFAULTS_KEY) || {});
+    const key = runtime.cardKey;
+    const defaults = (all[key] ||= CharacterDefaultsSchema.parse({}));
+    captureMissingDefaults(nextState, defaults);
+    inheritCharacterDefaults(nextState, defaults);
+    persistData(CHARACTER_DEFAULTS_KEY, all);
   }
 
   function hasMomentUserProfile(profile: MomentUserProfile): boolean {
@@ -920,6 +954,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const nextState = readChatState(runtime);
       applyMomentUserProfile(nextState);
       hydrateCardRoster(nextState, runtime);
+      hydrateCharacterDefaults(nextState, runtime);
       const previousSnapshots = klona(nextState.snapshots);
       const previousWalletSignatures = new Map(
         Object.values(nextState.walletBook.accounts).map(account => [
@@ -981,7 +1016,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       nextState.mode = isMulti ? 'multi' : 'single';
       for (const account of Object.values(nextState.walletBook.accounts)) {
         account.layers = Object.fromEntries(
-          Object.entries(account.layers).filter(([key]) => !key.startsWith('floor:')),
+          Object.entries(account.layers).filter(
+            ([key]) => !key.startsWith(`${walletChatPrefix(runtime.chatKey)}floor:`),
+          ),
         );
       }
       nextState.snapshots = {};
@@ -1078,7 +1115,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             ChatPreferencesSchema.parse(state.value.chatPreferences[state.value.activeCharKey]),
           ),
         ));
-        const walletGrantKey = `${policyKey}:${identity.charKey}`;
+        const walletGrantKey = `${walletChatPrefix(runtime.chatKey)}${policyKey}:${identity.charKey}`;
         if (pending?.wallet && pending.wallet.ownerId === identity.charKey)
           nextState.walletBook.grants[walletGrantKey] = klona(pending.wallet);
         const walletUpdate =
@@ -1096,7 +1133,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
                 nextState.walletBook,
                 block.delta ? walletUpdate : parseWallet(String(walletUpdate)),
                 grant,
-                `floor:${walletGrantKey}:${block.ordinal}`,
+                `${walletChatPrefix(runtime.chatKey)}floor:${policyKey}:${identity.charKey}:${block.ordinal}`,
               )
             )
               updatedWalletAccountByChar.set(identity.charKey, grant.accountId);
@@ -1210,7 +1247,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           const charKey = nextState.activeCharKey || Object.keys(nextState.identities)[0];
           if (charKey) {
             const updated = updatedByChar.get(charKey) || new Set<AppId>();
-            updated.add('messages');
+            updated.add('zone');
             updatedByChar.set(charKey, updated);
           }
         }
@@ -1469,7 +1506,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const value = delta.app_updates[module];
       let changed = false;
       if (module === 'wallet' && value !== undefined && runtime.input.walletAuthorization) {
-        changed = applyWalletPatch(state.value.walletBook, value, runtime.input.walletAuthorization, `manual:${id}`);
+        changed = applyWalletPatch(
+          state.value.walletBook,
+          value,
+          runtime.input.walletAuthorization,
+          `${walletChatPrefix(state.value.chatKey)}manual:${id}`,
+        );
         if (changed) walletSelectedAccountId.value = runtime.input.walletAuthorization.accountId;
       } else if (value !== undefined) {
         changed = rememberIndependentAppUpdate(charKey, module, value, requestModuleSettings, id);
@@ -1563,7 +1605,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         id: `zone:${identity.charKey}:${post.id}`,
         authorKey: identity.charKey,
         authorName: identity.name,
-        content: post.content,
+        legacyLikeCount: post.likes,
+        content: [post.title, post.content].filter(Boolean).join('\n'),
         translation: post.translation,
         images: [],
         location: '',
@@ -1574,7 +1617,45 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         availableAt: 0,
       })),
     );
-    return momentTimeline(state.value.moments, legacy);
+    const timeline = momentTimeline(state.value.moments, legacy);
+    for (const identity of identities.value) {
+      for (const post of parseZonePage(state.value.snapshots[identity.charKey]?.zone || '').posts) {
+        const postId = `zone:${identity.charKey}:${post.id}`;
+        if (!timeline.posts.some(item => item.id === postId)) continue;
+        const interaction = state.value.zoneInteractions[identity.charKey]?.[post.id];
+        if (interaction?.liked && !timeline.likes.some(item => item.postId === postId && item.authorKey === 'user')) {
+          timeline.likes.push({
+            id: `legacy-like:${postId}`,
+            postId,
+            authorKey: 'user',
+            authorName: state.value.moments.profile.nickname || '我',
+            availableAt: 0,
+          });
+        }
+        const comments = new Map(
+          [...post.comments, ...(interaction?.comments || [])].map(comment => [comment.id, comment]),
+        );
+        for (const comment of comments.values()) {
+          const authorKey =
+            comment.author === SillyTavern.name1 || comment.author === state.value.moments.profile.nickname
+              ? 'user'
+              : identities.value.find(item => item.name === comment.author)?.charKey || '';
+          timeline.comments.push({
+            id: `legacy:${postId}:${comment.id}`,
+            postId,
+            authorKey,
+            authorName: comment.author,
+            content: comment.content,
+            createdAt: Date.parse(comment.createdAt) || 0,
+            availableAt: 0,
+            parentId: comment.parentId ? `legacy:${postId}:${comment.parentId}` : '',
+            replyToAuthorKey: '',
+            replyToAuthorName: comment.replyToAuthor,
+          });
+        }
+      }
+    }
+    return timeline;
   });
   function saveMoments(): void {
     state.value.moments = MomentsStateSchema.parse(state.value.moments);
@@ -1677,8 +1758,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     }
   }
   function likeMoment(postId: string): void {
+    const source = identities.value.find(identity => postId.startsWith(`zone:${identity.charKey}:`));
+    const legacy = source ? zoneInteraction(source.charKey, postId.slice(`zone:${source.charKey}:`.length)) : null;
     const current = state.value.moments.likes;
-    state.value.moments.likes = current.includes(postId) ? current.filter(id => id !== postId) : [...current, postId];
+    const wasLiked = current.includes(postId) || legacy?.liked;
+    if (legacy) legacy.liked = false;
+    state.value.moments.likes = wasLiked ? current.filter(id => id !== postId) : [...current, postId];
     saveMoments();
   }
   function deleteMoment(postId: string): void {
@@ -2236,7 +2321,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         try {
           if (appId === 'wallet') {
             if (requestWalletGrant) {
-              if (applyWalletPatch(state.value.walletBook, value, requestWalletGrant, `reply:${result.generationId}`)) {
+              if (
+                applyWalletPatch(
+                  state.value.walletBook,
+                  value,
+                  requestWalletGrant,
+                  `${walletChatPrefix(state.value.chatKey)}reply:${result.generationId}`,
+                )
+              ) {
                 updatedApps.add('wallet');
                 walletSelectedAccountId.value = requestWalletGrant.accountId;
               }
@@ -2479,7 +2571,54 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
     return { id: comment.id, author: comment.author };
   }
-  async function refreshZone(instruction = '更新当前角色的空间资料与有依据的新动态。'): Promise<void> {
+  function ensureTreeHole(day = treeHoleDay()) {
+    return (state.value.treeHole[day] ||= { topic: dailyTopic(day, context.value?.cardKey || ''), posts: [] });
+  }
+  function publishTreeHole(content: string, day = treeHoleDay()): void {
+    if (!context.value || !content.trim()) return;
+    ensureTreeHole(day).posts.push(
+      TreeHolePostSchema.parse({
+        id: makeId('hole'),
+        alias: '匿名的我',
+        content: content.trim().slice(0, 2000),
+        createdAt: Date.now(),
+        mine: true,
+      }),
+    );
+    saveChat();
+  }
+  function likeTreeHole(day: string, id: string): void {
+    const post = state.value.treeHole[day]?.posts.find(post => post.id === id);
+    if (!post) return;
+    post.liked = !post.liked;
+    saveChat();
+  }
+  function commentTreeHole(day: string, id: string, content: string, replyTo = ''): void {
+    const post = state.value.treeHole[day]?.posts.find(post => post.id === id);
+    if (!post || !content.trim()) return;
+    post.comments.push({
+      id: makeId('hole-comment'),
+      alias: '匿名的我',
+      content: content.trim().slice(0, 500),
+      createdAt: Date.now(),
+      replyTo,
+    });
+    saveChat();
+  }
+  async function refreshTreeHole(day = treeHoleDay()): Promise<void> {
+    const daily = ensureTreeHole(day);
+    await refreshZone(
+      `这是独立的匿名话题树洞，不是角色个人空间。今日话题：${daily.topic}。请按空间动态格式生成 3 条不同匿名参与者的讨论，可附带匿名评论。不要透露角色或用户的真实姓名、账号、身份或私聊秘密，不改写已有角色空间资料。参与者只用匿名昵称。已有发言：${daily.posts
+        .map(post => post.content)
+        .slice(-12)
+        .join('；')}`,
+      day,
+    );
+  }
+  async function refreshZone(
+    instruction = '更新当前角色的空间资料与有依据的新动态。',
+    holeDay?: string,
+  ): Promise<void> {
     const runtime = context.value;
     if (runtime && isCardExcluded(settings.value, runtime.cardName)) throw Error('当前角色卡已排除，已暂停手机生成。');
     const identity = activeIdentity.value;
@@ -2499,7 +2638,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     try {
       let electric = '',
         electricTitle = '';
-      const page = await generateZonePage({
+      const page = await (holeDay ? generateTreeHolePage : generateZonePage)({
         onElectric: (text, title) => {
           electric = text;
           electricTitle = title;
@@ -2523,6 +2662,32 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         context.value?.chatKey !== runtime.chatKey
       )
         return;
+      if (holeDay) {
+        const daily = ensureTreeHole(holeDay);
+        const existing = new Set(daily.posts.map(post => post.content));
+        for (const post of page.posts || []) {
+          if (existing.has(post.content)) continue;
+          const number = daily.posts.length + 1;
+          daily.posts.push(
+            TreeHolePostSchema.parse({
+              id: makeId('hole'),
+              alias: `匿名旅人 ${number}`,
+              content: post.content,
+              createdAt: Date.now(),
+              comments: post.comments.map((comment, index) => ({
+                id: makeId('hole-comment'),
+                alias: `匿名回声 ${index + 1}`,
+                content: comment.content,
+                createdAt: Date.now(),
+                replyTo: '',
+              })),
+            }),
+          );
+          existing.add(post.content);
+        }
+        saveChat();
+        return;
+      }
       const changed = rememberIndependentAppUpdate(
         identity.charKey,
         'zone',
@@ -2596,6 +2761,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     toggleZoneLike,
     addZoneComment,
     refreshZone,
+    publishTreeHole,
+    likeTreeHole,
+    commentTreeHole,
+    refreshTreeHole,
     shareZonePost,
     identities,
     activeIdentity,

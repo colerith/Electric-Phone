@@ -53,16 +53,16 @@ const vue = require('vue'),
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 
 const { usePhoneStore } = require(base + '/stores/phone.ts');
-const { ModuleSettingsSchema } = require(base + '/services/module-settings.ts');
-const { mergeLimitedModule, limitModulePatch } = require(base + '/services/module-updates.ts');
-const { parseMemoData } = require(base + '/services/memo.ts');
-const { parseCalendar } = require(base + '/services/calendar.ts');
-const { parseBrowseNotes } = require(base + '/services/browser.ts');
-const { parseZonePage } = require(base + '/services/zone.ts');
+const { ModuleSettingsSchema } = require(base + '/services/generation/module-settings.ts');
+const { mergeLimitedModule, limitModulePatch } = require(base + '/services/generation/module-updates.ts');
+const { parseMemoData } = require(base + '/services/apps/memo.ts');
+const { parseCalendar } = require(base + '/services/apps/calendar.ts');
+const { parseBrowseNotes } = require(base + '/services/apps/browser.ts');
+const { parseZonePage } = require(base + '/services/space/zone.ts');
 const { buildModulePrompt, buildPhonePrompts } = require(base + '/prompts/index.ts');
-const { serializeDelta } = require(base + '/services/module-protocol.ts');
-const Settings = require(base + '/components/WaveModuleSettings.vue').default;
-const Memo = require(base + '/components/WaveMemoPanel.vue').default;
+const { serializeDelta } = require(base + '/services/generation/module-protocol.ts');
+const Settings = require(base + '/components/settings/WaveModuleSettings.vue').default;
+const Memo = require(base + '/components/apps/WaveMemoPanel.vue').default;
 let phone;
 const selected = vue.ref('memo'),
   raw = vue.ref('');
@@ -207,7 +207,7 @@ const item = id => ({
   assert.equal(document.querySelector('.module-translation').open, false);
   // Shared language switches are live and do not overwrite independent preferences.
   phone.state.chatPreferences[phone.state.activeCharKey] = require(
-    base + '/services/chat-preferences.ts',
+    base + '/services/chat/chat-preferences.ts',
   ).ChatPreferencesSchema.parse({
     autoTranslate: true,
     expandTranslation: true,
@@ -303,7 +303,7 @@ const item = id => ({
   assert.equal(parseMemoData(phone.activeSnapshot.memo).notes.length, 2);
 
   // Follow completion constrains stored JSON without injecting floor HTML, with a shared round budget.
-  const { constrainPhoneFloor, registerFollowGeneration } = require(base + '/services/follow-generation.ts');
+  const { constrainPhoneFloor, registerFollowGeneration } = require(base + '/services/generation/follow-generation.ts');
   const policy = ModuleSettingsSchema.parse({ memo: { maxNew: 1 } });
   const floor =
     '正文' + serializeDelta(delta([item('extra1'), item('extra2')])) + serializeDelta(delta([item('extra3')]));
@@ -313,7 +313,7 @@ const item = id => ({
   assert(!constrained.includes('extra2'));
   assert(!constrained.includes('extra3'));
   assert.equal(constrainPhoneFloor(constrained, policy, id, phone.activeSnapshot), constrained);
-  const generation = require(base + '/services/generation.ts');
+  const generation = require(base + '/services/generation/generation.ts');
   const requestInput = {
     ...input,
     settings: require(base + '/schemas.ts').ScriptSettingsSchema.parse(phone.settings),

@@ -42,12 +42,12 @@ const vue = require('vue'),
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 
 const { usePhoneStore } = require(base + '/stores/phone.ts'),
-  Presets = require(base + '/components/WavePresets.vue').default,
-  { phoneSurfaceKey } = require(base + '/services/ui-context.ts');
+  Presets = require(base + '/components/apps/WavePresets.vue').default,
+  { phoneSurfaceKey } = require(base + '/services/core/ui-context.ts');
 const { defaultPresetItems, resolvePresetEntries, buildPhonePrompts, buildModulePrompt, presetMomentsRules } = require(
   base + '/prompts/index.ts',
 );
-const { createPreset, movePresetEntry, savePresetEntry, deletePresetEntry } = require(base + '/services/presets.ts');
+const { createPreset, movePresetEntry, savePresetEntry, deletePresetEntry } = require(base + '/services/apps/presets.ts');
 let phone;
 const surface = vue.ref(null);
 const app = vue.createApp({

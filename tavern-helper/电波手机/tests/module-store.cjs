@@ -31,7 +31,7 @@ global.updateTavernRegexesWith = async fn => (rules = fn(rules));
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 const { createPinia, setActivePinia } = require('pinia');
 setActivePinia(createPinia());
-const { serializeDelta } = require(base + '/services/module-protocol.ts');
+const { serializeDelta } = require(base + '/services/generation/module-protocol.ts');
 const { usePhoneStore } = require(base + '/stores/phone.ts');
 const store = usePhoneStore();
 store.settings.basic.cacheEnabled = false;
@@ -55,7 +55,7 @@ const delta = {
   assert.equal(store.syncError, '');
   assert.equal(store.activeThread.messages.length, 1);
   assert.equal(
-    require(base + '/services/memo.ts')
+    require(base + '/services/apps/memo.ts')
       .parseMemoData(store.activeSnapshot.memo)
       .notes.map(n => n.content)
       .join('\n'),
@@ -78,7 +78,7 @@ const delta = {
   store.markAppRead('memo');
   assert(!store.unreadApps.includes('memo'));
   assert.equal(
-    require(base + '/services/memo.ts')
+    require(base + '/services/apps/memo.ts')
       .parseMemoData(store.activeSnapshot.memo)
       .notes.map(n => n.content)
       .join('\n'),
@@ -102,25 +102,25 @@ const delta = {
     rows.forEach(row => floors.push({ ...row, message_id: floors.length + 1 }));
   };
   const result = await store.generateModule('memo');
-  assert(result.includes('同步'));
-  assert.equal(floors.length, 1);
+  assert(result.includes('写入'));
+  assert.equal(floors.length, 0);
   assert.equal(
-    require(base + '/services/memo.ts')
+    require(base + '/services/apps/memo.ts')
       .parseMemoData(store.activeSnapshot.memo)
       .notes.map(n => n.content)
       .join('\n'),
     '手动结果',
   );
-  assert(!floors[0].message.includes('wave-phone-card:start'));
+  assert(store.state.independentAppUpdates.some(update => update.app === 'memo'));
   global.generateRaw = async () => {
     chat = 'other-chat';
     return JSON.stringify({ ...delta, messages: [], app_updates: { memo: '过期结果' } });
   };
   await assert.rejects(store.generateModule('memo'), /切换/);
-  assert.equal(floors.length, 1);
+  assert.equal(floors.length, 0);
   assert.equal(store.moduleGenerating, false);
   console.log(
-    'PASS: real Pinia synchronization, repeat de-duplication, swipe replacement, deleted floor removal, manual module request and floor write-back, namespace switch rejection.',
+    'PASS: real Pinia synchronization, repeat de-duplication, swipe replacement, deleted floor removal, manual module request and independent persistence, namespace switch rejection.',
   );
 })().catch(e => {
   console.error(e);

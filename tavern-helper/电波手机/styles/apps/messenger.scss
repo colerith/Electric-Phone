@@ -1,0 +1,476 @@
+#wave-phone-script-root .wave-device {
+  &.page-messages .wave-screen {
+    overflow: hidden;
+  }
+  .messenger-app {
+    position: relative;
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    color: var(--settings-text);
+    background: var(--wave-card, #fff);
+  }
+  .messenger-scroll {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    padding: 12px 16px 18px;
+    min-height: 0;
+  }
+  .messenger-profile {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 4px 22px;
+  }
+  .messenger-profile > div {
+    min-width: 0;
+  }
+  .messenger-profile strong {
+    display: block;
+    font: 650 19px/1.4 var(--wave-ui-font);
+    overflow-wrap: anywhere;
+  }
+  .messenger-profile small,
+  .messenger-profile p {
+    display: block;
+    margin: 4px 0 0;
+    color: var(--settings-muted);
+    font: 400 11px/1.5 var(--wave-ui-font);
+  }
+  .messenger-avatar {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    max-width: 42px;
+    max-height: 42px;
+    aspect-ratio: 1 / 1;
+    flex: none;
+    box-sizing: border-box;
+    border-radius: 50%;
+    background: var(--settings-control);
+    color: var(--settings-accent);
+    font: 600 17px/1 var(--wave-ui-font);
+    isolation: isolate;
+  }
+  .messenger-avatar img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    object-fit: cover;
+    object-position: center;
+    // The square parent owns the circular crop. Rounding a portrait-ratio img
+    // itself creates an ellipse before the parent clips it.
+    border-radius: 0 !important;
+    background: transparent;
+  }
+  .messenger-avatar.large {
+    width: 60px;
+    height: 60px;
+    min-width: 60px;
+    min-height: 60px;
+    max-width: 60px;
+    max-height: 60px;
+  }
+  .messenger-avatar b {
+    position: absolute;
+    right: -2px;
+    top: -3px;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 3px;
+    border-radius: 9px;
+    background: #ce6d81;
+    color: #fff;
+    font: 600 9px/1 var(--wave-ui-font);
+  }
+  .messenger-app button,
+  .messenger-dialog button {
+    appearance: none;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+    text-shadow: none;
+    font-family: var(--wave-ui-font);
+    letter-spacing: 0;
+    text-transform: none;
+    cursor: pointer;
+  }
+  .messenger-app button:focus-visible,
+  .messenger-dialog button:focus-visible {
+    outline: 2px solid var(--settings-accent);
+    outline-offset: -2px;
+  }
+  .messenger-filters {
+    display: flex;
+    padding: 4px;
+    gap: 4px;
+    background: var(--settings-control);
+    border-radius: 22px;
+    margin-bottom: 16px;
+  }
+  .messenger-filters button {
+    flex: 1;
+    width: auto;
+    min-height: 30px;
+    border-radius: 18px;
+    padding: 6px 10px;
+    color: var(--settings-muted);
+    background: transparent;
+    font-size: 12px;
+  }
+  .messenger-filters button[aria-selected='true'] {
+    color: var(--wave-card, #fff);
+    background: var(--settings-text);
+  }
+  .messenger-list-group {
+    background: var(--settings-control);
+    border-radius: 20px;
+    padding: 4px;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .messenger-section-label {
+    padding: 6px 12px 8px;
+    color: var(--settings-muted);
+    font: 500 11px/1.5 var(--wave-ui-font);
+  }
+  .messenger-swipe-row {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+  }
+  .messenger-row {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    min-height: 72px;
+    gap: 12px;
+    padding: 12px 10px;
+    border-radius: 0;
+    background: var(--settings-control);
+    color: var(--settings-text);
+    text-align: left;
+    transition: transform 160ms ease;
+    touch-action: pan-y;
+  }
+  .messenger-swipe-row.revealed .messenger-row {
+    transform: translateX(-128px);
+  }
+  .messenger-swipe-row.contact-swipe-row.revealed .messenger-row {
+    transform: translateX(-64px);
+  }
+  .messenger-row-copy {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+  }
+  .messenger-row-copy strong {
+    font: 600 14px/1.3 var(--wave-ui-font);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .messenger-row-copy small {
+    font: 400 11px/1.5 var(--wave-ui-font);
+    color: var(--settings-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .messenger-row-meta {
+    align-self: stretch;
+    padding-top: 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: end;
+    justify-content: space-between;
+    color: var(--settings-muted);
+    font: 400 10px/1.4 var(--wave-ui-font);
+  }
+  .messenger-row-meta i {
+    font-size: 10px;
+    color: var(--settings-accent);
+  }
+  .messenger-row-actions {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: 128px;
+    display: flex;
+  }
+  .messenger-row-actions button {
+    flex: 1;
+    width: 64px;
+    padding: 8px 4px;
+    border-radius: 0;
+    background: var(--settings-accent);
+    color: #fff;
+    font-size: 11px;
+  }
+  .messenger-row-actions button:last-child {
+    background: #bd6275;
+  }
+  .messenger-bottom {
+    padding: 8px 16px 12px;
+    background: var(--wave-card, #fff);
+    display: grid;
+    gap: 10px;
+  }
+  .messenger-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    min-height: 40px;
+    background: var(--settings-control);
+    border-radius: 24px;
+    color: var(--settings-muted);
+  }
+  .messenger-search input {
+    appearance: none;
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    margin: 0;
+    background: transparent;
+    color: var(--settings-text);
+    box-shadow: none;
+    font: 400 13px/1.5 var(--wave-ui-font);
+    outline: none;
+  }
+  .messenger-search:focus-within {
+    outline: 2px solid var(--settings-accent);
+  }
+  .messenger-dock {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 4px;
+    border-radius: 28px;
+    background: var(--settings-control);
+    gap: 4px;
+  }
+  .messenger-dock button {
+    display: grid;
+    place-items: center;
+    gap: 4px;
+    min-height: 48px;
+    padding: 7px 2px;
+    border-radius: 22px;
+    background: transparent;
+    color: var(--settings-muted);
+    font-size: 10px;
+  }
+  .messenger-dock button i {
+    font-size: 18px;
+  }
+  .messenger-dock button[aria-current] {
+    color: var(--settings-text);
+    background: var(--wave-card, #fff);
+  }
+  .messenger-empty {
+    padding: 28px 12px;
+    text-align: center;
+    color: var(--settings-muted);
+    font: 400 12px/1.6 var(--wave-ui-font);
+  }
+  .messenger-plus-menu {
+    position: absolute;
+    top: 6px;
+    right: 16px;
+    z-index: 30;
+    width: 156px;
+    padding: 6px;
+    border: 1px solid var(--settings-line);
+    border-radius: 16px;
+    background: var(--wave-card, #fff);
+    box-shadow: 0 8px 24px #1b294321;
+  }
+  .messenger-plus-menu button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px;
+    min-height: 42px;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--settings-text);
+    text-align: left;
+    font-size: 13px;
+  }
+  .messenger-plus-menu button:hover {
+    background: var(--settings-control);
+  }
+  .messenger-my-links button {
+    display: flex;
+    width: 100%;
+    gap: 14px;
+    align-items: center;
+    padding: 18px 12px;
+    background: transparent;
+    color: var(--settings-text);
+    font-size: 13px;
+  }
+  .messenger-my-links button span {
+    flex: 1;
+    text-align: left;
+  }
+  .messenger-activity {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    margin-bottom: 12px;
+    background: var(--settings-control);
+    color: var(--settings-text);
+    border-radius: 18px;
+    text-align: left;
+  }
+  .messenger-activity strong {
+    font-size: 13px;
+  }
+  .messenger-activity small {
+    display: block;
+    margin-top: 4px;
+    color: var(--settings-muted);
+    font-size: 10px;
+  }
+  .messenger-activity p {
+    font: 400 12px/1.6 var(--wave-ui-font);
+    margin: 8px 0 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .messenger-modal {
+    position: absolute;
+    inset: 0;
+    z-index: 1050;
+    padding: 56px 16px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #18233c60;
+  }
+  .messenger-dialog {
+    width: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 18px;
+    border-radius: 22px;
+    background: var(--wave-card, #fff);
+    color: var(--settings-text);
+    display: grid;
+    gap: 14px;
+  }
+  .messenger-dialog-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .messenger-dialog-heading .wave-settings-title {
+    padding: 0;
+  }
+  .messenger-dialog-heading > button {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--settings-control);
+    color: var(--settings-text);
+    font-size: 20px;
+  }
+  .messenger-dialog label {
+    display: grid;
+    gap: 8px;
+    font: 500 13px/1.5 var(--wave-ui-font);
+  }
+  .messenger-dialog input,
+  .messenger-dialog textarea {
+    appearance: none;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 10px 12px;
+    min-height: 42px;
+    border: 1px solid var(--settings-line);
+    border-radius: 12px;
+    background: var(--settings-control);
+    color: var(--settings-text);
+    box-shadow: none;
+    font: 400 13px/1.5 var(--wave-ui-font);
+    box-sizing: border-box;
+  }
+  .messenger-dialog p {
+    margin: 0;
+    color: var(--settings-muted);
+    font: 400 11px/1.6 var(--wave-ui-font);
+  }
+  .messenger-picker {
+    max-height: 240px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+  .messenger-picker button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 42px;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 0;
+    background: transparent;
+    color: var(--settings-text);
+    font-size: 13px;
+    text-align: left;
+  }
+  .messenger-picker button[aria-pressed='true'] {
+    background: var(--settings-control);
+    color: var(--settings-accent);
+  }
+  .messenger-dialog .settings-save-wide {
+    background: var(--wave-navy);
+    color: #fff;
+    border-radius: 12px;
+    min-height: 42px;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .messenger-dialog .settings-save-wide:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .group-sender-name {
+    color: var(--settings-muted);
+    font: 400 10px/1.4 var(--wave-ui-font);
+    margin: 0 0 4px 44px;
+  }
+}
+
+#wave-phone-script-root .wave-device.page-messages.is-subpage .wave-screen > .messenger-app {
+  background: var(--wave-card, #fff);
+}
+#wave-phone-script-root .wave-device .messenger-avatar {
+  overflow: hidden;
+}
+#wave-phone-script-root .wave-device .messenger-avatar b {
+  right: 0;
+  top: 0;
+}

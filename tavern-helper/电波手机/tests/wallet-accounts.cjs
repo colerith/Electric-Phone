@@ -42,12 +42,12 @@ const vue = require('vue'),
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 
 const { usePhoneStore } = require(base + '/stores/phone.ts');
-const accounts = require(base + '/services/wallet-accounts.ts');
-const { WalletTransactionSchema } = require(base + '/services/wallet.ts');
-const { serializeDelta } = require(base + '/services/module-protocol.ts');
+const accounts = require(base + '/services/wallet/wallet-accounts.ts');
+const { WalletTransactionSchema } = require(base + '/services/wallet/wallet.ts');
+const { serializeDelta } = require(base + '/services/generation/module-protocol.ts');
 const { buildModulePrompt } = require(base + '/prompts/index.ts');
-const Workspace = require(base + '/components/WaveWalletWorkspace.vue').default;
-const Messenger = require(base + '/components/WaveMessenger.vue').default;
+const Workspace = require(base + '/components/wallet/WaveWalletWorkspace.vue').default;
+const Messenger = require(base + '/components/chat/WaveMessenger.vue').default;
 let phone, messenger;
 const screen = vue.ref('wallet'),
   mode = vue.ref('mine');
@@ -270,8 +270,8 @@ global.getChatMessages = id => (typeof id === 'number' ? floors.filter(f => f.me
   await phone.synchronize();
   assert.equal(accounts.accountWallet(book(), book().accounts[shared]).balance, 183);
   // Follow sanitization drops attempts to target User and removes bank fields from valid output.
-  const { constrainPhoneFloor } = require(base + '/services/follow-generation.ts');
-  const { ModuleSettingsSchema } = require(base + '/services/module-settings.ts');
+  const { constrainPhoneFloor } = require(base + '/services/generation/follow-generation.ts');
+  const { ModuleSettingsSchema } = require(base + '/services/generation/module-settings.ts');
   const malicious = serializeDelta({
     ...delta,
     app_updates: {
@@ -314,6 +314,7 @@ global.getChatMessages = id => (typeof id === 'number' ? floors.filter(f => f.me
   assert(document.querySelector('.messenger-dock'));
   // Upgrade a pre-ledger manual account without losing its entered balance or transactions.
   floors = [];
+  delete vars.global.wave_phone_character_defaults;
   const saved = vars.chat.wave_phone_chat;
   delete saved.walletBook;
   saved.snapshots[char] = {
@@ -324,7 +325,7 @@ global.getChatMessages = id => (typeof id === 'number' ? floors.filter(f => f.me
   await phone.synchronize();
   const migrated = book().accounts['char:' + char];
   assert.equal(accounts.accountWallet(book(), migrated).balance, 75);
-  assert(migrated.manual['manual-old']);
+  assert(migrated.manual['chat:test:manual-old']);
   await phone.synchronize();
   assert.equal(accounts.accountWallet(book(), book().accounts['char:' + char]).balance, 75);
   app.unmount();

@@ -41,11 +41,11 @@ const vue = require('vue'),
   { createPinia } = require('pinia');
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 const { usePhoneStore } = require(base + '/stores/phone.ts'),
-  Messenger = require(base + '/components/WaveMessenger.vue').default,
-  Generation = require(base + '/components/WaveGenerationSettings.vue').default,
-  { phoneSurfaceKey } = require(base + '/services/ui-context.ts');
-const { chooseFollowModules } = require(base + '/services/follow-generation.ts'),
-  { buildChatReference, resolveNarrativeRelation } = require(base + '/services/narrative-context.ts');
+  Messenger = require(base + '/components/chat/WaveMessenger.vue').default,
+  Generation = require(base + '/components/settings/WaveGenerationSettings.vue').default,
+  { phoneSurfaceKey } = require(base + '/services/core/ui-context.ts');
+const { chooseFollowModules } = require(base + '/services/generation/follow-generation.ts'),
+  { buildChatReference, resolveNarrativeRelation } = require(base + '/services/generation/narrative-context.ts');
 let phone, component;
 const surface = vue.ref(null);
 let opened = '';
@@ -201,11 +201,7 @@ const clickText = (selector, text) => {
   clickText('.messenger-dock button', '我的');
   await tick();
   assert.equal(component.headerIcon, '');
-  for (const [label, title] of [
-    ['编辑资料', '编辑资料'],
-    ['我的朋友圈', '我的朋友圈'],
-    ['朋友圈互动', '朋友圈互动'],
-  ]) {
+  for (const [label, title] of [['编辑资料', '编辑资料']]) {
     clickText('.moments-me-menu button', label);
     await tick();
     assert.equal(component.headerTitle, title);

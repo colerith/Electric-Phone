@@ -4,14 +4,14 @@ const path = require('node:path');
 
 const root = path.resolve('src/util/酒馆助手脚本/电波手机');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const upload = read('components/WaveImageUpload.vue');
-const home = read('home.scss');
-const moments = read('moments.scss');
-const messenger = read('messenger.scss');
-const settings = read('settings.scss');
-const systemSettings = read('system-settings.scss');
-const style = read('style.scss');
-const npcProfile = read('components/WaveNpcProfile.vue');
+const upload = read('components/shared/WaveImageUpload.vue');
+const home = read('styles/apps/home.scss');
+const moments = read('styles/apps/moments.scss');
+const messenger = read('styles/apps/messenger.scss');
+const settings = read('styles/settings/settings.scss');
+const systemSettings = read('styles/settings/system-settings.scss');
+const style = read('styles/base/style.scss');
+const npcProfile = read('components/space/WaveNpcProfile.vue');
 
 assert.match(upload, /'is-avatar': purpose === 'avatar'/);
 assert.match(upload, /'avatar-preview': purpose === 'avatar'/);

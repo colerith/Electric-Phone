@@ -31,8 +31,8 @@ Object.assign(global, {
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 const { createPinia, setActivePinia } = require('pinia');
 setActivePinia(createPinia());
-const { serializeDelta } = require(base + '/services/module-protocol.ts');
-const { parseMemoData } = require(base + '/services/memo.ts');
+const { serializeDelta } = require(base + '/services/generation/module-protocol.ts');
+const { parseMemoData } = require(base + '/services/apps/memo.ts');
 const { usePhoneStore } = require(base + '/stores/phone.ts');
 const phone = usePhoneStore();
 phone.settings.basic.cacheEnabled = false;

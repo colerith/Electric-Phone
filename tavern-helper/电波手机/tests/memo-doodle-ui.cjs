@@ -3,8 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve('src/util/酒馆助手脚本/电波手机');
-const memo = fs.readFileSync(path.join(root, 'components/WaveMemoPanel.vue'), 'utf8');
-const style = fs.readFileSync(path.join(root, 'memo.scss'), 'utf8');
+const memo = fs.readFileSync(path.join(root, 'components/apps/WaveMemoPanel.vue'), 'utf8');
+const style = fs.readFileSync(path.join(root, 'styles/apps/memo.scss'), 'utf8');
 
 assert.match(memo, /@pointerdown="startDoodleDrag"/);
 assert.match(memo, /scrollLeft = doodleDrag\.scrollLeft - \(event\.clientX - doodleDrag\.startX\)/);

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { advancePower, normalizePower, powerPrompt, POWER_KEY } from '../services/power';
+import { advancePower, normalizePower, powerPrompt, POWER_KEY } from '../services/core/power';
 export const useDeviceStore = defineStore('wave-device-power', () => {
   const power = ref(advancePower(normalizePower(getVariables({ type: 'script' })?.[POWER_KEY])));
   const signal = ref(4);

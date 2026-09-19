@@ -12,20 +12,20 @@ require.extensions['.ts'] = (m, f) =>
 global.SillyTavern = { name1: 'User' };
 global._ = require('lodash');
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
-const voiceServicesUi = fs.readFileSync(path.join(base, 'components/WaveVoiceServices.vue'), 'utf8');
-const { displaySpeechText } = require(base + '/services/speech-tags.ts');
-const { splitElectric } = require(base + '/services/electric.ts');
-const { VoiceServicesSchema, CharacterVoiceSchema, speechRequest } = require(base + '/services/speech.ts');
-const { ChatPreferencesSchema } = require(base + '/services/chat-preferences.ts');
-const { ModuleSettingsSchema, resolveModuleSettings } = require(base + '/services/module-settings.ts');
+const voiceServicesUi = fs.readFileSync(path.join(base, 'components/settings/WaveVoiceServices.vue'), 'utf8');
+const { displaySpeechText } = require(base + '/services/chat/speech-tags.ts');
+const { splitElectric } = require(base + '/services/generation/electric.ts');
+const { VoiceServicesSchema, CharacterVoiceSchema, speechRequest } = require(base + '/services/chat/speech.ts');
+const { ChatPreferencesSchema } = require(base + '/services/chat/chat-preferences.ts');
+const { ModuleSettingsSchema, resolveModuleSettings } = require(base + '/services/generation/module-settings.ts');
 const { voiceGenerationRules, chatBilingualRules, buildModulePrompt, buildPhonePrompts, buildMomentsPrompt } = require(
   base + '/prompts/index.ts',
 );
 const { IdentitySchema, ThreadSchema, AppSnapshotSchema } = require(base + '/schemas.ts');
-const { limitModulePatch } = require(base + '/services/module-updates.ts');
-const { formatPhoneMessage, formatMessagePreview } = require(base + '/services/message-format.ts');
+const { limitModulePatch } = require(base + '/services/generation/module-updates.ts');
+const { formatPhoneMessage, formatMessagePreview } = require(base + '/services/chat/message-format.ts');
 const { MomentsStateSchema, MomentBatchSchema, MomentPlanSchema, momentTimeline } = require(
-  base + '/services/moments.ts',
+  base + '/services/space/moments.ts',
 );
 const raw = '(chuckle) 今天终于忙完了 <#0.5#> (breath) 好想见到你。';
 assert.equal(displaySpeechText(raw), '今天终于忙完了   好想见到你。');
