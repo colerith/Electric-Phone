@@ -14,7 +14,7 @@ import { ZoneInteractionsSchema } from './services/space/zone';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.1.24';
+export const WAVE_PHONE_RELEASE_VERSION = '1.1.25';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -166,6 +166,7 @@ export type StickerLibrary = z.infer<typeof StickerLibrarySchema>;
 
 export const ScriptSettingsSchema = z
   .object({
+    recentReactionEmoji: z.array(z.string().max(32)).max(24).prefault([]),
     basic: z
       .object({
         autoOpenOnUpdate: z.boolean().prefault(false),
@@ -323,6 +324,7 @@ export const PhoneMessageSchema = z.object({
   status: z.enum(['sending', 'sent', 'failed']).prefault('sent'),
   payload: z.record(z.string(), z.unknown()).prefault({}),
   quotedMessageId: z.string().prefault(''),
+  reactions: z.array(z.string().max(32)).max(6).optional(),
   favorite: z.boolean().prefault(false),
   withdrawn: z.boolean().prefault(false),
   editedAt: z.string().prefault(''),

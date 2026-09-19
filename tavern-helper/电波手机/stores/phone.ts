@@ -5,6 +5,7 @@ import {
   treeHoleDay,
   TreeHolePostSchema,
 } from '../services/space/tree-hole';
+import { toggleMessageReaction } from '../services/chat/message-reactions';
 import { readChatFloors, writeChatFloor } from '../services/chat/chat-reader';
 import {
   CHARACTER_DEFAULTS_KEY,
@@ -2476,6 +2477,18 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
   }
 
+  function toggleReaction(messageId: string, emoji: string): void {
+    const message = activeThread.value?.messages.find(item => item.id === messageId);
+    if (!message || !toggleMessageReaction(message, emoji)) return;
+    saveChat();
+    if (message.reactions?.includes(emoji)) {
+      settings.value.recentReactionEmoji = [
+        emoji,
+        ...settings.value.recentReactionEmoji.filter(item => item !== emoji),
+      ].slice(0, 24);
+      saveSettings();
+    }
+  }
   function toggleFavorite(messageId: string): void {
     const thread = activeThread.value;
     const message = thread?.messages.find(item => item.id === messageId);
@@ -2509,6 +2522,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       createdAt: forwardedAt,
       status: 'sent',
       payload: { ...klona(source.payload), forwarded: true },
+      reactions: [],
       quotedMessageId: '',
       favorite: false,
       editedAt: '',
@@ -2844,6 +2858,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     deleteMessage,
     deleteMessages,
     editMessage,
+    toggleReaction,
     toggleFavorite,
     withdrawMessage,
     forwardMessage,

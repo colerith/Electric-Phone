@@ -259,6 +259,12 @@
                   </div>
                   <div v-if="activeMessage?.id === message.id" class="message-actions-popover" @click.stop>
                     <template v-if="messageMenuView === 'actions'">
+                      <WaveReactionPicker
+                        v-if="canReactToMessage(activeMessage)"
+                        :selected="activeMessage.reactions || []"
+                        :recent="store.settings.recentReactionEmoji"
+                        @select="reactToActiveMessage"
+                      />
                       <div class="message-action-grid primary-row">
                         <button type="button" :disabled="!canEditActiveMessage" @click="beginEditMessage">
                           <i class="fa-solid fa-pen"></i><span>编辑</span>
@@ -384,6 +390,34 @@
                     />
                     <div v-else class="message-stack">
                       <WaveMessageContent :message="message" :quoted-text="quotedMessageText(message)" />
+                      <div
+                        v-if="canReactToMessage(message) && message.reactions?.length"
+                        class="message-reactions"
+                        aria-label="消息反应"
+                        @pointerdown.stop
+                        @click.stop
+                        @contextmenu.stop.prevent
+                      >
+                        <button
+                          v-for="emoji in message.reactions"
+                          :key="emoji"
+                          type="button"
+                          :aria-label="`取消反应 ${emoji}`"
+                          aria-pressed="true"
+                          @click="store.toggleReaction(message.id, emoji)"
+                        >
+                          <span>{{ emoji }}</span
+                          ><small>1</small>
+                        </button>
+                        <button
+                          type="button"
+                          class="message-reaction-add"
+                          aria-label="添加消息反应"
+                          @click="openMessageMenu(message)"
+                        >
+                          <i class="fa-regular fa-face-smile"></i><span>+</span>
+                        </button>
+                      </div>
                       <div
                         v-if="message.editedAt || message.favorite || message.status === 'failed' || multiSelectMode"
                         class="message-state"
@@ -912,6 +946,8 @@
 </template>
 
 <script setup lang="ts">
+import WaveReactionPicker from './components/chat/WaveReactionPicker.vue';
+import { canReactToMessage } from './services/chat/message-reactions';
 import { parseCalendar } from './services/apps/calendar';
 import WaveTogether from './components/chat/WaveTogether.vue';
 import WaveSystemSettings from './components/settings/WaveSystemSettings.vue';
@@ -2082,6 +2118,11 @@ function openMessageMenu(message: PhoneMessage): void {
       ?.querySelector('.message-actions-popover')
       ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }),
   );
+}
+function reactToActiveMessage(emoji: string): void {
+  if (!activeMessage.value) return;
+  store.toggleReaction(activeMessage.value.id, emoji);
+  closeMessageMenu();
 }
 function closeMessageMenu(): void {
   activeMessageId.value = '';
