@@ -24,8 +24,9 @@
             <p class="zone-signature">{{ page.profile.signature || '记录生活里的小事' }}</p>
             <small v-if="page.profile.location" class="zone-location">{{ page.profile.location }}</small>
             <div class="zone-profile-actions">
-              <button type="button" @click="$emit('message')">私聊</button
+              <button type="button" @click="$emit('message')"><i class="fa-regular fa-comment-dots"></i> 私聊</button
               ><button type="button" :disabled="busy" @click="$emit('refresh')">
+                <i class="fa-solid fa-arrows-rotate" :class="{ 'fa-spin': busy }"></i>
                 {{ busy ? '更新中…' : '更新动态' }}
               </button>
             </div>
@@ -165,5 +166,6 @@ const headerTitle = computed(() =>
     ? moments.value.subpageTitle
     : { char: '角色空间', world: '世界', hole: '匿名树洞', me: '我的空间' }[tab.value],
 );
-defineExpose({ tab, back, headerTitle });
+const isComposing = computed(() => Boolean(moments.value?.isComposing));
+defineExpose({ tab, back, headerTitle, isComposing });
 </script>

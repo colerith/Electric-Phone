@@ -157,8 +157,8 @@
     font-size: 13px;
   }
   .space-comment-avatar {
-    width: 30px;
-    height: 30px;
+    width: 24px;
+    height: 24px;
     flex: 0 0 30px;
     display: grid;
     place-items: center;
@@ -720,8 +720,8 @@
     font-weight: 650;
   }
   .space-profile-badge {
-    width: 26px;
-    height: 26px;
+    width: 20px;
+    height: 20px;
     object-fit: contain;
   }
   .space-badge-picker {
@@ -759,8 +759,8 @@
     border-radius: 12px;
   }
   .space-badge-selected img {
-    width: 28px;
-    height: 28px;
+    width: 22px;
+    height: 22px;
   }
   .space-badge-selected span {
     position: absolute;
@@ -773,6 +773,9 @@
     border-radius: 50%;
     background: var(--wave-card);
     color: var(--wave-muted);
+  }
+  .space-badge-search {
+    margin-bottom: 12px;
   }
   .space-badge-categories {
     display: flex;
@@ -808,8 +811,8 @@
     color: var(--wave-ink);
   }
   .space-badge-grid img {
-    width: 30px;
-    height: 30px;
+    width: 24px;
+    height: 24px;
   }
   .space-badge-grid span {
     font-size: 10px;
@@ -859,4 +862,115 @@
   .moment-compose-body .wave-select-menu {
     max-height: 180px;
   }
+}
+
+#wave-phone-script-root .wave-device {
+  .space-char-profile .zone-signature {
+    font: 400 12px/1.8 var(--wave-ui-font);
+    color: var(--wave-muted);
+  }
+  .space-char-profile .zone-profile-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .space-title-palette {
+    border: 0;
+    padding: 0;
+    margin: 20px 0;
+    min-width: 0;
+  }
+  .space-title-palette legend {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .space-title-palette > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .space-title-palette button {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    border: 2px solid transparent;
+    border-radius: 9px;
+  }
+  .space-title-palette button[aria-pressed='true'] {
+    outline: 2px solid var(--settings-accent);
+    outline-offset: 3px;
+  }
+  .space-title-badge {
+    color: #fff;
+  }
+  .space-post-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    margin: 8px 0;
+    color: var(--settings-accent, #5f85be);
+    font-size: 12px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  .space-post-tags button {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+  }
+  .space-tag-editor {
+    display: grid;
+    gap: 8px;
+  }
+  .space-tag-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .space-tag-entry input {
+    flex: 1;
+    min-width: 0;
+  }
+  .space-tag-entry button {
+    flex-shrink: 0;
+    color: var(--settings-accent);
+    font-size: 12px;
+  }
+  .space-tag-editor > small {
+    color: var(--settings-muted);
+    font-size: 10px;
+  }
+  .moment-composer,
+  .moment-compose-bar,
+  .moment-compose-body {
+    background: #fff;
+    color: #374151;
+  }
+  .moment-composer {
+    --settings-text: #374151;
+    --settings-accent: #5f85be;
+    --settings-muted: #9095a0;
+    --settings-control: #fff;
+    --settings-line: #edf0f4;
+    --wave-card: #fff;
+    --wave-tint: #fff;
+  }
+  .moment-compose-body input,
+  .moment-compose-body textarea,
+  .moment-compose-body .wave-select-trigger {
+    background: #fff;
+    color: #374151;
+  }
+}
+#wave-phone-script-root .wave-device.space-composing,
+#wave-phone-script-root .wave-device.space-composing .wave-statusbar,
+#wave-phone-script-root .wave-device.space-composing .wave-homebar {
+  background: #fff !important;
+  --wave-navy: #284673;
+  color: #284673;
 }

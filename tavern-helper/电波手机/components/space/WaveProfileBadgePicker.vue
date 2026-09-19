@@ -14,6 +14,7 @@
         <img :src="badge.url" :alt="badge.label" /><span>×</span></button
       ><small v-if="!selected.length">选择最多 4 枚，表达你的兴趣与心情</small>
     </div>
+    <input v-model="query" class="space-badge-search" placeholder="搜索徽章" aria-label="搜索徽章" />
     <div class="space-badge-categories" role="tablist" aria-label="徽章分类">
       <button
         v-for="item in badgeCategories"
@@ -39,6 +40,7 @@
         <img :src="badge.url" alt="" /><span>{{ badge.label }}</span>
       </button>
     </div>
+    <small v-if="!visible.length">没有找到匹配的徽章</small>
   </fieldset>
 </template>
 <script setup lang="ts">
@@ -47,7 +49,14 @@ import { badgeCategories, profileBadges } from '../../services/space/profile-bad
 const props = defineProps<{ modelValue: string[] }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string[]] }>();
 const category = ref('mood');
-const visible = computed(() => profileBadges.filter(badge => badge.category === category.value));
+const query = ref('');
+const visible = computed(() =>
+  profileBadges.filter(badge =>
+    query.value.trim()
+      ? `${badge.label} ${badge.id}`.toLowerCase().includes(query.value.trim().toLowerCase())
+      : badge.category === category.value,
+  ),
+);
 const selected = computed(() =>
   props.modelValue.map(id => profileBadges.find(badge => badge.id === id)).filter(badge => !!badge),
 );

@@ -56,13 +56,22 @@ const batch = {
   npcs: [
     { npcId: id, username: '远方旅人', profile: '住在另一座城市，爱种花。', avatarSeed: plan.actors[0].avatarSeed },
   ],
-  posts: [{ authorKey: id, authorName: '远方旅人', content: '新芽长出来了。', delaySeconds: 0 }],
+  posts: [
+    {
+      authorKey: id,
+      authorName: '远方旅人',
+      content: '新芽长出来了。',
+      tags: ['#种花', '日常', '种花'],
+      delaySeconds: 0,
+    },
+  ],
   comments: [],
   likes: [],
 };
 syncMomentEvents(state, ['<wave_moments>' + JSON.stringify(batch) + '</wave_moments>'], 10000);
 assert.equal(state.npcs[id].username, '远方旅人');
 assert.equal(momentTimeline(state).posts.length, 1);
+assert.deepEqual(momentTimeline(state).posts[0].tags, ['种花', '日常']);
 const reuse = planMoments(state, [], posts, 11000, () => 0);
 assert(reuse.actors.some(a => a.key === id && !a.isNew));
 assert(buildMomentsPrompt(reuse, state, posts).includes('origin=stranger'));
@@ -109,8 +118,27 @@ assert(contract.includes('titleColor'));
 assert(contract.includes('laptop'));
 assert(contract.includes('每条评论与回复'));
 assert(contract.includes('最多 4'));
-assert.equal(profileBadges.length, 40);
+assert.equal(profileBadges.length, 160);
 assert(profileBadges.every(b => b.url.startsWith('data:image/svg+xml')));
 console.log(
   'PASS: independent stranger/scene switches, private audience boundaries, stable NPC replay, profile decorations validation, comment translations and prompt contracts',
+);
+
+const { PostTagsSchema } = require(base + '/services/space/post-tags.ts');
+assert.deepEqual(PostTagsSchema.parse([' #日常 ', '日常', '＃旅行', '', '  ']), ['日常', '旅行']);
+assert.equal(PostTagsSchema.parse(Array.from({ length: 12 }, (_, i) => String(i))).length, 8);
+assert.equal(PostTagsSchema.parse(['x'.repeat(40)])[0].length, 24);
+assert(contract.includes('蓝色 #话题'));
+assert(buildMomentsPrompt(both, state, posts).includes('tags 字符串数组'));
+
+const { mergeZoneSnapshot, parseZonePage } = require(base + '/services/space/zone.ts');
+const { limitModulePatch } = require(base + '/services/generation/module-updates.ts');
+const oldTagged = JSON.stringify({ posts: [{ id: 'tagged', content: 'Flowers', tags: ['种花'] }] });
+const commentPatch = { posts: [{ id: 'tagged', content: 'Flowers', comments: [{ id: 'reply', content: 'Lovely' }] }] };
+assert.deepEqual(parseZonePage(mergeZoneSnapshot(oldTagged, commentPatch)).posts[0].tags, ['种花']);
+assert.deepEqual(limitModulePatch('zone', oldTagged, commentPatch).posts[0].tags, ['种花']);
+assert.deepEqual(
+  parseZonePage(mergeZoneSnapshot(oldTagged, { posts: [{ id: 'tagged', content: 'Flowers', tags: [] }] })).posts[0]
+    .tags,
+  [],
 );

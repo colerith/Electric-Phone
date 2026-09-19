@@ -11,7 +11,7 @@
 酒馆助手在线导入：
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.21/file/index-1.1.21.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.22/file/index-1.1.22.js';
 ```
 
 发布与更新步骤见 [`tavern-helper/发布流程.md`](./tavern-helper/发布流程.md)。
@@ -23,7 +23,7 @@ import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.21/file/index-1
 - 状态栏和小组件共享设备时间或自定义世界时间。
 - PWA manifest、Service Worker、iOS/Android 安全区适配。
 - 酒馆助手脚本源码及可直接导入的构建文件。
-- v1.1.21：恢复空间卡片与固定底栏，优化发布页与评论双语，新增陌生人开关、彩色称号和分类徽章。
+- v1.1.22：固定色块白字称号、160 枚分类徽章、全白沉浸发布页，以及可增删的蓝色动态话题标签。
 - 产品需求、架构、里程碑与 UI 参考资源。
 
 ## 本地预览

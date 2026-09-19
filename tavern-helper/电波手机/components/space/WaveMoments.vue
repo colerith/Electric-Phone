@@ -78,9 +78,22 @@
             placeholder="说说现在的心情"
           ></textarea></label
         ><label>个人称号<input v-model="profileDraft.title" maxlength="48" placeholder="为自己设计一个称号" /></label>
-        <label class="space-title-color"
-          >称号颜色<input v-model="profileDraft.titleColor" type="color" aria-label="称号颜色"
-        /></label>
+        <fieldset class="space-title-palette">
+          <legend>称号颜色</legend>
+          <div>
+            <button
+              v-for="item in titleColors"
+              :key="item.color"
+              type="button"
+              :style="{ backgroundColor: item.color }"
+              :aria-label="item.label"
+              :aria-pressed="profileDraft.titleColor === item.color"
+              @click="profileDraft.titleColor = item.color"
+            >
+              <i v-if="profileDraft.titleColor === item.color" class="fa-solid fa-check"></i>
+            </button>
+          </div>
+        </fieldset>
         <WaveProfileDecorations
           :title="profileDraft.title"
           :title-color="profileDraft.titleColor"
@@ -245,6 +258,9 @@
             :app="post.id.startsWith('zone:') ? 'zone' : 'moments'"
             :translation="post.translation"
           />
+          <div v-if="post.tags.length" class="space-post-tags">
+            <span v-for="tag in post.tags" :key="tag">#{{ tag }}</span>
+          </div>
           <div v-if="post.images.length" class="moment-media-grid" :class="{ single: post.images.length === 1 }">
             <button v-for="(media, index) in post.images" :key="index" type="button" @click="preview = media">
               <img v-if="media.kind === 'image'" :src="media.url" :alt="media.description || '空间动态图片'" /><span
@@ -429,6 +445,37 @@
               添加文字描述图</button
             ><small>{{ draft.images.length }}/9</small>
           </div>
+          <div class="space-tag-editor">
+            <label for="wave-post-tag">话题标签</label>
+            <div class="space-tag-entry">
+              <input
+                id="wave-post-tag"
+                v-model="tagDraft"
+                maxlength="26"
+                :disabled="draft.tags.length >= MAX_POST_TAGS"
+                placeholder="# 添加话题，回车确认"
+                @keydown.enter="addTag"
+              /><button
+                type="button"
+                :disabled="!tagDraft.trim() || draft.tags.length >= MAX_POST_TAGS"
+                @click="addTag"
+              >
+                添加
+              </button>
+            </div>
+            <div v-if="draft.tags.length" class="space-post-tags">
+              <button
+                v-for="tag in draft.tags"
+                :key="tag"
+                type="button"
+                :aria-label="`删除标签 ${tag}`"
+                @click="draft.tags = draft.tags.filter(item => item !== tag)"
+              >
+                #{{ tag }} <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <small>{{ draft.tags.length }}/{{ MAX_POST_TAGS }}</small>
+          </div>
           <label>所在位置<input v-model="draft.location" maxlength="200" placeholder="填写位置（选填）" /></label
           ><button type="button" class="moment-compose-row" @click="choose('mentions')">
             <span>提醒谁看</span
@@ -512,6 +559,8 @@
   </div>
 </template>
 <script setup lang="ts">
+import { titleColors } from '../../services/space/profile-badges';
+import { PostTagsSchema, MAX_POST_TAGS } from '../../services/space/post-tags';
 import WaveProfileDecorations from './WaveProfileDecorations.vue';
 import WaveProfileBadgePicker from './WaveProfileBadgePicker.vue';
 import { MomentUserProfileSchema } from '../../services/space/moments';
@@ -584,7 +633,9 @@ const posts = computed(() =>
     if (post.availableAt > now.value || (props.authorKey && post.authorKey !== props.authorKey)) return false;
     if (
       props.query &&
-      !`${post.content} ${post.authorName}`.toLocaleLowerCase().includes(props.query.toLocaleLowerCase())
+      !`${post.content} ${post.authorName} ${post.tags.join(' ')}`
+        .toLocaleLowerCase()
+        .includes(props.query.toLocaleLowerCase())
     )
       return false;
     if (props.likedOnly && !likesFor(post.id).some(like => like.authorKey === 'user')) return false;
@@ -680,14 +731,22 @@ const composing = ref(false),
   composeError = ref(''),
   selection = ref<'' | 'mentions' | 'audience'>(''),
   selectionQuery = ref('');
+const tagDraft = ref('');
+function addTag(event?: Event) {
+  if (event && 'isComposing' in event && event.isComposing) return;
+  event?.preventDefault();
+  draft.tags = PostTagsSchema.parse([...draft.tags, tagDraft.value]);
+  tagDraft.value = '';
+}
 const draft = reactive<{
+  tags: string[];
   content: string;
   images: MomentMedia[];
   location: string;
   mentions: string[];
   visibility: MomentPost['visibility'];
   audience: string[];
-}>({ content: '', images: [], location: '', mentions: [], visibility: 'all', audience: [] });
+}>({ tags: [], content: '', images: [], location: '', mentions: [], visibility: 'all', audience: [] });
 const filteredContacts = computed(() =>
   contacts.value.filter(contact =>
     displayIdentityName(contact).toLowerCase().includes(selectionQuery.value.toLowerCase()),
@@ -717,8 +776,17 @@ function togglePerson(key: string) {
 }
 function publish() {
   try {
+    if (tagDraft.value.trim()) addTag();
     phone.publishMoment(klona(draft));
-    Object.assign(draft, { content: '', images: [], location: '', mentions: [], visibility: 'all', audience: [] });
+    Object.assign(draft, {
+      tags: [],
+      content: '',
+      images: [],
+      location: '',
+      mentions: [],
+      visibility: 'all',
+      audience: [],
+    });
     closeComposer();
     now.value = Date.now();
     if (props.view === 'me') {

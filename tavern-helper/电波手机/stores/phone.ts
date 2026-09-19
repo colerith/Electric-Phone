@@ -1606,6 +1606,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         authorKey: identity.charKey,
         authorName: identity.name,
         legacyLikeCount: post.likes,
+        tags: post.tags,
         content: [post.title, post.content].filter(Boolean).join('\n'),
         translation: post.translation,
         images: [],
@@ -1666,6 +1667,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
   }
   function publishMoment(draft: {
+    tags?: string[];
     content: string;
     images: MomentMedia[];
     location: string;

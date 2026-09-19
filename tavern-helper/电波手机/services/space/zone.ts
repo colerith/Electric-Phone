@@ -1,3 +1,4 @@
+import { PostTagsSchema } from './post-tags';
 import { profileDecorationFields, ProfileBadgesSchema, ProfileTitleColorSchema } from './profile-badges';
 import { TranslationSchema } from '../generation/module-settings';
 import { z } from 'zod';
@@ -12,6 +13,7 @@ export const ZoneCommentSchema = z.object({
   replyToAuthor: z.string().prefault(''),
 });
 export const ZonePostSchema = z.object({
+  tags: PostTagsSchema,
   translation: TranslationSchema.optional(),
   id: z.string(),
   title: z.string().prefault(''),
@@ -51,7 +53,7 @@ export const ZoneUpdateSchema = z.object({
       coverUrl: z.string().optional(),
     })
     .optional(),
-  posts: z.array(ZonePostSchema).optional(),
+  posts: z.array(ZonePostSchema.extend({ tags: PostTagsSchema.unwrap().optional() })).optional(),
 });
 export type ZoneUpdate = z.infer<typeof ZoneUpdateSchema>;
 export type ZonePost = z.infer<typeof ZonePostSchema>;
@@ -130,10 +132,11 @@ export function mergeZoneSnapshot(current: string, update: unknown): string {
   const posts = [...previous.posts];
   for (const post of patch.posts || []) {
     const index = posts.findIndex(item => item.id === post.id);
-    if (index < 0) posts.unshift(post);
+    if (index < 0) posts.unshift(ZonePostSchema.parse(post));
     else
       posts[index] = {
         ...post,
+        tags: post.tags ?? posts[index].tags,
         comments: [
           ...new Map([...posts[index].comments, ...post.comments].map(comment => [comment.id, comment])).values(),
         ],

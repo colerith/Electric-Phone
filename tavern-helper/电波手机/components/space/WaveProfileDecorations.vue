@@ -1,12 +1,8 @@
 <template>
   <div v-if="title || selected.length" class="space-decorations" aria-label="称号与徽章">
-    <span
-      v-if="title"
-      class="space-title-badge"
-      :title="title"
-      :style="{ backgroundColor: color, color: titleTextColor(color) }"
-      >{{ title }}</span
-    >
+    <span v-if="title" class="space-title-badge" :title="title" :style="{ backgroundColor: color, color: '#ffffff' }">{{
+      title
+    }}</span>
     <img
       v-for="badge in selected"
       :key="badge.id"
@@ -19,7 +15,7 @@
 </template>
 <script setup lang="ts">
 import { computed } from 'vue';
-import { profileBadges, ProfileTitleColorSchema, titleTextColor } from '../../services/space/profile-badges';
+import { profileBadges, ProfileTitleColorSchema } from '../../services/space/profile-badges';
 const props = withDefaults(defineProps<{ title?: string; titleColor?: string; badges?: string[] }>(), {
   title: '',
   titleColor: '#ea91a4',

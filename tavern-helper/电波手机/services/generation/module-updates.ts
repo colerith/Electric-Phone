@@ -58,7 +58,12 @@ export function limitModulePatch(
   }
   if (app === 'zone') {
     const patch = value === undefined ? parseZonePage(String(update || '')) : ZoneUpdateSchema.parse(value);
-    return { ...patch, posts: select(parseZonePage(current).posts, patch.posts || [], 'zone.posts', prefs.maxNew) };
+    const previous = parseZonePage(current).posts;
+    const incoming = (patch.posts || []).map(post => ({
+      ...post,
+      tags: post.tags ?? previous.find(item => item.id === post.id)?.tags ?? [],
+    }));
+    return { ...patch, posts: select(previous, incoming, 'zone.posts', prefs.maxNew) };
   }
   if (app === 'calendar') {
     const patch =

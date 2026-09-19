@@ -121,7 +121,9 @@ const saveAccount = (id, amount) =>
 function snapshot(name) {
   if (!process.env.WAVE_VISUAL_QA) return;
   const device = surface.value.cloneNode(true);
-  device.className = 'wave-device page-zone is-subpage theme-light';
+  device.className =
+    'wave-device page-zone is-subpage theme-light' +
+    (document.querySelector('.moment-composer') ? ' space-composing' : '');
   const main = document.createElement('main');
   main.className = 'wave-screen';
   main.append(device.firstChild);
@@ -373,12 +375,14 @@ function snapshot(name) {
   for (const [label, value] of [
     ['账号', '@Echo'],
     ['个人称号', '虚无'],
-    ['称号颜色', '#ea91a4'],
   ]) {
     const input = field(label);
     input.value = value;
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
+  document.querySelector('.space-title-palette [aria-label="晴空蓝"]').click();
+  await tick();
+  assert.equal(document.querySelector('.space-title-badge').style.color, 'rgb(255, 255, 255)');
   for (let i = 0; i < 4; i++) {
     document.querySelectorAll('.space-badge-grid button')[i].click();
     await tick();
@@ -389,6 +393,7 @@ function snapshot(name) {
   await tick();
   assert.equal(phone.state.moments.profile.badges.length, 4);
   assert.equal(phone.state.moments.profile.title, '虚无');
+  assert.equal(phone.state.moments.profile.titleColor, '#69b9d9');
   assert(document.querySelector('.moments-me-profile small').textContent === '@Echo');
   snapshot('space-me');
   click('.space-bottom button', '世界');
@@ -398,7 +403,38 @@ function snapshot(name) {
   click('.space-bottom button', '发布');
   await tick();
   assert(document.querySelector('.moment-composer'));
+  assert(space.isComposing);
+  const tagInput = document.querySelector('#wave-post-tag');
+  const add = async (tag, composing = false) => {
+    tagInput.value = tag;
+    tagInput.dispatchEvent(new Event('input', { bubbles: true }));
+    tagInput.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', isComposing: composing, bubbles: true, cancelable: true }),
+    );
+    await tick();
+  };
+  await add('旅行', true);
+  assert.equal(document.querySelectorAll('.space-tag-editor .space-post-tags button').length, 0);
+  await add('#旅行');
+  await add('旅行');
+  await add('日常');
+  assert.equal(document.querySelectorAll('.space-tag-editor .space-post-tags button').length, 2);
+  document.querySelector('[aria-label="删除标签 日常"]').click();
+  await tick();
+  const text = document.querySelector('[aria-label="空间动态文本"]');
+  text.value = '带着好奇心出发';
+  text.dispatchEvent(new Event('input', { bubbles: true }));
+  await tick();
   snapshot('space-compose');
+  click('button', '发表');
+  await tick();
+  assert.deepEqual([...phone.state.moments.posts[0].tags], ['旅行']);
+  assert(document.querySelector('.space-post-tags').textContent.includes('#旅行'));
+  snapshot('space-tags');
+  assert(!space.isComposing);
+  click('.space-bottom button', '发布');
+  await tick();
+  assert.equal(document.querySelectorAll('.space-tag-editor .space-post-tags button').length, 0);
   assert(space.back());
   await tick();
   click('.space-bottom button', '树洞');

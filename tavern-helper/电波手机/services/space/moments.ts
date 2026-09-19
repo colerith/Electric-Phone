@@ -1,3 +1,4 @@
+import { PostTagsSchema } from './post-tags';
 import { profileDecorationFields } from './profile-badges';
 import { bilingual, TranslationSchema } from '../generation/module-settings';
 import { npcAvatarSeed } from './npc-avatar';
@@ -20,6 +21,7 @@ export const MomentPostSchema = z.object({
   id: z.string(),
   authorKey: z.string(),
   authorName: z.string(),
+  tags: PostTagsSchema,
   legacyLikeCount: z.number().nonnegative().default(0),
   content: z.string().max(5000).default(''),
   translation: TranslationSchema.optional(),
@@ -92,6 +94,7 @@ export const MomentBatchSchema = z.object({
       z.object({
         authorKey: z.string(),
         authorName: z.string().default(''),
+        tags: PostTagsSchema,
         content: z.string().min(1).max(3000),
         translation: TranslationSchema.optional(),
         images: z.array(z.string().min(1).max(600)).max(9).default([]),
@@ -495,6 +498,7 @@ export function momentTimeline(state: MomentsState, legacy: MomentPost[] = []) {
         authorKey: post.authorKey,
         authorName: name(post.authorKey, post.authorName),
         legacyLikeCount: 0,
+        tags: post.tags,
         content: post.content,
         translation: post.translation,
         images: post.images.map(description => ({ kind: 'description', url: '', description })),
