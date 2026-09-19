@@ -16,7 +16,7 @@
     </div>
     <input v-model="query" class="space-badge-search" placeholder="搜索徽章" aria-label="搜索徽章" />
     <section v-for="group in groups" :key="group.id" class="space-badge-group" :aria-label="group.label">
-      <h3>{{ group.label }}</h3>
+      <div class="wave-settings-title space-badge-group-title" role="heading" aria-level="3">{{ group.label }}</div>
       <div class="space-badge-grid">
         <button
           v-for="badge in group.badges"

@@ -390,6 +390,16 @@ function snapshot(name) {
   assert(document.querySelectorAll('.space-badge-grid button')[4].disabled);
   assert.equal(document.querySelectorAll('.space-badge-group').length, 8);
   assert.equal(document.querySelectorAll('.space-badge-categories').length, 0);
+  assert.equal(document.querySelectorAll('.space-badge-group h3').length, 0);
+  assert.equal(document.querySelectorAll('.space-badge-group .wave-settings-title').length, 8);
+  const previousAlias = document.querySelector('.space-anonymous-preview strong').textContent;
+  const previousAvatar = document.querySelector('.space-anonymous-preview img').src;
+  click('.space-anonymous-randomizers button', '随机匿名 ID');
+  click('.space-anonymous-randomizers button', '随机头像');
+  await tick();
+  assert.notEqual(document.querySelector('.space-anonymous-preview strong').textContent, previousAlias);
+  assert.notEqual(document.querySelector('.space-anonymous-preview img').src, previousAvatar);
+  assert.equal(document.querySelectorAll('.space-anonymous-profile input').length, 0);
   snapshot('space-profile-edit');
   click('button', '保存资料');
   await tick();
@@ -463,8 +473,20 @@ function snapshot(name) {
   phone.commentTreeHole(day, holePost.id, '你已经做得很好了。');
   phone.likeTreeHole(day, holePost.id);
   await tick();
-  assert(document.body.textContent.includes('匿名的我'));
+  assert(document.body.textContent.includes(phone.state.moments.profile.anonymousId));
+  assert(!document.querySelector('.space-hole-post .space-post-account'));
+  assert(document.querySelector('.space-hole-actions time'));
+  assert(holePost.comments[0].mine);
   assert(holePost.liked);
+  const savedAlias = phone.state.moments.profile.anonymousId;
+  const savedSeed = phone.state.moments.profile.anonymousAvatarSeed;
+  phone.ensureAnonymousProfile();
+  assert.equal(phone.state.moments.profile.anonymousId, savedAlias);
+  assert.equal(phone.state.moments.profile.anonymousAvatarSeed, savedSeed);
+  holePost.comments[0].mine = undefined;
+  holePost.comments[0].alias = '匿名的我';
+  await tick();
+  assert(!document.querySelector('.space-hole-post').textContent.includes('匿名的我'));
   const anonymousImages = [...document.querySelectorAll('.space-anonymous-avatar img')];
   assert(anonymousImages.length >= 2);
   assert(anonymousImages.every(img => img.src.includes('/10.x/bottts-neutral/svg?seed=wave-hole-')));
@@ -518,6 +540,9 @@ function snapshot(name) {
   assert.equal(phone.activeSnapshot.zone, oldZone);
   assert.equal(phone.state.treeHole[day].posts.length, 2);
   assert.equal(phone.state.treeHole[day].posts[1].comments[0].alias, '匿名回声 1');
+  assert(!phone.state.treeHole[day].posts[1].comments[0].mine);
+  await tick();
+  assert(document.querySelector('.space-hole').textContent.includes('匿名回声 1'));
   assert.equal(phone.state.treeHole[day].posts[1].comments[0].translation.content, 'Pass it on.');
   await phone.refreshTreeHole(day);
   assert.equal(phone.state.treeHole[day].posts.length, 2);
@@ -546,6 +571,10 @@ function snapshot(name) {
   settingsApp.value = 'wallet';
   await tick();
   assert(document.querySelector('.cover-settings-card .wave-settings-title').textContent.includes('银行卡面'));
+  chatKey = 'chat-B';
+  await phone.synchronize();
+  assert.equal(phone.state.moments.profile.anonymousId, savedAlias);
+  assert.equal(phone.state.moments.profile.anonymousAvatarSeed, savedSeed);
   console.log(
     'PASS: cross-chat complete wallet sharing, account/cover inheritance, idempotent replay, card isolation, legacy social migration, five tabs, profile filters, comments, composer, anonymous topic and messenger migration',
   );

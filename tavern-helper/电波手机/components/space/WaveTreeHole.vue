@@ -21,17 +21,20 @@
     </form>
     <p v-if="error" class="zone-error" role="status">{{ error }}</p>
     <article v-for="post in posts" :key="post.id" class="space-hole-post">
-      <header>
-        <WaveAnonymousAvatar :seed="`${day}:${post.mine ? 'self' : post.id}`" /><strong>{{ post.alias }}</strong
-        ><time>{{ time(post.createdAt) }}</time>
+      <header class="space-post-header">
+        <WaveAnonymousAvatar :seed="post.mine ? anonymousProfile.anonymousAvatarSeed : `${day}:${post.id}`" />
+        <div class="space-post-author-details">
+          <strong>{{ post.mine ? anonymousProfile.anonymousId : post.alias }}</strong>
+        </div>
       </header>
       <p class="space-hole-copy">{{ post.content }}</p>
       <WaveModuleTranslation app="zone" :translation="post.translation" inline />
       <div class="space-hole-actions">
+        <time>{{ time(post.createdAt) }}</time>
         <button type="button" :aria-pressed="post.liked" @click="phone.likeTreeHole(day, post.id)">
           <i :class="post.liked ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i> 共鸣</button
         ><button type="button" @click="commenting = commenting === post.id ? '' : post.id">
-          {{ post.comments.length }} 条回应</button
+          <i class="fa-solid fa-comment"></i> {{ post.comments.length }} 条回应</button
         ><button
           type="button"
           class="wave-content-delete"
@@ -42,10 +45,10 @@
         </button>
       </div>
       <div v-for="comment in post.comments" :key="comment.id" class="space-comment">
-        <WaveAnonymousAvatar :seed="`${day}:${comment.alias === '匿名的我' ? 'self' : comment.id}`" />
+        <WaveAnonymousAvatar :seed="isMine(comment) ? anonymousProfile.anonymousAvatarSeed : `${day}:${comment.id}`" />
         <div class="space-comment-main">
           <header>
-            <strong>{{ comment.alias }}</strong
+            <strong>{{ isMine(comment) ? anonymousProfile.anonymousId : comment.alias }}</strong
             ><time>{{ time(comment.createdAt) }}</time>
           </header>
           <p>
@@ -57,7 +60,7 @@
             class="moment-reply-action"
             @click="
               commenting = post.id;
-              replyTo = comment.alias;
+              replyTo = isMine(comment) ? anonymousProfile.anonymousId : comment.alias;
             "
           >
             回复
@@ -97,10 +100,16 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { dailyTopic, treeHoleDay } from '../../services/space/tree-hole';
 const phone = usePhoneStore();
+phone.ensureAnonymousProfile();
+const anonymousProfile = computed(() => phone.state.moments.profile);
+function isMine(comment: { mine?: boolean; alias: string }) {
+  return comment.mine || comment.alias === '匿名的我';
+}
 watch(
   () => [phone.context?.cardKey, phone.context?.chatKey],
   () => {
     deleting.value = null;
+    phone.ensureAnonymousProfile();
   },
 );
 const day = ref(treeHoleDay()),
@@ -139,6 +148,13 @@ async function refresh() {
   }
 }
 function time(value: number) {
-  return new Date(value).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  const minutes = Math.max(0, Math.floor((Date.now() - value) / 60000));
+  return minutes < 1
+    ? '刚刚'
+    : minutes < 60
+      ? `${minutes}分钟前`
+      : minutes < 1440
+        ? `${Math.floor(minutes / 60)}小时前`
+        : new Date(value).toLocaleDateString();
 }
 </script>

@@ -1,4 +1,10 @@
-import { dailyTopic, treeHoleDay, TreeHolePostSchema } from '../services/space/tree-hole';
+import {
+  randomAnonymousId,
+  randomAnonymousAvatarSeed,
+  dailyTopic,
+  treeHoleDay,
+  TreeHolePostSchema,
+} from '../services/space/tree-hole';
 import { readChatFloors, writeChatFloor } from '../services/chat/chat-reader';
 import {
   CHARACTER_DEFAULTS_KEY,
@@ -2574,6 +2580,15 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
     return { id: comment.id, author: comment.author };
   }
+  function ensureAnonymousProfile() {
+    const profile = state.value.moments.profile;
+    if (!profile.anonymousId || !profile.anonymousAvatarSeed) {
+      profile.anonymousId ||= randomAnonymousId();
+      profile.anonymousAvatarSeed ||= randomAnonymousAvatarSeed();
+      saveMoments();
+    }
+    return profile;
+  }
   function ensureTreeHole(day = treeHoleDay()) {
     return (state.value.treeHole[day] ||= { topic: dailyTopic(day, context.value?.cardKey || ''), posts: [] });
   }
@@ -2582,7 +2597,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     ensureTreeHole(day).posts.push(
       TreeHolePostSchema.parse({
         id: makeId('hole'),
-        alias: '匿名的我',
+        alias: ensureAnonymousProfile().anonymousId,
         content: content.trim().slice(0, 2000),
         createdAt: Date.now(),
         mine: true,
@@ -2607,7 +2622,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!post || !content.trim()) return;
     post.comments.push({
       id: makeId('hole-comment'),
-      alias: '匿名的我',
+      mine: true,
+      alias: ensureAnonymousProfile().anonymousId,
       content: content.trim().slice(0, 500),
       createdAt: Date.now(),
       replyTo,
@@ -2772,6 +2788,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     toggleZoneLike,
     addZoneComment,
     refreshZone,
+    ensureAnonymousProfile,
     publishTreeHole,
     likeTreeHole,
     deleteTreeHole,

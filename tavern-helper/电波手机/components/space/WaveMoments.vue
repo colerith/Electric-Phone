@@ -100,6 +100,23 @@
           :title-color="profileDraft.titleColor"
           :badges="profileDraft.badges"
         />
+        <fieldset class="space-anonymous-profile">
+          <legend>匿名身份</legend>
+          <div class="space-anonymous-preview">
+            <WaveAnonymousAvatar :seed="profileDraft.anonymousAvatarSeed" /><strong>{{
+              profileDraft.anonymousId
+            }}</strong>
+          </div>
+          <div class="space-anonymous-randomizers">
+            <button type="button" @click="profileDraft.anonymousAvatarSeed = randomAnonymousAvatarSeed()">
+              <i class="fa-solid fa-shuffle"></i> 随机头像
+            </button>
+            <button type="button" @click="profileDraft.anonymousId = randomAnonymousId(profileDraft.anonymousId)">
+              <i class="fa-solid fa-shuffle"></i> 随机匿名 ID
+            </button>
+          </div>
+          <small>随机遇见一个美食昵称和专属头像，仅在匿名树洞使用。</small>
+        </fieldset>
         <WaveProfileBadgePicker v-model="profileDraft.badges" />
         <button class="settings-save-wide" type="button" @click="saveProfile">保存资料</button>
       </section>
@@ -227,29 +244,36 @@
       class="moments-feed"
     >
       <article v-for="post in posts" :key="post.id" class="moment-post">
-        <button
-          type="button"
-          class="moment-author-avatar"
-          :disabled="!phone.state.moments.npcs[post.authorKey]"
-          :aria-label="`查看${nameFor(post.authorKey, post.authorName)}的资料`"
-          @click="viewingNpc = post.authorKey"
-        >
-          <img
-            v-if="avatarFor(post.authorKey)"
-            :src="avatarFor(post.authorKey)"
-            alt=""
-            @error="failedAvatars.add(post.authorKey)"
-          /><span v-else>{{ nameFor(post.authorKey, post.authorName).slice(0, 1) }}</span>
-        </button>
-        <div class="moment-post-main">
+        <header class="space-post-header">
           <button
             type="button"
-            class="moment-author moment-person-link"
+            class="moment-author-avatar"
             :disabled="!phone.state.moments.npcs[post.authorKey]"
+            :aria-label="`查看${nameFor(post.authorKey, post.authorName)}的资料`"
             @click="viewingNpc = post.authorKey"
           >
-            {{ nameFor(post.authorKey, post.authorName) }}
+            <img
+              v-if="avatarFor(post.authorKey)"
+              :src="avatarFor(post.authorKey)"
+              alt=""
+              @error="failedAvatars.add(post.authorKey)"
+            /><span v-else>{{ nameFor(post.authorKey, post.authorName).slice(0, 1) }}</span>
           </button>
+          <div class="space-post-author-details">
+            <button
+              type="button"
+              class="moment-author moment-person-link"
+              :disabled="!phone.state.moments.npcs[post.authorKey]"
+              @click="viewingNpc = post.authorKey"
+            >
+              {{ nameFor(post.authorKey, post.authorName) }}
+            </button>
+            <small v-if="accountFor(post.authorKey)" class="space-post-account"
+              >@{{ accountFor(post.authorKey) }}</small
+            >
+          </div>
+        </header>
+        <div class="moment-post-main">
           <strong v-if="legacyTitle(post)" class="space-post-title">{{ legacyTitle(post) }}</strong>
           <p class="moment-text">
             {{ legacyTitle(post) ? post.content.slice(legacyTitle(post).length).trimStart() : post.content }}
@@ -555,6 +579,8 @@
   </div>
 </template>
 <script setup lang="ts">
+import WaveAnonymousAvatar from './WaveAnonymousAvatar.vue';
+import { randomAnonymousId, randomAnonymousAvatarSeed } from '../../services/space/tree-hole';
 import WaveDeleteConfirm from '../shared/WaveDeleteConfirm.vue';
 const deleting = ref('');
 function confirmDelete() {
@@ -667,6 +693,13 @@ function nameFor(key: string, fallback: string) {
       ? displayIdentityName(phone.state.identities[key])
       : phone.state.moments.npcs[key]?.username || fallback;
 }
+function accountFor(key: string) {
+  return (
+    key === 'user'
+      ? phone.state.moments.profile.account
+      : parseZonePage(phone.state.snapshots[key]?.zone || '').profile.handle || ''
+  ).replace(/^@+/, '');
+}
 function avatarFor(key: string) {
   if (failedAvatars.value.has(key)) return '';
   return key === 'user'
@@ -696,6 +729,7 @@ function visibilityLabel(post: MomentPost) {
 }
 const profileDraft = reactive(MomentUserProfileSchema.parse({}));
 function openProfile() {
+  phone.ensureAnonymousProfile();
   Object.assign(profileDraft, klona(phone.state.moments.profile));
   panel.value = 'profile';
   notice.value = '';

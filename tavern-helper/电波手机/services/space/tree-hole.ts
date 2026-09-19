@@ -7,6 +7,7 @@ export const TreeHoleCommentSchema = z.object({
   content: z.string().max(2000),
   createdAt: z.number(),
   replyTo: z.string().default(''),
+  mine: z.boolean().optional(),
 });
 export const TreeHolePostSchema = z.object({
   id: z.string(),
@@ -49,4 +50,66 @@ export function anonymousAvatarUrl(seed: string): string {
   let hash = 2166136261;
   for (const char of seed) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
   return `https://api.dicebear.com/10.x/bottts-neutral/svg?seed=wave-hole-${(hash >>> 0).toString(36)}&borderRadius=50&backgroundColor=d7e8ef,e9def3,f6dfdf,dcebd9`;
+}
+
+const foodFlavors = [
+  '焦糖',
+  '草莓',
+  '抹茶',
+  '香草',
+  '海盐',
+  '蜂蜜',
+  '椰香',
+  '桂花',
+  '柚子',
+  '桃桃',
+  '蓝莓',
+  '芝士',
+  '芒果',
+  '可可',
+  '榛果',
+  '红豆',
+  '黑糖',
+  '薄荷',
+  '橙香',
+  '黄桃',
+  '奶油',
+  '香芋',
+  '荔枝',
+  '樱桃',
+];
+const foodTreats = [
+  '布丁',
+  '蛋挞',
+  '曲奇',
+  '奶冻',
+  '吐司',
+  '麻薯',
+  '可颂',
+  '泡芙',
+  '丸子',
+  '雪糕',
+  '甜甜圈',
+  '贝果',
+  '汤圆',
+  '软糖',
+  '蛋糕',
+  '酸奶',
+  '小圆饼',
+  '冰沙',
+  '松饼',
+  '奶茶',
+  '大福',
+  '冰淇淋',
+  '铜锣烧',
+  '米糕',
+];
+export function randomAnonymousId(previous = '', random = Math.random): string {
+  const choices = foodFlavors
+    .flatMap(flavor => foodTreats.map(treat => flavor + treat))
+    .filter(name => name !== previous);
+  return choices[Math.floor(random() * choices.length)];
+}
+export function randomAnonymousAvatarSeed(): string {
+  return `anon-${crypto.randomUUID()}`;
 }

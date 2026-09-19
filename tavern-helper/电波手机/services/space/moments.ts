@@ -122,6 +122,8 @@ export const MomentBatchSchema = z.object({
 export const MomentUserProfileSchema = z
   .object({
     ...profileDecorationFields,
+    anonymousId: z.string().max(40).default(''),
+    anonymousAvatarSeed: z.string().default(''),
     nickname: z.string().max(40).default(''),
     account: z.string().max(40).default(''),
     avatar: z.string().default(''),
