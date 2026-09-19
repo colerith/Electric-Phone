@@ -1646,6 +1646,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             authorKey,
             authorName: comment.author,
             content: comment.content,
+            translation: comment.translation,
             createdAt: Date.parse(comment.createdAt) || 0,
             availableAt: 0,
             parentId: comment.parentId ? `legacy:${postId}:${comment.parentId}` : '',
@@ -2672,11 +2673,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             TreeHolePostSchema.parse({
               id: makeId('hole'),
               alias: `匿名旅人 ${number}`,
+              translation: post.translation,
               content: post.content,
               createdAt: Date.now(),
               comments: post.comments.map((comment, index) => ({
                 id: makeId('hole-comment'),
                 alias: `匿名回声 ${index + 1}`,
+                translation: comment.translation,
                 content: comment.content,
                 createdAt: Date.now(),
                 replyTo: '',

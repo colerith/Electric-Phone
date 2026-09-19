@@ -1,7 +1,9 @@
+import { profileDecorationFields, ProfileBadgesSchema, ProfileTitleColorSchema } from './profile-badges';
 import { TranslationSchema } from '../generation/module-settings';
 import { z } from 'zod';
 
 export const ZoneCommentSchema = z.object({
+  translation: TranslationSchema.optional(),
   id: z.string(),
   author: z.string().prefault(''),
   content: z.string(),
@@ -25,7 +27,7 @@ export const ZonePostSchema = z.object({
 export const ZoneProfileSchema = z.object({
   username: z.string().prefault(''),
   handle: z.string().prefault(''),
-  title: z.string().prefault(''),
+  ...profileDecorationFields,
   tags: z.array(z.string()).prefault([]),
   signature: z.string().prefault(''),
   location: z.string().prefault(''),
@@ -41,6 +43,8 @@ export const ZoneUpdateSchema = z.object({
       username: z.string().optional(),
       handle: z.string().optional(),
       title: z.string().optional(),
+      titleColor: ProfileTitleColorSchema.optional(),
+      badges: ProfileBadgesSchema.optional(),
       tags: z.array(z.string()).optional(),
       signature: z.string().optional(),
       location: z.string().optional(),

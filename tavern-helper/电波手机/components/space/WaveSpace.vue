@@ -1,5 +1,5 @@
 <template>
-  <section class="space-app">
+  <section class="space-app" :class="{ 'space-subpage': moments?.isSubpage }">
     <div class="space-scroll">
       <template v-if="tab === 'char'">
         <div class="zone-profile-card space-char-profile">
@@ -11,12 +11,17 @@
               ><img v-if="avatar" :src="avatar" :style="avatarStyle" alt="" /><span v-else>{{
                 name.slice(0, 1)
               }}</span></span
-            ><strong class="zone-username">{{ name }}</strong
-            ><span v-if="page.profile.handle" class="zone-handle">@{{ page.profile.handle.replace(/^@/, '') }}</span>
-            <p class="zone-signature">{{ page.profile.signature || '记录生活里的小事' }}</p>
+            ><strong class="zone-username">{{ page.profile.username || name }}</strong
+            ><span v-if="page.profile.handle" class="zone-handle">@{{ page.profile.handle.replace(/^@+/, '') }}</span>
+            <WaveProfileDecorations
+              :title="page.profile.title"
+              :title-color="page.profile.titleColor"
+              :badges="page.profile.badges"
+            />
             <div v-if="page.profile.tags.length" class="zone-badges">
               <span v-for="tag in page.profile.tags" :key="tag">{{ tag }}</span>
             </div>
+            <p class="zone-signature">{{ page.profile.signature || '记录生活里的小事' }}</p>
             <small v-if="page.profile.location" class="zone-location">{{ page.profile.location }}</small>
             <div class="zone-profile-actions">
               <button type="button" @click="$emit('message')">私聊</button
@@ -24,7 +29,26 @@
                 {{ busy ? '更新中…' : '更新动态' }}
               </button>
             </div>
+            <div class="zone-stats">
+              <span
+                ><b>{{ charStats.posts }}</b> 日记</span
+              ><span
+                ><b>{{ charStats.likes }}</b> 喜欢</span
+              ><span
+                ><b>{{ charStats.comments }}</b> 评论</span
+              >
+            </div>
           </div>
+        </div>
+        <div class="space-feed-tools">
+          <div>
+            <button type="button" :aria-pressed="!likedOnly" @click="likedOnly = false">日记</button
+            ><button type="button" :aria-pressed="likedOnly" @click="likedOnly = true">已喜欢</button>
+          </div>
+          <label
+            ><i class="fa-solid fa-magnifying-glass"></i
+            ><input v-model="query" placeholder="搜索日记" aria-label="搜索空间日记"
+          /></label>
         </div>
         <p v-if="error" class="zone-error">{{ error }}</p>
       </template>
@@ -47,12 +71,18 @@
         context="space"
         embedded
         :author-key="tab === 'char' ? phone.activeIdentity?.charKey : undefined"
+        :query="tab === 'char' ? query : ''"
+        :liked-only="tab === 'char' && likedOnly"
         :user-name="userName"
         :user-avatar="userAvatar"
         @share="(post, author) => $emit('share', post, author)"
       />
     </div>
-    <nav v-if="!moments?.isSubpage || tab === 'hole'" class="space-bottom" aria-label="空间导航">
+    <nav
+      v-if="!moments?.isComposing && (!moments?.isSubpage || tab === 'hole')"
+      class="space-bottom"
+      aria-label="空间导航"
+    >
       <button type="button" :aria-current="tab === 'char' ? 'page' : undefined" @click="tab = 'char'">
         <i class="fa-solid fa-book-open"></i><span>角色</span></button
       ><button type="button" :aria-current="tab === 'world' ? 'page' : undefined" @click="tab = 'world'">
@@ -69,6 +99,8 @@
 </template>
 <script setup lang="ts">
 import { computed, nextTick, ref, type CSSProperties } from 'vue';
+import { useNow } from '@vueuse/core';
+import WaveProfileDecorations from './WaveProfileDecorations.vue';
 import WaveMoments from './WaveMoments.vue';
 import WaveTreeHole from './WaveTreeHole.vue';
 import { parseZonePage } from '../../services/space/zone';
@@ -91,6 +123,23 @@ const phone = usePhoneStore(),
   tab = ref<'char' | 'world' | 'hole' | 'me'>('char');
 const moments = ref<InstanceType<typeof WaveMoments> | null>(null),
   worldError = ref('');
+const query = ref(''),
+  likedOnly = ref(false),
+  now = useNow({ interval: 1000 });
+const charStats = computed(() => {
+  const posts = phone.momentsFeed.posts.filter(
+    post => post.authorKey === phone.activeIdentity?.charKey && post.availableAt <= now.value.getTime(),
+  );
+  const ids = new Set(posts.map(post => post.id));
+  return {
+    posts: posts.length,
+    likes:
+      posts.reduce((sum, post) => sum + post.legacyLikeCount, 0) +
+      phone.momentsFeed.likes.filter(item => ids.has(item.postId) && item.availableAt <= now.value.getTime()).length,
+    comments: phone.momentsFeed.comments.filter(item => ids.has(item.postId) && item.availableAt <= now.value.getTime())
+      .length,
+  };
+});
 const page = computed(() => parseZonePage(props.raw));
 const cover = computed(() => artworkUrl(props.artwork));
 async function publish() {

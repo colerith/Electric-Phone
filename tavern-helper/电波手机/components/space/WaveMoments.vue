@@ -13,7 +13,7 @@
       </div>
       <div class="moments-signature">{{ phone.state.moments.profile.signature || '记录生活里的小事' }}</div>
     </template>
-    <template v-else-if="view === 'me' && panel === 'home'">
+    <section v-else-if="view === 'me' && panel === 'home'" :class="{ 'space-user-card': context === 'space' }">
       <button
         v-if="context === 'space'"
         type="button"
@@ -32,7 +32,14 @@
         </button>
         <div>
           <strong>{{ userName }}</strong
-          ><small>账号：{{ phone.state.moments.profile.account || '未设置' }}</small>
+          ><small v-if="phone.state.moments.profile.account"
+            >@{{ phone.state.moments.profile.account.replace(/^@+/, '') }}</small
+          >
+          <WaveProfileDecorations
+            :title="phone.state.moments.profile.title"
+            :title-color="phone.state.moments.profile.titleColor"
+            :badges="phone.state.moments.profile.badges"
+          />
           <p>{{ phone.state.moments.profile.signature || '还没有填写个性签名' }}</p>
         </div>
       </div>
@@ -45,10 +52,17 @@
           <i class="fa-regular fa-comments"></i><span>空间互动</span><i class="fa-solid fa-chevron-right"></i>
         </button>
       </div>
-    </template>
+      <div v-if="context === 'space'" class="space-profile-stats">
+        <span
+          ><b>{{ ownPosts.length }}</b> 动态</span
+        ><span
+          ><b>{{ receivedLikes }}</b> 被喜欢</span
+        >
+      </div>
+    </section>
     <WaveWalletWorkspace v-else-if="panel === 'wallet'" mode="mine" />
     <template v-else-if="panel === 'profile'">
-      <section class="settings-card system-settings-card moments-form">
+      <section class="settings-card system-settings-card moments-form space-settings-card">
         <div class="wave-settings-title">手机资料</div>
         <button type="button" class="moments-profile-avatar" @click="editImage('draftAvatar')">
           <img v-if="profileDraft.avatar || userAvatar" :src="profileDraft.avatar || userAvatar" alt="" /><span
@@ -63,12 +77,22 @@
             rows="3"
             placeholder="说说现在的心情"
           ></textarea></label
-        ><button class="settings-save-wide" type="button" @click="saveProfile">保存资料</button>
+        ><label>个人称号<input v-model="profileDraft.title" maxlength="48" placeholder="为自己设计一个称号" /></label>
+        <label class="space-title-color"
+          >称号颜色<input v-model="profileDraft.titleColor" type="color" aria-label="称号颜色"
+        /></label>
+        <WaveProfileDecorations
+          :title="profileDraft.title"
+          :title-color="profileDraft.titleColor"
+          :badges="profileDraft.badges"
+        />
+        <WaveProfileBadgePicker v-model="profileDraft.badges" />
+        <button class="settings-save-wide" type="button" @click="saveProfile">保存资料</button>
       </section>
     </template>
     <template v-else-if="panel === 'settings'">
       <WaveBilingualSettings :prefs="settings" @update="Object.assign(settings, $event)" @save="saveSettings" />
-      <section class="settings-card system-settings-card moments-form">
+      <section class="settings-card system-settings-card moments-form space-settings-card">
         <div class="wave-settings-title">世界动态 · 参与者</div>
         <div class="system-toggle-row">
           <span>跟随聊天自动生成</span
@@ -97,11 +121,15 @@
           <span>允许场景 NPC 参与</span
           ><WaveToggle v-model="settings.npcEnabled" aria-label="允许场景 NPC 参与空间动态" />
         </div>
+        <div class="system-toggle-row">
+          <span><strong>允许陌生人参与</strong><small>与当前场景无关的 NPC，也可以发布动态、评论和点赞</small></span
+          ><WaveToggle v-model="settings.strangerEnabled" aria-label="允许陌生人参与世界动态" />
+        </div>
         <label v-if="settings.npcEnabled"
           >NPC 生成规则<textarea v-model="settings.npcRules" maxlength="2000" rows="4"></textarea>
         </label>
       </section>
-      <section class="settings-card system-settings-card moments-form">
+      <section class="settings-card system-settings-card moments-form space-settings-card">
         <div class="wave-settings-title">概率与节奏</div>
         <div class="settings-slider-row">
           <span
@@ -164,13 +192,6 @@
       </section>
     </template>
     <div v-if="context === 'space' && view === 'me' && panel === 'home' && !viewingNpc" class="space-profile-tabs">
-      <div class="space-profile-stats">
-        <span
-          ><b>{{ ownPosts.length }}</b> 动态</span
-        ><span
-          ><b>{{ receivedLikes }}</b> 被喜欢</span
-        >
-      </div>
       <div role="tablist" aria-label="我的动态筛选">
         <button
           v-for="item in profileTabs"
@@ -215,8 +236,15 @@
           >
             {{ nameFor(post.authorKey, post.authorName) }}
           </button>
-          <p class="moment-text">{{ post.content }}</p>
-          <WaveModuleTranslation app="moments" :translation="post.translation" />
+          <strong v-if="legacyTitle(post)" class="space-post-title">{{ legacyTitle(post) }}</strong>
+          <p class="moment-text">
+            {{ legacyTitle(post) ? post.content.slice(legacyTitle(post).length).trimStart() : post.content }}
+          </p>
+          <WaveModuleTranslation
+            inline
+            :app="post.id.startsWith('zone:') ? 'zone' : 'moments'"
+            :translation="post.translation"
+          />
           <div v-if="post.images.length" class="moment-media-grid" :class="{ single: post.images.length === 1 }">
             <button v-for="(media, index) in post.images" :key="index" type="button" @click="preview = media">
               <img v-if="media.kind === 'image'" :src="media.url" :alt="media.description || '空间动态图片'" /><span
@@ -302,7 +330,11 @@
                     >@{{ nameFor(comment.replyToAuthorKey, comment.replyToAuthorName) }} </span
                   >{{ comment.content }}
                 </p>
-                <WaveModuleTranslation app="moments" :translation="comment.translation" />
+                <WaveModuleTranslation
+                  inline
+                  :app="post.id.startsWith('zone:') ? 'zone' : 'moments'"
+                  :translation="comment.translation"
+                />
                 <button type="button" class="moment-reply-action" @click="startReply(post.id, comment)">回复</button>
               </div>
             </div>
@@ -366,7 +398,7 @@
             </button>
           </div>
         </div>
-        <div v-else class="moment-compose-body">
+        <div v-else class="moment-compose-body moment-compose-form">
           <textarea
             v-model="draft.content"
             maxlength="5000"
@@ -374,7 +406,7 @@
             placeholder="这一刻的想法…"
             aria-label="空间动态文本"
           ></textarea>
-          <div class="moment-draft-images">
+          <div v-if="draft.images.length" class="moment-draft-images">
             <div v-for="(media, index) in draft.images" :key="index">
               <button type="button" @click="preview = media">
                 <img v-if="media.kind === 'image'" :src="media.url" :alt="media.description || '图片'" /><span v-else>{{
@@ -480,7 +512,11 @@
   </div>
 </template>
 <script setup lang="ts">
+import WaveProfileDecorations from './WaveProfileDecorations.vue';
+import WaveProfileBadgePicker from './WaveProfileBadgePicker.vue';
+import { MomentUserProfileSchema } from '../../services/space/moments';
 import WaveNpcProfile from './WaveNpcProfile.vue';
+import { parseZonePage } from '../../services/space/zone';
 import { npcAvatarUrl } from '../../services/space/npc-avatar';
 import WaveWalletWorkspace from '../wallet/WaveWalletWorkspace.vue';
 import WaveBilingualSettings from '../shared/WaveBilingualSettings.vue';
@@ -503,9 +539,11 @@ const props = withDefaults(
     context?: 'messenger' | 'space';
     embedded?: boolean;
     authorKey?: string;
+    query?: string;
+    likedOnly?: boolean;
     initialPanel?: 'home' | 'settings';
   }>(),
-  { context: 'messenger', initialPanel: 'home', authorKey: '' },
+  { context: 'messenger', initialPanel: 'home', authorKey: '', query: '', likedOnly: false },
 );
 defineEmits<{ share: [post: MomentPost, author: string] }>();
 const phone = usePhoneStore(),
@@ -544,12 +582,25 @@ const receivedLikes = computed(
 const posts = computed(() =>
   phone.momentsFeed.posts.filter(post => {
     if (post.availableAt > now.value || (props.authorKey && post.authorKey !== props.authorKey)) return false;
+    if (
+      props.query &&
+      !`${post.content} ${post.authorName}`.toLocaleLowerCase().includes(props.query.toLocaleLowerCase())
+    )
+      return false;
+    if (props.likedOnly && !likesFor(post.id).some(like => like.authorKey === 'user')) return false;
     if (props.view === 'feed') return true;
     if (profileFilter.value === 'liked') return likesFor(post.id).some(like => like.authorKey === 'user');
     if (profileFilter.value === 'commented') return commentsFor(post.id).some(comment => comment.authorKey === 'user');
     return post.authorKey === 'user';
   }),
 );
+function legacyTitle(post: MomentPost): string {
+  if (!post.id.startsWith(`zone:${post.authorKey}:`)) return '';
+  const id = post.id.slice(`zone:${post.authorKey}:`.length);
+  return (
+    parseZonePage(phone.state.snapshots[post.authorKey]?.zone || '').posts.find(item => item.id === id)?.title || ''
+  );
+}
 function likesFor(id: string) {
   return phone.momentsFeed.likes.filter(like => like.postId === id && like.availableAt <= now.value);
 }
@@ -590,7 +641,7 @@ const visibilityOptions = [
 function visibilityLabel(post: MomentPost) {
   return visibilityOptions.find(option => option.value === post.visibility)?.label || '';
 }
-const profileDraft = reactive({ nickname: '', account: '', avatar: '', signature: '', cover: '' });
+const profileDraft = reactive(MomentUserProfileSchema.parse({}));
 function openProfile() {
   Object.assign(profileDraft, klona(phone.state.moments.profile));
   panel.value = 'profile';
@@ -796,8 +847,9 @@ const subpageTitle = computed(() =>
     ? '详细资料'
     : { home: '我的', profile: '编辑资料', settings: '空间互动', own: '我的动态', wallet: '我的钱包' }[panel.value],
 );
+const isComposing = computed(() => composing.value);
 const canPublish = computed(() => !viewingNpc.value && props.view === 'me' && panel.value === 'own');
-defineExpose({ openComposer, openProfile, back, isSubpage, subpageTitle, canPublish });
+defineExpose({ openComposer, openProfile, back, isSubpage, subpageTitle, canPublish, isComposing });
 </script>
 
 <style scoped>

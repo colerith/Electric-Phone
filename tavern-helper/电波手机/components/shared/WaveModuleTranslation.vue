@@ -1,6 +1,24 @@
 <template>
+  <div
+    v-if="inline && prefs.autoTranslate && (translation?.content || translation?.title)"
+    class="space-inline-translation"
+  >
+    <button
+      v-if="!prefs.expandTranslation"
+      type="button"
+      class="space-translation-toggle"
+      :aria-expanded="expanded"
+      @click="expanded = !expanded"
+    >
+      {{ expanded ? '收起译文' : '译文' }}
+    </button>
+    <template v-if="prefs.expandTranslation || expanded"
+      ><strong v-if="translation.title">{{ translation.title }}</strong>
+      <p>{{ translation.content }}</p></template
+    >
+  </div>
   <details
-    v-if="prefs.autoTranslate && (translation?.content || translation?.title)"
+    v-else-if="!inline && prefs.autoTranslate && (translation?.content || translation?.title)"
     class="module-translation"
     :open="prefs.autoTranslate && prefs.expandTranslation"
   >
@@ -12,13 +30,15 @@
 <script setup lang="ts">
 import { ChatPreferencesSchema } from '../../services/chat/chat-preferences';
 import { resolveBilingual } from '../../services/generation/module-settings';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 const props = defineProps<{
+  inline?: boolean;
   app: 'memo' | 'zone' | 'browse' | 'moments';
   translation?: { language: string; title: string; content: string };
 }>();
 const phone = usePhoneStore();
+const expanded = ref(false);
 const prefs = computed(() =>
   resolveBilingual(
     props.app === 'moments' ? phone.state.moments.settings : phone.settings.moduleSettings[props.app],

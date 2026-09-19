@@ -1,7 +1,9 @@
+import { TranslationSchema } from '../generation/module-settings';
 import { z } from 'zod';
 export const TreeHoleCommentSchema = z.object({
   id: z.string(),
   alias: z.string(),
+  translation: TranslationSchema.optional(),
   content: z.string().max(2000),
   createdAt: z.number(),
   replyTo: z.string().default(''),
@@ -9,6 +11,7 @@ export const TreeHoleCommentSchema = z.object({
 export const TreeHolePostSchema = z.object({
   id: z.string(),
   alias: z.string(),
+  translation: TranslationSchema.optional(),
   content: z.string().max(5000),
   createdAt: z.number(),
   mine: z.boolean().default(false),

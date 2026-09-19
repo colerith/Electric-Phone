@@ -120,6 +120,16 @@ const saveAccount = (id, amount) =>
   });
 function snapshot(name) {
   if (!process.env.WAVE_VISUAL_QA) return;
+  const device = surface.value.cloneNode(true);
+  device.className = 'wave-device page-zone is-subpage theme-light';
+  const main = document.createElement('main');
+  main.className = 'wave-screen';
+  main.append(device.firstChild);
+  const overlays = [...device.childNodes];
+  device.innerHTML =
+    '<div class="wave-statusbar"><span>21:26</span><span>● ▰ 100%</span></div><header class="wave-appbar"><button>‹</button><strong>空间</strong><button>☰</button></header>';
+  device.append(main, ...overlays);
+  device.insertAdjacentHTML('beforeend', '<button class="wave-homebar"><span></span></button>');
   const sass = require('sass');
   const imports = [...fs.readFileSync(base + '/index.ts', 'utf8').matchAll(/import '\.\/(.+\.scss)'/g)].map(
     match => match[1],
@@ -146,7 +156,7 @@ function snapshot(name) {
         .map(match => sass.compileString(match[1], { logger: sass.Logger.silent }).css)
         .join('\n') +
       '#wave-phone-script-root .wave-device{position:relative!important;left:auto!important;top:auto!important;transform:none!important;min-width:0!important;width:390px!important;height:780px!important;margin:10px auto!important;display:flex!important;--wave-ui-font:Arial,sans-serif;--wave-font-scale:1;--wave-card:#fff;--wave-text:#354259;--wave-muted:#95a0af;--settings-accent:#6487ba;}body{margin:0;background:#e8ecf2}</style>' +
-      `<div id="wave-phone-script-root"><div class="wave-phone-host">${surface.value.outerHTML}</div></div>`,
+      `<div id="wave-phone-script-root"><div class="wave-phone-host">${device.outerHTML}</div></div>`,
   );
 }
 (async () => {
@@ -279,13 +289,28 @@ function snapshot(name) {
   await phone.synchronize();
   // Existing zone comments/likes remain visible in the combined space feed.
   phone.state.snapshots[char].zone = JSON.stringify({
-    profile: { signature: '在平凡的日子里收集微光。' },
+    profile: {
+      username: 'Ghost',
+      handle: 'cipher_vector_0',
+      title: '离线终端',
+      titleColor: '#6085bc',
+      badges: ['laptop', 'headphone', 'crescent-moon'],
+      signature: '在平凡的日子里收集微光。',
+    },
     posts: [
       {
         id: 'old',
         content: '阳光落在窗台上，今天也是值得记住的一天。',
         date: '2026-09-19',
-        comments: [{ id: 'c1', author: 'Alice', content: '欢迎来我的空间', createdAt: '2026-09-19T09:00:00' }],
+        comments: [
+          {
+            id: 'c1',
+            author: 'Alice',
+            content: 'Welcome to my space',
+            translation: { language: '中文', content: '欢迎来我的空间' },
+            createdAt: '2026-09-19T09:00:00',
+          },
+        ],
       },
     ],
   });
@@ -299,6 +324,14 @@ function snapshot(name) {
   await tick();
   assert.equal(document.querySelectorAll('.space-bottom button').length, 5);
   assert.equal(document.querySelectorAll('.space-comment').length, 1);
+  phone.settings.moduleSettings.zone.autoTranslate = true;
+  phone.settings.moduleSettings.zone.syncChat = false;
+  phone.settings.moduleSettings.zone.expandTranslation = true;
+  await tick();
+  assert(phone.momentsFeed.comments.find(item => item.postId === legacy).translation.content === '欢迎来我的空间');
+  assert(document.querySelector('.space-comment .space-inline-translation'));
+  assert(!document.querySelector('.space-comment details'));
+  assert.equal(document.querySelectorAll('.space-decorations img').length, 3);
   snapshot('space-char');
   phone.publishMoment({
     content: '今天完成了一件小事，很开心。',
@@ -333,6 +366,30 @@ function snapshot(name) {
   assert(document.body.textContent.includes('一路顺风'));
   click('[role=tab]', '发布');
   await tick();
+  click('.moments-me-menu button', '编辑资料');
+  await tick();
+  const field = label =>
+    [...document.querySelectorAll('label')].find(el => el.textContent.trim() === label).querySelector('input');
+  for (const [label, value] of [
+    ['账号', '@Echo'],
+    ['个人称号', '虚无'],
+    ['称号颜色', '#ea91a4'],
+  ]) {
+    const input = field(label);
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  for (let i = 0; i < 4; i++) {
+    document.querySelectorAll('.space-badge-grid button')[i].click();
+    await tick();
+  }
+  assert(document.querySelectorAll('.space-badge-grid button')[4].disabled);
+  snapshot('space-profile-edit');
+  click('button', '保存资料');
+  await tick();
+  assert.equal(phone.state.moments.profile.badges.length, 4);
+  assert.equal(phone.state.moments.profile.title, '虚无');
+  assert(document.querySelector('.moments-me-profile small').textContent === '@Echo');
   snapshot('space-me');
   click('.space-bottom button', '世界');
   await tick();
@@ -341,6 +398,7 @@ function snapshot(name) {
   click('.space-bottom button', '发布');
   await tick();
   assert(document.querySelector('.moment-composer'));
+  snapshot('space-compose');
   assert(space.back());
   await tick();
   click('.space-bottom button', '树洞');
@@ -370,7 +428,15 @@ function snapshot(name) {
         {
           id: 'generated',
           content: '今天听到一句很温柔的话。',
-          comments: [{ id: 'reply', author: 'secret-name', content: '把温柔传下去。' }],
+          translation: { language: 'English', content: 'I heard something kind today.' },
+          comments: [
+            {
+              id: 'reply',
+              author: 'secret-name',
+              content: '把温柔传下去。',
+              translation: { language: 'English', content: 'Pass it on.' },
+            },
+          ],
         },
       ],
     });
@@ -379,6 +445,7 @@ function snapshot(name) {
   assert.equal(phone.activeSnapshot.zone, oldZone);
   assert.equal(phone.state.treeHole[day].posts.length, 2);
   assert.equal(phone.state.treeHole[day].posts[1].comments[0].alias, '匿名回声 1');
+  assert.equal(phone.state.treeHole[day].posts[1].comments[0].translation.content, 'Pass it on.');
   await phone.refreshTreeHole(day);
   assert.equal(phone.state.treeHole[day].posts.length, 2);
   global.generateRaw = async () => {

@@ -1,3 +1,4 @@
+import { profileDecorationFields } from './profile-badges';
 import { bilingual, TranslationSchema } from '../generation/module-settings';
 import { npcAvatarSeed } from './npc-avatar';
 import { splitElectric } from '../generation/electric';
@@ -117,6 +118,7 @@ export const MomentBatchSchema = z.object({
 });
 export const MomentUserProfileSchema = z
   .object({
+    ...profileDecorationFields,
     nickname: z.string().max(40).default(''),
     account: z.string().max(40).default(''),
     avatar: z.string().default(''),
@@ -137,6 +139,7 @@ export const MomentsStateSchema = z
         followEnabled: z.boolean().default(false),
         postingCharKeys: z.array(z.string()).default([]),
         npcEnabled: z.boolean().default(false),
+        strangerEnabled: z.boolean().default(false),
         npcRules: z
           .string()
           .max(2000)
@@ -206,10 +209,10 @@ export function planMoments(
       relationshipToUser: identity.relationshipToUser || '',
       npc: identity.actorType === 'npc',
     }));
-  if (settings.npcEnabled) {
-    for (const npc of Object.values(state.npcs).slice(-20)) {
-      // Friends follow the explicit posting-character selection, not the ambient NPC switch.
+  if (settings.npcEnabled || settings.strangerEnabled) {
+    for (const npc of Object.values(state.npcs).slice(-40)) {
       if (identities.some(identity => identity.charKey === npc.npcId)) continue;
+      if (npc.npcId.startsWith('npc:stranger:') ? !settings.strangerEnabled : !settings.npcEnabled) continue;
       actors.push({
         key: npc.npcId,
         name: npc.username,
@@ -220,17 +223,23 @@ export function planMoments(
         relationshipToUser: '未建立关系',
       });
     }
-    let key = `npc:ambient:${now}-${Math.floor(random() * 1e9).toString(36)}`;
-    while (state.npcs[key] || identities.some(identity => identity.charKey === key)) key += '-new';
-    actors.push({
-      key,
-      name: '场景 NPC',
-      about: settings.npcRules,
-      relationshipToUser: '未建立关系',
-      npc: true,
-      isNew: true,
-      avatarSeed: npcAvatarSeed(key),
-    });
+    for (const kind of ['ambient', 'stranger'] as const) {
+      if (kind === 'ambient' ? !settings.npcEnabled : !settings.strangerEnabled) continue;
+      let key = `npc:${kind}:${now}-${Math.floor(random() * 1e9).toString(36)}`;
+      while (state.npcs[key] || identities.some(identity => identity.charKey === key)) key += '-new';
+      actors.push({
+        key,
+        name: kind === 'stranger' ? '世界中的陌生人' : '场景 NPC',
+        about:
+          kind === 'stranger'
+            ? '与当前场景、角色和用户没有既有关系的普通陌生人，有自己的日常生活与兴趣；只了解本轮公开帖子，不知道私聊、角色秘密或现场发生的事。'
+            : settings.npcRules,
+        relationshipToUser: '未建立关系',
+        npc: true,
+        isNew: true,
+        avatarSeed: npcAvatarSeed(key),
+      });
+    }
   }
   if (!actors.length) return null;
   const pick = <T>(list: T[]) => list[Math.min(list.length - 1, Math.floor(random() * list.length))]!;
@@ -349,7 +358,11 @@ export function syncMomentEvents(state: MomentsState, messages: string[], now = 
   // Persist the identities of previously validated legacy NPC events before rebuilding floors.
   for (const event of state.events) {
     for (const author of [...event.batch.posts, ...event.batch.comments, ...event.batch.likes]) {
-      if (!author.authorKey.startsWith('npc:ambient') || !author.authorName.trim() || state.npcs[author.authorKey])
+      if (
+        !author.authorKey.match(/^npc:(?:ambient|stranger):/) ||
+        !author.authorName.trim() ||
+        state.npcs[author.authorKey]
+      )
         continue;
       state.npcs[author.authorKey] = {
         npcId: author.authorKey,
@@ -418,7 +431,7 @@ export function syncMomentEvents(state: MomentsState, messages: string[], now = 
             valid = false;
             break;
           }
-          if (!event.authorKey.startsWith('npc:ambient')) continue;
+          if (!event.authorKey.match(/^npc:(?:ambient|stranger):/)) continue;
           const previous = state.npcs[event.authorKey];
           const metadata = batch.npcs.find(npc => npc.npcId === event.authorKey);
           const username = previous?.username || metadata?.username || event.authorName.trim();
@@ -475,7 +488,7 @@ export function momentTimeline(state: MomentsState, legacy: MomentPost[] = []) {
     const time = (delay: number) => event.receivedAt + Math.max(plan.minDelay, Math.min(plan.maxDelay, delay)) * 1000;
     const name = (key: string, raw: string) =>
       state.npcs[key]?.username ||
-      (key.startsWith('npc:ambient') ? raw : plan.actors.find(actor => actor.key === key)?.name || '');
+      (key.match(/^npc:(?:ambient|stranger):/) ? raw : plan.actors.find(actor => actor.key === key)?.name || '');
     event.batch.posts.forEach((post, index) =>
       posts.push({
         id: `${event.requestId}:post:${index}`,
@@ -508,7 +521,7 @@ export function momentTimeline(state: MomentsState, legacy: MomentPost[] = []) {
         authorKey: comment.authorKey,
         authorName:
           state.npcs[comment.authorKey]?.username ||
-          (comment.authorKey.startsWith('npc:ambient') ? comment.authorName : actor?.name || ''),
+          (comment.authorKey.match(/^npc:(?:ambient|stranger):/) ? comment.authorName : actor?.name || ''),
         content: comment.content,
         translation: comment.translation,
         createdAt: when,
@@ -537,7 +550,7 @@ export function momentTimeline(state: MomentsState, legacy: MomentPost[] = []) {
         authorKey: like.authorKey,
         authorName:
           state.npcs[like.authorKey]?.username ||
-          (like.authorKey.startsWith('npc:ambient') ? like.authorName : actor?.name || ''),
+          (like.authorKey.match(/^npc:(?:ambient|stranger):/) ? like.authorName : actor?.name || ''),
         availableAt: event.receivedAt + Math.max(plan.minDelay, Math.min(plan.maxDelay, like.delaySeconds)) * 1000,
       });
     });

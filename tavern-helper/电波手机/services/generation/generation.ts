@@ -1,4 +1,4 @@
-import { resolveModuleSettings } from './module-settings';
+import { resolveModuleSettings, resolveBilingual } from './module-settings';
 import { validateWalletPatch, type WalletAuthorization } from '../wallet/wallet-accounts';
 import { isLimitedApp, limitModulePatch } from './module-updates';
 import { splitElectric } from './electric';
@@ -257,6 +257,10 @@ function buildInputContext(input: GenerationInput): PhonePromptInput {
 
 /** Daily anonymous discussion has its own prompt and never writes a character profile. */
 export async function generateTreeHolePage(input: GenerationInput): Promise<ZoneUpdate> {
+  const language = resolveBilingual(input.settings.moduleSettings.zone, input.chatPreferences);
+  const bilingualRule = language.autoTranslate
+    ? `每条动态与评论的 content 写 ${language.sourceLanguage} 原文，分别附 translation={language:"${language.targetLanguage}",content:"自然忠实译文"}；不要加译文标签或折叠标记。`
+    : '单语输出。';
   return requestConfigured(
     input.settings,
     input.generationId || createPhoneGenerationId(),
@@ -264,7 +268,8 @@ export async function generateTreeHolePage(input: GenerationInput): Promise<Zone
       {
         role: 'system',
         content:
-          '你为虚构的匿名树洞生成讨论。只根据今日话题和已有匿名发言，写 1–3 条自然、有区别的匿名动态，每条可带 0–2 条简短回应。不要使用真实角色身份，不输出空间资料，不重复已有内容。只输出 JSON：{"posts":[{"id":"唯一编号","content":"匿名发言","comments":[{"id":"评论编号","author":"匿名回声","content":"回应"}]}]}。',
+          '你为虚构的匿名树洞生成讨论。只根据今日话题和已有匿名发言，写 1–3 条自然、有区别的匿名动态，每条可带 0–2 条简短回应。不要使用真实角色身份，不输出空间资料，不重复已有内容。只输出 JSON：{"posts":[{"id":"唯一编号","content":"匿名发言","comments":[{"id":"评论编号","author":"匿名回声","content":"回应"}]}]}。' +
+          bilingualRule,
       },
     ],
     input.latestUserText,

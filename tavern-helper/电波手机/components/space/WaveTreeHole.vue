@@ -25,6 +25,7 @@
         ><time>{{ time(post.createdAt) }}</time>
       </header>
       <p class="space-hole-copy">{{ post.content }}</p>
+      <WaveModuleTranslation app="zone" :translation="post.translation" inline />
       <div class="space-hole-actions">
         <button type="button" :aria-pressed="post.liked" @click="phone.likeTreeHole(day, post.id)">
           <i :class="post.liked ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i> 共鸣</button
@@ -42,6 +43,7 @@
           <p>
             <span v-if="comment.replyTo" class="space-mention">@{{ comment.replyTo }} </span>{{ comment.content }}
           </p>
+          <WaveModuleTranslation app="zone" :translation="comment.translation" inline />
           <button
             type="button"
             class="moment-reply-action"
@@ -68,6 +70,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import WaveModuleTranslation from '../shared/WaveModuleTranslation.vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { dailyTopic, treeHoleDay } from '../../services/space/tree-hole';
