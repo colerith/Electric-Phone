@@ -2,20 +2,20 @@
   <div class="translation-service-settings">
     <div class="wave-settings-title">翻译 API 服务</div>
     <label
-      ><span>翻译服务</span
+      ><strong>翻译服务</strong
       ><WaveSelect
         v-model="phone.settings.translation.provider"
         :options="translationProviders"
         aria-label="翻译 API 服务"
     /></label>
     <label v-if="phone.settings.translation.provider !== 'secondary_api'"
-      ><span>自定义端口</span
+      ><strong>自定义端口</strong
       ><input v-model.trim="phone.settings.translation.endpoint" type="url" :placeholder="placeholder" /><small
         >MyMemory 可留空；LibreTranslate 需可用实例，公共服务可能限流。</small
       ></label
     >
     <label v-if="['libretranslate', 'mymemory'].includes(phone.settings.translation.provider)"
-      ><span>实例 API Key（如需）</span
+      ><strong>实例 API Key（如需）</strong
       ><input v-model="phone.settings.translation.apiKey" type="password" autocomplete="off"
     /></label>
     <div class="translation-guide">

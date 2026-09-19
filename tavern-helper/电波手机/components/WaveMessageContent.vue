@@ -12,7 +12,7 @@
         </summary>
         <pre>{{ electricText }}</pre>
       </details>
-      <div v-if="quotedText" class="wave-message-quote">
+      <div v-if="quotedText && message.type !== 'text'" class="wave-message-quote">
         <i class="fa-solid fa-reply" aria-hidden="true"></i>
         <div>
           <small>回复消息</small>
@@ -21,6 +21,10 @@
       </div>
       <div v-if="message.type === 'text'" class="wave-bilingual-message wave-message-text">
         <p class="wave-original-text">{{ primaryText }}</p>
+        <div v-if="quotedText" class="wave-message-quote wave-message-quote-inline" aria-label="引用消息">
+          <i class="fa-solid fa-reply" aria-hidden="true"></i>
+          <p :title="quotedText">{{ quotedText }}</p>
+        </div>
         <div v-if="translationEnabled && translationOpen && secondaryText" class="wave-translation-bubble">
           <p>{{ secondaryText }}</p>
         </div>
@@ -48,7 +52,6 @@
       </div>
       <figure v-else-if="message.type === 'emoji' && stickerUrl" class="wave-message-sticker">
         <img :src="stickerUrl" :alt="payloadString('name') || message.content || '表情包'" />
-        <figcaption>{{ payloadString('name') || message.content }}</figcaption>
       </figure>
       <div v-else-if="message.type === 'emoji'" class="wave-message-emoji">
         {{ payloadString('emoji') || message.content }}

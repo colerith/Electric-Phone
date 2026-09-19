@@ -3,6 +3,7 @@ import { computed, onScopeDispose, ref, watch } from 'vue';
 import { musicIntent, parseLrc, resolveTrack, searchMusic, type Track } from '../services/music';
 import { fetchRecommendations, extraLyrics, simplifyLyrics } from '../services/music-discovery';
 import { nextQueueIndex, type PlaybackMode } from '../services/music-queue';
+import { startMusicPlayback } from '../services/music-playback';
 import { usePhoneStore } from './phone';
 export const useMusicStore = defineStore('wave-music', () => {
   const phone = usePhoneStore();
@@ -16,6 +17,7 @@ export const useMusicStore = defineStore('wave-music', () => {
     error = ref(''),
     time = ref(0),
     duration = ref(0);
+  const radioTrack = ref<Track | null>(null);
   const queueOpen = ref(false),
     hasStarted = ref(false),
     notice = ref('');
@@ -240,10 +242,22 @@ export const useMusicStore = defineStore('wave-music', () => {
     request: AbortController | undefined,
     context = '';
   let syncId = 0;
+  let lastIntent = '';
+  let automaticRequest: AbortController | undefined;
+  let automaticFallback: (() => Promise<void>) | undefined;
+  function cancelAutomatic() {
+    automaticFallback = undefined;
+    if (automaticRequest) {
+      automaticRequest.abort();
+      if (request === automaticRequest) busy.value = false;
+      if (searchRequest === automaticRequest) searching.value = false;
+      automaticRequest = undefined;
+    }
+  }
   function player() {
     if (!audio) {
       audio = new Audio();
-      audio.onplay = () => {
+      audio.onplaying = () => {
         playing.value = true;
         hasStarted.value = true;
       };
@@ -256,6 +270,10 @@ export const useMusicStore = defineStore('wave-music', () => {
       };
       audio.onerror = () => {
         playing.value = false;
+        if (automaticFallback && !busy.value) {
+          void automaticFallback();
+          return;
+        }
         error.value = '音频加载失败，可重试或切换音源';
       };
     }
@@ -264,6 +282,9 @@ export const useMusicStore = defineStore('wave-music', () => {
   function reset(key: string) {
     if (context === key) return;
     context = key;
+    lastIntent = '';
+    radioTrack.value = null;
+    cancelAutomatic();
     request?.abort();
     discoveryRequest?.abort();
     searchRequest?.abort();
@@ -282,6 +303,8 @@ export const useMusicStore = defineStore('wave-music', () => {
     busy.value = false;
   }
   async function search(query: string) {
+    ++syncId;
+    cancelAutomatic();
     tracks.value = [];
     searchStatus.value = '';
     searchRequest?.abort();
@@ -316,6 +339,7 @@ export const useMusicStore = defineStore('wave-music', () => {
   }
   async function select(track: Track, autoplay = true) {
     ++syncId;
+    cancelAutomatic();
     if (searching.value) searchStatus.value = '已停止后续查询，保留已返回的结果';
     searchRequest?.abort();
     searching.value = false;
@@ -351,7 +375,7 @@ export const useMusicStore = defineStore('wave-music', () => {
       if (controller.signal.aborted) return;
       current.value = resolved;
       player().src = resolved.url;
-      if (autoplay) await player().play();
+      if (autoplay) await startMusicPlayback(player(), controller.signal);
     } catch (e) {
       if (!controller.signal.aborted) error.value = e instanceof Error ? e.message : '播放失败';
     } finally {
@@ -360,6 +384,25 @@ export const useMusicStore = defineStore('wave-music', () => {
   }
   async function toggle() {
     if (!current.value) return;
+    if (!playing.value && automaticFallback && automaticRequest) {
+      const retry = automaticFallback;
+      const controller = automaticRequest;
+      busy.value = true;
+      error.value = '';
+      try {
+        await startMusicPlayback(player(), controller.signal);
+      } catch (e) {
+        if (!controller.signal.aborted) {
+          if (e instanceof Error && e.name === 'NotAllowedError') error.value = '浏览器限制播放，请再次点击播放';
+          else await retry();
+        }
+      } finally {
+        if (request === controller) busy.value = false;
+      }
+      return;
+    }
+    ++syncId;
+    cancelAutomatic();
     if (!current.value.url) {
       await select(current.value);
       return;
@@ -392,19 +435,125 @@ export const useMusicStore = defineStore('wave-music', () => {
     }
     await select(rows[next]);
   }
-  async function sync(raw: string, key: string) {
-    const version = ++syncId;
+  async function sync(raw: string, key: string, force = false) {
     reset(key);
     const intent = musicIntent(raw);
-    if (!intent.title) return;
-    const pending = search(`${intent.title} ${intent.artist}`);
-    const activeRequest = searchRequest;
-    await pending;
-    if (context !== key || version !== syncId || searchRequest !== activeRequest) return;
-    const match = tracks.value.find(
-      t => t.title.toLowerCase() === intent.title.toLowerCase() && (!intent.artist || t.artist.includes(intent.artist)),
-    );
-    if (match) await select(match, false);
+    const signature = JSON.stringify([
+      key,
+      intent.title,
+      intent.artist,
+      phone.settings.musicApi,
+      phone.settings.musicSource,
+    ]);
+    if (!force && signature === lastIntent) return;
+    lastIntent = signature;
+    radioTrack.value = null;
+    const version = ++syncId;
+    cancelAutomatic();
+    if (!intent.title || !key) return;
+    request?.abort();
+    searchRequest?.abort();
+    audio?.pause();
+    audio?.removeAttribute('src');
+    audio?.load();
+    current.value = null;
+    const controller = new AbortController();
+    request = searchRequest = automaticRequest = controller;
+    const active = () => !controller.signal.aborted && context === key && version === syncId;
+    busy.value = searching.value = true;
+    error.value = '';
+    tracks.value = [];
+    searchStatus.value = '正在搜索角色想听的歌曲…';
+    let candidates: Track[] = [];
+    let index = 0;
+    const playNext = async () => {
+      if (!active()) return;
+      automaticFallback = undefined;
+      busy.value = true;
+      error.value = '';
+      while (index < candidates.length && active()) {
+        const track = candidates[index++];
+        searchStatus.value = `正在尝试音源 ${index}/${candidates.length} · ${track.title}`;
+        time.value = duration.value = 0;
+        try {
+          const resolved = await resolveTrack(track, phone.settings.musicApi, controller.signal);
+          if (!active()) return;
+          if (!resolved.url) throw new Error('没有可播放链接');
+          resolved.lyric = simplifyLyrics(resolved.lyric);
+          current.value = resolved;
+          radioTrack.value = resolved;
+          player().src = resolved.url;
+          await startMusicPlayback(player(), controller.signal);
+          if (!active()) return;
+          enqueue(resolved);
+          error.value = '';
+          searchStatus.value = `已播放 · ${resolved.title} · ${resolved.artist}`;
+          automaticFallback = playNext;
+          // Optional lyrics must not hold up playback or reject a working audio source.
+          void extraLyrics(resolved, phone.settings.neteaseApi, phone.settings.qqMusicApi, controller.signal)
+            .then(lyric => {
+              if (active() && current.value?.url === resolved.url && lyric) current.value.lyric = simplifyLyrics(lyric);
+            })
+            .catch(() => {});
+          busy.value = false;
+          return;
+        } catch (e) {
+          if (!active()) return;
+          if (e instanceof Error && e.name === 'NotAllowedError') {
+            error.value = '浏览器限制自动播放，已找到音源，请点击播放继续';
+            searchStatus.value = '';
+            if (current.value) enqueue(current.value);
+            automaticFallback = playNext;
+            busy.value = false;
+            return;
+          }
+          player().pause();
+          player().removeAttribute('src');
+          player().load();
+          current.value = null;
+        }
+      }
+      if (active()) {
+        busy.value = false;
+        playing.value = false;
+        current.value = null;
+        searchStatus.value = '';
+        error.value = candidates.length
+          ? '已尝试全部搜索结果，暂无可播放音源，可切换音源或稍后重试'
+          : '未找到歌曲，请尝试其他歌名或音源';
+      }
+    };
+    try {
+      const rows = await searchMusic(
+        `${intent.title} ${intent.artist}`.trim(),
+        phone.settings.musicApi,
+        phone.settings.musicSource,
+        controller.signal,
+        (rows, status) => {
+          if (!active()) return;
+          tracks.value = rows.filter(track => !isHidden(track));
+          searchStatus.value = status;
+        },
+      );
+      if (!active()) return;
+      const seen = new Set<string>();
+      candidates = rows.filter(track => {
+        const id = `${track.source}:${track.id}`;
+        if (isHidden(track) || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+      tracks.value = candidates;
+      phone.rememberMusicTracks(candidates);
+      searching.value = false;
+      await playNext();
+    } catch (e) {
+      if (active()) error.value = e instanceof Error ? e.message : '自动搜索播放失败';
+    } finally {
+      if (active()) {
+        busy.value = searching.value = false;
+      }
+    }
   }
   const lyrics = computed(() => parseLrc(current.value?.lyric || ''));
   const lyricIndex = computed(() =>
@@ -412,6 +561,7 @@ export const useMusicStore = defineStore('wave-music', () => {
   );
   function stop() {
     ++syncId;
+    cancelAutomatic();
     request?.abort();
     discoveryRequest?.abort();
     searchRequest?.abort();
@@ -474,6 +624,7 @@ export const useMusicStore = defineStore('wave-music', () => {
     togetherSeconds,
     view,
     current,
+    radioTrack,
     tracks,
     playing,
     busy,

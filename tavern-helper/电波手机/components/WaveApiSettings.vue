@@ -2,7 +2,7 @@
   <section class="settings-card api-settings">
     <div class="wave-settings-title">连接配置</div>
     <label v-if="phone.settings.apiProfiles.length"
-      ><span>已保存的配置</span
+      ><strong>已保存的配置</strong
       ><WaveSelect
         :model-value="phone.settings.activeApiProfileId"
         :options="profileOptions"
@@ -10,7 +10,7 @@
         @update:model-value="selectProfile"
     /></label>
     <label
-      ><span>配置名称</span><input v-model.trim="profileName" maxlength="60" placeholder="例如：日常聊天 / 翻译"
+      ><strong>配置名称</strong><input v-model.trim="profileName" maxlength="60" placeholder="例如：日常聊天 / 翻译"
     /></label>
     <div class="api-inline-actions">
       <button type="button" @click="saveAs">另存为新配置</button
@@ -21,7 +21,7 @@
       ><WaveToggle v-model="phone.settings.api.enabled" aria-label="启用副 API" />
     </div>
     <label
-      ><span>服务类型</span
+      ><strong>服务类型</strong
       ><WaveSelect
         :model-value="phone.settings.api.provider"
         :options="providers"
@@ -29,21 +29,21 @@
         @update:model-value="changeProvider"
     /></label>
     <label
-      ><span>Endpoint / 代理地址</span
+      ><strong>Endpoint / 代理地址</strong
       ><input v-model.trim="phone.settings.api.apiurl" type="url" placeholder="https://…" /><small
         v-if="phone.settings.api.provider === 'google_ai_studio'"
         >留空使用 Google 官方接口。</small
       ></label
     >
     <label
-      ><span>API Key / Token</span><input v-model="phone.settings.api.key" type="password" autocomplete="off"
+      ><strong>API Key / Token</strong><input v-model="phone.settings.api.key" type="password" autocomplete="off"
     /></label>
     <template v-if="phone.settings.api.provider === 'vertex_ai'"
-      ><label><span>Location</span><input v-model.trim="phone.settings.api.vertexLocation" /></label
-      ><label><span>Project ID</span><input v-model.trim="phone.settings.api.vertexProjectId" /></label
+      ><label><strong>Location</strong><input v-model.trim="phone.settings.api.vertexLocation" /></label
+      ><label><strong>Project ID</strong><input v-model.trim="phone.settings.api.vertexProjectId" /></label
     ></template>
     <label
-      ><span>模型</span>
+      ><strong>模型</strong>
       <div class="api-model-row">
         <input v-model.trim="phone.settings.api.model" placeholder="输入模型 ID 或从列表选择" /><button
           type="button"
@@ -64,7 +64,7 @@
     <p v-if="samplingOff" class="api-note">已识别 Gemini 3.5–3.8 Flash，以下五项参数不会发送。</p>
     <div class="settings-columns api-parameters">
       <label v-for="field in samplingFields" :key="field.key"
-        ><span>{{ field.label }}</span
+        ><strong>{{ field.label }}</strong
         ><input
           v-model.number="phone.settings.api[field.key]"
           type="number"
@@ -77,19 +77,19 @@
     <p class="api-note">Top K 为 0 时不发送。服务端不支持的参数可能被忽略或拒绝。</p>
     <div class="settings-columns">
       <label
-        ><span>上下文长度</span
+        ><strong>上下文长度</strong
         ><input v-model.number="phone.settings.api.contextLength" type="number" min="2048" max="2000000" step="1024"
       /></label>
       <label
-        ><span>最大回复长度</span
+        ><strong>最大回复长度</strong
         ><input v-model.number="phone.settings.api.maxTokens" type="number" min="256" max="131072" step="256"
       /></label>
       <label
-        ><span>失败自动重试次数</span
+        ><strong>失败自动重试次数</strong
         ><input v-model.number="phone.settings.api.retryCount" type="number" min="0" max="5" step="1"
       /></label>
       <label
-        ><span>单次超时（毫秒）</span
+        ><strong>单次超时（毫秒）</strong
         ><input v-model.number="phone.settings.api.timeoutMs" type="number" min="10000" max="180000" step="1000"
       /></label>
     </div>

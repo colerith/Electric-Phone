@@ -10,7 +10,7 @@
       </div>
       <template v-if="phone.settings.voiceServices[provider].enabled">
         <label v-if="provider === 'minimax'"
-          ><span>服务区域</span
+          ><strong>服务区域</strong
           ><WaveSelect
             v-model="phone.settings.voiceServices.minimax.region"
             :options="[
@@ -20,14 +20,14 @@
           /><small>区域应与密钥所属平台一致。</small></label
         >
         <label v-if="provider === 'minimax'"
-          ><span>Group ID（可选）</span
+          ><strong>Group ID（可选）</strong
           ><input
             v-model.trim="phone.settings.voiceServices.minimax.groupId"
             autocomplete="off"
             placeholder="账户 Group ID"
         /></label>
         <label
-          ><span>API 密钥</span
+          ><strong>API 密钥</strong
           ><input
             v-model.trim="phone.settings.voiceServices[provider].apiKey"
             type="password"
@@ -35,13 +35,13 @@
             placeholder="输入 API Key"
         /></label>
         <label
-          ><span>语音模型</span
+          ><strong>语音模型</strong
           ><WaveSelect
             v-model="phone.settings.voiceServices[provider].model"
             :options="provider === 'minimax' ? miniModels : elevenModels"
         /></label>
         <label
-          ><span>自定义 API URL（代理）</span
+          ><strong>自定义 API URL（代理）</strong
           ><input
             v-model.trim="phone.settings.voiceServices[provider].baseUrl"
             type="url"

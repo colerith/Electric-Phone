@@ -38,7 +38,18 @@
         ×
       </button></label
     >
-    <div class="sticker-scroll">
+    <nav v-if="activeTab === 'emoji'" class="sticker-tabs emoji-categories" aria-label="Emoji 分类">
+      <button
+        v-for="category in emojiCategories"
+        :key="category.id"
+        type="button"
+        :class="{ active: emojiCategory === category.id }"
+        @click="emojiCategory = category.id"
+      >
+        {{ category.label }}
+      </button>
+    </nav>
+    <div :key="activeTab === 'emoji' ? emojiCategory : activeTab" class="sticker-scroll">
       <div v-if="activeTab === 'emoji'" class="native-emoji-grid">
         <button v-for="emoji in nativeEmoji" :key="emoji" type="button" @click="$emit('send-emoji', emoji)">
           {{ emoji }}
@@ -181,7 +192,7 @@
 </template>
 
 <script setup lang="ts">
-import emojiRegex from 'emoji-regex';
+import emojiData from '@emoji-mart/data/sets/15/native.json';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import WaveSelect from './WaveSelect.vue';
 import type { StickerItem, StickerLibrary, StickerScope } from '../schemas';
@@ -195,9 +206,26 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-const nativeEmojiSource =
-  '😀 😃 😄 😁 😆 😅 😂 🙂 🙃 😉 😊 🥰 😍 🤩 😘 😋 😜 🤪 🤔 🫡 🤐 😐 😑 😶 😏 😒 🙄 😬 😮 😴 🥺 😭 😤 😠 😳 🫣 😱 🫠 🫶 👍 👎 👏 🙌 🤝 💗 💙 💖 ✨ 🌙 ☀️ 🌧️ 🔥 🎉 📡 🫧 🎵 🍰 ☕ 🌸 🐾';
-const nativeEmoji = nativeEmojiSource.split(' ').filter(value => emojiRegex().test(value));
+const emojiLabels: Record<string, string> = {
+  people: '表情与人物',
+  nature: '动物与自然',
+  foods: '食物与饮料',
+  activity: '活动',
+  places: '旅行与地点',
+  objects: '物品',
+  symbols: '符号',
+  flags: '旗帜',
+};
+const emojiCategories = emojiData.categories.map(category => ({
+  ...category,
+  label: emojiLabels[category.id] || category.id,
+}));
+const emojiCategory = ref('people');
+const nativeEmoji = computed(() =>
+  (emojiCategories.find(category => category.id === emojiCategory.value)?.emojis || []).map(
+    id => emojiData.emojis[id].skins[0].native,
+  ),
+);
 const activeTab = ref('emoji');
 const query = ref('');
 const manageMode = ref(false);

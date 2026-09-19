@@ -214,6 +214,23 @@
     display: grid;
     gap: 12px;
   }
+  // 设置项名称统一到滑块标题字号，覆盖旧的 9px !important 规则。
+  .settings-page .settings-card label > strong,
+  .settings-page .settings-card .toggle-row strong,
+  .settings-page .settings-card .settings-slider-row strong {
+    color: var(--settings-text);
+    font-size: calc(13px * var(--wave-font-scale)) !important;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+  .settings-page .api-settings .wave-select-trigger strong,
+  .settings-page .api-settings .wave-select-menu strong,
+  .settings-page .api-settings .api-model-row > button,
+  .settings-page .api-settings .api-inline-actions > button,
+  .settings-page .api-settings .settings-actions > button {
+    font-size: calc(13px * var(--wave-font-scale)) !important;
+    line-height: 1.5;
+  }
   .settings-slider-row b,
   .voice-service-card label b {
     color: var(--settings-accent);

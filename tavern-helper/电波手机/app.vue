@@ -469,6 +469,24 @@
                 ref="draftTranslation"
                 :disabled="Boolean(editingMessageId) || composerComposing"
               />
+              <section v-if="suggestedStickers.length" class="sticker-suggestions" aria-label="表情包联想">
+                <header>
+                  <span>表情包联想 · 点击发送</span
+                  ><button type="button" aria-label="关闭表情包联想" @click="dismissStickerSuggestions">×</button>
+                </header>
+                <div class="sticker-suggestions-list">
+                  <button
+                    v-for="sticker in suggestedStickers"
+                    :key="sticker.id"
+                    type="button"
+                    :title="sticker.name"
+                    :aria-label="`发送表情包：${sticker.name}`"
+                    @click="sendSticker(sticker)"
+                  >
+                    <img :src="sticker.url" :alt="sticker.name" loading="lazy" />
+                  </button>
+                </div>
+              </section>
               <form v-if="!multiSelectMode" class="composer" @submit.prevent="handlePrimarySend">
                 <button type="button" aria-label="扩展功能" @click="toggleExtras">
                   <i class="fa-solid fa-plus"></i>
@@ -625,10 +643,7 @@
                     <i class="fa-solid fa-chevron-right"></i>
                   </button>
                 </div>
-                <p class="settings-storage-mark">
-                  电波手机 · v{{ WAVE_PHONE_RELEASE_VERSION }} · 数据格式 {{ WAVE_PHONE_STORAGE_VERSION }} ·
-                  {{ WAVE_PHONE_IDENTIFIER }}
-                </p>
+                <p class="settings-storage-mark">电波手机 · {{ WAVE_PHONE_RELEASE_VERSION }} © 2026</p>
               </template>
 
               <div v-else class="settings-detail">
@@ -643,8 +658,9 @@
                 <div v-else-if="settingsSection === 'chat'" class="settings-detail">
                   <WaveGenerationSettings />
                   <div class="settings-card">
+                    <div class="wave-settings-title">发送与回复</div>
                     <label>
-                      <span>发送方式</span>
+                      <strong>发送方式</strong>
                       <WaveSelect
                         :model-value="store.settings.sendMode"
                         aria-label="发送方式"
@@ -653,7 +669,7 @@
                       />
                     </label>
                     <label
-                      ><span>私聊与正文的关系</span
+                      ><strong>私聊与正文的关系</strong
                       ><WaveSelect
                         v-model="store.settings.generation.narrativeMode"
                         aria-label="私聊与正文的关系"
@@ -700,6 +716,8 @@
                       回车发送消息，点击纸飞机才激活回复；可连续发送多条后一起回复。电脑 Shift+Enter 换行，手机输入栏 ↵
                       长按换行。
                     </p>
+                  </div>
+                  <div class="settings-card">
                     <WaveTranslationServices />
                   </div>
                   <button class="settings-save-wide" type="button" @click="saveSettings">
@@ -945,9 +963,7 @@ import { playSoundEvent, stopNotification, type SoundEvent } from './services/no
 import { useMusicStore } from './stores/music';
 import WaveToggle from './components/WaveToggle.vue';
 import {
-  WAVE_PHONE_IDENTIFIER,
   WAVE_PHONE_RELEASE_VERSION,
-  WAVE_PHONE_STORAGE_VERSION,
   type AppId,
   type Identity,
   type PhoneMessage,
@@ -1436,7 +1452,7 @@ function scheduleMessageReveal(): void {
 }
 watch(
   () => store.activeThread?.messages.map(message => message.id) || [],
-  (ids, previousIds) => {
+  (_ids, previousIds) => {
     if (!store.activeThread?.generating || replyVisualThreadId.value !== store.activeThread.id || !previousIds) return;
     const known = new Set(previousIds);
     const incoming = store.activeThread.messages.filter(
@@ -1616,6 +1632,43 @@ function updateSendMode(value: string): void {
 }
 
 const composerComposing = ref(false);
+const dismissedStickerDraft = ref('');
+watch(
+  () => [store.activeThread?.id, store.activeThread?.draft],
+  () => {
+    dismissedStickerDraft.value = '';
+  },
+);
+const suggestedStickers = computed(() => {
+  const draft = (store.activeThread?.draft || '').trim().toLocaleLowerCase();
+  if (
+    !draft ||
+    composerComposing.value ||
+    multiSelectMode.value ||
+    editingMessageId.value ||
+    (extraMode.value && extraMode.value !== '表情') ||
+    dismissedStickerDraft.value === draft
+  )
+    return [];
+  const keywords = draft.split(/[\s，。！？、,.!?；;：:]+/u).filter(Boolean);
+  return store.settings.stickers.stickers
+    .filter(
+      sticker => sticker.scope !== 'char' || !sticker.charKey || sticker.charKey === store.activeIdentity?.charKey,
+    )
+    .map(sticker => {
+      const name = sticker.name.trim().toLocaleLowerCase();
+      const score =
+        name === draft ? 3 : name && draft.includes(name) ? 2 : keywords.some(word => name.includes(word)) ? 1 : 0;
+      return { sticker, score };
+    })
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score || Number(b.sticker.favorite) - Number(a.sticker.favorite))
+    .slice(0, 12)
+    .map(item => item.sticker);
+});
+function dismissStickerSuggestions(): void {
+  dismissedStickerDraft.value = (store.activeThread?.draft || '').trim().toLocaleLowerCase();
+}
 const draftTranslation = ref<InstanceType<typeof WaveDraftTranslation> | null>(null);
 function onDraft(event: Event): void {
   store.setDraft((event.target as HTMLTextAreaElement).value);
@@ -2229,9 +2282,7 @@ watch(
     if (
       previous &&
       next.chat === previous.chat &&
-      next.ids.some(
-        id => !previous.ids.includes(id) && !hiddenMessageIds.value.has(id) && !revealQueue.includes(id),
-      )
+      next.ids.some(id => !previous.ids.includes(id) && !hiddenMessageIds.value.has(id) && !revealQueue.includes(id))
     )
       sound('message');
   },

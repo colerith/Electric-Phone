@@ -57,7 +57,7 @@
       </section>
       <section class="settings-card system-settings-card">
         <div class="wave-settings-title">排除标签</div>
-        <button class="system-action" type="button" @click="addDefaultTags">加入拟界文库内置标签</button>
+        <button class="system-action" type="button" @click="addDefaultTags">导入内置标签</button>
         <p>填写标签名（如 style）；生成时排除该标签及包裹内容。原聊天数据不变。</p>
         <form class="system-button-row" @submit.prevent="addTag">
           <input v-model="newTag" placeholder="标签名" aria-label="排除标签名" /><button

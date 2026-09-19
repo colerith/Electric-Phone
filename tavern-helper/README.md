@@ -5,14 +5,16 @@
 ## 目录
 
 - `电波手机/`：完整 TypeScript、Vue、SCSS 和测试源码；运行资源已内嵌在对应源码文件中。
-- `../file/index-1.1.16.js`：当前版本的生产构建，可供酒馆助手通过 jsDelivr 导入。
+- `../file/index-1.1.19.js`：当前版本的生产构建，可供酒馆助手通过 jsDelivr 导入。
+
+本次更新包含表情包联想与 Emoji 扩充、设置字号与文案优化、合并引用气泡、音乐自动播放音源切换，以及角色音乐封面卡。
 
 ## 源码开发
 
 将 `电波手机` 目录放入 Tavern Helper Template 的 `src/util/酒馆助手脚本/` 下。源码依赖模板提供的 `src/util/script.ts` 与全局类型，并额外使用 `fflate` 生成和读取 ZIP 备份：
 
 ```bash
-pnpm add fflate
+pnpm add fflate emoji-regex @emoji-mart/data opencc-js
 pnpm build:dev
 ```
 

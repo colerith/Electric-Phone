@@ -17,12 +17,12 @@
         ><small>独立开关、音量和音源</small></span
       ><WaveToggle v-model="config.enabled" :aria-label="eventLabel" />
     </div>
-    <label><span>提示音</span><WaveSelect v-model="config.soundId" :options="options" aria-label="提示音" /></label>
+    <label><strong>提示音</strong><WaveSelect v-model="config.soundId" :options="options" aria-label="提示音" /></label>
     <label
-      ><span>音量</span><WaveSlider v-model="config.volume" :min="0" :max="1" :step="0.05" aria-label="提示音音量"
+      ><strong>音量</strong><WaveSlider v-model="config.volume" :min="0" :max="1" :step="0.05" aria-label="提示音音量"
     /></label>
     <label
-      ><span>音效文件链接</span
+      ><strong>音效文件链接</strong
       ><input v-model.trim="link" type="url" placeholder="https://…/notification.mp3" @change="useLink"
     /></label>
     <div class="api-inline-actions">

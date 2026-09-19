@@ -48,15 +48,42 @@
         <div v-if="!favoritesOnly" class="music-feature-grid">
           <button class="music-feature" type="button" @click="playTrack(music.recommendations[0] || music.daily[0])">
             <small>FOR YOU</small><strong>{{ music.recommendations[0]?.title || '今日心动' }}</strong
-            ><span>{{ intent.note || '让旋律替你收藏这一刻' }}</span
+            ><span>{{ music.recommendations[0]?.artist || '让旋律替你收藏这一刻' }}</span
             ><img v-if="music.recommendations[0]?.cover" :src="music.recommendations[0].cover" alt="" /><i
               class="fa-solid fa-circle-play"
-            ></i></button
-          ><button class="music-feature radio-feature" type="button" @click="findIntent">
-            <small>PRIVATE RADIO</small><strong>角色电台</strong><span>{{ intent.artist || '搜索此刻想听的声音' }}</span
-            ><i class="fa-solid fa-headphones"></i>
+            ></i>
           </button>
+          <article class="music-feature radio-feature" :class="{ 'has-cover': radioCover }">
+            <img v-if="radioCover" :src="radioCover" alt="" @error="failedRadioCover = radioCover" />
+            <small>PRIVATE RADIO</small><strong :title="intent.title">{{ intent.title || '角色电台' }}</strong>
+            <span :title="intent.artist">{{ intent.artist || '搜索此刻想听的声音' }}</span>
+            <p v-if="intent.note" class="music-radio-note">{{ intent.note }}</p>
+            <footer class="music-radio-actions">
+              <button
+                v-if="intent.title || intent.note"
+                type="button"
+                :aria-expanded="radioNoteOpen"
+                @click="radioNoteOpen = !radioNoteOpen"
+              >
+                {{ radioNoteOpen ? '收起详情' : '查看感想' }}
+              </button>
+              <button
+                class="music-radio-play"
+                type="button"
+                :disabled="!intent.title"
+                :aria-label="`播放角色音乐：${intent.title || '暂无歌曲'}`"
+                @click="findIntent"
+              >
+                <i class="fa-solid fa-play" aria-hidden="true"></i>
+              </button>
+            </footer>
+          </article>
         </div>
+        <section v-if="radioNoteOpen && !favoritesOnly" class="music-radio-detail" aria-label="角色音乐与听歌感想">
+          <strong>{{ intent.title || '听歌感想' }}</strong>
+          <span v-if="intent.artist">{{ intent.artist }}</span>
+          <p>{{ intent.note || '还没有留下听歌感想。' }}</p>
+        </section>
         <div class="music-library-heading">
           <strong>{{ favoritesOnly ? '喜欢的歌' : '发现旋律' }}</strong
           ><small>{{ displayTracks.length }} 首</small>
@@ -95,12 +122,7 @@
               ><button type="button" :disabled="music.busy" @click="playTrack(track)">
                 <strong>{{ track.title }}</strong
                 ><small>{{ track.artist }} · {{ track.album }} · {{ musicSourceLabel(track.source) }}</small></button
-              ><button
-                type="button"
-                aria-label="喜欢歌曲"
-                :aria-pressed="isFavorite(track)"
-                @click="favorite(track)"
-              >
+              ><button type="button" aria-label="喜欢歌曲" :aria-pressed="isFavorite(track)" @click="favorite(track)">
                 <i :class="isFavorite(track) ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i></button
               ><button type="button" aria-label="加入歌单或播放队列" @click="collecting = track">
                 <i class="fa-solid fa-plus"></i>
@@ -321,6 +343,19 @@ const revealedTrack = ref('');
 let trackSwipe: { x: number; y: number; key: string } | null = null;
 let suppressTrackClickUntil = 0;
 const intent = computed(() => musicIntent(props.raw));
+const radioNoteOpen = ref(false);
+const failedRadioCover = ref('');
+const radioCover = computed(() => {
+  const cover = music.radioTrack?.cover || '';
+  return cover !== failedRadioCover.value ? cover : '';
+});
+watch(
+  () => props.raw,
+  () => {
+    radioNoteOpen.value = false;
+    failedRadioCover.value = '';
+  },
+);
 const trackKey = (track: Track) => `${track.source}:${track.id}`;
 const isFavorite = music.isFavorite;
 const displayTracks = computed(() =>
@@ -342,7 +377,11 @@ function search() {
 }
 function findIntent() {
   query.value = `${intent.value.title} ${intent.value.artist}`.trim();
-  if (query.value) search();
+  if (query.value) {
+    favoritesOnly.value = false;
+    libraryTab.value = false;
+    void music.sync(props.raw, phone.state.activeCharKey, true);
+  }
 }
 function playTrack(track: Track) {
   if (revealedTrack.value === trackKey(track)) {
