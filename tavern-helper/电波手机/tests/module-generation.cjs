@@ -19,6 +19,17 @@ const schema = require(base + '/schemas.ts'),
   follow = require(base + '/services/generation/follow-generation.ts');
 (async () => {
   const settings = schema.ScriptSettingsSchema.parse({});
+  assert.equal(schema.MessageTypeSchema.safeParse('call').success, false);
+  assert.equal(
+    schema.PhoneMessageSchema.parse({
+      id: 'legacy-call',
+      sender: 'char',
+      type: 'call',
+      content: '旧通话记录',
+      createdAt: '',
+    }).type,
+    'system',
+  );
   assert.equal(settings.generation.followEnabled, false);
   assert.equal(
     follow.chooseFollowModule({ ...settings.generation, followEnabled: true, probability: 0 }, () => 0),
@@ -65,6 +76,32 @@ const schema = require(base + '/schemas.ts'),
         type: 'text',
         content: 'ok',
       })),
+      app_updates: {},
+    }).success,
+    true,
+  );
+  assert.equal(
+    schema.PhoneChatResponseSchema.safeParse({
+      version: 1,
+      thread_id: 'test',
+      messages: [
+        {
+          client_id: 'packet-1',
+          sender: 'char',
+          type: 'red_packet',
+          content: '大家一起沾沾喜气',
+          payload: {
+            amount: 88,
+            currency: 'CNY',
+            note: '好运来',
+            packetType: 'group',
+            state: 'group_available',
+            count: 5,
+            claimedCount: 0,
+            actorKey: 'alice',
+          },
+        },
+      ],
       app_updates: {},
     }).success,
     true,

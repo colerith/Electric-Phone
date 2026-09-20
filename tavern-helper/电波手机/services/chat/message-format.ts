@@ -53,14 +53,14 @@ export function formatMessagePreview(message: MessageInput, charSenderName = '')
     case 'transfer':
       summary = `[转账] ${[p('currency'), p('amount')].filter(Boolean).join(' ')}${p('note') || content ? ` · ${p('note') || content}` : ''}`;
       break;
+    case 'red_packet':
+      summary = `[红包] ${p('note') || content || '恭喜发财'} · ${redPacketStateText(message)}`;
+      break;
     case 'location':
       summary = `[位置] ${p('name') || content}`;
       break;
     case 'link':
       summary = `[链接] ${p('title') || content}`;
-      break;
-    case 'call':
-      summary = `[${p('kind') === 'video' ? '视频' : '语音'}通话] ${content}`;
       break;
     case 'zone':
       summary = `[动态] ${p('author') ? `${p('author')}：` : ''}${p('postContent') || content}`;
@@ -115,14 +115,14 @@ export function formatPhoneMessage(message: MessageInput, history: PhoneMessage[
     case 'transfer':
       result = `[剧情转账] 金额：${p('amount') || '未提供'} ${p('currency') || 'CNY'}；备注：${p('note') || content}；状态：${({ pending: '未收款', received: '已收款', refunded: '已退款' } as Record<string, string>)[p('state')] || '未收款'}`;
       break;
+    case 'red_packet':
+      result = `[剧情红包] 类型：${p('packetType') === 'group' ? '群聊拼手气' : '私聊'}；金额：${p('amount') || '未提供'} ${p('currency') || 'CNY'}；祝福：${p('note') || content || '恭喜发财'}；状态：${redPacketStateText(message)}${p('packetType') === 'group' ? `；领取进度：${p('claimedCount') || '0'}/${p('count') || '1'}` : ''}`;
+      break;
     case 'location':
       result = `[位置] ${p('name') || content}${p('address') ? `；地点描述：${p('address')}` : ''}；距离：${distanceLabel(locationDistance(message))}（场景设定，非实时定位）`;
       break;
     case 'link':
       result = `[链接] 标题：${p('title') || content}；地址：${p('url') || '未提供'}`;
-      break;
-    case 'call':
-      result = `[${p('kind') === 'video' ? '视频' : '语音'}通话] 留言：${content}；状态：${p('state') || '邀请中'}（剧情事件）`;
       break;
     case 'zone':
       result = `[空间动态转发] 动态ID：${p('postId')}；作者：${p('author')}；时间：${p('date') || '未提供'}\n${p('title') ? `标题：${p('title')}\n` : ''}动态内容：${p('postContent') || content}`;
@@ -150,10 +150,27 @@ export function editedMessagePayload(message: MessageInput, content: string): Re
       location: 'name',
       link: 'title',
       transfer: 'note',
+      red_packet: 'note',
       zone: 'postContent',
     } as Record<string, string>
   )[message.type];
   if (key) payload[key] = content;
   if (message.type === 'emoji') payload[payload.emojiType === 'sticker' ? 'name' : 'emoji'] = content;
   return payload;
+}
+
+function redPacketStateText(message: MessageInput): string {
+  const value = printable(message.payload.state).toLowerCase();
+  const count = Math.max(1, Math.round(Number(message.payload.count) || 1));
+  const claimed = Math.min(count, Math.max(0, Math.round(Number(message.payload.claimedCount) || 0)));
+  return (
+    {
+      pending: '未收款',
+      received: '已收款',
+      refunded: '已退回',
+      group_available: `群聊待抢 ${claimed}/${count}`,
+      group_claimed: `群聊已抢 ${claimed}/${count}`,
+      group_empty: `群聊已抢完 ${count}/${count}`,
+    }[value] || '未收款'
+  );
 }

@@ -251,6 +251,7 @@ function addDefaultTags() {
       '日月来信',
       'branches',
       'horae',
+      'snow',
     ]),
   ];
 }

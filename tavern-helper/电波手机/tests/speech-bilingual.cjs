@@ -13,6 +13,7 @@ global.SillyTavern = { name1: 'User' };
 global._ = require('lodash');
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 const voiceServicesUi = fs.readFileSync(path.join(base, 'components/settings/WaveVoiceServices.vue'), 'utf8');
+const appUi = fs.readFileSync(path.join(base, 'app.vue'), 'utf8');
 const { displaySpeechText } = require(base + '/services/chat/speech-tags.ts');
 const { splitElectric } = require(base + '/services/generation/electric.ts');
 const { VoiceServicesSchema, CharacterVoiceSchema, speechRequest } = require(base + '/services/chat/speech.ts');
@@ -43,6 +44,8 @@ const services = VoiceServicesSchema.parse({
 const voice = CharacterVoiceSchema.parse({ provider: 'minimax', voiceId: 'test' });
 assert.match(voiceServicesUi, /value: 'speech-2\.8-hd', label: 'Speech 2\.8 HD'/);
 assert.match(voiceServicesUi, /value: 'speech-2\.8-turbo', label: 'Speech 2\.8 Turbo'/);
+assert.match(appUi, /\{ name: '红包', icon: 'fa-solid fa-gift' \}/);
+assert.doesNotMatch(appUi, /\{ name: '通话', icon:/);
 assert.equal(JSON.parse(speechRequest(raw, services, voice).init.body).text, raw);
 services.minimax.model = 'speech-2.8-turbo';
 assert.equal(JSON.parse(speechRequest(raw, services, voice).init.body).model, 'speech-2.8-turbo');
@@ -132,6 +135,39 @@ assert.equal(
   formatMessagePreview({ sender: 'system', type: 'system', content: '通话已结束', payload: {} }),
   '[系统] 通话已结束',
 );
+assert.equal(
+  formatMessagePreview({
+    sender: 'char',
+    type: 'red_packet',
+    content: '周末快乐',
+    payload: { amount: 20, currency: 'CNY', note: '周末快乐', packetType: 'private', state: 'pending' },
+  }),
+  '[红包] 周末快乐 · 未收款',
+);
+assert.match(
+  formatPhoneMessage({
+    sender: 'char',
+    type: 'red_packet',
+    content: '拼手气',
+    payload: {
+      amount: 88,
+      currency: 'CNY',
+      note: '拼手气',
+      packetType: 'group',
+      state: 'group_claimed',
+      count: 5,
+      claimedCount: 2,
+    },
+  }),
+  /剧情红包[\s\S]*群聊已抢 2\/5[\s\S]*领取进度：2\/5/,
+);
+const chatPrompt = buildPhonePrompts(input)
+  .filter(item => item && typeof item === 'object')
+  .map(item => item.content || '')
+  .join('\n');
+assert(chatPrompt.includes('低概率主动发送'));
+assert(chatPrompt.includes('red_packet'));
+assert(!chatPrompt.includes('link、call'));
 assert.equal(voiceGenerationRules({ ...input, voice: { ...voice, provider: 'off' } }), '');
 assert(
   voiceGenerationRules({ ...input, voice: { ...voice, provider: 'elevenlabs' } }).includes('<break time="0.5s" />'),

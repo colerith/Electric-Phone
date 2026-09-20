@@ -14,7 +14,7 @@ import { ZoneInteractionsSchema } from './services/space/zone';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.1.26';
+export const WAVE_PHONE_RELEASE_VERSION = '1.1.27';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -306,19 +306,22 @@ export const MessageTypeSchema = z.enum([
   'emoji',
   'voice',
   'transfer',
+  'red_packet',
   'location',
   'link',
-  'call',
   'system',
   'zone',
 ]);
 export type MessageType = z.infer<typeof MessageTypeSchema>;
+const StoredMessageTypeSchema = z
+  .union([MessageTypeSchema, z.literal('call')])
+  .transform(value => (value === 'call' ? ('system' as const) : value));
 
 export const PhoneMessageSchema = z.object({
   id: z.string(),
   clientId: z.string().prefault(''),
   sender: z.enum(['user', 'char', 'system']),
-  type: MessageTypeSchema.prefault('text'),
+  type: StoredMessageTypeSchema.prefault('text'),
   content: z.string().prefault(''),
   createdAt: z.string(),
   status: z.enum(['sending', 'sent', 'failed']).prefault('sent'),

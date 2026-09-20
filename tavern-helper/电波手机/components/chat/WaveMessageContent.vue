@@ -174,6 +174,26 @@
         </div>
       </div>
 
+      <div
+        v-else-if="message.type === 'red_packet'"
+        class="wave-message-red-packet"
+        :class="[`red-packet-${redPacketState}`, { 'red-packet-group': redPacketIsGroup }]"
+      >
+        <div class="wave-red-packet-body">
+          <span class="wave-red-packet-icon" aria-hidden="true"><i class="fa-solid fa-envelope-open-text"></i></span>
+          <div>
+            <strong>{{ payloadString('note') || message.content || '恭喜发财，大吉大利' }}</strong>
+            <small v-if="redPacketIsGroup"
+              >{{ payloadString('currency') || 'CNY' }} {{ amountText }} · {{ redPacketCount }} 个红包</small
+            ><small v-else>{{ payloadString('currency') || 'CNY' }} {{ amountText }}</small>
+          </div>
+        </div>
+        <footer>
+          <span>{{ redPacketIsGroup ? '群聊拼手气红包' : '电波红包' }}</span
+          ><b>{{ redPacketStateLabel }}</b>
+        </footer>
+      </div>
+
       <div v-else-if="message.type === 'location'" class="wave-message-location">
         <div class="wave-location-map" :style="locationStyle" aria-hidden="true">
           <i class="road road-a"></i><i class="road road-b"></i><i class="road road-c"></i><i class="road road-d"></i>
@@ -213,14 +233,6 @@
           </div>
           <i class="fa-solid fa-arrow-up-right-from-square"></i>
         </a>
-      </div>
-      <div v-else-if="message.type === 'call'" class="wave-message-call">
-        <span><i :class="payloadString('kind') === 'video' ? 'fa-solid fa-video' : 'fa-solid fa-phone'"></i></span>
-        <div>
-          <small>{{ payloadString('kind') === 'video' ? '视频通话' : '语音通话' }}</small
-          ><strong>{{ message.content }}</strong>
-        </div>
-        <b>{{ payloadString('state') === 'ended' ? '已结束' : '剧情邀请' }}</b>
       </div>
       <div v-else-if="message.type === 'zone'" class="wave-message-zone">
         <p v-if="forwardNote" class="wave-forward-note">{{ forwardNote }}</p>
@@ -468,6 +480,37 @@ const transferState = computed<'pending' | 'received' | 'refunded'>(() => {
 const transferStateLabel = computed(
   () => ({ pending: '未收款', received: '已收款', refunded: '已退款' })[transferState.value],
 );
+type RedPacketState = 'pending' | 'received' | 'refunded' | 'group_available' | 'group_claimed' | 'group_empty';
+const redPacketState = computed<RedPacketState>(() => {
+  const state = payloadString('state').toLowerCase();
+  if (['received', 'paid', 'accepted'].includes(state)) return 'received';
+  if (['refunded', 'refund', 'returned'].includes(state)) return 'refunded';
+  if (state === 'group_claimed') return 'group_claimed';
+  if (state === 'group_empty') return 'group_empty';
+  if (state === 'group_available') return 'group_available';
+  return 'pending';
+});
+const redPacketIsGroup = computed(
+  () => payloadString('packetType') === 'group' || redPacketState.value.startsWith('group_'),
+);
+const redPacketCount = computed(() => Math.max(1, Math.round(payloadNumber('count') || 1)));
+const redPacketClaimedCount = computed(() =>
+  _.clamp(
+    redPacketState.value === 'group_empty' ? redPacketCount.value : Math.round(payloadNumber('claimedCount') || 0),
+    0,
+    redPacketCount.value,
+  ),
+);
+const redPacketStateLabel = computed(() => {
+  if (!redPacketIsGroup.value)
+    return ({ pending: '未收款', received: '已收款', refunded: '已退回' } as Record<string, string>)[
+      redPacketState.value
+    ];
+  if (redPacketState.value === 'refunded') return '已退回';
+  if (redPacketState.value === 'group_empty') return `已抢完 ${redPacketCount.value}/${redPacketCount.value}`;
+  if (redPacketState.value === 'group_claimed') return `已抢 ${redPacketClaimedCount.value}/${redPacketCount.value}`;
+  return `待抢 ${redPacketClaimedCount.value}/${redPacketCount.value}`;
+});
 const locationStyle = computed<Record<string, string>>(() => {
   const seed = hashText(`${props.message.id}:${payloadString('name') || props.message.content}`);
   return {

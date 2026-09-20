@@ -127,15 +127,24 @@
     display: block;
     overflow: visible;
   }
-  .wave-app-content .memo-paper-toggle {
+  .memo-paper-actions {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    width: 100%;
     margin-top: 15px;
     padding: 8px 0 0;
     border-top: 1px solid var(--wave-line);
+  }
+  .wave-app-content .memo-paper-toggle {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
     border-radius: 0;
     color: var(--wave-muted);
     background: transparent;
@@ -264,6 +273,14 @@
     border-top: 1px dashed var(--wave-line);
     color: var(--wave-muted);
     font-size: 9px;
+  }
+  .memo-ticket-footer > span:first-child {
+    flex: 1;
+    min-width: 0;
+  }
+  .memo-paper-actions .wave-content-delete,
+  .memo-ticket-footer .wave-content-delete {
+    align-self: flex-end;
   }
   .memo-barcode {
     flex: 0 0 42px;

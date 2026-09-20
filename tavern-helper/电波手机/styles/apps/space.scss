@@ -1195,4 +1195,50 @@
     font-size: 11px;
     line-height: 1.6;
   }
+
+  /*
+   * These two forms are rendered directly in SillyTavern's document. Some
+   * themes apply paper textures, inset shadows and forced text colours to all
+   * inputs, so explicitly restore the phone controls at their page boundary.
+   */
+  .space-hole-compose textarea,
+  .space-settings-card.moments-form input:not([type='range']):not([type='file']),
+  .space-settings-card.moments-form textarea {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    border: 1px solid var(--wave-line, #e5e8eb) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    color: var(--wave-ink, #374558) !important;
+    -webkit-text-fill-color: var(--wave-ink, #374558) !important;
+    caret-color: var(--settings-accent, #6489be) !important;
+    text-align: left !important;
+    text-indent: 0 !important;
+    text-shadow: none !important;
+    opacity: 1 !important;
+  }
+  .space-hole-compose textarea {
+    border-radius: 16px !important;
+    padding: 14px !important;
+    background-color: var(--wave-card, #fff) !important;
+    font: 400 13px/1.5 var(--wave-ui-font, Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif) !important;
+  }
+  .space-settings-card.moments-form input:not([type='range']):not([type='file']),
+  .space-settings-card.moments-form textarea {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-radius: 12px !important;
+    padding: 10px 12px !important;
+    background-color: var(--wave-tint, #f3f5f8) !important;
+    font: 400 13px/1.5 var(--wave-ui-font, Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif) !important;
+  }
+  .space-hole-compose textarea::placeholder,
+  .space-settings-card.moments-form input::placeholder,
+  .space-settings-card.moments-form textarea::placeholder {
+    color: var(--wave-muted, #9199a5) !important;
+    -webkit-text-fill-color: var(--wave-muted, #9199a5) !important;
+    opacity: 0.72 !important;
+    text-shadow: none !important;
+  }
 }

@@ -13,5 +13,10 @@ assert.match(style, /\.memo-doodle-sheet pre\s*\{[\s\S]*?overflow-x: auto;[\s\S]
 assert.match(style, /\.memo-doodle-sheet pre::-webkit-scrollbar\s*\{[\s\S]*?display: none;/);
 assert.match(style, /@media \(hover: hover\) and \(pointer: fine\)[\s\S]*?cursor: grab;/);
 assert.match(style, /\.memo-doodle-sheet pre\.is-dragging\s*\{[\s\S]*?cursor: grabbing;/);
+assert.match(memo, /class="memo-paper-actions"[\s\S]*?class="wave-content-delete"/);
+assert.match(memo, /class="memo-ticket-footer"[\s\S]*?class="wave-content-delete"/);
+assert.match(style, /\.memo-paper-actions\s*\{[\s\S]*?justify-content: space-between;/);
 
-console.log('PASS: memo doodles support scrollbar-free horizontal mouse dragging.');
+console.log(
+  'PASS: memo doodles support scrollbar-free horizontal mouse dragging and card deletes stay at bottom-right.',
+);

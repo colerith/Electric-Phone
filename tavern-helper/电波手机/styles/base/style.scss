@@ -3399,6 +3399,108 @@
   background: rgba(94, 128, 190, 0.2);
 }
 
+#wave-phone-script-root .wave-message-red-packet {
+  --red-packet-color: #df6a5d;
+  --red-packet-deep: #c95046;
+  width: 226px;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(156, 66, 54, 0.12);
+  border-radius: 18px;
+  background: var(--red-packet-color);
+  color: #fff;
+  box-shadow: 0 9px 20px rgba(119, 54, 45, 0.16);
+}
+
+#wave-phone-script-root .message-row.user .wave-message-red-packet {
+  --red-packet-color: #ea7180;
+  --red-packet-deep: #cf5868;
+}
+
+#wave-phone-script-root .wave-message-red-packet.red-packet-group {
+  --red-packet-color: #e37b4d;
+  --red-packet-deep: #c86036;
+}
+
+#wave-phone-script-root .wave-red-packet-body {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 82px;
+  padding: 14px 15px;
+  background:
+    radial-gradient(circle at 92% -15%, rgba(255, 226, 152, 0.3) 0 32%, transparent 33%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 55%);
+}
+
+#wave-phone-script-root .wave-red-packet-icon {
+  width: 46px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px 8px 15px 15px;
+  background: #f8d88b;
+  color: var(--red-packet-deep);
+  box-shadow: inset 0 -10px 0 rgba(218, 156, 48, 0.12);
+  font-size: 19px;
+}
+
+#wave-phone-script-root .wave-red-packet-body > div {
+  min-width: 0;
+}
+
+#wave-phone-script-root .wave-red-packet-body strong,
+#wave-phone-script-root .wave-red-packet-body small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+#wave-phone-script-root .wave-red-packet-body strong {
+  color: #fff;
+  font-size: calc(13px * var(--wave-font-scale));
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+#wave-phone-script-root .wave-red-packet-body small {
+  margin-top: 5px;
+  color: rgba(255, 248, 237, 0.82);
+  font-size: calc(9px * var(--wave-font-scale));
+}
+
+#wave-phone-script-root .wave-message-red-packet > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fffaf3;
+  color: #9b7d68;
+  font-size: calc(8px * var(--wave-font-scale));
+}
+
+#wave-phone-script-root .wave-message-red-packet > footer > b {
+  flex: 0 0 auto;
+  color: var(--red-packet-deep);
+  font-size: inherit;
+}
+
+#wave-phone-script-root .wave-message-red-packet:is(.red-packet-received, .red-packet-group_claimed) {
+  --red-packet-color: #ce8877;
+  --red-packet-deep: #a96558;
+}
+
+#wave-phone-script-root .wave-message-red-packet:is(.red-packet-refunded, .red-packet-group_empty) {
+  --red-packet-color: #b7aaa2;
+  --red-packet-deep: #7f746e;
+  box-shadow: 0 7px 16px rgba(68, 57, 52, 0.1);
+}
+
+#wave-phone-script-root .wave-message-red-packet.red-packet-refunded .wave-red-packet-icon {
+  filter: saturate(0.45);
+}
+
 #wave-phone-script-root .wave-message-location {
   width: 220px;
   display: block;

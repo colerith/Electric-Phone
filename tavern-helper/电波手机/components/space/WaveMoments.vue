@@ -37,6 +37,7 @@
             >@{{ phone.state.moments.profile.account.replace(/^@+/, '') }}</small
           >
           <WaveProfileDecorations
+            v-if="context !== 'messenger'"
             :title="phone.state.moments.profile.title"
             :title-color="phone.state.moments.profile.titleColor"
             :badges="phone.state.moments.profile.badges"

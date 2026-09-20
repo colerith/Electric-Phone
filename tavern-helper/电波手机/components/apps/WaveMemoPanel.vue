@@ -30,8 +30,23 @@
         <span class="memo-tape" aria-hidden="true"></span>
         <div class="memo-paper-meta">
           <span>NOTE / {{ String(note.index + 1).padStart(2, '0') }}</span
-          ><i class="fa-solid fa-thumbtack" aria-hidden="true"></i
-          ><button
+          ><i class="fa-solid fa-thumbtack" aria-hidden="true"></i>
+        </div>
+        <strong class="memo-paper-title">{{ note.title }}</strong>
+        <p :id="`wave-memo-note-${note.index}`" class="memo-paper-copy">{{ note.content || '这张便签还没有正文。' }}</p>
+        <WaveModuleTranslation app="memo" :translation="note.translation" />
+        <div class="memo-paper-actions">
+          <button
+            type="button"
+            class="memo-paper-toggle"
+            :aria-expanded="expanded.has(note.index)"
+            :aria-controls="`wave-memo-note-${note.index}`"
+            @click="toggleNote(note.index)"
+          >
+            {{ expanded.has(note.index) ? '折起便签' : '展开阅读'
+            }}<i :class="expanded.has(note.index) ? 'fa-solid fa-minus' : 'fa-solid fa-arrow-up-right-from-square'"></i>
+          </button>
+          <button
             type="button"
             class="wave-content-delete"
             :aria-label="`删除备忘：${note.title}`"
@@ -40,19 +55,6 @@
             <i class="fa-regular fa-trash-can"></i>
           </button>
         </div>
-        <strong class="memo-paper-title">{{ note.title }}</strong>
-        <p :id="`wave-memo-note-${note.index}`" class="memo-paper-copy">{{ note.content || '这张便签还没有正文。' }}</p>
-        <WaveModuleTranslation app="memo" :translation="note.translation" />
-        <button
-          type="button"
-          class="memo-paper-toggle"
-          :aria-expanded="expanded.has(note.index)"
-          :aria-controls="`wave-memo-note-${note.index}`"
-          @click="toggleNote(note.index)"
-        >
-          {{ expanded.has(note.index) ? '折起便签' : '展开阅读'
-          }}<i :class="expanded.has(note.index) ? 'fa-solid fa-minus' : 'fa-solid fa-arrow-up-right-from-square'"></i>
-        </button>
       </article>
     </div>
     <article v-for="doodle in visibleDoodles" :key="doodle.id" class="memo-doodle-ticket">
@@ -60,14 +62,7 @@
         <div>
           <small>DOODLE NOTE</small><strong>{{ doodle.title || '随性涂鸦' }}</strong>
         </div>
-        <button
-          type="button"
-          class="wave-content-delete"
-          :aria-label="`删除涂鸦：${doodle.title || '随性涂鸦'}`"
-          @click="$emit('delete', 'doodle', doodle.id)"
-        >
-          <i class="fa-regular fa-trash-can"></i></button
-        ><span class="memo-paperclip" aria-hidden="true"></span>
+        <span class="memo-paperclip" aria-hidden="true"></span>
       </header>
       <div v-if="doodle.content" class="memo-doodle-sheet">
         <pre
@@ -88,7 +83,15 @@
       </div>
       <WaveModuleTranslation app="memo" :translation="doodle.translation" />
       <footer class="memo-ticket-footer">
-        <span>留下一点不必说出口的心事</span><span class="memo-barcode" aria-hidden="true"></span>
+        <span>留下一点不必说出口的心事</span><span class="memo-barcode" aria-hidden="true"></span
+        ><button
+          type="button"
+          class="wave-content-delete"
+          :aria-label="`删除涂鸦：${doodle.title || '随性涂鸦'}`"
+          @click="$emit('delete', 'doodle', doodle.id)"
+        >
+          <i class="fa-regular fa-trash-can"></i>
+        </button>
       </footer>
     </article>
     <div v-if="!visibleNotes.length && !visibleDoodles.length" class="memo-empty">
