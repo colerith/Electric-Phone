@@ -31,7 +31,6 @@ import {
 import { isLimitedApp, mergeLimitedModule, type RoundBudget } from '../services/generation/module-updates';
 import { resolveModuleSettings, type ModuleSettings } from '../services/generation/module-settings';
 import { clearThreadHistory } from '../services/chat/chat-history';
-import { registerElectricDisplay } from '../services/generation/electric-display';
 import {
   MomentsStateSchema,
   MomentUserProfileMapSchema,
@@ -84,7 +83,7 @@ import { WeatherLocationSchema, type WeatherLocation } from '../services/core/we
 import { parseWallet, walletTotals, type WalletTransaction } from '../services/wallet/wallet';
 import { klona } from 'klona';
 import { defineStore } from 'pinia';
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import {
   AppSnapshotSchema,
   PhoneMessageSchema,
@@ -361,7 +360,6 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   const moduleGenerating = ref(false);
   const manualGeneratingApp = ref<ManualGenerationTarget | null>(null);
   let moduleGenerationId = '';
-  let disposeElectric: (() => void) | null = null;
   let disposeFollow: (() => void) | null = null;
   let disposeMoments: (() => void) | null = null;
   let zoneGenerationId = '';
@@ -973,7 +971,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         Object.values(nextState.threads).map(thread => [thread.charKey, thread.messages.map(message => message.id)]),
       );
       const previousMoments = JSON.stringify(nextState.moments);
-      const assistantMessages = readChatFloors({ role: 'assistant', hide_state: 'unhidden' });
+      // Tavern's hidden state only controls its own context/display. Phone data remains persistent.
+      const assistantMessages = readChatFloors({ role: 'assistant', hide_state: 'all' });
       const parse = () => assistantMessages.flatMap(message => parsePhoneMessage(message.message, message.message_id));
       const blocks = settings.value.basic.cacheEnabled
         ? await cachedParse(
@@ -1226,7 +1225,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const changed = previousUpdates && [...currentUpdates].some(([id, value]) => previousUpdates.get(id) !== value);
       observedUpdates.set(updateKey, currentUpdates);
       const updatedByChar = new Map<string, Set<AppId>>();
-      if (previousUpdates) {
+      // A removed/hidden/normalized floor is not new phone content and must not create a red dot.
+      if (changed) {
         for (const [charKey, snapshot] of Object.entries(nextState.snapshots)) {
           const before = previousSnapshots[charKey] || AppSnapshotSchema.parse({});
           const updated = new Set<AppId>();
@@ -1356,12 +1356,6 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       logDiagnostic('正则安装失败', String(error));
     }
     registerEvents();
-    const electricDisplay = registerElectricDisplay(() => settings.value.appearance.hideElectric);
-    const stopElectricWatch = watch(() => settings.value.appearance.hideElectric, electricDisplay.refresh);
-    disposeElectric = () => {
-      stopElectricWatch();
-      electricDisplay.dispose();
-    };
     disposeFollow = registerFollowGeneration(
       moduleInput,
       () =>
@@ -1399,8 +1393,6 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   function dispose(): void {
     disposeMoments?.();
     disposeMoments = null;
-    disposeElectric?.();
-    disposeElectric = null;
     disposeFollow?.();
     disposeFollow = null;
     if (moduleGenerationId) void stopPhoneGeneration(moduleGenerationId);

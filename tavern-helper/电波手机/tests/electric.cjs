@@ -42,31 +42,15 @@ const vue = require('vue'),
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 
 global.MutationObserver = dom.window.MutationObserver;
-const { splitElectric } = require(base + '/services/generation/electric.ts'),
-  { registerElectricDisplay } = require(base + '/services/generation/electric-display.ts');
+const { splitElectric } = require(base + '/services/generation/electric.ts');
 assert.deepEqual(splitElectric('<electric>one {x}</electric>\n{"ok":true}'), {
   electric: 'one {x}',
   electricTitle: '',
   body: '{"ok":true}',
 });
 assert.equal(splitElectric('<electric>incomplete').body, '');
-const chat = document.createElement('div');
-chat.id = 'chat';
-chat.innerHTML = '<div class="mes" mesid="0"><div class="mes_text"><p>正文</p></div></div>';
-document.body.append(chat);
-global.getChatMessages = () => [{ message: '<electric><img src=x onerror=alert(1)>解释</electric>正文' }];
-let hidden = false;
-const display = registerElectricDisplay(() => hidden);
-assert(document.querySelector('.wave-electric-host'));
-assert(!document.querySelector('.wave-electric-host').open);
-assert(!document.querySelector('.wave-electric-host img'));
-assert(document.querySelector('.wave-electric-host pre').textContent.includes('<img'));
-display.refresh();
-assert.equal(document.querySelectorAll('.wave-electric-host').length, 1);
-hidden = true;
-display.refresh();
-assert(!document.querySelector('.wave-electric-host'));
-display.dispose();
+const storeSource = fs.readFileSync(base + '/stores/phone.ts', 'utf8');
+assert(!storeSource.includes('registerElectricDisplay'));
 const { defaultPresetItems, buildPhonePrompts, buildModulePrompt } = require(base + '/prompts/index.ts');
 const defaults = defaultPresetItems();
 assert.deepEqual(
@@ -97,5 +81,5 @@ const prompt = buildPhonePrompts(input)
 assert(prompt.includes('私聊回复'));
 assert(!prompt.includes('钱包更新'));
 console.log(
-  'PASS: electric extraction, safe collapsed host rendering/hide/deduplication, preset tail order and app-specific prompt activation.',
+  'PASS: electric extraction remains phone-local, Tavern floor rendering is untouched, preset tail order and app-specific prompt activation.',
 );

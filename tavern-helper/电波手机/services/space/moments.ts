@@ -85,7 +85,7 @@ const LikeEventSchema = z.object({
 export const MomentBatchSchema = z.object({
   npcs: z
     .array(MomentNpcSchema.extend({ profile: z.string().max(2000).default('') }))
-    .max(1)
+    .max(2)
     .default([]),
   likes: z.array(LikeEventSchema).max(3).default([]),
   request_id: z.string(),

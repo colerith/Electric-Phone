@@ -14,7 +14,7 @@
         <span><strong>显示 Ecot</strong><small>以折叠形式查看模型附带的剧情辅助信息</small></span>
         <WaveToggle v-model="showElectric" aria-label="显示 Ecot 内容" />
       </div>
-      <p>Ecot 不是预览。手机内仅会在消息页显示；关闭后，手机与酒馆楼层都会完全隐藏。</p>
+      <p>Ecot 不是预览。此开关只控制手机消息与应用中的折叠内容，不改动酒馆正文楼层。</p>
     </section>
     <section class="settings-card appearance-group">
       <div class="wave-settings-title">纪念日</div>

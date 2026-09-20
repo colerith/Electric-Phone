@@ -159,6 +159,8 @@ const clickText = (selector, text) => {
     withdrawn: false,
   });
   assert(buildChatReference(phone.state).includes('独立聊天参考'));
+  phone.activeThread.messages[0].payload.waveFloor = true;
+  assert(buildChatReference(phone.state).includes('酒馆跟随生成'));
   assert.equal(resolveNarrativeRelation('auto', 'linked'), 'linked');
   assert.equal(resolveNarrativeRelation('auto'), 'independent');
   phone.activeThread.hidden = true;

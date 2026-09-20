@@ -3,7 +3,6 @@ import { SPEECH_TAG_PATTERN } from '../chat/speech-tags';
 import { validateWalletPatch, type WalletAuthorization } from '../wallet/wallet-accounts';
 import { ModuleSettingsSchema, type ModuleSettings } from './module-settings';
 import { isLimitedApp, limitModulePatch, mergeLimitedModule, type RoundBudget } from './module-updates';
-import { ELECTRIC_PATTERN } from './electric';
 import { MOMENTS_PATTERN } from '../space/moments';
 import type { AppId, AppSnapshot, ScriptSettings } from '../../schemas';
 import { buildModulePrompt, type PhonePromptInput } from '../../prompts';
@@ -18,6 +17,7 @@ import {
   stripInlineCards,
 } from './module-protocol';
 const PROMPT_ID = 'wave-phone-follow-v1';
+const FOLLOW_PROMPT_TAG = 'wave_phone_follow_context';
 export function chooseFollowModule(settings: ScriptSettings['generation'], random = Math.random): AppId | null {
   if (!settings.followEnabled || !settings.modules.length || random() * 100 >= settings.probability) return null;
   return (
@@ -58,15 +58,15 @@ export async function installPhoneRegexes(): Promise<void> {
     {
       ...base,
       id: 'wave-phone-inline-prompt-v1',
-      script_name: '电波手机 · 旧卡片与 Ecot 不发送',
-      find_regex: `/(?:${HTML_PATTERN.source}|${ELECTRIC_PATTERN.source})/gi`,
+      script_name: '电波手机 · 旧卡片不发送',
+      find_regex: `/${HTML_PATTERN.source}/gi`,
       destination: { display: false, prompt: true },
     },
     {
       ...base,
       id: 'wave-phone-data-display-v1',
       script_name: '电波手机 · 数据块隐藏',
-      find_regex: `/(?:${DATA_PATTERN.source}|${MOMENTS_PATTERN.source}|${ELECTRIC_PATTERN.source})/gi`,
+      find_regex: `/(?:${DATA_PATTERN.source}|${MOMENTS_PATTERN.source})/gi`,
       destination: { display: true, prompt: false },
     },
   ];
@@ -88,6 +88,17 @@ export async function installPhoneRegexes(): Promise<void> {
     { scope: 'global' },
   );
   logDiagnostic('正则已安装', '只维护电波手机的内置规则，保留其他全局正则');
+}
+
+/** Remove a request-only instruction block if a preset/model echoed it into the assistant floor. */
+export function stripLeakedFollowPrompt(text: string, injected = ''): string {
+  const escaped = FOLLOW_PROMPT_TAG.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let cleaned = text
+    .replace(new RegExp(`<${escaped}>[\\s\\S]*?<\\/${escaped}>\\s*`, 'gi'), '')
+    .replace(new RegExp(`<${escaped}>[\\s\\S]*$`, 'gi'), '');
+  const exact = injected.trim();
+  if (exact && cleaned.includes(exact)) cleaned = cleaned.replace(exact, '');
+  return cleaned.replace(/^\s*\n/, '').replace(/\n{3,}/g, '\n\n');
 }
 /** Apply the request-time caps before persisted floor data is synchronized. */
 export function constrainPhoneFloor(
@@ -136,6 +147,7 @@ export function registerFollowGeneration(
     charId: string;
     snapshot: AppSnapshot;
     walletGrant?: WalletAuthorization;
+    prompt: string;
   } | null = null;
   const clear = () => {
     injection?.uninject();
@@ -155,11 +167,23 @@ export function registerFollowGeneration(
           runtime.input.identity.source === 'local_group' ? [] : chooseFollowModules(runtime.settings.generation);
         const reference = runtime.settings.generation.shareChatContext ? runtime.chatReference || '' : '';
         if (!modules.length && !reference) return;
+        const prompt = stripExcludedTags(
+          [
+            '以下是电波手机提供给模型的内部上下文与数据协议。只用于理解并执行本轮任务，绝不能在正文中复述、解释或展示本段。',
+            reference,
+            modules.length ? buildModulePrompt(runtime.input, modules, true) : '',
+          ]
+            .filter(Boolean)
+            .join('\n\n'),
+          runtime.settings.basic.excludedTags,
+        );
+        const wrappedPrompt = `<${FOLLOW_PROMPT_TAG}>\n${prompt}\n</${FOLLOW_PROMPT_TAG}>`;
         request = {
           policy: ModuleSettingsSchema.parse(runtime.settings.moduleSettings),
           charId: runtime.input.identity.stableId || runtime.input.identity.charKey,
           snapshot: { ...runtime.input.appSnapshot },
           walletGrant: runtime.input.walletAuthorization ? { ...runtime.input.walletAuthorization } : undefined,
+          prompt: wrappedPrompt,
         };
         onRequest?.(runtime.settings, type);
         injection = injectPrompts(
@@ -168,21 +192,16 @@ export function registerFollowGeneration(
               id: PROMPT_ID,
               role: 'system',
               position: 'in_chat',
-              depth: 0,
+              depth: 1,
               should_scan: false,
-              content: stripExcludedTags(
-                [reference, modules.length ? buildModulePrompt(runtime.input, modules, true) : '']
-                  .filter(Boolean)
-                  .join('\n\n'),
-                runtime.settings.basic.excludedTags,
-              ),
+              content: wrappedPrompt,
             },
           ],
           { once: true },
         );
         logDiagnostic(
           '跟随生成',
-          `模块：${modules.map(id => MODULE_LABELS[id]).join('、') || '无'}；手机上下文：${reference ? '已提供' : '无'}，system 深度 0`,
+          `模块：${modules.map(id => MODULE_LABELS[id]).join('、') || '无'}；手机上下文：${reference ? '已提供' : '无'}，system 深度 1`,
         );
       } catch (error) {
         clear();
@@ -205,7 +224,7 @@ export function registerFollowGeneration(
         const message = readChatFloor(messageId);
         if (!message || message.role !== 'assistant') return;
         const constrained = constrainPhoneFloor(
-          message.message,
+          stripLeakedFollowPrompt(message.message, captured.prompt),
           captured.policy,
           captured.charId,
           captured.snapshot,

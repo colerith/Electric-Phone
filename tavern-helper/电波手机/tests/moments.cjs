@@ -273,6 +273,17 @@ const input = (el, text) => {
   assert(structuredPrompt.includes('"role":"user"'));
   assert(structuredPrompt.includes('"role":"npc"'));
   assert(structuredPrompt.includes('"action":"like"'));
+  const { MomentBatchSchema } = require(base + '/services/space/moments.ts');
+  assert.equal(
+    MomentBatchSchema.parse({
+      request_id: npcPlan.id,
+      npcs: [
+        { npcId: 'npc:ambient:a', username: '路人甲', profile: '路过的人' },
+        { npcId: 'npc:stranger:b', username: '路人乙', profile: '网上认识的人' },
+      ],
+    }).npcs.length,
+    2,
+  );
   fresh.requests[npcPlan.id] = npcPlan;
   const interaction = {
     npcs: [

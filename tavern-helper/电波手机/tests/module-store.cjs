@@ -47,7 +47,11 @@ const delta = {
       payload: { interaction: 'poke', actorName: 'Alice', targetName: 'User' },
     },
   ],
-  app_updates: { memo: '新增备忘' },
+  app_updates: {
+    memo: '新增备忘',
+    zone: { profile: { username: 'Alice' }, posts: [{ id: 'zone-1', content: '今天有风' }] },
+    wallet: { balance: 100, transactions: [] },
+  },
 };
 (async () => {
   floors = [{ message_id: 1, role: 'assistant', message: serializeDelta(delta) }];
@@ -67,7 +71,7 @@ const delta = {
   floors[0].message = serializeDelta({
     ...delta,
     messages: [{ ...delta.messages[0], content: '新版拍一拍' }],
-    app_updates: { memo: '新版备忘' },
+    app_updates: { ...delta.app_updates, memo: '新版备忘' },
   });
   await store.synchronize();
   assert.equal(store.activeThread.messages.length, 1);
@@ -77,6 +81,7 @@ const delta = {
   assert.equal(store.isOpen, true);
   store.markAppRead('memo');
   assert(!store.unreadApps.includes('memo'));
+  for (const app of [...store.unreadApps]) store.markAppRead(app);
   assert.equal(
     require(base + '/services/apps/memo.ts')
       .parseMemoData(store.activeSnapshot.memo)
@@ -84,10 +89,25 @@ const delta = {
       .join('\n'),
     '新版备忘',
   );
+  assert(store.activeSnapshot.zone.includes('今天有风'));
+  assert(store.activeSnapshot.wallet.includes('"balance":100'));
+  floors[0].is_hidden = true;
+  await store.synchronize();
+  assert.equal(
+    require(base + '/services/apps/memo.ts')
+      .parseMemoData(store.activeSnapshot.memo)
+      .notes.map(n => n.content)
+      .join('\n'),
+    '新版备忘',
+  );
+  assert(store.activeSnapshot.zone.includes('今天有风'));
+  assert(store.activeSnapshot.wallet.includes('"balance":100'));
+  assert.deepEqual(store.unreadApps, []);
   floors = [];
   await store.synchronize();
   assert.equal(store.activeThread.messages.length, 0);
   assert.equal(store.activeSnapshot.memo, '');
+  assert.deepEqual(store.unreadApps, []);
   store.settings.api.enabled = true;
   store.settings.api.apiurl = 'https://test.invalid/v1';
   store.settings.api.model = 'test';

@@ -159,6 +159,9 @@ const schema = require(base + '/schemas.ts'),
     remove.find_regex.slice(remove.find_regex.lastIndexOf('/') + 1),
   );
   assert.equal(('正文\n' + raw + legacyCard).replace(re, '').trim(), '正文\n' + raw);
+  assert(!rules.some(rule => rule.find_regex?.includes('electric')));
+  const leaked = '<wave_phone_follow_context>\n内部协议\n</wave_phone_follow_context>\n真正正文';
+  assert.equal(follow.stripLeakedFollowPrompt(leaked), '真正正文');
   const listeners = {};
   global.tavern_events = {
     GENERATION_AFTER_COMMANDS: 'before',
@@ -174,8 +177,9 @@ const schema = require(base + '/schemas.ts'),
     cleared = 0;
   global.injectPrompts = (prompts, options) => {
     injected++;
-    assert.equal(prompts[0].depth, 0);
+    assert.equal(prompts[0].depth, 1);
     assert.equal(options.once, true);
+    assert(prompts[0].content.startsWith('<wave_phone_follow_context>'));
     assert(prompts[0].content.includes('<wave_phone_delta>'));
     return { uninject: () => cleared++ };
   };
