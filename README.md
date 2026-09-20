@@ -11,7 +11,7 @@
 酒馆助手在线导入：
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.27/file/index-1.1.27.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.28/file/index-1.1.28.js';
 ```
 
 发布与更新步骤见 [`tavern-helper/发布流程.md`](./tavern-helper/发布流程.md)。
@@ -23,7 +23,7 @@ import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.27/file/index-1
 - 状态栏和小组件共享设备时间或自定义世界时间。
 - PWA manifest、Service Worker、iOS/Android 安全区适配。
 - 酒馆助手脚本源码及可直接导入的构建文件。
-- v1.1.27：输入扩展菜单以红包替换通话，支持私聊与群聊收款状态及角色随机发红包；同步修复界面样式隔离、删除键位置和消息页资料展示。
+- v1.1.28：红包发送页不再允许手动选择状态；私聊与群聊红包统一从待领取状态开始，后续状态留给角色互动推进。
 - 产品需求、架构、里程碑与 UI 参考资源。
 
 ## 本地预览

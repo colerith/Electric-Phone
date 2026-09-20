@@ -643,25 +643,6 @@
                       ><span>红包个数</span
                       ><input v-model.trim="extraDraft.count" type="number" min="1" step="1" placeholder="1"
                     /></label>
-                    <label v-if="extraMode === '红包'">
-                      <span>红包状态</span>
-                      <WaveSelect v-model="extraDraft.state" aria-label="红包状态" :options="redPacketStateOptions" />
-                    </label>
-                    <label
-                      v-if="
-                        extraMode === '红包' &&
-                        extraDraft.kind === 'group' &&
-                        ['group_claimed', 'group_empty'].includes(extraDraft.state)
-                      "
-                      ><span>已抢个数</span
-                      ><input
-                        v-model.trim="extraDraft.claimedCount"
-                        type="number"
-                        min="0"
-                        :max="extraDraft.count || undefined"
-                        step="1"
-                        placeholder="0"
-                    /></label>
                     <label
                       ><span>{{ extraContentLabel }}</span
                       ><textarea v-model.trim="extraDraft.content" rows="3" :placeholder="extraPlaceholder"></textarea>
@@ -1181,7 +1162,6 @@ const extraDraft = ref({
   amount: '',
   currency: 'CNY',
   count: '1',
-  claimedCount: '0',
   distance: '',
   state: 'pending',
   content: '',
@@ -1255,20 +1235,6 @@ const transferStateOptions: WaveSelectOption[] = [
   { value: 'received', label: '已收款', description: '剧情内已确认收款' },
   { value: 'refunded', label: '已退款', description: '款项已在剧情内退回' },
 ];
-const redPacketStateOptions = computed<WaveSelectOption[]>(() =>
-  extraDraft.value.kind === 'group'
-    ? [
-        { value: 'group_available', label: '可以抢', description: '群成员仍可领取' },
-        { value: 'group_claimed', label: '抢红包中', description: '已有群成员领取' },
-        { value: 'group_empty', label: '已抢完', description: '红包已被全部领取' },
-        { value: 'refunded', label: '已退回', description: '未领取金额已退回' },
-      ]
-    : [
-        { value: 'pending', label: '未收款', description: '等待对方领取' },
-        { value: 'received', label: '已收款', description: '对方已经领取' },
-        { value: 'refunded', label: '已退回', description: '红包已经退回' },
-      ],
-);
 const sendModeOptions: WaveSelectOption[] = [
   { value: 'secondary_api', label: '独立副 API', description: '不占用酒馆主生成' },
   { value: 'main_api', label: '同步酒馆正文', description: '发送后触发主生成' },
@@ -1466,7 +1432,7 @@ const extraHint = computed(
     ({
       媒体: '没有真实 URL 时仅作为剧情媒体描述。',
       语音: '时长会按文字长度自动换算；点击气泡可展开转写，不伪造音频文件。',
-      红包: '仅用于剧情互动，不涉及真实支付；群聊会显示领取进度。',
+      红包: '发送时默认为待领取，后续状态由角色互动推进；仅用于剧情互动，不涉及真实支付。',
       转账: '只影响剧情内虚构钱包，不涉及真实支付。',
       位置: '只保存手动文本，不请求设备定位。',
       链接: '仅允许 http/https URL。',
@@ -1949,7 +1915,6 @@ function useExtra(name: string): void {
     amount: '',
     currency: 'CNY',
     count: String(groupMemberCount),
-    claimedCount: '0',
     distance: '',
     state: groupPacket ? 'group_available' : 'pending',
     content: '',
@@ -2128,10 +2093,6 @@ function submitExtra(): void {
     }
     const packetType = draft.kind === 'group' ? 'group' : 'private';
     const count = packetType === 'group' ? Math.max(1, Math.round(Number(draft.count) || 1)) : 1;
-    const claimedCount =
-      packetType === 'group'
-        ? _.clamp(draft.state === 'group_empty' ? count : Math.round(Number(draft.claimedCount) || 0), 0, count)
-        : 0;
     input = {
       type: 'red_packet',
       content: draft.content || '恭喜发财，大吉大利',
@@ -2140,8 +2101,8 @@ function submitExtra(): void {
         currency: draft.currency,
         note: draft.content || '恭喜发财，大吉大利',
         packetType,
-        state: draft.state,
-        ...(packetType === 'group' ? { count, claimedCount } : {}),
+        state: packetType === 'group' ? 'group_available' : 'pending',
+        ...(packetType === 'group' ? { count, claimedCount: 0 } : {}),
       },
     };
   } else if (extraMode.value === '位置') {

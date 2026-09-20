@@ -46,6 +46,10 @@ assert.match(voiceServicesUi, /value: 'speech-2\.8-hd', label: 'Speech 2\.8 HD'/
 assert.match(voiceServicesUi, /value: 'speech-2\.8-turbo', label: 'Speech 2\.8 Turbo'/);
 assert.match(appUi, /\{ name: '红包', icon: 'fa-solid fa-gift' \}/);
 assert.doesNotMatch(appUi, /\{ name: '通话', icon:/);
+assert.doesNotMatch(appUi, /aria-label="红包状态"/);
+assert.doesNotMatch(appUi, /redPacketStateOptions/);
+assert.match(appUi, /state: packetType === 'group' \? 'group_available' : 'pending'/);
+assert.match(appUi, /packetType === 'group' \? \{ count, claimedCount: 0 \} : \{\}/);
 assert.equal(JSON.parse(speechRequest(raw, services, voice).init.body).text, raw);
 services.minimax.model = 'speech-2.8-turbo';
 assert.equal(JSON.parse(speechRequest(raw, services, voice).init.body).model, 'speech-2.8-turbo');
