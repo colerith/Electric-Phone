@@ -704,6 +704,7 @@
                 />
                 <WaveApiSettings v-else-if="settingsSection === 'api'" />
                 <WaveBackupSettings v-else-if="settingsSection === 'backup'" />
+                <WaveCopyrightCredits v-else-if="settingsSection === 'credits'" />
 
                 <div v-else-if="settingsSection === 'chat'" class="settings-detail">
                   <WaveGenerationSettings />
@@ -1021,6 +1022,7 @@ import {
 import type { SendMessageInput } from './stores/phone';
 import WaveApiSettings from './components/settings/WaveApiSettings.vue';
 import WaveBackupSettings from './components/settings/WaveBackupSettings.vue';
+import WaveCopyrightCredits from './components/settings/WaveCopyrightCredits.vue';
 import { formatPhoneMessage } from './services/chat/message-format';
 import { displayIdentityName } from './services/core/identity';
 import { parseLegacyMessages } from './services/generation/parser';
@@ -1250,7 +1252,8 @@ type SettingsSectionId =
   | 'media'
   | 'appearance'
   | 'notifications'
-  | 'backup';
+  | 'backup'
+  | 'credits';
 const settingsSections: Array<{
   id: Exclude<SettingsSectionId, 'root'>;
   name: string;
@@ -1322,6 +1325,14 @@ const settingsSections: Array<{
     description: '查看和排查手机运行状态',
     eyebrow: 'DEBUG',
     icon: 'fa-solid fa-bug',
+  },
+  {
+    id: 'credits',
+    name: '版权与致谢',
+    caption: '开源声明、使用边界与鸣谢',
+    description: '查看电波手机的版权声明、使用边界和鸣谢清单。',
+    eyebrow: 'COPYRIGHT & CREDITS',
+    icon: 'fa-solid fa-heart',
   },
   {
     id: 'appearance',

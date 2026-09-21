@@ -1,17 +1,18 @@
-# 电波手机 · 酒馆助手脚本
+# 电波手机 · 酒馆助手源码
 
-这里保存电波手机的酒馆助手脚本版本。
+这里保存电波手机的酒馆助手脚本源码与发布说明。安装、首次配置和各功能模块的用法，请阅读[电波手机使用指南](../README.md)。
 
 ## 目录
 
 - `电波手机/`：完整 TypeScript、Vue、SCSS 和测试源码；运行资源已内嵌在对应源码文件中。
-- `../file/index-1.1.30.js`：当前版本的生产构建，可供酒馆助手通过 jsDelivr 导入。
+- `../file/index-1.1.31.js`：当前版本的生产构建，可供酒馆助手通过 jsDelivr 导入。
 
-本次更新修复空间评论头像的圆形裁切并补充缺省随机头像，打通 Notionists 与 Bottts Neutral 两套空间头像库；空间手动生成的灵动岛文案同步更正。
+本次更新将主 README 改为按模块编排的使用指南，并在手机设置中新增“版权与致谢”页面。
 
 ## 源码开发
 
-将 `电波手机` 目录放入 Tavern Helper Template 的 `src/util/酒馆助手脚本/` 下。源码依赖模板提供的 `src/util/script.ts` 与全局类型，并额外使用 `fflate` 生成和读取 ZIP 备份：
+将 `电波手机` 目录放入 Tavern Helper Template 的 `src/util/酒馆助手脚本/` 下。源码依赖模板提供的 `src/util/script.ts`
+与全局类型，并额外使用 `fflate` 生成和读取 ZIP 备份：
 
 ```bash
 pnpm add fflate emoji-regex @emoji-mart/data opencc-js
