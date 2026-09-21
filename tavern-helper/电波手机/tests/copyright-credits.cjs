@@ -10,10 +10,12 @@ const guide = fs.readFileSync(path.resolve('.wave-publish/Electric-Phone/README.
 assert.match(app, /<WaveCopyrightCredits v-else-if="settingsSection === 'credits'"/);
 assert.match(app, /id: 'credits',[\s\S]*?name: '版权与致谢'/);
 assert.match(credits, /原创开源的酒馆助手内置小手机脚本/);
-assert.match(credits, /日月西 TA/);
+assert.match(credits, /<strong>日月西 TA的手机<\/strong>脚本模块/);
 assert.match(credits, /禁止[\s\S]*?二次传播与任何形式的商业化使用/);
-assert.match(credits, /Ephone、糯米机、糯叽机、float/);
+assert.match(credits, /Ephone、糯米机、糯叽机、float、柏柏小手机/);
 assert.match(credits, /discord\.com\/channels\/1291925535324110879\/1356554161713582123/);
+assert.equal((credits.match(/class="wave-settings-title"/g) || []).length, 2);
+assert.doesNotMatch(credits, /<h3>/);
 assert.match(guide, /^# 电波手机使用指南/m);
 for (const moduleName of ['消息', '状态', '备忘', '空间', '钱包', '日历', '浏览', '音乐']) {
   assert.match(guide, new RegExp(`^### ${moduleName}$`, 'm'));

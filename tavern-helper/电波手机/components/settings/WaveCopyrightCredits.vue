@@ -11,10 +11,10 @@
         <span class="credits-icon"><i class="fa-solid fa-copyright"></i></span>
         <div>
           <small>COPYRIGHT</small>
-          <h3>版权声明</h3>
+          <div class="wave-settings-title">版权声明</div>
         </div>
       </div>
-      <p>本脚本为原创开源的酒馆助手内置小手机脚本，基础内容源自<strong>日月西 TA</strong>的手机脚本模块。</p>
+      <p>本脚本为原创开源的酒馆助手内置小手机脚本，基础内容源自<strong>日月西 TA的手机</strong>脚本模块。</p>
       <div class="license-notes">
         <div>
           <i class="fa-solid fa-check"></i>
@@ -32,12 +32,12 @@
         <span class="credits-icon"><i class="fa-solid fa-heart"></i></span>
         <div>
           <small>WITH THANKS</small>
-          <h3>鸣谢清单</h3>
+          <div class="wave-settings-title">鸣谢清单</div>
         </div>
       </div>
       <ul>
         <li>
-          感谢 <strong>Ephone、糯米机、糯叽机、float</strong>
+          感谢 <strong>Ephone、糯米机、糯叽机、float、柏柏小手机</strong>
           等优秀的免费开源小手机，带来的开发灵感与部分模块设计思路。
         </li>
         <li>
@@ -82,8 +82,7 @@ import { WAVE_PHONE_RELEASE_VERSION } from '../../schemas';
   letter-spacing: 0.16em;
 }
 
-.credits-intro h2,
-.credits-card-heading h3 {
+.credits-intro h2 {
   margin: 0;
   color: var(--settings-text);
   font-family: var(--wave-display-font);
@@ -134,10 +133,8 @@ import { WAVE_PHONE_RELEASE_VERSION } from '../../schemas';
   font-size: 15px;
 }
 
-.credits-card-heading h3 {
-  margin-top: 2px;
-  font-size: 16px;
-  line-height: 1.4;
+.credits-card-heading .wave-settings-title {
+  padding: 2px 0 0;
 }
 
 .credits-card > p {
