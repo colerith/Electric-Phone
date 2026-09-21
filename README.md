@@ -11,7 +11,7 @@
 酒馆助手在线导入：
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.29/file/index-1.1.29.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.30/file/index-1.1.30.js';
 ```
 
 发布与更新步骤见 [`tavern-helper/发布流程.md`](./tavern-helper/发布流程.md)。
@@ -23,7 +23,7 @@ import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.29/file/index-1
 - 状态栏和小组件共享设备时间或自定义世界时间。
 - PWA manifest、Service Worker、iOS/Android 安全区适配。
 - 酒馆助手脚本源码及可直接导入的构建文件。
-- v1.1.29：修复跟随提示词回显、手机聊天连续性、世界动态双 NPC 校验、空红点与隐藏楼层后的钱包/空间丢失；Ecot 仅由手机内部折叠渲染。
+- v1.1.30：评论头像恢复圆形并补充随机头像；匿名用户、NPC、动态作者与评论共用 Notionists 和 Bottts Neutral 合并头像池；空间手动生成的灵动岛文案更正。
 - 产品需求、架构、里程碑与 UI 参考资源。
 
 ## 本地预览

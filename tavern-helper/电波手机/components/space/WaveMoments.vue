@@ -254,10 +254,10 @@
             @click="viewingNpc = post.authorKey"
           >
             <img
-              v-if="avatarFor(post.authorKey)"
-              :src="avatarFor(post.authorKey)"
+              v-if="avatarFor(post.authorKey, post.authorName || post.id)"
+              :src="avatarFor(post.authorKey, post.authorName || post.id)"
               alt=""
-              @error="failedAvatars.add(post.authorKey)"
+              @error="markAvatarFailed(post.authorKey, post.authorName || post.id)"
             /><span v-else>{{ nameFor(post.authorKey, post.authorName).slice(0, 1) }}</span>
           </button>
           <div class="space-post-author-details">
@@ -347,9 +347,12 @@
             </div>
             <div v-for="comment in commentsFor(post.id)" :key="comment.id" class="moment-comment-row space-comment">
               <span class="space-comment-avatar"
-                ><img v-if="avatarFor(comment.authorKey)" :src="avatarFor(comment.authorKey)" alt="" /><span v-else>{{
-                  nameFor(comment.authorKey, comment.authorName).slice(0, 1)
-                }}</span></span
+                ><img
+                  v-if="avatarFor(comment.authorKey, comment.authorName || comment.id)"
+                  :src="avatarFor(comment.authorKey, comment.authorName || comment.id)"
+                  alt=""
+                  @error="markAvatarFailed(comment.authorKey, comment.authorName || comment.id)"
+                /><span v-else>{{ nameFor(comment.authorKey, comment.authorName).slice(0, 1) }}</span></span
               >
               <div class="space-comment-main">
                 <header>
@@ -595,7 +598,7 @@ import WaveProfileBadgePicker from './WaveProfileBadgePicker.vue';
 import { MomentUserProfileSchema } from '../../services/space/moments';
 import WaveNpcProfile from './WaveNpcProfile.vue';
 import { parseZonePage } from '../../services/space/zone';
-import { npcAvatarUrl } from '../../services/space/npc-avatar';
+import { npcAvatarUrl, spaceAvatarUrl } from '../../services/space/npc-avatar';
 import WaveWalletWorkspace from '../wallet/WaveWalletWorkspace.vue';
 import WaveBilingualSettings from '../shared/WaveBilingualSettings.vue';
 import WaveModuleTranslation from '../shared/WaveModuleTranslation.vue';
@@ -701,12 +704,21 @@ function accountFor(key: string) {
       : parseZonePage(phone.state.snapshots[key]?.zone || '').profile.handle || ''
   ).replace(/^@+/, '');
 }
-function avatarFor(key: string) {
-  if (failedAvatars.value.has(key)) return '';
-  return key === 'user'
-    ? props.userAvatar
-    : phone.state.identities[key]?.avatar ||
+function avatarToken(key: string, fallbackSeed: string): string {
+  return key || `guest:${fallbackSeed}`;
+}
+function avatarFor(key: string, fallbackSeed = '') {
+  const token = avatarToken(key, fallbackSeed);
+  if (failedAvatars.value.has(token)) return '';
+  const known =
+    key === 'user'
+      ? props.userAvatar
+      : phone.state.identities[key]?.avatar ||
         (phone.state.moments.npcs[key] ? npcAvatarUrl(phone.state.moments.npcs[key].avatarSeed) : '');
+  return known || spaceAvatarUrl(`space-${token}`);
+}
+function markAvatarFailed(key: string, fallbackSeed: string): void {
+  failedAvatars.value.add(avatarToken(key, fallbackSeed));
 }
 function timeLabel(value: number) {
   if (!value) return '此前';

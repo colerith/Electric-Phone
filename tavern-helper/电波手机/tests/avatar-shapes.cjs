@@ -7,11 +7,13 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const upload = read('components/shared/WaveImageUpload.vue');
 const home = read('styles/apps/home.scss');
 const moments = read('styles/apps/moments.scss');
+const space = read('styles/apps/space.scss');
 const messenger = read('styles/apps/messenger.scss');
 const settings = read('styles/settings/settings.scss');
 const systemSettings = read('styles/settings/system-settings.scss');
 const style = read('styles/base/style.scss');
 const npcProfile = read('components/space/WaveNpcProfile.vue');
+const generationIsland = read('components/shell/WaveGenerationIsland.vue');
 
 assert.match(upload, /'is-avatar': purpose === 'avatar'/);
 assert.match(upload, /'avatar-preview': purpose === 'avatar'/);
@@ -22,6 +24,11 @@ assert.match(home, /\.ios-home-dock \.ios-app-icon\s*\{[\s\S]*?place-items: cent
 assert.doesNotMatch(home, /\.ios-home-dock\s*\{[\s\S]*?grid-template-columns: repeat\(3,/);
 assert.match(moments, /\.moments-avatar\s*\{[\s\S]*?border-radius: 50%;/);
 assert.match(moments, /\.moment-author-avatar\s*\{[\s\S]*?border-radius: 50%;/);
+assert.match(
+  space,
+  /\.space-comment-avatar\s*\{[\s\S]*?width: 30px;[\s\S]*?height: 30px;[\s\S]*?flex: 0 0 30px;[\s\S]*?border-radius: 50% !important;/,
+);
+assert.match(space, /\.space-comment-avatar img\s*\{[\s\S]*?border-radius: 50% !important;/);
 assert.match(moments, /\.moments-profile-avatar img\s*\{[\s\S]*?border-radius: 50%;/);
 assert.match(settings, /\.chat-profile-settings \.wave-image-preview\s*\{[\s\S]*?border-radius: 50%;/);
 assert.match(style, /\.wave-image-upload\.is-avatar \.wave-image-preview\s*\{[\s\S]*?border-radius: 50%;/);
@@ -35,5 +42,8 @@ assert.match(messenger, /\.messenger-avatar\s*\{[\s\S]*?min-width: 42px;[\s\S]*?
 assert.match(messenger, /\.messenger-avatar img\s*\{[\s\S]*?object-position: center;[\s\S]*?border-radius: 0 !important;/);
 assert.match(messenger, /\.wave-device \.messenger-avatar\s*\{[\s\S]*?overflow: hidden;/);
 assert.match(npcProfile, /\.npc-profile-avatar\s*\{[\s\S]*?border-radius: 50%;/);
+assert.match(generationIsland, /moments: '空间'/);
 
-console.log('PASS: profile, moments, messenger and character-setting avatars use consistent circular crops.');
+console.log(
+  'PASS: profile, moments, comments, messenger and character-setting avatars use consistent circular crops; manual Moments generation is labeled Space.',
+);

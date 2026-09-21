@@ -1,4 +1,5 @@
 import { TranslationSchema } from '../generation/module-settings';
+import { spaceAvatarUrl } from './npc-avatar';
 import { z } from 'zod';
 export const TreeHoleCommentSchema = z.object({
   id: z.string(),
@@ -45,11 +46,9 @@ export function dailyTopic(day: string, scope: string): string {
   return topics[(hash >>> 0) % topics.length];
 }
 
-/** DiceBear Bottts Neutral by Pablo Stanley; opaque seed, never a real account/avatar. */
+/** Stable anonymous avatar drawn from the shared Notionists + Bottts Neutral pool. */
 export function anonymousAvatarUrl(seed: string): string {
-  let hash = 2166136261;
-  for (const char of seed) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
-  return `https://api.dicebear.com/10.x/bottts-neutral/svg?seed=wave-hole-${(hash >>> 0).toString(36)}&borderRadius=50&backgroundColor=d7e8ef,e9def3,f6dfdf,dcebd9`;
+  return spaceAvatarUrl(`wave-hole-${seed}`);
 }
 
 const foodFlavors = [

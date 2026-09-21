@@ -27,7 +27,7 @@ const labels: Record<GenerationTarget, string> = {
   calendar: '日历',
   browse: '浏览',
   music: '音乐',
-  moments: '朋友圈',
+  moments: '空间',
 };
 const props = defineProps<{ app: GenerationTarget }>();
 const label = computed(() => labels[props.app]);

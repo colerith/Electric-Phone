@@ -46,7 +46,9 @@ const { usePhoneStore } = require(base + '/stores/phone.ts');
 const { MomentsStateSchema, planMoments, syncMomentEvents, momentTimeline } = require(
   base + '/services/space/moments.ts',
 );
-const { npcAvatarUrl, npcAvatarSeed } = require(base + '/services/space/npc-avatar.ts');
+const { npcAvatarUrl, npcAvatarSeed, spaceAvatarStyle, spaceAvatarUrl } = require(
+  base + '/services/space/npc-avatar.ts',
+);
 const { buildMomentsPrompt } = require(base + '/prompts/index.ts');
 const Messenger = require(base + '/components/chat/WaveMessenger.vue').default;
 const Moments = require(base + '/components/space/WaveMoments.vue').default;
@@ -78,6 +80,10 @@ const tick = () => vue.nextTick(),
   };
 const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments>';
 (async () => {
+  assert.deepEqual(
+    new Set(Array.from({ length: 32 }, (_, index) => spaceAvatarStyle(`pool-${index}`))),
+    new Set(['notionists', 'bottts-neutral']),
+  );
   await phone.synchronize();
   phone.state.moments.settings = {
     ...phone.state.moments.settings,
@@ -120,9 +126,26 @@ const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments
   await tick();
   const author = document.querySelector('.moment-author');
   assert.equal(author.textContent, '小林');
-  assert(
-    document.querySelector('.moment-author-avatar img').src.startsWith('https://api.dicebear.com/10.x/notionists/svg'),
+  assert.match(
+    document.querySelector('.moment-author-avatar img').src,
+    /https:\/\/api\.dicebear\.com\/10\.x\/(?:notionists|bottts-neutral)\/svg/,
   );
+  phone.state.moments.comments.push({
+    id: 'legacy-guest-comment',
+    postId: phone.momentsFeed.posts[0].id,
+    authorKey: '',
+    authorName: 'Soap_Mac',
+    content: '老兄，你直接说主席能治你得了！',
+    createdAt: now,
+    availableAt: now,
+    parentId: '',
+    replyToAuthorKey: '',
+    replyToAuthorName: '',
+  });
+  await tick();
+  const commentAvatar = document.querySelector('.space-comment-avatar img');
+  assert(commentAvatar);
+  assert.equal(commentAvatar.src, spaceAvatarUrl('space-guest:Soap_Mac'));
   author.click();
   await tick();
   assert.equal(messenger.subpageTitle, '详细资料');
