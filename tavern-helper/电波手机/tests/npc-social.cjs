@@ -43,7 +43,7 @@ const vue = require('vue'),
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 
 const { usePhoneStore } = require(base + '/stores/phone.ts');
-const { MomentsStateSchema, planMoments, syncMomentEvents, momentTimeline } = require(
+const { MomentsStateSchema, planMoments, syncMomentEvents, momentTimeline, momentContentSignature } = require(
   base + '/services/space/moments.ts',
 );
 const { npcAvatarUrl, npcAvatarSeed, spaceAvatarStyle, spaceAvatarUrl } = require(
@@ -80,6 +80,23 @@ const tick = () => vue.nextTick(),
   };
 const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments>';
 (async () => {
+  const signatureState = MomentsStateSchema.parse({});
+  const emptySignature = momentContentSignature(signatureState);
+  signatureState.likes.push('post-1');
+  assert.equal(momentContentSignature(signatureState), emptySignature, 'likes must not create a Space unread update');
+  signatureState.comments.push({
+    id: 'comment-1',
+    postId: 'post-1',
+    authorKey: 'user',
+    authorName: 'User',
+    content: 'new content',
+    createdAt: Date.now(),
+    availableAt: Date.now(),
+    parentId: '',
+    replyToAuthorKey: '',
+    replyToAuthorName: '',
+  });
+  assert.notEqual(momentContentSignature(signatureState), emptySignature, 'comments must count as authored content');
   assert.deepEqual(
     new Set(Array.from({ length: 32 }, (_, index) => spaceAvatarStyle(`pool-${index}`))),
     new Set(['notionists', 'bottts-neutral']),
@@ -130,6 +147,9 @@ const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments
     document.querySelector('.moment-author-avatar img').src,
     /https:\/\/api\.dicebear\.com\/10\.x\/(?:notionists|bottts-neutral)\/svg/,
   );
+  document.querySelector('.moment-meta button[aria-pressed]').click();
+  await tick();
+  assert(document.querySelector('.moment-likes .fa-regular.fa-heart'), 'like results use a hollow Font Awesome heart');
   phone.state.moments.comments.push({
     id: 'legacy-guest-comment',
     postId: phone.momentsFeed.posts[0].id,
@@ -146,6 +166,11 @@ const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments
   const commentAvatar = document.querySelector('.space-comment-avatar img');
   assert(commentAvatar);
   assert.equal(commentAvatar.src, spaceAvatarUrl('space-guest:Soap_Mac'));
+  const deleteComment = document.querySelector('.moment-comment-delete');
+  assert(deleteComment, 'Space comments expose a delete action');
+  deleteComment.click();
+  await tick();
+  assert(!document.body.textContent.includes('老兄，你直接说主席能治你得了！'));
   author.click();
   await tick();
   assert.equal(messenger.subpageTitle, '详细资料');

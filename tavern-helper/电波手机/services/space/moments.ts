@@ -174,6 +174,7 @@ export const MomentsStateSchema = z
       )
       .default([]),
     deletedPostIds: z.array(z.string()).default([]),
+    deletedCommentIds: z.array(z.string()).default([]),
     lastRequestAt: z.number().default(0),
   })
   .prefault({});
@@ -562,11 +563,25 @@ export function momentTimeline(state: MomentsState, legacy: MomentPost[] = []) {
     });
   }
   const deleted = new Set(state.deletedPostIds);
+  const deletedComments = new Set(state.deletedCommentIds);
   const visiblePosts = posts.filter(post => !deleted.has(post.id));
   const visibleIds = new Set(visiblePosts.map(post => post.id));
   return {
     posts: visiblePosts.sort((a, b) => b.createdAt - a.createdAt),
-    comments: comments.filter(comment => visibleIds.has(comment.postId)),
+    comments: comments.filter(comment => visibleIds.has(comment.postId) && !deletedComments.has(comment.id)),
     likes: likes.filter(like => visibleIds.has(like.postId)),
   };
+}
+
+/** Only authored Space content counts as an unread update; likes and local interaction state do not. */
+export function momentContentSignature(state: MomentsState): string {
+  return JSON.stringify({
+    posts: state.posts,
+    comments: state.comments,
+    events: state.events.map(event => ({
+      requestId: event.requestId,
+      posts: event.batch.posts,
+      comments: event.batch.comments,
+    })),
+  });
 }

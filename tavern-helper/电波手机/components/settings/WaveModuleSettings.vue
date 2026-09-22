@@ -47,7 +47,10 @@ const props = defineProps<{ app: LimitedApp }>();
 const phone = usePhoneStore();
 const labels = { memo: '便签', zone: '空间动态', calendar: '日程', browse: '浏览手记' };
 const prefs = computed(() => phone.settings.moduleSettings[props.app]);
-const languagePrefs = computed(() => (props.app === 'calendar' ? null : phone.settings.moduleSettings[props.app]));
+// Space has one bilingual-reading control inside WaveMoments; do not render a duplicate here.
+const languagePrefs = computed(() =>
+  props.app === 'calendar' || props.app === 'zone' ? null : phone.settings.moduleSettings[props.app],
+);
 function save(): void {
   phone.saveSettings();
 }

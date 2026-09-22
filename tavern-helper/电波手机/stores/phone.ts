@@ -37,6 +37,7 @@ import {
   MomentUserProfileSchema,
   MomentPostSchema,
   MomentCommentSchema,
+  momentContentSignature,
   momentTimeline,
   planMomentReply,
   planMoments,
@@ -1005,7 +1006,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const previousThreadMessages = new Map(
         Object.values(nextState.threads).map(thread => [thread.charKey, thread.messages.map(message => message.id)]),
       );
-      const previousMoments = JSON.stringify(nextState.moments);
+      const previousMomentContent = momentContentSignature(nextState.moments);
       // Tavern's hidden state only controls its own context/display. Phone data remains persistent.
       const assistantMessages = readChatFloors({ role: 'assistant', hide_state: 'all' });
       const parse = () => assistantMessages.flatMap(message => parsePhoneMessage(message.message, message.message_id));
@@ -1286,7 +1287,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           updatedByChar.set(account.ownerId, updated);
           updatedWalletAccountByChar.set(account.ownerId, account.id);
         }
-        if (JSON.stringify(nextState.moments) !== previousMoments) {
+        if (momentContentSignature(nextState.moments) !== previousMomentContent) {
           const charKey = nextState.activeCharKey || Object.keys(nextState.identities)[0];
           if (charKey) {
             const updated = updatedByChar.get(charKey) || new Set<AppId>();
@@ -1693,6 +1694,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         }
       }
     }
+    const deletedComments = new Set(state.value.moments.deletedCommentIds);
+    timeline.comments = timeline.comments.filter(comment => !deletedComments.has(comment.id));
     return timeline;
   });
   function saveMoments(): void {
@@ -1822,6 +1825,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     state.value.moments.posts = state.value.moments.posts.filter(post => post.id !== postId);
     state.value.moments.comments = state.value.moments.comments.filter(comment => comment.postId !== postId);
     state.value.moments.likes = state.value.moments.likes.filter(id => id !== postId);
+    saveMoments();
+  }
+  function deleteMomentComment(commentId: string): void {
+    if (!commentId) return;
+    state.value.moments.deletedCommentIds = [...new Set([...state.value.moments.deletedCommentIds, commentId])];
+    state.value.moments.comments = state.value.moments.comments.filter(comment => comment.id !== commentId);
     saveMoments();
   }
   function clearMoments(): void {
@@ -2814,6 +2823,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     commentMoment,
     likeMoment,
     deleteMoment,
+    deleteMomentComment,
     clearMoments,
     setConversationPinned,
     removeConversation,

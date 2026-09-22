@@ -157,6 +157,7 @@
     font-size: 13px;
   }
   .space-comment-avatar {
+    position: relative;
     width: 30px;
     height: 30px;
     min-width: 30px;
@@ -170,18 +171,26 @@
     place-items: center;
     overflow: hidden;
     isolation: isolate;
+    clip-path: circle(50% at 50% 50%);
     border-radius: 50% !important;
     background: #c9d7e64d;
     color: #718caa;
   }
   .space-comment-avatar img {
+    position: absolute;
+    inset: 0;
     display: block;
-    width: 100%;
-    height: 100%;
-    max-width: none;
-    max-height: none;
-    object-fit: cover;
-    border-radius: 50% !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    object-fit: cover !important;
+    border-radius: 0 !important;
   }
   .space-comment-main {
     min-width: 0;
@@ -228,6 +237,21 @@
     background: none;
     color: var(--wave-muted);
     font-size: 10px;
+  }
+  .moment-comment-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .space-moments .moment-comment-delete {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #e56b94;
+    font-size: 10px;
+  }
+  .space-moments .moment-comment-delete i {
+    margin-right: 3px;
   }
   .space-me-cover {
     display: block;

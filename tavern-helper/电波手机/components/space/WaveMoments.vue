@@ -332,7 +332,7 @@
           </div>
           <div v-if="likesFor(post.id).length || commentsFor(post.id).length" class="moment-interactions">
             <div v-if="likesFor(post.id).length" class="moment-likes">
-              ♡
+              <i class="fa-regular fa-heart" aria-hidden="true"></i>
               <template v-for="(like, index) in likesFor(post.id)" :key="like.id"
                 ><span v-if="index">、</span
                 ><button
@@ -375,7 +375,17 @@
                   :app="post.id.startsWith('zone:') ? 'zone' : 'moments'"
                   :translation="comment.translation"
                 />
-                <button type="button" class="moment-reply-action" @click="startReply(post.id, comment)">回复</button>
+                <div class="moment-comment-actions">
+                  <button type="button" class="moment-reply-action" @click="startReply(post.id, comment)">回复</button>
+                  <button
+                    type="button"
+                    class="moment-comment-delete"
+                    :aria-label="`删除${nameFor(comment.authorKey, comment.authorName)}的评论`"
+                    @click="phone.deleteMomentComment(comment.id)"
+                  >
+                    <i class="fa-regular fa-trash-can" aria-hidden="true"></i>删除
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -770,6 +780,14 @@ function saveSettings() {
   try {
     if (settings.value.maxInteractions < settings.value.minInteractions) throw new Error('互动上限不能小于下限');
     if (settings.value.maxDelaySeconds < settings.value.minDelaySeconds) throw Error('最长延迟不能小于最短延迟');
+    Object.assign(phone.settings.moduleSettings.zone, {
+      syncChat: settings.value.syncChat,
+      autoTranslate: settings.value.autoTranslate,
+      expandTranslation: settings.value.expandTranslation,
+      sourceLanguage: settings.value.sourceLanguage,
+      targetLanguage: settings.value.targetLanguage,
+    });
+    phone.saveSettings();
     phone.saveMoments();
     notice.value = '互动设置已保存';
   } catch (error) {
