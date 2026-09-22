@@ -23,7 +23,7 @@
           <span
             ><small>湿度</small><b>{{ number(weather.current.relative_humidity_2m) }}%</b></span
           ><span
-            ><small>降水</small><b>{{ number(weather.current.precipitation, 1) }} mm</b></span
+            ><small>体感</small><b>{{ number(weather.current.apparent_temperature) }}°C</b></span
           ><span
             ><small>风速</small><b>{{ number(weather.current.wind_speed_10m, 1) }} m/s</b></span
           >
@@ -42,8 +42,9 @@
       <header>
         <label
           ><span>{{ selectedDate.slice(0, 4) }} 年 {{ Number(selectedDate.slice(5, 7)) }} 月</span
-          ><input v-model="selectedDate" type="date" aria-label="选择日程日期" @change="alignDays" /></label
-        ><div class="calendar-date-shortcuts">
+          ><input v-model="selectedDate" type="date" aria-label="选择日程日期" @change="alignDays"
+        /></label>
+        <div class="calendar-date-shortcuts">
           <button type="button" :disabled="!firstEventDate" @click="firstEvent">日程起始</button
           ><button type="button" @click="today">今天</button>
         </div>

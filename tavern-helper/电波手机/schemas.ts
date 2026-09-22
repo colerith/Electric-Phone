@@ -14,7 +14,7 @@ import { ZoneInteractionsSchema } from './services/space/zone';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.1.32';
+export const WAVE_PHONE_RELEASE_VERSION = '1.1.33';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -293,6 +293,7 @@ export const CharacterProfileOverrideSchema = z
     avatarCustomized: z.boolean().prefault(false),
     chatPreferences: ChatPreferencesSchema.optional(),
     characterVoice: CharacterVoiceSchema.optional(),
+    weatherLocation: WeatherLocationSchema.nullable().optional(),
     updatedAt: z.string().prefault(''),
   })
   .prefault({});

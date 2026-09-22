@@ -133,10 +133,6 @@ import { WAVE_PHONE_RELEASE_VERSION } from '../../schemas';
   font-size: 15px;
 }
 
-.credits-card-heading .wave-settings-title {
-  padding: 2px 0 0;
-}
-
 .credits-card > p {
   margin: 16px 0 0;
 }

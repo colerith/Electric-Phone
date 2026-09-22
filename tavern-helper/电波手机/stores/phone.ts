@@ -371,6 +371,15 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   const activeIdentity = computed(
     () => state.value.identities[state.value.activeCharKey] || identities.value[0] || null,
   );
+  const weatherLocation = computed<WeatherLocation | null>(() => {
+    const identity = activeIdentity.value;
+    const runtime = context.value;
+    if (!identity || !runtime) return null;
+    const profile = characterProfiles.value[`${runtime.cardKey}::${identity.charKey}`];
+    return profile && Object.hasOwn(profile, 'weatherLocation')
+      ? (profile.weatherLocation ?? null)
+      : settings.value.weatherLocation;
+  });
   const activeThread = computed(() => {
     if (!context.value || !activeIdentity.value) return null;
     return state.value.threads[makeThreadId(context.value, activeIdentity.value.charKey)] || null;
@@ -786,7 +795,33 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
   }
   function setWeatherLocation(location: WeatherLocation | null): void {
-    settings.value.weatherLocation = location === null ? null : WeatherLocationSchema.parse(location);
+    const identity = activeIdentity.value;
+    const runtime = context.value;
+    if (!identity || !runtime) return;
+    const profileKey = `${runtime.cardKey}::${identity.charKey}`;
+    characterProfiles.value[profileKey] = {
+      ...characterProfiles.value[profileKey],
+      weatherLocation: location === null ? null : WeatherLocationSchema.parse(location),
+      updatedAt: nowIso(),
+    };
+    persistCharacterProfiles(characterProfiles.value);
+  }
+  function migrateLegacyWeatherLocation(): void {
+    const legacy = settings.value.weatherLocation;
+    const identity = activeIdentity.value;
+    const runtime = context.value;
+    if (!legacy || !identity || !runtime) return;
+    const profileKey = `${runtime.cardKey}::${identity.charKey}`;
+    const profile = characterProfiles.value[profileKey];
+    if (!profile || !Object.hasOwn(profile, 'weatherLocation')) {
+      characterProfiles.value[profileKey] = {
+        ...profile,
+        weatherLocation: WeatherLocationSchema.parse(legacy),
+        updatedAt: nowIso(),
+      };
+      persistCharacterProfiles(characterProfiles.value);
+    }
+    settings.value.weatherLocation = null;
     saveSettings();
   }
   function saveSettings(): void {
@@ -1281,6 +1316,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (token !== syncToken) return;
       context.value = runtime;
       state.value = ChatStateSchema.parse(nextState);
+      migrateLegacyWeatherLocation();
       const updatedWalletAccount = updatedWalletAccountByChar.get(state.value.activeCharKey);
       if (updatedWalletAccount) walletSelectedAccountId.value = updatedWalletAccount;
       updatedByChar.forEach((apps, charKey) => markAppsUnread(charKey, apps));
@@ -2814,6 +2850,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     activeIdentity,
     activeThread,
     activeSnapshot,
+    weatherLocation,
     unreadApps,
     initialize,
     dispose,

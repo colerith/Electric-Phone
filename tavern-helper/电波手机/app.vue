@@ -128,7 +128,7 @@
               :app="store.currentPage"
               :name="pageTitle"
               :artwork="currentArtwork"
-              :weather-location="store.settings.weatherLocation"
+              :weather-location="store.weatherLocation"
               :search-engine="store.settings.browserSearchEngine"
               :browser-endpoint="store.settings.browserEndpoint"
               :music-api="store.settings.musicApi"
@@ -902,7 +902,7 @@
               v-else-if="store.currentPage === 'calendar'"
               :key="`calendar-${store.activeIdentity?.charKey}`"
               :raw="store.activeSnapshot.calendar"
-              :location="store.settings.weatherLocation"
+              :location="store.weatherLocation"
               @settings="appSettingsOpen = true"
               @delete="id => store.deleteSnapshotItem('calendar', 'event', id)"
             />

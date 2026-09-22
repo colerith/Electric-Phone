@@ -75,12 +75,12 @@
             >时区<WaveSelect v-model="draft[side === 'user' ? 'userTimezone' : 'charTimezone']" :options="timezones"
           /></label>
           <button
-            v-if="side === 'user' && phone.settings.weatherLocation"
+            v-if="side === 'user' && phone.weatherLocation"
             type="button"
             class="chat-location-link"
             @click="useWeatherLocation"
           >
-            使用日历城市 · {{ phone.settings.weatherLocation.name }}
+            使用日历城市 · {{ phone.weatherLocation.name }}
           </button>
         </div>
       </template>
@@ -161,7 +161,7 @@ function save(): boolean {
 }
 defineExpose({ save });
 function useWeatherLocation() {
-  const location = phone.settings.weatherLocation;
+  const location = phone.weatherLocation;
   if (!location) return;
   draft.value.userLocation = location.name;
   draft.value.userTimezone =

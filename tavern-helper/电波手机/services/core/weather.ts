@@ -14,8 +14,8 @@ export const WeatherResponseSchema = z.object({
   current: z.object({
     time: z.string(),
     temperature_2m: number,
+    apparent_temperature: number,
     relative_humidity_2m: number,
-    precipitation: number,
     weather_code: number,
     wind_speed_10m: number,
   }),
@@ -52,7 +52,7 @@ export function weatherUrl(location: WeatherLocation): string {
   const query = new URLSearchParams({
     latitude: String(location.latitude),
     longitude: String(location.longitude),
-    current: 'temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m',
+    current: 'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m',
     daily: 'temperature_2m_max,temperature_2m_min',
     timezone: 'auto',
     wind_speed_unit: 'ms',
