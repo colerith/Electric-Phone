@@ -91,13 +91,17 @@ global.getChatMessages = range => {
   return [];
 };
 assert.equal(readChatFloors({ role: 'assistant', hide_state: 'unhidden' }).length, 1);
+global.getChatMessages = () => undefined;
+assert.equal(readChatFloors({ role: 'assistant', hide_state: 'unhidden' })[0].message_id, 2);
+assert.equal(readChatFloor(2).message_id, 2);
 delete SillyTavern.chat;
+assert.throws(() => readChatFloors(), /接口未返回聊天数组（undefined）/);
 global.getChatMessages = () => {
   throw Error('disconnected');
 };
 assert.throws(() => readChatFloors(), /disconnected/);
 console.log(
-  'PASS: screenshot-shaped delta, sparse floors, swipe error recovery, selected text, hidden filtering, explicit bounds, empty API fallback, and read failures remain errors.',
+  'PASS: screenshot-shaped delta, sparse floors, swipe error recovery, selected text, hidden filtering, explicit bounds, empty/undefined API fallback, and read failures remain errors.',
 );
 
 (async () => {

@@ -7,9 +7,13 @@ export function readChatFloors(
   if (raw?.length === 0) return [];
   let failure: unknown;
   try {
-    const rows = getChatMessages(raw ? `0-${raw.length - 1}` : '0-{{lastMessageId}}');
-    if (rows.length || !raw) return filter(rows, options);
-    failure = '接口返回空数组，但原始聊天非空';
+    const result: unknown = getChatMessages(raw ? `0-${raw.length - 1}` : '0-{{lastMessageId}}');
+    if (Array.isArray(result)) {
+      if (result.length || !raw) return filter(result, options);
+      failure = '接口返回空数组，但原始聊天非空';
+    } else {
+      failure = `接口未返回聊天数组（${result === undefined ? 'undefined' : result === null ? 'null' : typeof result}）`;
+    }
   } catch (error) {
     failure = error;
   }
@@ -47,7 +51,12 @@ export function readChatFloor(id: unknown): ChatMessage | undefined {
   const raw = Array.isArray(SillyTavern.chat) ? SillyTavern.chat : null;
   if (raw && (number >= raw.length || !raw[number])) return undefined;
   try {
-    const row = getChatMessages(number)[0];
+    const result: unknown = getChatMessages(number);
+    if (!Array.isArray(result))
+      throw new Error(
+        `聊天楼层接口未返回数组（${result === undefined ? 'undefined' : result === null ? 'null' : typeof result}）`,
+      );
+    const row = result[0];
     if (row) return row;
   } catch (error) {
     if (!raw) throw error;
