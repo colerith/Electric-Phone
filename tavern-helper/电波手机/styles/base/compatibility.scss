@@ -11,6 +11,9 @@
     -webkit-text-size-adjust: 100%;
   }
   .wave-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 0;
     min-width: 0;
     min-height: 0;
@@ -22,8 +25,11 @@
     height: var(--wave-panel-height, 100%);
     min-width: 0;
     min-height: 0;
-    max-width: 100%;
-    max-height: 100%;
+    max-width: none;
+    max-height: none;
+    flex-shrink: 0;
+    transform: scale(var(--wave-panel-scale, 1));
+    transform-origin: center;
     padding-bottom: calc(40px + var(--wave-bottom-inset));
     container-type: inline-size;
   }
@@ -94,20 +100,40 @@
     appearance: none !important;
     -webkit-appearance: none !important;
     background-image: none !important;
-    background-color: var(--wave-card, #fff) !important;
+    background-color: var(--wave-field-background, var(--wave-card, #fff)) !important;
     color: var(--wave-ink, #374558) !important;
     -webkit-text-fill-color: var(--wave-ink, #374558) !important;
     box-shadow: none !important;
     filter: none !important;
     text-shadow: none !important;
-    border: 1px solid var(--wave-line, #dce3ee) !important;
-    border-radius: 12px;
-    padding: 10px 12px;
+    border: var(--wave-field-border, 1px solid var(--wave-line, #dce3ee)) !important;
+    border-radius: var(--wave-field-radius, 12px);
+    padding: var(--wave-field-padding, 10px 12px);
     margin: 0 !important;
     min-width: 0;
     max-width: 100%;
     font-family: inherit !important;
     line-height: 1.4;
+  }
+  // Wrapped searches already own their background, padding and focus treatment.
+  .wave-device
+    :is(
+      .messenger-search,
+      .space-feed-tools,
+      .portrait-search,
+      .music-search,
+      .browser-search-field,
+      .browser-library-filter,
+      .wallet-search,
+      .app-search,
+      .memo-search,
+      .sticker-search,
+      .wave-forward-search
+    ) {
+    --wave-field-background: transparent;
+    --wave-field-border: 0;
+    --wave-field-radius: 0;
+    --wave-field-padding: 0;
   }
   .wave-device input::placeholder,
   .wave-device textarea::placeholder {
@@ -119,6 +145,21 @@
     grid-template-columns: 38px minmax(0, 1fr) 38px 38px;
     flex-shrink: 0;
     padding: 8px 10px 10px;
+  }
+  .wave-device.page-conversation :is(.composer, .extras-panel, .composer-context, .message-multi-toolbar) {
+    background: transparent !important;
+    box-shadow: none;
+    border-color: transparent;
+    backdrop-filter: none;
+  }
+  // Continue the messenger's white canvas beneath the transparent home indicator.
+  .wave-device.page-messages:has(.messenger-app)::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0;
+    height: calc(40px + var(--wave-bottom-inset));
+    background: var(--wave-card, #fff);
+    pointer-events: none;
   }
   .wave-device .composer > button {
     position: static !important;

@@ -1,5 +1,12 @@
 <template>
   <section class="space-app" :class="{ 'space-subpage': moments?.isSubpage }">
+    <WaveNpcProfile
+      v-if="showPerson"
+      :npc-id="phone.activeIdentity?.charKey || ''"
+      :fallback-name="page.profile.username || name"
+      :fallback-avatar="avatar"
+      @close="showPerson = false"
+    />
     <div class="space-scroll">
       <template v-if="tab === 'char'">
         <div class="zone-profile-card space-char-profile">
@@ -11,7 +18,8 @@
               ><img v-if="avatar" :src="avatar" :style="avatarStyle" alt="" /><span v-else>{{
                 name.slice(0, 1)
               }}</span></span
-            ><strong class="zone-username">{{ page.profile.username || name }}</strong
+            ><button type="button" class="zone-username moment-person-link" @click="showPerson = true">
+              {{ page.profile.username || name }}</button
             ><span v-if="page.profile.handle" class="zone-handle">@{{ page.profile.handle.replace(/^@+/, '') }}</span>
             <WaveProfileDecorations
               :title="page.profile.title"
@@ -63,7 +71,7 @@
         </button>
       </div>
       <p v-if="worldError && tab === 'world'" class="zone-error" role="status">{{ worldError }}</p>
-      <WaveTreeHole v-if="tab === 'hole'" />
+      <WaveTreeHole v-if="tab === 'hole'" ref="treeHole" />
       <WaveMoments
         v-show="tab !== 'hole'"
         :key="tab === 'hole' ? 'world' : tab"
@@ -99,7 +107,8 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, nextTick, ref, type CSSProperties } from 'vue';
+import { computed, nextTick, ref, watch, type CSSProperties } from 'vue';
+import WaveNpcProfile from './WaveNpcProfile.vue';
 import { useNow } from '@vueuse/core';
 import WaveProfileDecorations from './WaveProfileDecorations.vue';
 import WaveMoments from './WaveMoments.vue';
@@ -124,6 +133,14 @@ const phone = usePhoneStore(),
   tab = ref<'char' | 'world' | 'hole' | 'me'>('char');
 const moments = ref<InstanceType<typeof WaveMoments> | null>(null),
   worldError = ref('');
+const showPerson = ref(false);
+const treeHole = ref<InstanceType<typeof WaveTreeHole> | null>(null);
+watch(
+  () => [phone.context?.cardKey, phone.context?.chatKey, tab.value],
+  () => {
+    showPerson.value = false;
+  },
+);
 const query = ref(''),
   likedOnly = ref(false),
   now = useNow({ interval: 1000 });
@@ -159,6 +176,11 @@ async function refreshWorld() {
   }
 }
 function back(): boolean {
+  if (showPerson.value) {
+    showPerson.value = false;
+    return true;
+  }
+  if (tab.value === 'hole') return treeHole.value?.back() || false;
   return moments.value?.back() || false;
 }
 const headerTitle = computed(() =>

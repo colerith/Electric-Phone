@@ -1277,3 +1277,52 @@
     text-shadow: none !important;
   }
 }
+
+// Profile entry points share a plain text style, independent of Tavern heading/button skins.
+#wave-phone-script-root .wave-device {
+  .moment-person-link {
+    appearance: none !important;
+    position: static;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    text-transform: none;
+    color: var(--wave-blue);
+    -webkit-text-fill-color: currentColor;
+    font-family: var(--wave-ui-font);
+    line-height: 1.6;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+  }
+  .moment-person-link::before,
+  .moment-person-link::after {
+    content: none !important;
+  }
+  .space-post-author-details .moment-person-link,
+  .space-comment-main header .moment-person-link {
+    color: var(--wave-ink);
+  }
+  .moment-likes {
+    padding: 2px 0 12px;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+  }
+  .moment-likes > i {
+    margin-right: 8px;
+  }
+  .space-comment-avatar {
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    cursor: pointer;
+  }
+  .zone-profile-body > .zone-username {
+    font-size: 21px;
+    font-weight: 650;
+  }
+}

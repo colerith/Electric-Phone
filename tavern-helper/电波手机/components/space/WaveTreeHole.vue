@@ -1,5 +1,13 @@
 <template>
   <section class="space-hole">
+    <WaveNpcProfile
+      v-if="viewingPerson"
+      npc-id=""
+      anonymous
+      :fallback-name="viewingPerson.name"
+      :fallback-avatar="viewingPerson.avatar"
+      @close="viewingPerson = null"
+    />
     <WaveDeleteConfirm v-if="deleting" title="删除这条匿名动态？" @cancel="deleting = null" @confirm="confirmDelete" />
     <header class="space-hole-topic">
       <small>每日树洞 · {{ day }}</small>
@@ -24,7 +32,18 @@
       <header class="space-post-header">
         <WaveAnonymousAvatar :seed="post.mine ? anonymousProfile.anonymousAvatarSeed : `${day}:${post.id}`" />
         <div class="space-post-author-details">
-          <strong>{{ post.mine ? anonymousProfile.anonymousId : post.alias }}</strong>
+          <button
+            type="button"
+            class="moment-person-link"
+            @click="
+              showPerson(
+                post.mine ? anonymousProfile.anonymousId : post.alias,
+                post.mine ? anonymousProfile.anonymousAvatarSeed : `${day}:${post.id}`,
+              )
+            "
+          >
+            {{ post.mine ? anonymousProfile.anonymousId : post.alias }}
+          </button>
         </div>
       </header>
       <p class="space-hole-copy">{{ post.content }}</p>
@@ -48,11 +67,28 @@
         <WaveAnonymousAvatar :seed="isMine(comment) ? anonymousProfile.anonymousAvatarSeed : `${day}:${comment.id}`" />
         <div class="space-comment-main">
           <header>
-            <strong>{{ isMine(comment) ? anonymousProfile.anonymousId : comment.alias }}</strong
+            <button
+              type="button"
+              class="moment-person-link"
+              @click="
+                showPerson(
+                  isMine(comment) ? anonymousProfile.anonymousId : comment.alias,
+                  isMine(comment) ? anonymousProfile.anonymousAvatarSeed : `${day}:${comment.id}`,
+                )
+              "
+            >
+              {{ isMine(comment) ? anonymousProfile.anonymousId : comment.alias }}</button
             ><time>{{ time(comment.createdAt) }}</time>
           </header>
           <p>
-            <span v-if="comment.replyTo" class="space-mention">@{{ comment.replyTo }} </span>{{ comment.content }}
+            <button
+              v-if="comment.replyTo"
+              type="button"
+              class="space-mention moment-person-link"
+              @click="showPerson(comment.replyTo, `${day}:${comment.replyTo}`)"
+            >
+              @{{ comment.replyTo }}</button
+            >{{ comment.content }}
           </p>
           <WaveModuleTranslation app="zone" :translation="comment.translation" inline />
           <button
@@ -82,7 +118,19 @@
 </template>
 <script setup lang="ts">
 import WaveAnonymousAvatar from './WaveAnonymousAvatar.vue';
+import WaveNpcProfile from './WaveNpcProfile.vue';
+import { anonymousAvatarUrl, dailyTopic, treeHoleDay } from '../../services/space/tree-hole';
 import WaveDeleteConfirm from '../shared/WaveDeleteConfirm.vue';
+const viewingPerson = ref<{ name: string; avatar: string } | null>(null);
+function showPerson(name: string, seed: string): void {
+  viewingPerson.value = { name, avatar: anonymousAvatarUrl(seed) };
+}
+function back(): boolean {
+  if (!viewingPerson.value) return false;
+  viewingPerson.value = null;
+  return true;
+}
+defineExpose({ back });
 const deleting = ref<{ day: string; id: string } | null>(null);
 function confirmDelete() {
   if (deleting.value) {
@@ -98,7 +146,6 @@ function confirmDelete() {
 import WaveModuleTranslation from '../shared/WaveModuleTranslation.vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
-import { dailyTopic, treeHoleDay } from '../../services/space/tree-hole';
 const phone = usePhoneStore();
 phone.ensureAnonymousProfile();
 const anonymousProfile = computed(() => phone.state.moments.profile);
@@ -109,6 +156,7 @@ watch(
   () => [phone.context?.cardKey, phone.context?.chatKey],
   () => {
     deleting.value = null;
+    viewingPerson.value = null;
     phone.ensureAnonymousProfile();
   },
 );

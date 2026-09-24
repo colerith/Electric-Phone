@@ -1,8 +1,16 @@
 <template>
   <div class="moments-view" :class="{ 'space-moments': context === 'space' }">
     <WaveDeleteConfirm v-if="deleting" title="删除这条动态？" @cancel="deleting = ''" @confirm="confirmDelete" />
-    <WaveNpcProfile v-if="viewingNpc" :npc-id="viewingNpc" />
-    <template v-else-if="view === 'feed' && !embedded">
+    <WaveNpcProfile
+      v-if="viewingPerson"
+      :npc-id="viewingPerson.key"
+      :fallback-name="viewingPerson.name"
+      :fallback-avatar="avatarFor(viewingPerson.key, viewingPerson.name)"
+      :user-name="userName"
+      :user-avatar="userAvatar"
+      @close="viewingPerson = null"
+    />
+    <template v-if="view === 'feed' && !embedded">
       <div class="moments-cover">
         <button type="button" class="moments-cover-edit" @click="editImage('cover')">更换封面</button>
         <div class="moments-cover-person">
@@ -223,7 +231,7 @@
         </div>
       </section>
     </template>
-    <div v-if="context === 'space' && view === 'me' && panel === 'home' && !viewingNpc" class="space-profile-tabs">
+    <div v-if="context === 'space' && view === 'me' && panel === 'home'" class="space-profile-tabs">
       <div role="tablist" aria-label="我的动态筛选">
         <button
           v-for="item in profileTabs"
@@ -238,10 +246,7 @@
       </div>
     </div>
     <div
-      v-if="
-        !viewingNpc &&
-        (view === 'feed' || panel === 'own' || (context === 'space' && view === 'me' && panel === 'home'))
-      "
+      v-if="view === 'feed' || panel === 'own' || (context === 'space' && view === 'me' && panel === 'home')"
       class="moments-feed"
     >
       <article v-for="post in posts" :key="post.id" class="moment-post">
@@ -249,9 +254,8 @@
           <button
             type="button"
             class="moment-author-avatar"
-            :disabled="!phone.state.moments.npcs[post.authorKey]"
             :aria-label="`查看${nameFor(post.authorKey, post.authorName)}的资料`"
-            @click="viewingNpc = post.authorKey"
+            @click="openPerson(post.authorKey, post.authorName)"
           >
             <img
               v-if="avatarFor(post.authorKey, post.authorName || post.id)"
@@ -264,8 +268,7 @@
             <button
               type="button"
               class="moment-author moment-person-link"
-              :disabled="!phone.state.moments.npcs[post.authorKey]"
-              @click="viewingNpc = post.authorKey"
+              @click="openPerson(post.authorKey, post.authorName)"
             >
               {{ nameFor(post.authorKey, post.authorName) }}
             </button>
@@ -299,7 +302,14 @@
             <i class="fa-solid fa-location-dot"></i>{{ post.location }}
           </div>
           <div v-if="post.mentions.length" class="moment-mentions">
-            提醒 {{ post.mentions.map(key => nameFor(key, '联系人')).join('、') }} 看
+            提醒
+            <template v-for="(key, index) in post.mentions" :key="key"
+              ><span v-if="index">、</span
+              ><button type="button" class="moment-person-link" @click="openPerson(key, '联系人')">
+                {{ nameFor(key, '联系人') }}
+              </button></template
+            >
+            看
           </div>
           <div class="moment-meta">
             <small
@@ -335,39 +345,43 @@
               <i class="fa-regular fa-heart" aria-hidden="true"></i>
               <template v-for="(like, index) in likesFor(post.id)" :key="like.id"
                 ><span v-if="index">、</span
-                ><button
-                  type="button"
-                  class="moment-person-link"
-                  :disabled="!phone.state.moments.npcs[like.authorKey]"
-                  @click="viewingNpc = like.authorKey"
-                >
+                ><button type="button" class="moment-person-link" @click="openPerson(like.authorKey, like.authorName)">
                   {{ nameFor(like.authorKey, like.authorName) }}
                 </button></template
               >
             </div>
             <div v-for="comment in commentsFor(post.id)" :key="comment.id" class="moment-comment-row space-comment">
-              <span class="space-comment-avatar"
-                ><img
+              <button
+                type="button"
+                class="space-comment-avatar"
+                :aria-label="`查看${nameFor(comment.authorKey, comment.authorName)}的资料`"
+                @click="openPerson(comment.authorKey, comment.authorName)"
+              >
+                <img
                   v-if="avatarFor(comment.authorKey, comment.authorName || comment.id)"
                   :src="avatarFor(comment.authorKey, comment.authorName || comment.id)"
                   alt=""
                   @error="markAvatarFailed(comment.authorKey, comment.authorName || comment.id)"
-                /><span v-else>{{ nameFor(comment.authorKey, comment.authorName).slice(0, 1) }}</span></span
-              >
+                /><span v-else>{{ nameFor(comment.authorKey, comment.authorName).slice(0, 1) }}</span>
+              </button>
               <div class="space-comment-main">
                 <header>
                   <button
                     type="button"
                     class="moment-person-link"
-                    :disabled="!phone.state.moments.npcs[comment.authorKey]"
-                    @click="viewingNpc = comment.authorKey"
+                    @click="openPerson(comment.authorKey, comment.authorName)"
                   >
                     {{ nameFor(comment.authorKey, comment.authorName) }}</button
                   ><time>{{ timeLabel(comment.createdAt) }}</time>
                 </header>
                 <p>
-                  <span v-if="comment.replyToAuthorName" class="space-mention"
-                    >@{{ nameFor(comment.replyToAuthorKey, comment.replyToAuthorName) }} </span
+                  <button
+                    v-if="comment.replyToAuthorName"
+                    type="button"
+                    class="space-mention moment-person-link"
+                    @click="openPerson(comment.replyToAuthorKey, comment.replyToAuthorName)"
+                  >
+                    @{{ nameFor(comment.replyToAuthorKey, comment.replyToAuthorName) }}</button
                   >{{ comment.content }}
                 </p>
                 <WaveModuleTranslation
@@ -639,7 +653,10 @@ const props = withDefaults(
 defineEmits<{ share: [post: MomentPost, author: string] }>();
 const phone = usePhoneStore(),
   surface = inject(phoneSurfaceKey, ref(null));
-const viewingNpc = ref('');
+const viewingPerson = ref<{ key: string; name: string } | null>(null);
+function openPerson(key: string, name: string): void {
+  viewingPerson.value = { key, name };
+}
 const failedAvatars = ref(new Set<string>());
 const panel = ref<'home' | 'profile' | 'settings' | 'own' | 'wallet'>(props.initialPanel),
   notice = ref('');
@@ -956,6 +973,7 @@ watch(
   () => [phone.context?.cardKey, phone.context?.chatKey],
   () => {
     deleting.value = '';
+    viewingPerson.value = null;
   },
 );
 function back() {
@@ -963,8 +981,8 @@ function back() {
     deleting.value = '';
     return true;
   }
-  if (viewingNpc.value) {
-    viewingNpc.value = '';
+  if (viewingPerson.value) {
+    viewingPerson.value = null;
     return true;
   }
   if (imageTarget.value) {
@@ -986,14 +1004,12 @@ function back() {
   }
   return false;
 }
-const isSubpage = computed(() => !!viewingNpc.value || (props.view === 'me' && panel.value !== 'home'));
-const subpageTitle = computed(() =>
-  viewingNpc.value
-    ? '详细资料'
-    : { home: '我的', profile: '编辑资料', settings: '空间互动', own: '我的动态', wallet: '我的钱包' }[panel.value],
+const isSubpage = computed(() => props.view === 'me' && panel.value !== 'home');
+const subpageTitle = computed(
+  () => ({ home: '我的', profile: '编辑资料', settings: '空间互动', own: '我的动态', wallet: '我的钱包' })[panel.value],
 );
 const isComposing = computed(() => composing.value);
-const canPublish = computed(() => !viewingNpc.value && props.view === 'me' && panel.value === 'own');
+const canPublish = computed(() => !viewingPerson.value && props.view === 'me' && panel.value === 'own');
 defineExpose({ openComposer, openProfile, back, isSubpage, subpageTitle, canPublish, isComposing });
 </script>
 

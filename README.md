@@ -9,13 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.1.37`
+当前发布版本：`v1.1.38`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.37/file/index-1.1.37.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.38/file/index-1.1.38.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
+
+本版更新：聊天输入区与底部小白条采用连续背景，回车键换用 Font Awesome 图标；恢复搜索栏单层样式，调整点赞间距。空间中的人物昵称可打开资料弹窗，昵称标题不受酒馆主题影响；小屏电脑会等比例缩放整个手机面板，避免底部截断。
 
 ## 首次配置
 

@@ -557,7 +557,7 @@
                   @pointercancel="cancelReturnPress"
                   @contextmenu.prevent
                 >
-                  ↵
+                  <i class="fa-solid fa-reply" aria-hidden="true"></i>
                 </button>
                 <button
                   class="wave-send-button"

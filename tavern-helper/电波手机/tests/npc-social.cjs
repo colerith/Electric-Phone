@@ -52,6 +52,8 @@ const { npcAvatarUrl, npcAvatarSeed, spaceAvatarStyle, spaceAvatarUrl } = requir
 const { buildMomentsPrompt } = require(base + '/prompts/index.ts');
 const Messenger = require(base + '/components/chat/WaveMessenger.vue').default;
 const Moments = require(base + '/components/space/WaveMoments.vue').default;
+const Space = require(base + '/components/space/WaveSpace.vue').default;
+const { phoneSurfaceKey } = require(base + '/services/core/ui-context.ts');
 const screen = vue.ref('messenger');
 let phone,
   messenger,
@@ -61,14 +63,21 @@ const app = vue.createApp({
   setup() {
     phone = usePhoneStore();
     phone.settings.basic.cacheEnabled = false;
+    const surface = vue.ref(null);
+    vue.provide(phoneSurfaceKey, surface);
     return () =>
-      vue.h(screen.value === 'space' ? Moments : Messenger, {
-        ref: v => (messenger = v),
-        view: 'feed',
-        context: 'space',
-        userName: 'User',
-        userAvatar: '',
-      });
+      vue.h('section', { ref: surface, class: 'wave-device' }, [
+        vue.h(screen.value === 'zone' ? Space : screen.value === 'space' ? Moments : Messenger, {
+          ref: v => (messenger = v),
+          view: 'feed',
+          context: 'space',
+          userName: 'User',
+          userAvatar: '',
+          ...(screen.value === 'zone'
+            ? { raw: '', artwork: '', name: 'Alice', avatar: '', busy: false, error: '' }
+            : {}),
+        }),
+      ]);
   },
 });
 app.use(createPinia()).mount('#app');
@@ -150,6 +159,13 @@ const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments
   document.querySelector('.moment-meta button[aria-pressed]').click();
   await tick();
   assert(document.querySelector('.moment-likes .fa-regular.fa-heart'), 'like results use a hollow Font Awesome heart');
+  document.querySelector('.moment-likes .moment-person-link').click();
+  await tick();
+  assert.equal(document.querySelector('.wave-person-name').textContent, 'User');
+  assert.equal(document.querySelector('.wave-person-action'), null, 'self card cannot add yourself');
+  document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await tick();
+  assert.equal(document.querySelector('[role="dialog"]'), null);
   phone.state.moments.comments.push({
     id: 'legacy-guest-comment',
     postId: phone.momentsFeed.posts[0].id,
@@ -166,6 +182,20 @@ const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments
   const commentAvatar = document.querySelector('.space-comment-avatar img');
   assert(commentAvatar);
   assert.equal(commentAvatar.src, spaceAvatarUrl('space-guest:Soap_Mac'));
+  const guestName = document.querySelector('.space-comment-main header .moment-person-link');
+  guestName.focus();
+  guestName.click();
+  await tick();
+  assert.equal(document.querySelector('.wave-person-name').textContent, 'Soap_Mac');
+  assert(document.querySelector('.npc-profile-about').textContent.includes('还没有留下介绍'));
+  assert.equal(
+    document.querySelector('.wave-person-action'),
+    null,
+    'legacy guests retain names without invented identities',
+  );
+  document.querySelector('.wave-person-overlay').click();
+  await tick();
+  assert.equal(document.activeElement, guestName, 'closing the modal restores the name button focus');
   const deleteComment = document.querySelector('.moment-comment-delete');
   assert(deleteComment, 'Space comments expose a delete action');
   deleteComment.click();
@@ -173,9 +203,14 @@ const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments
   assert(!document.body.textContent.includes('老兄，你直接说主席能治你得了！'));
   author.click();
   await tick();
-  assert.equal(messenger.subpageTitle, '详细资料');
-  assert(messenger.isSubpage);
-  assert(!document.querySelector('.messenger-dock'));
+  assert(!messenger.isSubpage, 'a profile modal does not replace the feed page');
+  assert(document.querySelector('[role="dialog"][aria-modal="true"]'));
+  assert.equal(
+    document.querySelector('.wave-person-overlay').parentElement.className,
+    'wave-device',
+    'profiles teleport above the scrolling feed',
+  );
+  assert(document.querySelector('.moment-author'), 'the feed stays mounted under the modal');
   assert(document.querySelector('.npc-profile-about').textContent.includes('摄影'));
   const avatar = document.querySelector('.npc-profile-avatar img');
   avatar.dispatchEvent(new Event('error'));
@@ -270,6 +305,41 @@ const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments
     Object.values(phone.state.threads).find(thread => thread.charKey === persistentMainKey).messages.length,
     0,
   );
+  screen.value = 'zone';
+  await tick();
+  document.querySelector('.zone-username').click();
+  await tick();
+  assert(document.querySelector('[role="dialog"]'), 'character Space names open a card');
+  assert.equal(messenger.back(), true);
+  await tick();
+  const { treeHoleDay, TreeHolePostSchema } = require(base + '/services/space/tree-hole.ts');
+  phone.state.treeHole[treeHoleDay()] = {
+    topic: '测试话题',
+    posts: [
+      TreeHolePostSchema.parse({
+        id: 'anon',
+        alias: '远方来信',
+        content: '今天很好',
+        createdAt: Date.now(),
+        comments: [{ id: 'reply', alias: '匿名听众', content: '收到', createdAt: Date.now() }],
+      }),
+    ],
+  };
+  click('.space-bottom button', '树洞');
+  await tick();
+  document.querySelector('.space-hole-post .space-post-author-details button').click();
+  await tick();
+  assert.equal(document.querySelector('.wave-person-name').textContent, '远方来信');
+  assert(document.querySelector('.npc-profile-about').textContent.includes('匿名身份'));
+  assert.equal(document.querySelector('.wave-person-action'), null, 'anonymous cards cannot expose a real contact');
+  assert.equal(messenger.back(), true);
+  await tick();
+  document.querySelector('.space-hole-post .space-comment-main header button').click();
+  await tick();
+  assert.equal(document.querySelector('.wave-person-name').textContent, '匿名听众');
+  document.querySelector('.wave-person-overlay').click();
+  await tick();
+  assert.equal(document.querySelector('[role="dialog"]'), null);
   app.unmount();
   console.log(
     'PASS: persistent NPC plans and replay, profile navigation, avatar fallback/custom/reset, ID-based friend deduplication and homonyms, card-level main roster with chat-isolated threads, shared editable persona, legacy migration, and forged identity rejection.',
