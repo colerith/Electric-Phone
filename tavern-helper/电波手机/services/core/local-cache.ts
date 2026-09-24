@@ -1,4 +1,4 @@
-import { diagnostics } from './diagnostics';
+import { diagnostics, logDiagnostic } from './diagnostics';
 type CacheRecord = {
   key: string;
   card: string;
@@ -58,6 +58,7 @@ export async function cachedParse<T>(
   signature: string,
   limitMb: number,
   parse: () => T,
+  validate?: (value: unknown) => T,
 ): Promise<T> {
   const key = JSON.stringify([card, chat]);
   let list: CacheRecord[] = [];
@@ -65,6 +66,7 @@ export async function cachedParse<T>(
     list = await records();
     const existing = list.find(item => item.key === key && item.signature === signature);
     if (existing) {
+      const validated = validate ? validate(existing.value) : (existing.value as T);
       const oldest = list.filter(item => item.card === card).sort((a, b) => a.time - b.time);
       let size = oldest.reduce((sum, item) => sum + item.size, 0);
       const remove: string[] = [];
@@ -75,10 +77,11 @@ export async function cachedParse<T>(
       }
       if (remove.length) await mutate(remove);
       diagnostics.cacheError = '';
-      return existing.value as T;
+      return validated;
     }
   } catch (error) {
     diagnostics.cacheError = String(error);
+    logDiagnostic('解析缓存回退', `缓存读取或校验失败，将从原聊天重建：${String(error).slice(0, 1000)}`);
   }
   const value = parse();
   try {

@@ -59,6 +59,7 @@ import { stripInlineCards } from '../services/generation/module-protocol';
 import { cachedParse } from '../services/core/local-cache';
 import { isCardExcluded, stripExcludedTags } from '../services/generation/context-controls';
 import { logDiagnostic } from '../services/core/diagnostics';
+import { describeRequestError, redactDiagnostic, type RequestStage } from '../services/core/request-error';
 import { useDeviceStore } from './device';
 import { buildPhoneBridgePrompt } from '../prompts';
 import { playSoundEvent } from '../services/core/notification';
@@ -88,6 +89,7 @@ import { computed, ref } from 'vue';
 import {
   AppSnapshotSchema,
   PhoneMessageSchema,
+  ThreadSchema,
   IdentitySchema,
   CHAT_VARIABLE_KEY,
   CharacterProfileMapSchema,
@@ -128,7 +130,7 @@ import {
   generateTreeHolePage,
   stopPhoneGeneration,
 } from '../services/generation/generation';
-import { mergeAppSnapshot, parsePhoneMessage } from '../services/generation/parser';
+import { mergeAppSnapshot, parsePhoneMessage, validatePhoneBlocks } from '../services/generation/parser';
 
 import { mergeZoneSnapshot, parseZonePage, ZoneInteractionSchema, type ZonePost } from '../services/space/zone';
 import { editedMessagePayload, formatPhoneMessage } from '../services/chat/message-format';
@@ -312,18 +314,20 @@ function persistChatState(state: ChatState): void {
 function ensureThread(state: ChatState, context: RuntimeContext, identity: Identity): Thread {
   const id = makeThreadId(context, identity.charKey);
   const existing = state.threads[id];
-  const thread: Thread = existing || {
-    id,
-    charKey: identity.charKey,
-    messages: [],
-    draft: '',
-    unread: 0,
-    pinned: false,
-    muted: false,
-    generating: false,
-    generationId: '',
-    updatedAt: nowIso(),
-  };
+  const thread =
+    existing ||
+    ThreadSchema.parse({
+      id,
+      charKey: identity.charKey,
+      messages: [],
+      draft: '',
+      unread: 0,
+      pinned: false,
+      muted: false,
+      generating: false,
+      generationId: '',
+      updatedAt: nowIso(),
+    });
   state.threads[id] = thread;
   return thread;
 }
@@ -953,7 +957,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     Object.values(nextState.identities).forEach(identity => {
       if (identity.source !== 'auto_single_card') return;
       const thread = Object.values(nextState.threads).find(item => item.charKey === identity.charKey);
-      if (thread?.messages.length || thread?.historyArchive.length) {
+      if (thread?.messages?.length || thread?.historyArchive?.length) {
         nextState.identities[identity.charKey] = {
           ...identity,
           name: `待迁移 · ${identity.name}`,
@@ -976,23 +980,26 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   }
   async function synchronize(): Promise<void> {
     const token = ++syncToken;
-    const runtime = getRuntimeContext();
-    if (!runtime) {
-      isReady.value = false;
-      syncError.value = '等待角色卡与聊天初始化';
-      return;
-    }
-
-    if (isCardExcluded(settings.value, runtime.cardName)) {
-      context.value = runtime;
-      state.value = ChatStateSchema.parse({ cardKey: runtime.cardKey, chatKey: runtime.chatKey });
-      isReady.value = true;
-      syncError.value = '当前角色卡已排除，已暂停同步与生成';
-      logDiagnostic('同步跳过', syncError.value);
-      return;
-    }
+    let stage = '读取当前角色卡';
     try {
+      const runtime = getRuntimeContext();
+      if (!runtime) {
+        isReady.value = false;
+        syncError.value = '等待角色卡与聊天初始化';
+        return;
+      }
+
+      if (isCardExcluded(settings.value, runtime.cardName)) {
+        context.value = runtime;
+        state.value = ChatStateSchema.parse({ cardKey: runtime.cardKey, chatKey: runtime.chatKey });
+        isReady.value = true;
+        syncError.value = '当前角色卡已排除，已暂停同步与生成';
+        logDiagnostic('同步跳过', syncError.value);
+        return;
+      }
+      stage = '读取聊天存档';
       const nextState = readChatState(runtime);
+      stage = '读取跨聊天资料';
       applyMomentUserProfile(nextState);
       hydrateCardRoster(nextState, runtime);
       hydrateCharacterDefaults(nextState, runtime);
@@ -1008,7 +1015,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       );
       const previousMomentContent = momentContentSignature(nextState.moments);
       // Tavern's hidden state only controls its own context/display. Phone data remains persistent.
+      stage = '读取聊天楼层';
       const assistantMessages = readChatFloors({ role: 'assistant', hide_state: 'all' });
+      stage = '解析手机数据与缓存';
       const parse = () => assistantMessages.flatMap(message => parsePhoneMessage(message.message, message.message_id));
       const blocks = settings.value.basic.cacheEnabled
         ? await cachedParse(
@@ -1018,9 +1027,11 @@ export const usePhoneStore = defineStore('wave-phone', () => {
               JSON.stringify(assistantMessages.map(message => [message.message_id, message.message])),
             settings.value.basic.cacheLimitMb,
             parse,
+            validatePhoneBlocks,
           )
         : parse();
       if (token !== syncToken) return;
+      stage = '合并角色与手机数据';
       logDiagnostic('同步正文', `${runtime.cardName} · ${assistantMessages.length} 楼 · ${blocks.length} 个手机数据块`);
       const namedCharacters = new Set(blocks.map(block => block.name.trim().toLocaleLowerCase()).filter(Boolean));
       const parsedStableIds = new Set(blocks.map(block => block.stableId.trim()).filter(Boolean));
@@ -1340,9 +1351,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       });
     } catch (error) {
       if (token !== syncToken) return;
-      syncError.value = stringifyError(error);
+      syncError.value = `${stage}失败：${stringifyError(error)}`;
       isReady.value = false;
-      logDiagnostic('同步失败', stringifyError(error));
+      logDiagnostic('同步失败', `${syncError.value}\n${error instanceof Error ? error.stack || '' : ''}`);
       console.error(LOG_PREFIX, '同步失败', error);
     }
   }
@@ -2136,6 +2147,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         : '';
     const preferences = ChatPreferencesSchema.parse(state.value.chatPreferences[identity.charKey]);
     let formattedInput = '';
+    let sendStage: RequestStage = '准备上下文';
 
     try {
       thread.generating = true;
@@ -2236,6 +2248,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         .join('\n\n');
       formattedInput = stripExcludedTags(formattedInput, settings.value.basic.excludedTags);
       if (settings.value.sendMode === 'main_api') {
+        sendStage = '请求接口';
         await bridgeToMainApi(identity, formattedInput);
         pending.forEach(message => {
           delete message.payload.awaitingReply;
@@ -2261,6 +2274,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       thread.generationId = generationId;
       userMessage.status = 'sent';
       saveChat();
+      sendStage = '请求接口';
       const result = await generatePhoneReply({
         walletAuthorization: requestWalletGrant,
         settings: klona({
@@ -2286,6 +2300,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         generationId,
       });
 
+      sendStage = '应用回复';
       if (preferences.autoTranslate) {
         await Promise.all(
           result.data.messages.map(async message => {
@@ -2412,6 +2427,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       contentToast(`${identity.name} 的手机内容已更新`);
       saveChat();
     } catch (error) {
+      const secrets = [settings.value.api.key, settings.value.translation.apiKey];
+      const detail = redactDiagnostic(stringifyError(error), secrets);
+      logDiagnostic(
+        '发送失败',
+        `模式：${settings.value.sendMode}｜${detail.includes('｜阶段：') ? detail : describeRequestError(error, sendStage, secrets).detail}`,
+      );
       const currentThread = state.value.threads[thread.id];
       if (currentThread) {
         currentThread.generating = false;
@@ -2419,7 +2440,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         const storedMessage = currentThread.messages.find(message => message.id === userMessage.id);
         if (storedMessage) {
           storedMessage.status = 'failed';
-          storedMessage.error = stringifyError(error);
+          storedMessage.error = detail;
         }
         saveChat();
       }

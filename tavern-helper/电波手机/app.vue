@@ -560,7 +560,7 @@
                   ↵
                 </button>
                 <button
-                  class="send-button"
+                  class="wave-send-button"
                   :class="{ stopping: primaryReplyGenerating }"
                   type="submit"
                   :aria-label="primaryReplyGenerating ? '中止生成' : '发送并激活回复'"
@@ -956,11 +956,10 @@
             @cancel="forwardDraft = null"
             @confirm="confirmSharedForward"
           />
-
-          <button class="wave-homebar" type="button" aria-label="返回主屏或关闭手机" @click="handleHomebar">
-            <span></span>
-          </button>
         </template>
+        <button class="wave-homebar" type="button" aria-label="返回主屏或关闭手机" @click="handleHomebar">
+          <span></span>
+        </button>
       </section>
     </div>
   </div>
@@ -1645,6 +1644,10 @@ function goBack(): void {
   returnToPreviousPage();
 }
 function handleHomebar(): void {
+  if (!store.isReady) {
+    store.isOpen = false;
+    return;
+  }
   if (forwardDraft.value) {
     forwardDraft.value = null;
     return;
@@ -1800,7 +1803,7 @@ function onInteractionSound(event: MouseEvent): void {
   const target = event.target as HTMLElement;
   if (
     !target.closest('button, a, [role="switch"]') ||
-    target.closest('.notification-sound-settings, .send-button, .mobile-return') ||
+    target.closest('.notification-sound-settings, .wave-send-button, .mobile-return') ||
     Date.now() - lastInteractionSound < 70
   )
     return;

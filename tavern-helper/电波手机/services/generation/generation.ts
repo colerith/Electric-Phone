@@ -5,6 +5,7 @@ import { splitElectric } from './electric';
 import { narrativePrompt } from './narrative-context';
 import { prepareContext, stripExcludedTags, isCardExcluded } from './context-controls';
 import { diagnostics, logDiagnostic } from '../core/diagnostics';
+import { describeRequestError, redactDiagnostic, type RequestStage } from '../core/request-error';
 import { buildCustomApi, fitContext } from '../core/api-config';
 import {
   PhoneChatResponseSchema,
@@ -61,7 +62,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, generation
   try {
     return await Promise.race([promise, timeout]);
   } catch (error) {
-    if (String(error).includes('超时')) void stopGenerationById(generationId);
+    if (String(error).includes('超时')) void stopGenerationById(generationId).catch(() => false);
     throw error;
   } finally {
     window.clearTimeout(timer);
@@ -78,6 +79,20 @@ async function requestConfigured<T>(
   namespace?: { cardKey: string; chatKey: string; thread?: Thread; onElectric?: (text: string, title: string) => void },
 ): Promise<T> {
   const request = { cancelled: false };
+  let stage: RequestStage = '配置检查';
+  let attempt = 0;
+  let attemptStarted = Date.now();
+  let failureLogged = false;
+  const secrets = [settings.api.key, settings.api.key.trim()];
+  const reportFailure = (error: unknown) => {
+    const failure = describeRequestError(error, stage, secrets);
+    logDiagnostic(
+      '请求失败',
+      `${generationId}｜第 ${attempt + 1}/${settings.api.retryCount + 1} 次｜耗时 ${Date.now() - attemptStarted} ms｜${failure.detail}`,
+    );
+    failureLogged = true;
+    return failure;
+  };
   function ensureNamespace() {
     if (!namespace) return;
     const current = getRuntimeContext();
@@ -91,6 +106,7 @@ async function requestConfigured<T>(
     const runtime = getRuntimeContext();
     if (namespace && runtime && isCardExcluded(settings, runtime.cardName))
       throw Error('当前角色卡已排除，已暂停手机生成。');
+    stage = '准备上下文';
     const overrides = namespace
       ? await prepareContext(settings, namespace.thread?.historyFloorCutoff ?? -1)
       : undefined;
@@ -106,11 +122,20 @@ async function requestConfigured<T>(
       diagnostics.response = '';
       diagnostics.requestTime = new Date().toLocaleString();
     }
-    logDiagnostic('开始请求', generationId);
-    for (let attempt = 0; ; attempt++) {
+    logDiagnostic(
+      '开始请求',
+      redactDiagnostic(
+        `${generationId}｜服务：${settings.api.provider}｜模型：${api.model}｜上下文上限 ${settings.api.contextLength}｜最大回复 ${settings.api.maxTokens}｜超时 ${settings.api.timeoutMs} ms｜显式提示词 ${ordered.reduce((n, p) => n + (typeof p === 'string' ? 0 : p.content.length), userInput.length)} 字｜历史 ${overrides?.chat_history?.prompts?.length || 0} 条；原生角色卡/世界书由酒馆展开`,
+        secrets,
+      ),
+    );
+    for (attempt = 0; ; attempt++) {
+      failureLogged = false;
       if (request.cancelled) throw Error('生成已停止。');
       ensureNamespace();
       try {
+        stage = '请求接口';
+        attemptStarted = Date.now();
         const raw = await withTimeout(
           generateRaw({
             user_input: userInput || undefined,
@@ -126,25 +151,29 @@ async function requestConfigured<T>(
         );
         if (request.cancelled) throw Error('生成已停止。');
         ensureNamespace();
+        stage = '读取响应';
+        if (typeof raw !== 'string') throw Error(`API 应返回文本，实际为 ${raw === null ? 'null' : typeof raw}。`);
         if (!raw.trim()) throw Error('API 返回了空内容。');
-        if (settings.debugEnabled) diagnostics.response = raw.slice(0, 50000);
-        logDiagnostic('请求完成', `${generationId} · ${raw.length} 字`);
+        if (settings.debugEnabled) diagnostics.response = redactDiagnostic(raw.slice(0, 50000), secrets);
+        logDiagnostic('接口已返回', `${generationId} · ${raw.length} 字 · ${Date.now() - attemptStarted} ms，开始校验`);
+        stage = '校验回复';
         const parsed = parse(raw);
+        stage = '应用回复';
         const electric = splitElectric(raw);
         namespace?.onElectric?.(electric.electric, electric.electricTitle);
+        logDiagnostic('请求完成', `${generationId} · 回复校验通过`);
         return parsed;
       } catch (error) {
-        logDiagnostic('请求失败', String(error).replaceAll(settings.api.key || '\u0000', '[已隐藏]'));
-        if (
-          request.cancelled ||
-          /abort|cancel|停止|取消|\b(400|401|403|404)\b/i.test(String(error)) ||
-          attempt >= settings.api.retryCount
-        )
-          throw error;
+        const failure = reportFailure(error);
+        if (request.cancelled || !failure.retryable || attempt >= settings.api.retryCount) throw Error(failure.detail);
+        logDiagnostic('自动重试', `${generationId}｜下次为第 ${attempt + 2} 次｜原因：${failure.category}`);
         console.info('[wave-phone] 请求失败，自动重试', { attempt: attempt + 1, generationId });
         await new Promise(resolve => window.setTimeout(resolve, Math.min(3000, 500 * 2 ** attempt)));
       }
     }
+  } catch (error) {
+    if (!failureLogged) throw Error(reportFailure(error).detail);
+    throw error;
   } finally {
     if (runningRequests.get(generationId) === request) runningRequests.delete(generationId);
   }
@@ -163,7 +192,14 @@ export async function generatePhoneReply(
   input: GenerationInput,
 ): Promise<{ generationId: string; data: PhoneChatResponse }> {
   const generationId = input.generationId || createPhoneGenerationId();
-  const prompts = conversationPrompts(input);
+  let prompts: (BuiltinPrompt | RolePrompt)[];
+  try {
+    prompts = conversationPrompts(input);
+  } catch (error) {
+    const failure = describeRequestError(error, '准备上下文', [input.settings.api.key]);
+    logDiagnostic('请求失败', `${generationId}｜${failure.detail}`);
+    throw Error(failure.detail);
+  }
   const data = await requestConfigured(
     input.settings,
     generationId,

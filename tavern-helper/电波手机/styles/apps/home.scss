@@ -734,7 +734,7 @@
     font-size: 11px;
   }
   .ios-home-dock {
-    grid-template-columns: repeat(4, calc((100% - 36px) / 4 + 3px));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     justify-content: start;
     gap: 12px;
     padding: 9px 4px;
@@ -745,8 +745,8 @@
     display: grid;
     place-items: center;
     width: auto;
-    justify-self: stretch;
-    transform: translateX(4px);
+    justify-self: center;
+    transform: none;
   }
   .ios-home-dock .ios-app-icon > span {
     width: 54px;

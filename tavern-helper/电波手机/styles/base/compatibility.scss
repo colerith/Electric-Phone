@@ -1,0 +1,179 @@
+// Loaded last: isolate native controls and fit the panel to the host's visible viewport.
+#wave-phone-script-root {
+  .wave-phone-host {
+    position: absolute;
+    inset: auto;
+    left: var(--wave-viewport-left, 0px);
+    top: var(--wave-viewport-top, 0px);
+    width: var(--wave-viewport-width, 100%);
+    height: var(--wave-viewport-height, 100%);
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wave-overlay {
+    padding: 0;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .wave-device {
+    --wave-bottom-inset: 0px;
+    width: var(--wave-panel-width, 390px);
+    height: var(--wave-panel-height, 100%);
+    min-width: 0;
+    min-height: 0;
+    max-width: 100%;
+    max-height: 100%;
+    padding-bottom: calc(40px + var(--wave-bottom-inset));
+    container-type: inline-size;
+  }
+  .wave-device .wave-screen,
+  .wave-device .wave-loading {
+    min-height: 0;
+    min-width: 0;
+  }
+  .wave-device .wave-loading {
+    overflow-y: auto;
+    padding: 20px;
+  }
+  .wave-device .wave-homebar,
+  .wave-device.page-home .wave-homebar {
+    position: absolute;
+    inset: auto 0 var(--wave-bottom-inset);
+    display: grid;
+    place-items: center;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+    margin: 0;
+    z-index: 40;
+    touch-action: manipulation;
+    border: 0;
+    box-shadow: none;
+  }
+  .wave-device.page-home .portrait-page {
+    padding-bottom: 28px;
+  }
+  .wave-device.page-home .portrait-pager {
+    bottom: 0;
+  }
+  .wave-device .ios-home-dock {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: center;
+    justify-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+  }
+  .wave-device .ios-home-dock .ios-app-icon {
+    display: grid;
+    place-items: center;
+    justify-self: center;
+    align-self: center;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    transform: none;
+  }
+  .wave-device .ios-home-dock .ios-app-icon > span {
+    width: min(54px, 100%);
+    height: auto;
+    aspect-ratio: 1;
+    margin: 0;
+  }
+  .wave-device .ios-home-scroll {
+    overscroll-behavior-y: contain;
+  }
+  .wave-device .music-bottom-dock {
+    bottom: calc(44px + var(--wave-bottom-inset));
+  }
+  // Explicitly include number/url/password fields: Tavern themes use attribute selectors.
+  .wave-device input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  .wave-device textarea,
+  .wave-device select {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    background-image: none !important;
+    background-color: var(--wave-card, #fff) !important;
+    color: var(--wave-ink, #374558) !important;
+    -webkit-text-fill-color: var(--wave-ink, #374558) !important;
+    box-shadow: none !important;
+    filter: none !important;
+    text-shadow: none !important;
+    border: 1px solid var(--wave-line, #dce3ee) !important;
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin: 0 !important;
+    min-width: 0;
+    max-width: 100%;
+    font-family: inherit !important;
+    line-height: 1.4;
+  }
+  .wave-device input::placeholder,
+  .wave-device textarea::placeholder {
+    color: var(--wave-muted, #6e7682) !important;
+    -webkit-text-fill-color: var(--wave-muted, #6e7682) !important;
+    opacity: 1;
+  }
+  .wave-device .composer {
+    grid-template-columns: 38px minmax(0, 1fr) 38px 38px;
+    flex-shrink: 0;
+    padding: 8px 10px 10px;
+  }
+  .wave-device .composer > button {
+    position: static !important;
+    display: grid !important;
+    place-items: center;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    appearance: none !important;
+    background: var(--wave-tint, #edf2fa) !important;
+    color: var(--wave-navy, #204075) !important;
+    -webkit-text-fill-color: currentColor !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    transform: none !important;
+    border: 1px solid var(--wave-line, #dce3ee) !important;
+    border-radius: 15px !important;
+  }
+  .wave-device .composer > .wave-send-button {
+    background: var(--wave-blue, #5e80be) !important;
+    color: #fff !important;
+  }
+  .wave-device .composer > button::before,
+  .wave-device .composer > button::after {
+    content: none !important;
+  }
+  .wave-device .composer > textarea {
+    height: 38px;
+    min-height: 38px;
+    max-height: 95px;
+    resize: none;
+    padding: 6px 10px;
+  }
+  &.wave-mobile-viewport .wave-device {
+    --wave-bottom-inset: max(16px, env(safe-area-inset-bottom, 0px));
+    border: 0;
+    border-radius: 0;
+  }
+  &.wave-mobile-viewport .wave-statusbar {
+    height: calc(42px + env(safe-area-inset-top, 0px));
+    flex-basis: calc(42px + env(safe-area-inset-top, 0px));
+    padding-top: calc(7px + env(safe-area-inset-top, 0px));
+  }
+  &.wave-mobile-viewport .wave-device input,
+  &.wave-mobile-viewport .wave-device textarea,
+  &.wave-mobile-viewport .wave-device select {
+    // Avoid iOS focus zoom, which changes the visible panel width while typing.
+    font-size: max(16px, calc(11px * var(--wave-font-scale, 1))) !important;
+  }
+  &.wave-mobile-viewport .wave-dynamic-island,
+  &.wave-mobile-viewport .generation-island {
+    top: calc(7px + env(safe-area-inset-top, 0px));
+  }
+}

@@ -10,6 +10,7 @@ import './styles/base/interactions.scss';
 import './styles/base/refinements.scss';
 import './styles/apps/calendar.scss';
 import { usePhoneStore } from './stores/phone';
+import { bindPhoneViewport } from './services/core/viewport';
 
 const ROOT_ID = 'wave-phone-script-root';
 const QUICK_REPLY_BUTTON = '📱 电波手机';
@@ -17,6 +18,7 @@ let vueApp: VueApp<Element> | null = null;
 let buttonEvent: EventOnReturn | null = null;
 let openWatcher: WatchStopHandle | null = null;
 let mountedRoot: HTMLElement | null = null;
+let releaseViewport: (() => void) | null = null;
 let phoneOwnsFullscreen = false;
 let fullscreenRequestId = 0;
 
@@ -90,6 +92,8 @@ function exitPhoneFullscreen(root: HTMLElement): void {
 }
 
 function cleanup(): void {
+  releaseViewport?.();
+  releaseViewport = null;
   openWatcher?.();
   openWatcher = null;
   buttonEvent?.stop();
@@ -107,6 +111,7 @@ async function initialize(): Promise<void> {
   const $root = createScriptIdDiv().attr('id', ROOT_ID);
   $('body').append($root);
   mountedRoot = $root[0];
+  releaseViewport = bindPhoneViewport(mountedRoot);
 
   const pinia = createPinia();
   vueApp = createApp(App);
@@ -155,3 +160,4 @@ import './styles/apps/moments.scss';
 import './styles/apps/space.scss';
 
 import './styles/apps/presets.scss';
+import './styles/base/compatibility.scss';

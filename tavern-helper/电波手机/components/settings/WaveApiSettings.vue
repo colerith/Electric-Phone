@@ -229,7 +229,7 @@ async function test() {
     const settings = klona(phone.settings);
     settings.api = validated();
     await testSecondaryApi(settings);
-    feedback.value = '连接成功';
+    feedback.value = '连接成功；此测试仅验证短文本请求，正式聊天还需通过上下文处理和 JSON 格式校验。';
   } catch (e) {
     feedback.value = e instanceof Error ? e.message : '连接失败';
   } finally {

@@ -23,11 +23,11 @@ assert.match(home, /\.anniversary-portraits\s*\{[\s\S]*?container-type: inline-s
 assert.match(home, /\.anniversary-avatar\s*\{[\s\S]*?width: 55%;[\s\S]*?height: 55cqw;/);
 assert.match(
   home,
-  /\.ios-home-dock\s*\{[\s\S]*?grid-template-columns: repeat\(4, calc\(\(100% - 36px\) \/ 4 \+ 3px\)\);[\s\S]*?gap: 12px;[\s\S]*?padding: 9px 4px;/,
+  /\.ios-home-dock\s*\{[\s\S]*?grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);[\s\S]*?gap: 12px;[\s\S]*?padding: 9px 4px;/,
 );
 assert.match(
   home,
-  /\.ios-home-dock \.ios-app-icon\s*\{[\s\S]*?place-items: center;[\s\S]*?justify-self: stretch;[\s\S]*?transform: translateX\(4px\);/,
+  /\.ios-home-dock \.ios-app-icon\s*\{[\s\S]*?place-items: center;[\s\S]*?justify-self: center;[\s\S]*?transform: none;/,
 );
 assert.doesNotMatch(home, /\.ios-home-dock\s*\{[\s\S]*?grid-template-columns: repeat\(3,/);
 assert.match(moments, /\.moments-avatar\s*\{[\s\S]*?border-radius: 50%;/);

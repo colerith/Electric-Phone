@@ -692,7 +692,7 @@
       color: #27304f;
       font-size: 12px;
     }
-    .send-button {
+    .wave-send-button {
       background: linear-gradient(145deg, #7399dc, #526fb5);
       color: white;
     }
@@ -1938,7 +1938,7 @@
   color: var(--wave-navy);
 }
 
-#wave-phone-script-root .page-conversation .composer > .send-button {
+#wave-phone-script-root .page-conversation .composer > .wave-send-button {
   border-radius: 15px;
   border-color: var(--wave-blue);
   background: var(--wave-blue);

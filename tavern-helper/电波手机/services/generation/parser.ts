@@ -1,7 +1,8 @@
 import { isLimitedApp, mergeLimitedModule, type RoundBudget } from './module-updates';
 import type { ModuleSettings } from './module-settings';
 import { splitElectric } from './electric';
-import { readModuleDeltas, type ModuleDelta } from './module-protocol';
+import { readModuleDeltas, ModuleDeltaSchema, type ModuleDelta } from './module-protocol';
+import { z } from 'zod';
 import { mergeZoneSnapshot } from '../space/zone';
 import { mergeWallet } from '../wallet/wallet';
 import type { AppId, AppSnapshot } from '../../schemas';
@@ -14,6 +15,22 @@ export type ParsedPhoneBlock = {
   name: string;
   apps: Partial<Record<AppId, string>>;
 };
+
+// IndexedDB can outlive the script version. Revalidate before using cached deltas.
+export function validatePhoneBlocks(value: unknown): ParsedPhoneBlock[] {
+  return z
+    .array(
+      z.object({
+        messageId: z.number().int(),
+        ordinal: z.number().int(),
+        stableId: z.string(),
+        name: z.string(),
+        apps: z.object({}),
+        delta: ModuleDeltaSchema,
+      }),
+    )
+    .parse(value);
+}
 
 export function parsePhoneMessage(message: string, messageId: number): ParsedPhoneBlock[] {
   message = splitElectric(message).body;
