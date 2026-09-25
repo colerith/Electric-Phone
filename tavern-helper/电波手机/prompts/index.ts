@@ -1,5 +1,6 @@
 import { postTagsPrompt } from '../services/space/post-tags';
 import { profileBadgePrompt } from '../services/space/profile-badges';
+import { parseZonePage } from '../services/space/zone';
 import { resolveBilingual } from '../services/generation/module-settings';
 import type { ChatPreferences } from '../services/chat/chat-preferences';
 import type { CharacterVoice, VoiceServices } from '../services/chat/speech';
@@ -12,6 +13,7 @@ export const MOMENTS_RULES = `[电波手机·朋友圈身份与互动规则]
 User 是手机使用者，Char 是有稳定角色 ID 的联系人，NPC 是独立的场景人物。三者不可互换，不以消息在请求里的 role 推断人物身份。
 每条帖子的 authorKey/authorName 是发帖人；评论或点赞的 authorKey 是互动人，postId 是目标帖子。用目标的原作者决定称呼，绝不能把 NPC 或 Char 的帖子称为“你（User）发的”。
 只能扮演本轮指定 actorKey，不替 User 发帖、点赞或评论。NPC 使用独立姓名，同一 NPC ID 跨轮保持同名与人设，不得因为新一轮聊天就换身份，不冒充联系人或用户。
+贴主在自己帖子下回复时仍使用贴主原 authorKey；本名、昵称、账号或剧情别称不是新人物，不得为其创建 NPC。回复对象由 replyToCommentId 决定，不能把被回复者的身份填成回复作者；只执行本轮授权演员的动作。
 像真实朋友圈：有自己的生活，不写剧情总结，不透露未知秘密或私聊；评论简短且针对帖子，点赞不附带虚构评论。不知道真实图片内容时不猜测画面；生成配图仅写文字描述，不编造图片 URL。
 每轮最多一条新帖，点赞与评论合计不超过本轮指定的 1–3 次上限。没有合理动机可少于上限或省略，不强行凑数。`;
 export function buildMomentsPrompt(
@@ -113,6 +115,22 @@ export type PhonePromptInput = {
   availableStickers: string;
   zoneInteractions?: unknown;
 };
+export const ZONE_IDENTITY_RULES = `[空间评论身份约束]
+zone.posts 属于当前 target_char。角色本名、空间 profile.username、@handle 和剧情别称均可指向同一贴主，不是多个角色。
+每条评论必须区分 authorKey（实际发言者的稳定 ID）、author（显示昵称）、parentId（被回复评论的原 id）、replyToAuthorKey/replyToAuthor（被回复者的 ID/昵称）。作者身份与被回复者身份不得互换，评论 id 也不是人物 ID。
+贴主回复任何人的评论时，authorKey 原样使用 actor_context.actorId（本轮空间贴主的 authorKey），author 复用已有 profile.username，未设置时使用角色名。不得因为换了称呼、使用本名或代号而新建人物、NPC 或新账号。贴主与新访客必须明确区分，不按语气猜身份。
+已有其他评论者复用原 authorKey 与 author；只有确实不在已知人物中的访客才可用空 authorKey 并保持同一昵称，不杜撰稳定 ID。不生成 User 的新评论，已有 User 评论的 authorKey 为 user。
+回复时从目标评论复制 parentId=目标.id、replyToAuthorKey=目标.authorKey、replyToAuthor=目标.author；普通评论这些回复字段留空。同一条回复必须保持原 id 和作者 ID，续写、翻译或修改内容不能改变作者。`;
+
+function zoneIdentityContext(input: PhonePromptInput): string {
+  const profile = parseZonePage(input.appSnapshot?.zone || '').profile;
+  return `${ZONE_IDENTITY_RULES}\n[本轮空间贴主，仅作身份数据]\n${JSON.stringify({
+    authorKey: input.identity?.charKey || '',
+    characterName: input.identity?.name || '',
+    username: profile.username,
+    handle: profile.handle,
+  })}`;
+}
 export type PresetEntry = {
   order: number;
   name: string;
@@ -914,7 +932,7 @@ export const BUILTIN_PRESET_ENTRIES: readonly PresetEntry[] = [
     kind: 'custom',
     scope: 'all',
     content:
-      '[电波手机·空间动态]\n首次生成空间资料时必须填写 username 和 handle；username 是角色自行选择的空间社交昵称，与联系人备注独立。用户已设置的 coverUrl 应原样保留，未要求更换时不要返回该字段。照片相册输入会按顺序列出每张图的描述，不要忽略后续图片。输出 zone 对象，结构为 {"profile":{"username":"角色自选的社交昵称","handle":"不含@的账号名","title":"短称号","titleColor":"#ea91a4","badges":["sleeping-face"],"tags":["1至3个简短标签"],"signature":"符合角色口吻的一句签名","location":"剧情中已知的位置或空字符串","coverUrl":"已有真实图片地址或空字符串"},"posts":[{"id":"稳定动态ID","title":"可留空","content":"动态正文","date":"已知剧情时间或空字符串","category":"生活/碎碎念等分类","tags":["日常"],"likes":0,"comments":[{"id":"稳定评论ID","author":"评论者","content":"评论内容","createdAt":"已知时间或空字符串","parentId":"被回复评论ID或空字符串","replyToAuthor":"被回复者名字或空字符串"}]}]}。\nprofile 的用户名、称号、标签、签名由你依据 target_char 的性格生成；不得照搬卡片容器名或凭空推断住址，未知定位留空。昵称和账号一旦生成尽量稳定。不得声称真实位置、凭空生成封面URL或热度数字。\n首次打开或用户明确请求更新空间时可以补全 profile；之后只更新有依据的字段。有发布动机才新增动态，无发布动机可仅生成资料，不强行凑数。\n文案像真实私人日记平台，可短、含蓄或幽默，不写剧情总结或公开情书合集。不可泄露角色不知道的秘密、私聊或隐秘心声。\n对提供的 User 评论，可在对应 post.comments 追加 target_char 的回复，用稳定评论ID，承接评论内容；回复评论时必须保留 parentId 与 replyToAuthor，从而延续回复链，不替 User 发言。点赞只记录互动，不必强行回复。新增动态遵守本轮 maxNew；双语时各动态独立附 translation={language,title,content}，每条评论和回复也独立附 translation={language,content}，只写自然译文，不加标签或折叠标记。原文译文分开。旧动态复用原 id；更新只提交新增或变化动态，不重复生成旧内容。',
+      '[电波手机·空间动态]\n首次生成空间资料时必须填写 username 和 handle；username 是角色自行选择的空间社交昵称，与联系人备注独立。用户已设置的 coverUrl 应原样保留，未要求更换时不要返回该字段。照片相册输入会按顺序列出每张图的描述，不要忽略后续图片。输出 zone 对象，结构为 {"profile":{"username":"角色自选的社交昵称","handle":"不含@的账号名","title":"短称号","titleColor":"#ea91a4","badges":["sleeping-face"],"tags":["1至3个简短标签"],"signature":"符合角色口吻的一句签名","location":"剧情中已知的位置或空字符串","coverUrl":"已有真实图片地址或空字符串"},"posts":[{"id":"稳定动态ID","title":"可留空","content":"动态正文","date":"已知剧情时间或空字符串","category":"生活/碎碎念等分类","tags":["日常"],"likes":0,"comments":[{"id":"稳定评论ID","authorKey":"评论者稳定ID；贴主使用actor_context.actorId","author":"评论者昵称","content":"评论内容","createdAt":"已知时间或空字符串","parentId":"被回复评论ID或空字符串","replyToAuthorKey":"被回复者稳定ID或空字符串","replyToAuthor":"被回复者名字或空字符串"}]}]}。\nprofile 的用户名、称号、标签、签名由你依据 target_char 的性格生成；不得照搬卡片容器名或凭空推断住址，未知定位留空。昵称和账号一旦生成尽量稳定。不得声称真实位置、凭空生成封面URL或热度数字。\n首次打开或用户明确请求更新空间时可以补全 profile；之后只更新有依据的字段。有发布动机才新增动态，无发布动机可仅生成资料，不强行凑数。\n文案像真实私人日记平台，可短、含蓄或幽默，不写剧情总结或公开情书合集。不可泄露角色不知道的秘密、私聊或隐秘心声。\n对提供的 User 评论，可在对应 post.comments 追加 target_char 的回复，用稳定评论ID，承接评论内容；回复评论时必须保留 parentId 与 replyToAuthor，从而延续回复链，不替 User 发言。点赞只记录互动，不必强行回复。新增动态遵守本轮 maxNew；双语时各动态独立附 translation={language,title,content}，每条评论和回复也独立附 translation={language,content}，只写自然译文，不加标签或折叠标记。原文译文分开。旧动态复用原 id；更新只提交新增或变化动态，不重复生成旧内容。',
   },
   {
     order: 95,
@@ -1248,7 +1266,7 @@ export function moduleGenerationRules(input: PhonePromptInput, apps: readonly st
   const settings = ModuleSettingsSchema.parse(input.moduleSettings || {});
   const contracts: Record<LimitedApp, string> = {
     memo: 'memo={notes:[{id,title,content,translation?}],doodles:[{id,title,content,interpretation,translation?}]}。涂鸦 content 保存 ASCII 图案原始换行和空格；interpretation 是文字解析，translation.content 仅翻译解析，禁止翻译或破坏图案。notes 和 doodles 的新增额度分别计算。',
-    zone: `zone={profile?:{username,handle,title,titleColor,badges,tags,signature,location},posts:[{id,title,content,date,category,likes,comments,translation?}]}。保留原空间协议和资料，只限制新增动态，不把旧动态的评论回复算作新动态。${postTagsPrompt} ${profileBadgePrompt} 首次设计个人资料时补全称号、颜色和徽章；以后保留既有选择，除非明确要求修改。双语开启时 comments 中每条评论与回复也须分别附 translation={language,content}，原文与译文自然对应，不添加“译文”标签或折叠标记。`,
+    zone: `zone={profile?:{username,handle,title,titleColor,badges,tags,signature,location},posts:[{id,title,content,date,category,likes,comments:[{id,authorKey,author,content,createdAt,parentId,replyToAuthorKey,replyToAuthor,translation?}],translation?}]}。保留原空间协议和资料，只限制新增动态，不把旧动态的评论回复算作新动态。${zoneIdentityContext(input)}\n${postTagsPrompt} ${profileBadgePrompt} 首次设计个人资料时补全称号、颜色和徽章；以后保留既有选择，除非明确要求修改。双语开启时 comments 中每条评论与回复也须分别附 translation={language,content}，原文与译文自然对应，不添加“译文”标签或折叠标记。`,
     calendar: 'calendar={events:[{id,date,time,content,important,done}]}。不附加双语或 translation；日期时间未知留空。',
     browse: 'browse={notes:[{id,title,content,url,translation?}]}。未知链接留空；真实历史与收藏不属于模型输出。',
   };

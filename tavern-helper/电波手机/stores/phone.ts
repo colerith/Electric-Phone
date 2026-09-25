@@ -132,7 +132,13 @@ import {
 } from '../services/generation/generation';
 import { mergeAppSnapshot, parsePhoneMessage, validatePhoneBlocks } from '../services/generation/parser';
 
-import { mergeZoneSnapshot, parseZonePage, ZoneInteractionSchema, type ZonePost } from '../services/space/zone';
+import {
+  mergeZoneSnapshot,
+  parseZonePage,
+  resolveZoneAuthorKey,
+  ZoneInteractionSchema,
+  type ZonePost,
+} from '../services/space/zone';
 import { editedMessagePayload, formatPhoneMessage } from '../services/chat/message-format';
 
 const LOG_PREFIX = '[wave-phone]';
@@ -1648,8 +1654,31 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   }
 
   const momentsFeed = computed(() => {
+    const zonePages = new Map(
+      identities.value.map(identity => [
+        identity.charKey,
+        parseZonePage(state.value.snapshots[identity.charKey]?.zone || ''),
+      ]),
+    );
+    const actors = [
+      {
+        key: 'user',
+        names: [SillyTavern.name1 || 'User', state.value.moments.profile.nickname, state.value.moments.profile.account],
+      },
+      ...identities.value.map(identity => ({
+        key: identity.charKey,
+        names: [
+          identity.name,
+          identity.remark,
+          identity.stableId,
+          zonePages.get(identity.charKey)!.profile.username,
+          zonePages.get(identity.charKey)!.profile.handle,
+        ],
+      })),
+      ...Object.values(state.value.moments.npcs).map(npc => ({ key: npc.npcId, names: [npc.username] })),
+    ];
     const legacy: MomentPost[] = identities.value.flatMap(identity =>
-      parseZonePage(state.value.snapshots[identity.charKey]?.zone || '').posts.map(post => ({
+      zonePages.get(identity.charKey)!.posts.map(post => ({
         id: `zone:${identity.charKey}:${post.id}`,
         authorKey: identity.charKey,
         authorName: identity.name,
@@ -1668,7 +1697,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     );
     const timeline = momentTimeline(state.value.moments, legacy);
     for (const identity of identities.value) {
-      for (const post of parseZonePage(state.value.snapshots[identity.charKey]?.zone || '').posts) {
+      for (const post of zonePages.get(identity.charKey)!.posts) {
         const postId = `zone:${identity.charKey}:${post.id}`;
         if (!timeline.posts.some(item => item.id === postId)) continue;
         const interaction = state.value.zoneInteractions[identity.charKey]?.[post.id];
@@ -1685,10 +1714,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           [...post.comments, ...(interaction?.comments || [])].map(comment => [comment.id, comment]),
         );
         for (const comment of comments.values()) {
-          const authorKey =
-            comment.author === SillyTavern.name1 || comment.author === state.value.moments.profile.nickname
-              ? 'user'
-              : identities.value.find(item => item.name === comment.author)?.charKey || '';
+          const resolveAuthor = (author: string, key?: string) =>
+            resolveZoneAuthorKey(author, key, identity.charKey, actors);
+          const authorKey = resolveAuthor(comment.author, comment.authorKey);
+          const parent = comments.get(comment.parentId);
           timeline.comments.push({
             id: `legacy:${postId}:${comment.id}`,
             postId,
@@ -1699,8 +1728,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             createdAt: Date.parse(comment.createdAt) || 0,
             availableAt: 0,
             parentId: comment.parentId ? `legacy:${postId}:${comment.parentId}` : '',
-            replyToAuthorKey: '',
-            replyToAuthorName: comment.replyToAuthor,
+            replyToAuthorKey: parent
+              ? resolveAuthor(parent.author, parent.authorKey)
+              : resolveAuthor(comment.replyToAuthor, comment.replyToAuthorKey),
+            replyToAuthorName: parent?.author || comment.replyToAuthor,
           });
         }
       }
@@ -2652,6 +2683,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const comment = {
       id: makeId('comment'),
       author: SillyTavern.name1 || 'User',
+      authorKey: 'user',
       content: content.trim(),
       createdAt: nowIso(),
       parentId: parent?.id || '',

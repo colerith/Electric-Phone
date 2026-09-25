@@ -7,10 +7,12 @@ export const ZoneCommentSchema = z.object({
   translation: TranslationSchema.optional(),
   id: z.string(),
   author: z.string().prefault(''),
+  authorKey: z.string().optional(),
   content: z.string(),
   createdAt: z.string().prefault(''),
   parentId: z.string().prefault(''),
   replyToAuthor: z.string().prefault(''),
+  replyToAuthorKey: z.string().optional(),
 });
 export const ZonePostSchema = z.object({
   tags: PostTagsSchema,
@@ -68,6 +70,25 @@ export const ZoneInteractionSchema = z
   .prefault({});
 export type ZoneInteraction = z.infer<typeof ZoneInteractionSchema>;
 export const ZoneInteractionsSchema = z.record(z.string(), z.record(z.string(), ZoneInteractionSchema)).prefault({});
+
+export type ZoneActor = { key: string; names: string[] };
+/** Stable keys win; legacy names only resolve when they identify exactly one known person. */
+export function resolveZoneAuthorKey(
+  author: string,
+  authorKey: string | undefined,
+  ownerKey: string,
+  actors: ZoneActor[],
+): string {
+  if (authorKey === 'owner') return ownerKey;
+  if (authorKey) return actors.some(actor => actor.key === authorKey) ? authorKey : '';
+  const normalize = (value: string) => value.trim().normalize('NFKC').replace(/^@+/, '').toLocaleLowerCase();
+  const name = normalize(author);
+  if (!name) return '';
+  const matches = new Set(
+    actors.filter(actor => actor.names.some(alias => normalize(alias) === name)).map(actor => actor.key),
+  );
+  return matches.size === 1 ? [...matches][0] : '';
+}
 function stableId(text: string): string {
   let hash = 2166136261;
   for (const char of text) hash = Math.imul(hash ^ (char.codePointAt(0) || 0), 16777619);
@@ -138,7 +159,13 @@ export function mergeZoneSnapshot(current: string, update: unknown): string {
         ...post,
         tags: post.tags ?? posts[index].tags,
         comments: [
-          ...new Map([...posts[index].comments, ...post.comments].map(comment => [comment.id, comment])).values(),
+          ...new Map([
+            ...posts[index].comments.map(comment => [comment.id, comment] as const),
+            ...post.comments.map(
+              comment =>
+                [comment.id, { ...posts[index].comments.find(old => old.id === comment.id), ...comment }] as const,
+            ),
+          ]).values(),
         ],
       };
   }

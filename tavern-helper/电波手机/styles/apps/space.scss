@@ -1325,4 +1325,23 @@
     font-size: 21px;
     font-weight: 650;
   }
+  .space-post-author-details > .moment-author,
+  .space-post-author-details > .space-post-account {
+    align-self: flex-start;
+    text-align: left !important;
+    max-width: 100%;
+  }
+  .space-moments .space-post-author-details > .moment-author {
+    align-self: flex-start;
+    justify-content: flex-start;
+  }
+  .space-comment-main .moment-person-link {
+    text-align: left !important;
+  }
+  .space-comment-main .space-mention.moment-person-link {
+    display: inline;
+    margin-inline-end: 0.4em;
+    vertical-align: baseline;
+    white-space: normal;
+  }
 }
