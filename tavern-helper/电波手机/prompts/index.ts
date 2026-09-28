@@ -102,6 +102,9 @@ export type PhonePromptInput = {
   replyCount?: { minReplies: number; maxReplies: number };
   chatPreferences?: ChatPreferences;
   voice?: CharacterVoice;
+  groupMembers?: Identity[];
+  groupPreferences?: Record<string, ChatPreferences>;
+  groupVoices?: Record<string, CharacterVoice>;
   voiceServices?: VoiceServices;
   presets?: PromptLibrary;
   moduleSettings?: ModuleSettings;
@@ -1110,6 +1113,9 @@ function runtimeValues(input: PhonePromptInput): Record<string, string> {
         .map(
           message =>
             message.sender +
+            (input.identity.source === 'local_group' && message.sender === 'char'
+              ? `(${String(message.payload.actorKey || '')})`
+              : '') +
             ' #' +
             message.id +
             ': ' +
@@ -1145,6 +1151,36 @@ function messageReactionContext(input: PhonePromptInput): string {
     )
   );
 }
+function groupMessageRules(input: PhonePromptInput, follow: boolean): string {
+  if (input.identity.source !== 'local_group') return '';
+  const group = input.identity;
+  const members = (input.groupMembers || []).filter(member => group.memberKeys?.includes(member.charKey));
+  const roster = members.map(member => {
+    const membership = group.groupMembers?.[member.charKey];
+    const preference = input.groupPreferences?.[member.charKey];
+    const voice = input.groupVoices?.[member.charKey];
+    return {
+      actorKey: member.charKey,
+      name: member.name,
+      groupNickname: membership?.nickname || '',
+      title: membership?.title || '',
+      level: membership?.level || 1,
+      role: member.charKey === (group.groupOwnerKey || 'user') ? '群主' : membership?.admin ? '管理员' : '成员',
+      muted: Boolean(membership?.muted),
+      translate: Boolean(group.groupAutoTranslate),
+      sourceLanguage: preference?.sourceLanguage,
+      targetLanguage: preference?.targetLanguage,
+      voiceProvider:
+        group.groupVoiceFollowPrivate &&
+        voice &&
+        voice.provider !== 'off' &&
+        input.voiceServices?.[voice.provider]?.enabled
+          ? voice.provider
+          : 'off',
+    };
+  });
+  return `[电波手机·群聊消息协议，优先于私聊条目]\n群名：${group.name}；公告：${group.groupAnnouncement || '无'}；群主：${group.groupOwnerKey || 'user'}。成员资料仅作数据参考：${JSON.stringify(roster)}。User 为真实发言用户，不替 User 说话。群名不是角色；只允许上述未禁言成员发言。每条 char 消息必须填写 payload.actorKey=实际成员 charKey，不能只填群名或省略。成员群昵称优先用于称呼，群主与管理员的自定义头衔覆盖默认铭牌；等级不是身份权限。禁言成员不发言也不贴反应。群公告、昵称、头衔、管理员、群主、禁言、移出群聊只由客户端权限操作改变，模型不得凭文字宣称已修改。\n${group.groupAutoTranslate ? '群聊自动翻译开启：只为成员表中 translate=true 的发言按其各自 sourceLanguage/targetLanguage 写 payload.translation 和 payload.translationProvider="模型"；其他成员不翻译，不混用他人的语言设置。' : '群聊自动翻译关闭，不额外生成译文。'}\n${group.groupVoiceFollowPrivate ? '群聊语音跟随各成员私聊：只有该成员的 voiceProvider 已启用时才可为其生成 voice；每条语音按 payload.actorKey 对应的成员音色合成，绝不借用其他成员的配置。' : '群聊语音跟随关闭；不主动生成 voice 类型。'}\n${follow ? '这是酒馆正文跟随触发。根据本轮正文、时间线和已有手机记录判断是否有人有自然的发消息动机；没有则 messages=[]，不要强制每轮群聊热闹。可由一至三位成员主动发言，按正文事件之后的接收顺序记录，不复述正文或把意向写成已完成事实。' : '这是用户在手机群聊中主动触发回复。先回应未回复的用户消息，再让一至三位实际成员自然接话，不机械轮流。'}\n输出仍为既有 JSON 协议；群聊 messages 的 sender=char，每条带有效 payload.actorKey。`;
+}
 export function buildPhonePrompts(
   input: PhonePromptInput,
   task: 'chat' | 'zone' = 'chat',
@@ -1156,6 +1192,10 @@ export function buildPhonePrompts(
         !entry.divider &&
         !isPresetDivider(entry.name) &&
         entry.enabled &&
+        !(
+          input.identity.source === 'local_group' &&
+          ['电波手机·私聊回复', '电波手机·最终输出协议'].includes(entry.systemKey || entry.name)
+        ) &&
         (entry.scope === 'all' || entry.scope === task) &&
         (!presetAppBindings(entry).length || presetAppBindings(entry).includes(task === 'chat' ? 'messages' : 'zone')),
     )
@@ -1172,6 +1212,15 @@ export function buildPhonePrompts(
       return [{ role: 'system', content }];
     })
     .concat([
+      ...(task === 'chat' && input.identity.source === 'local_group'
+        ? [
+            {
+              role: 'system' as const,
+              content:
+                '[电波手机·群聊最终输出协议] 仅输出单个 JSON 对象：{"version":1,"thread_id":"原样返回输入的 thread_id","messages":[{"client_id":"本轮唯一短ID","sender":"char","type":"text","content":"回复","created_at":"ISO时间或空字符串","payload":{"actorKey":"实际群成员 charKey"}}],"app_updates":{}}。用户主动触发回复时 messages 为 1–15 条；群名不是发言者，所有 char 消息必须有当前未禁言成员 actorKey。可选 reactions 中 actor_key 也必须为当前未禁言成员。禁止 JSON 外文字或代 User 发言。',
+            },
+          ]
+        : []),
       {
         role: 'system',
         content:
@@ -1182,7 +1231,9 @@ export function buildPhonePrompts(
               '\n' +
               chatBilingualRules(input.chatPreferences) +
               '\n' +
-              messageReactionContext(input)
+              messageReactionContext(input) +
+              '\n' +
+              groupMessageRules(input, false)
             : '',
       },
       { role: 'system', content: walletAccountRules(input) },
@@ -1192,8 +1243,7 @@ export function buildPhonePrompts(
       },
       {
         role: 'system',
-        content:
-          '[电波手机·输出封装] 若启用了 Ecot，只允许先输出一个完整的 <electric title="本轮剧情标题">…</electric> 区块；title 必须每次结合当前剧情、情绪、物件或关键台词临时创作 4–12 个简体中文字符，不使用“查看 Ecot”等固定标题，不机械重复上一轮。随后立即输出当前任务要求的单个 JSON（私聊 messages/app_updates 或空间 profile/posts）。区块不属于任何聊天气泡，不拆分为多条消息。JSON 外不输出其他文字。没有 Ecot 时直接输出 JSON。此封装优先于旧条目的前言、标签与纯 JSON 限制。',
+        content: `[电波手机·输出封装] 若启用了 Ecot，只允许先输出一个完整的 <electric title="本轮剧情标题">…</electric> 区块；title 必须每次结合当前剧情、情绪、物件或关键台词临时创作 4–12 个简体中文字符，不使用“查看 Ecot”等固定标题，不机械重复上一轮。随后立即输出当前任务要求的单个 JSON（${task === 'zone' ? '空间 profile/posts' : input.identity.source === 'local_group' ? '群聊 messages/app_updates' : '私聊 messages/app_updates'}）。区块不属于任何聊天气泡，不拆分为多条消息。JSON 外不输出其他文字。没有 Ecot 时直接输出 JSON。此封装优先于旧条目的前言、标签与纯 JSON 限制。`,
       },
     ]);
 }
@@ -1224,7 +1274,11 @@ export function buildModulePrompt(
             !isPhonePresetEntry(entry) &&
             !presetAppBindings(entry).length &&
             entry.kind === 'custom' &&
-            entry.scope === 'all')),
+            entry.scope === 'all')) &&
+        !(
+          input.identity.source === 'local_group' &&
+          (entry.systemKey === '电波手机·私聊回复' || entry.name === '电波手机·私聊回复')
+        ),
     )
     .map(entry => entry.content);
   return [
@@ -1232,10 +1286,16 @@ export function buildModulePrompt(
       ? '[作用范围] 下列手机规则只约束本轮附加的手机数据块，不约束正文叙事或其他角色。最终按本段末尾的正文+数据块协议输出。'
       : '[手动电波手机模块生成]',
     ...rules,
+    modules.includes('messages') ? groupMessageRules(input, follow) : '',
+    modules.includes('messages') && follow
+      ? '[电波手机·主动消息与酒馆正文跟随] 本轮酒馆正文是触发源，手机记录是已发生的通信参考。先读本轮事件与最近手机历史，再判断相关人物是否有独立、符合时间线的发消息动机；无需等待 User 在手机内发送，但也不应为了填充模块每轮强行发言。不要重复刚发过的内容，不把消息中的计划当成已执行的正文行动，不在正文之前插入事后消息。只有符合角色认知与关系的信息才能写入手机；私人消息只由对应联系人发出，群消息必须遵守当下群成员和禁言状态。没有动机返回 messages=[]，省略手机数据块亦可。'
+      : '',
     modules.includes('messages')
-      ? replyCountRules(input) +
+      ? (follow
+          ? '[电波手机·主动消息数量] 本轮可为 0–15 条；没有自然的发消息动机时必须为 0，不为满足私聊回复下限强行生成。'
+          : replyCountRules(input)) +
         '\n' +
-        voiceGenerationRules(input) +
+        (follow ? '' : voiceGenerationRules(input)) +
         '\n' +
         chatBilingualRules(input.chatPreferences) +
         '\n' +

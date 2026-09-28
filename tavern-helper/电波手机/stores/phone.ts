@@ -857,6 +857,26 @@ export const usePhoneStore = defineStore('wave-phone', () => {
 
   function saveChat(): void {
     if (!context.value || !state.value.chatKey) return;
+    for (const group of Object.values(state.value.identities).filter(item => item.source === 'local_group')) {
+      const thread = Object.values(state.value.threads).find(item => item.charKey === group.charKey);
+      if (!thread) continue;
+      const members = { ...group.groupMembers };
+      const counts: Record<string, number> = {};
+      for (const message of thread.messages) {
+        if (message.status !== 'sent' || message.withdrawn) continue;
+        const key =
+          message.sender === 'user' ? 'user' : message.sender === 'char' ? String(message.payload.actorKey || '') : '';
+        if (key) counts[key] = (counts[key] || 0) + 1;
+      }
+      for (const key of ['user', ...(group.memberKeys || [])]) {
+        const previous = members[key] || { nickname: '', title: '', level: 1, admin: false, muted: false };
+        members[key] = {
+          ...previous,
+          level: Math.min(99, Math.max(previous.level, 1 + Math.floor((counts[key] || 0) / 20))),
+        };
+      }
+      group.groupMembers = members;
+    }
     updateCharacterDefaults(defaults => {
       defaults.walletBook = klona(state.value.walletBook);
     });
@@ -1155,7 +1175,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       });
       blocks.forEach(block => {
         let identity: Identity;
-        if (!isMulti) {
+        const existingGroup = Object.values(nextState.identities).find(
+          item =>
+            item.source === 'local_group' && (item.charKey === block.stableId || item.stableId === block.stableId),
+        );
+        if (existingGroup) {
+          identity = existingGroup;
+        } else if (!isMulti) {
           identity =
             Object.values(nextState.identities).find(item => item.source === 'auto_single_card') ||
             makeSingleCardIdentity(runtime);
@@ -1269,8 +1295,32 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         if (block.delta) {
           const thread = ensureThread(nextState, runtime, identity);
           if (block.messageId <= thread.displayFloorCutoff) return;
-          applyCharacterReactions(thread.messages, block.delta.reactions, [identity.charKey]);
+          applyCharacterReactions(
+            thread.messages,
+            block.delta.reactions,
+            identity.source === 'local_group'
+              ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
+              : [identity.charKey],
+          );
           block.delta.messages.forEach((message, index) => {
+            if (
+              identity.source === 'local_group' &&
+              message.sender === 'char' &&
+              (!(identity.memberKeys || []).includes(String(message.payload.actorKey || '')) ||
+                identity.groupMembers?.[String(message.payload.actorKey || '')]?.muted)
+            )
+              return;
+            if (identity.source === 'local_group' && message.sender === 'char' && message.type === 'voice') {
+              const voice = CharacterVoiceSchema.parse(
+                nextState.characterVoices[String(message.payload.actorKey || '')],
+              );
+              if (
+                !identity.groupVoiceFollowPrivate ||
+                voice.provider === 'off' ||
+                !settings.value.voiceServices[voice.provider].enabled
+              )
+                return;
+            }
             let hash = 2166136261;
             for (const char of JSON.stringify(message)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
             const id = `wave-floor-${block.messageId}-${block.ordinal}-${index}-${hash >>> 0}`;
@@ -1570,6 +1620,27 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       wallet: currentWalletGrant(),
     };
   }
+  function groupPromptSettings(identity: Identity) {
+    if (identity.source !== 'local_group') return {};
+    const members = (identity.memberKeys || []).flatMap(key =>
+      state.value.identities[key] ? [state.value.identities[key]] : [],
+    );
+    return {
+      groupMembers: members,
+      groupPreferences: Object.fromEntries(
+        members.map(member => [
+          member.charKey,
+          ChatPreferencesSchema.parse(state.value.chatPreferences[member.charKey]),
+        ]),
+      ),
+      groupVoices: Object.fromEntries(
+        members.map(member => [
+          member.charKey,
+          CharacterVoiceSchema.parse(state.value.characterVoices[member.charKey]),
+        ]),
+      ),
+    };
+  }
   function moduleInput() {
     const current = getRuntimeContext();
     if (!current || current.cardKey !== context.value?.cardKey || current.chatKey !== context.value?.chatKey)
@@ -1594,6 +1665,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         walletAuthorization: currentWalletGrant(),
         moduleSettings: settings.value.moduleSettings,
         identity: activeIdentity.value,
+        ...groupPromptSettings(activeIdentity.value),
         thread: activeThread.value,
         appSnapshot: generationSnapshot(),
         availableStickers: '',
@@ -1635,7 +1707,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (
         id !== moduleGenerationId ||
         current?.cardKey !== runtime.input.cardKey ||
-        current?.chatKey !== runtime.input.chatKey
+        current?.chatKey !== runtime.input.chatKey ||
+        state.value.activeCharKey !== runtime.input.identity.charKey
       )
         throw Error('生成已停止，旧结果未写入');
       if (!delta.messages.length && !delta.reactions?.length && !Object.keys(delta.app_updates).length) {
@@ -1645,6 +1718,53 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const charKey = runtime.input.identity.charKey;
       const value = delta.app_updates[module];
       let changed = false;
+      if (module === 'messages' && delta.messages.length) {
+        const identity = state.value.identities[charKey];
+        const thread = state.value.threads[runtime.input.thread.id];
+        if (!identity || !thread) throw Error('消息会话已变更，主动消息未写入');
+        if (
+          identity.source === 'local_group' &&
+          delta.messages.some(message => {
+            if (message.sender !== 'char') return false;
+            const actorKey = String(message.payload.actorKey || '');
+            if (!identity.memberKeys?.includes(actorKey) || identity.groupMembers?.[actorKey]?.muted) return true;
+            if (message.type !== 'voice') return false;
+            const voice = CharacterVoiceSchema.parse(state.value.characterVoices[actorKey]);
+            return (
+              !identity.groupVoiceFollowPrivate ||
+              voice.provider === 'off' ||
+              !settings.value.voiceServices[voice.provider].enabled
+            );
+          })
+        )
+          throw Error('群聊主动消息的成员身份、禁言状态或语音配置无效');
+        applyCharacterReactions(
+          thread.messages,
+          delta.reactions,
+          identity.source === 'local_group'
+            ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
+            : [charKey],
+        );
+        delta.messages.forEach(message =>
+          thread.messages.push(
+            PhoneMessageSchema.parse({
+              id: makeId(message.sender),
+              clientId: message.client_id,
+              sender: message.sender,
+              type: message.type,
+              content: message.content,
+              createdAt: nextReceivedAt(thread),
+              status: 'sent',
+              payload: {
+                ...message.payload,
+                ...(message.created_at ? { storyCreatedAt: message.created_at } : {}),
+                narrativeRelation: 'independent',
+              },
+            }),
+          ),
+        );
+        changed = true;
+      }
       if (module === 'wallet' && value !== undefined && runtime.input.walletAuthorization) {
         changed = applyWalletPatch(
           state.value.walletBook,
@@ -1654,7 +1774,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         );
         if (changed) walletSelectedAccountId.value = runtime.input.walletAuthorization.accountId;
       } else if (value !== undefined) {
-        changed = rememberIndependentAppUpdate(charKey, module, value, requestModuleSettings, id);
+        changed = rememberIndependentAppUpdate(charKey, module, value, requestModuleSettings, id) || changed;
       }
       const electricKey = `${charKey}:${module}`;
       state.value.electricByApp[electricKey] = electric;
@@ -2054,7 +2174,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       scheduleSync(0);
     }
     Object.values(state.value.identities).forEach(item => {
-      if (item.memberKeys?.includes(charKey)) item.memberKeys = item.memberKeys.filter(key => key !== charKey);
+      if (!item.memberKeys?.includes(charKey)) return;
+      item.memberKeys = item.memberKeys.filter(key => key !== charKey);
+      if (item.groupMembers) delete item.groupMembers[charKey];
+      if (item.groupOwnerKey === charKey) item.groupOwnerKey = 'user';
     });
     if (state.value.activeCharKey === charKey) state.value.activeCharKey = Object.keys(state.value.identities)[0] || '';
     saveChat();
@@ -2169,6 +2292,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           .join('、')
           .slice(0, 40),
       memberKeys,
+      groupOwnerKey: 'user',
+      groupMembers: Object.fromEntries(
+        ['user', ...memberKeys].map(key => [key, { nickname: '', title: '', level: 1, admin: false, muted: false }]),
+      ),
+      groupAnnouncement: '',
+      groupAutoTranslate: false,
+      groupVoiceFollowPrivate: false,
       source: 'local_group',
       createdAt: nowIso(),
       updatedAt: nowIso(),
@@ -2192,6 +2322,70 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
   }
 
+  function updateGroupDetails(changes: {
+    name?: string;
+    announcement?: string;
+    autoTranslate?: boolean;
+    voiceFollowPrivate?: boolean;
+  }): void {
+    const group = activeIdentity.value;
+    if (!group || group.source !== 'local_group' || (group.groupOwnerKey || 'user') !== 'user') return;
+    const name = changes.name === undefined ? group.name : changes.name.trim().slice(0, 40);
+    if (!name) throw Error('群名称不能为空');
+    state.value.identities[group.charKey] = IdentitySchema.parse({
+      ...group,
+      name,
+      groupAnnouncement:
+        changes.announcement === undefined ? group.groupAnnouncement : changes.announcement.trim().slice(0, 2000),
+      groupAutoTranslate: changes.autoTranslate ?? group.groupAutoTranslate,
+      groupVoiceFollowPrivate: changes.voiceFollowPrivate ?? group.groupVoiceFollowPrivate,
+      updatedAt: nowIso(),
+    });
+    saveChat();
+  }
+
+  function updateGroupMember(
+    key: string,
+    changes: {
+      nickname?: string;
+      title?: string;
+      admin?: boolean;
+      muted?: boolean;
+      transferOwner?: boolean;
+      remove?: boolean;
+    },
+  ): void {
+    const group = activeIdentity.value;
+    if (!group || group.source !== 'local_group' || !['user', ...(group.memberKeys || [])].includes(key)) return;
+    const owner = group.groupOwnerKey || 'user';
+    const userAdmin = Boolean(group.groupMembers?.user?.admin);
+    if (owner !== 'user' && !userAdmin) throw Error('只有群主或管理员可以编辑成员');
+    if (changes.transferOwner && (owner !== 'user' || key === 'user')) throw Error('只有群主可以将群主转让给其他成员');
+    if (changes.admin !== undefined && owner !== 'user') throw Error('只有群主可以设置管理员');
+    if (changes.remove && (key === 'user' || key === owner || (group.groupMembers?.[key]?.admin && owner !== 'user')))
+      throw Error('不能移出这位成员');
+    if (changes.muted !== undefined && key === owner) throw Error('不能禁言群主');
+    const groupMembers = { ...group.groupMembers };
+    const previous = groupMembers[key] || { nickname: '', title: '', level: 1, admin: false, muted: false };
+    groupMembers[key] = {
+      ...previous,
+      nickname: changes.nickname === undefined ? previous.nickname : changes.nickname.trim().slice(0, 40),
+      title: changes.title === undefined ? previous.title : changes.title.trim().slice(0, 30),
+      admin: changes.admin === undefined ? previous.admin : changes.admin,
+      muted: changes.muted === undefined ? previous.muted : changes.muted,
+    };
+    if (changes.transferOwner) groupMembers[key].admin = false;
+    if (changes.remove) delete groupMembers[key];
+    state.value.identities[group.charKey] = IdentitySchema.parse({
+      ...group,
+      memberKeys: changes.remove ? (group.memberKeys || []).filter(member => member !== key) : group.memberKeys,
+      groupOwnerKey: changes.transferOwner ? key : owner,
+      groupMembers,
+      updatedAt: nowIso(),
+    });
+    saveChat();
+  }
+
   function updateActiveIdentityProfile(changes: {
     remark?: string;
     avatar?: string;
@@ -2204,6 +2398,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (runtime && isCardExcluded(settings.value, runtime.cardName)) throw Error('当前角色卡已排除，已暂停手机生成。');
     const identity = activeIdentity.value;
     if (!runtime || !identity) return;
+    if (identity.source === 'local_group' && (identity.groupOwnerKey || 'user') !== 'user')
+      throw Error('只有群主可以修改群头像');
     const nextRemark = changes.remark === undefined ? identity.remark : changes.remark.trim().slice(0, 240);
     const nextAvatar = changes.resetAvatar
       ? identity.source === 'auto_single_card'
@@ -2420,6 +2616,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
               chatKey: runtime.chatKey,
               cardName: runtime.cardName,
               identity,
+              ...groupPromptSettings(identity),
               thread,
               appSnapshot: generationSnapshot(),
               zoneInteractions: state.value.zoneInteractions[identity.charKey] || {},
@@ -2477,6 +2674,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         chatPreferences: ChatPreferencesSchema.parse(state.value.chatPreferences[identity.charKey]),
         voice: klona(state.value.characterVoices[identity.charKey]),
         identity: klona(identity),
+        ...klona(groupPromptSettings(identity)),
         thread: klona(thread),
         appSnapshot: klona(
           generationSnapshot(
@@ -2490,7 +2688,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       });
 
       sendStage = '应用回复';
-      if (preferences.autoTranslate) {
+      if (preferences.autoTranslate || (identity.source === 'local_group' && identity.groupAutoTranslate)) {
         await Promise.all(
           result.data.messages.map(async message => {
             if (
@@ -2500,12 +2698,16 @@ export const usePhoneStore = defineStore('wave-phone', () => {
               message.payload.translation
             )
               return;
+            const memberPreferences =
+              identity.source === 'local_group'
+                ? ChatPreferencesSchema.parse(state.value.chatPreferences[String(message.payload.actorKey || '')])
+                : preferences;
             try {
               const translated = await translateText(
                 klona(settings.value),
                 message.content,
-                preferences.sourceLanguage,
-                preferences.targetLanguage,
+                memberPreferences.sourceLanguage,
+                memberPreferences.targetLanguage,
               );
               message.payload.translation = translated.text;
               message.payload.translationProvider = translated.provider;
@@ -2532,12 +2734,20 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       }
       if (
         identity.source === 'local_group' &&
-        result.data.messages.some(
-          message =>
-            message.sender === 'char' && !identity.memberKeys?.includes(String(message.payload.actorKey || '')),
-        )
+        result.data.messages.some(message => {
+          if (message.sender !== 'char') return false;
+          const actorKey = String(message.payload.actorKey || '');
+          if (!identity.memberKeys?.includes(actorKey) || identity.groupMembers?.[actorKey]?.muted) return true;
+          if (message.type !== 'voice') return false;
+          const voice = CharacterVoiceSchema.parse(state.value.characterVoices[actorKey]);
+          return (
+            !identity.groupVoiceFollowPrivate ||
+            voice.provider === 'off' ||
+            !settings.value.voiceServices[voice.provider].enabled
+          );
+        })
       )
-        throw Error('群聊回复缺少有效成员标识');
+        throw Error('群聊回复的成员身份、禁言状态或语音配置无效');
       const narrativeRelation = resolveNarrativeRelation(narrativeMode, result.data.context_relation);
       pending.forEach(message => {
         message.payload.narrativeRelation = narrativeRelation;
@@ -2545,7 +2755,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       applyCharacterReactions(
         currentThread.messages,
         result.data.reactions,
-        identity.source === 'local_group' ? identity.memberKeys || [] : [identity.charKey],
+        identity.source === 'local_group'
+          ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
+          : [identity.charKey],
       );
       result.data.messages.forEach(modelMessage => {
         currentThread.messages.push({
@@ -3127,6 +3339,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     importCardContact,
     addSpaceContact,
     createGroup,
+    updateGroupDetails,
+    updateGroupMember,
     moduleGenerating,
     manualGeneratingApp,
     generateModule,

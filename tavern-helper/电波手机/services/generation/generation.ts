@@ -25,6 +25,9 @@ type GenerationInput = {
   replyCount?: PhonePromptInput['replyCount'];
   chatPreferences?: PhonePromptInput['chatPreferences'];
   voice?: PhonePromptInput['voice'];
+  groupMembers?: PhonePromptInput['groupMembers'];
+  groupPreferences?: PhonePromptInput['groupPreferences'];
+  groupVoices?: PhonePromptInput['groupVoices'];
   walletAuthorization?: WalletAuthorization;
   onElectric?: (text: string, title: string) => void;
   settings: ScriptSettings;

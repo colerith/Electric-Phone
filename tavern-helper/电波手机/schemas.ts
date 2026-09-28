@@ -15,7 +15,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.1.46';
+export const WAVE_PHONE_RELEASE_VERSION = '1.1.47';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -273,6 +273,22 @@ export const IdentitySchema = z.object({
     .enum(['auto_single_card', 'parsed', 'group_member', 'temporary', 'local_contact', 'local_group'])
     .prefault('parsed'),
   memberKeys: z.array(z.string()).optional(),
+  groupOwnerKey: z.string().optional(),
+  groupAnnouncement: z.string().max(2000).optional(),
+  groupAutoTranslate: z.boolean().optional(),
+  groupVoiceFollowPrivate: z.boolean().optional(),
+  groupMembers: z
+    .record(
+      z.string(),
+      z.object({
+        nickname: z.string().max(40).prefault(''),
+        title: z.string().max(30).prefault(''),
+        level: z.coerce.number().int().min(1).max(99).prefault(1),
+        admin: z.boolean().prefault(false),
+        muted: z.boolean().prefault(false),
+      }),
+    )
+    .optional(),
   about: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),

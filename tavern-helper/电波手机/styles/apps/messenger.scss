@@ -461,11 +461,46 @@
     color: var(--settings-muted);
     font: 400 10px/1.4 var(--wave-ui-font);
     margin: 0 0 4px 44px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    &.is-user {
+      justify-content: flex-end;
+      margin: 0 44px 4px 0;
+    }
+    .group-member-badge {
+      border-radius: 5px;
+      padding: 2px 5px;
+      background: var(--wave-blue, #5e80be);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 600;
+    }
+    small {
+      color: var(--settings-accent);
+      font-size: 9px;
+    }
   }
 }
 
 #wave-phone-script-root .wave-device.page-messages.is-subpage .wave-screen > .messenger-app {
   background: var(--wave-card, #fff);
+}
+#wave-phone-script-root .wave-device .wave-appbar .wave-page-title.group-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  .group-title-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .group-title-count {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
 }
 #wave-phone-script-root .wave-device .messenger-avatar {
   overflow: hidden;

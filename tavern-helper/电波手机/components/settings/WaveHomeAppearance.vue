@@ -18,7 +18,11 @@
         <WaveSlider v-model="appearance.homeBarHeight" :min="16" :max="64" :step="2" aria-label="底部小白条区域高度" />
       </div>
       <div class="settings-actions appearance-height-actions">
-        <button type="button" class="appearance-reset-height" @click="appearance.homeBarHeight = 40">
+        <button
+          type="button"
+          class="system-action settings-refresh-action appearance-reset-height"
+          @click="appearance.homeBarHeight = 40"
+        >
           <i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>恢复默认高度</span>
         </button>
       </div>

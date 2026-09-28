@@ -1,0 +1,28 @@
+// The system time selector establishes the size used by every phone dropdown.
+#wave-phone-script-root .wave-device .wave-select {
+  min-width: 0;
+  > .wave-select-trigger {
+    box-sizing: border-box;
+    min-height: 42px;
+    padding: 10px 12px;
+    border: 1px solid var(--settings-line, rgba(35, 35, 38, 0.1));
+    border-radius: 12px;
+    background: var(--settings-control, #f3f3f3);
+    color: var(--settings-text, #374558);
+    box-shadow: none;
+    font: 500 14px/1.5 var(--wave-ui-font);
+  }
+  > .wave-select-trigger strong,
+  > .wave-select-menu [role='option'] strong {
+    font: 500 14px/1.5 var(--wave-ui-font);
+    color: var(--settings-text, #374558);
+  }
+  > .wave-select-menu [role='option'] {
+    min-height: 38px;
+    font-size: 14px;
+  }
+  > .wave-select-menu small,
+  > .wave-select-trigger small {
+    font: 400 11px/1.5 var(--wave-ui-font);
+  }
+}

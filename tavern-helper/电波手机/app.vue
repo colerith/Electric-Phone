@@ -58,7 +58,27 @@
           >
             <button type="button" aria-label="返回" @click="goBack"><i class="fa-solid fa-chevron-left"></i></button>
             <div>
-              <strong class="wave-page-title">{{ pageTitle }}</strong>
+              <strong
+                class="wave-page-title"
+                :class="{
+                  'group-title':
+                    store.currentPage === 'conversation' &&
+                    !appSettingsOpen &&
+                    store.activeIdentity?.source === 'local_group',
+                }"
+              >
+                <template
+                  v-if="
+                    store.currentPage === 'conversation' &&
+                    !appSettingsOpen &&
+                    store.activeIdentity?.source === 'local_group'
+                  "
+                >
+                  <span class="group-title-name">{{ displayIdentityName(store.activeIdentity) }}</span
+                  ><span class="group-title-count">({{ groupMemberCount }})</span>
+                </template>
+                <template v-else>{{ pageTitle }}</template>
+              </strong>
             </div>
             <div class="appbar-tools">
               <button
@@ -321,10 +341,13 @@
                   </div>
 
                   <div
-                    v-if="store.activeIdentity?.source === 'local_group' && message.sender === 'char'"
+                    v-if="store.activeIdentity?.source === 'local_group' && message.sender !== 'system'"
                     class="group-sender-name"
+                    :class="{ 'is-user': message.sender === 'user' }"
                   >
-                    {{ displayIdentityName(messageIdentity(message)) }}
+                    <span>{{ groupMemberName(message) }}</span>
+                    <b v-if="groupMemberBadge(message)" class="group-member-badge">{{ groupMemberBadge(message) }}</b>
+                    <small>Lv.{{ groupMemberLevel(message) }}</small>
                   </div>
                   <article
                     :data-message-id="message.id"
@@ -1419,6 +1442,11 @@ const pageTitle = computed(() =>
                     ? '修改头像'
                     : '电波手机'),
 );
+const groupMemberCount = computed(() => {
+  const group = store.activeIdentity;
+  if (group?.source !== 'local_group') return 0;
+  return 1 + new Set((group.memberKeys || []).filter(key => Boolean(store.state.identities[key]))).size;
+});
 const profileSourceLabel = computed(() => {
   const source = store.activeIdentity?.source;
   if (source === 'auto_single_card') return '已自动读取当前角色卡';
@@ -1670,6 +1698,27 @@ function handleHomebar(): void {
 }
 function messageIdentity(message: PhoneMessage): Identity | null {
   return store.state.identities[String(message.payload.actorKey || '')] || store.activeIdentity;
+}
+function groupMemberKey(message: PhoneMessage): string {
+  return message.sender === 'user' ? 'user' : String(message.payload.actorKey || '');
+}
+function groupMemberName(message: PhoneMessage): string {
+  const key = groupMemberKey(message);
+  return (
+    store.activeIdentity?.groupMembers?.[key]?.nickname ||
+    (key === 'user' ? userName.value : displayIdentityName(messageIdentity(message)))
+  );
+}
+function groupMemberBadge(message: PhoneMessage): string {
+  const key = groupMemberKey(message);
+  const group = store.activeIdentity;
+  const title = group?.groupMembers?.[key]?.title;
+  return (
+    title || (key === (group?.groupOwnerKey || 'user') ? '群主' : group?.groupMembers?.[key]?.admin ? '管理员' : '')
+  );
+}
+function groupMemberLevel(message: PhoneMessage): number {
+  return store.activeIdentity?.groupMembers?.[groupMemberKey(message)]?.level || 1;
 }
 function avatarStyle(identity: Identity | null | undefined): Record<string, string> {
   if (!identity) return {};

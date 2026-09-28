@@ -163,8 +163,11 @@ export function registerFollowGeneration(
         const runtime = getInput();
         if (!runtime || isCardExcluded(runtime.settings, runtime.input.cardName)) return;
         generationContext = JSON.stringify([runtime.input.cardKey, runtime.input.chatKey]);
+        const selectedModules = chooseFollowModules(runtime.settings.generation);
         const modules =
-          runtime.input.identity.source === 'local_group' ? [] : chooseFollowModules(runtime.settings.generation);
+          runtime.input.identity.source === 'local_group'
+            ? selectedModules.filter(module => module === 'messages')
+            : selectedModules;
         const reference = runtime.settings.generation.shareChatContext ? runtime.chatReference || '' : '';
         if (!modules.length && !reference) return;
         const prompt = stripExcludedTags(

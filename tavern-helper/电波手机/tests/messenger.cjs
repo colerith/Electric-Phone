@@ -46,10 +46,12 @@ const vue = require('vue'),
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 const { usePhoneStore } = require(base + '/stores/phone.ts'),
   Messenger = require(base + '/components/chat/WaveMessenger.vue').default,
+  GroupSettings = require(base + '/components/chat/WaveGroupSettings.vue').default,
   Generation = require(base + '/components/settings/WaveGenerationSettings.vue').default,
   { phoneSurfaceKey } = require(base + '/services/core/ui-context.ts');
 const { chooseFollowModules } = require(base + '/services/generation/follow-generation.ts'),
   { buildChatReference, resolveNarrativeRelation } = require(base + '/services/generation/narrative-context.ts');
+const { buildModulePrompt, buildPhonePrompts } = require(base + '/prompts/index.ts');
 let phone, component;
 const surface = vue.ref(null);
 let opened = '';
@@ -67,6 +69,7 @@ const app = vue.createApp({
           onOpen: key => (opened = key),
         }),
         vue.h(Generation),
+        vue.h(GroupSettings),
       ]);
   },
 });
@@ -149,6 +152,71 @@ const clickText = (selector, text) => {
   await phone.synchronize();
   assert.equal(phone.activeIdentity.source, 'local_group');
   assert.deepEqual([...phone.activeIdentity.memberKeys], [alice, bob]);
+  assert.equal(phone.activeIdentity.groupOwnerKey, 'user');
+  assert.equal(document.querySelectorAll('.wave-group-settings .group-member-row').length, 3);
+  const nameInput = document.querySelector('.wave-group-settings input[maxlength="40"]');
+  nameInput.value = '新群名';
+  nameInput.dispatchEvent(new Event('change', { bubbles: true }));
+  await tick();
+  assert.equal(phone.activeIdentity.name, '新群名');
+  const announcement = document.querySelector('.wave-group-settings textarea');
+  announcement.value = '请文明聊天';
+  announcement.dispatchEvent(new Event('change', { bubbles: true }));
+  await tick();
+  assert.equal(phone.activeIdentity.groupAnnouncement, '请文明聊天');
+  phone.updateGroupDetails({ autoTranslate: true, voiceFollowPrivate: true });
+  const bobEdit = document.querySelector(`[aria-label="编辑Bob"]`);
+  bobEdit.click();
+  await tick();
+  assert(surface.value.contains(document.querySelector('.group-edit-dialog')));
+  const memberInputs = document.querySelectorAll('.group-edit-dialog input');
+  memberInputs[0].value = '小波';
+  memberInputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+  memberInputs[1].value = '闪光';
+  memberInputs[1].dispatchEvent(new Event('input', { bubbles: true }));
+  document.querySelector('.group-edit-dialog [aria-label="设为管理员"]').click();
+  document.querySelector('.group-edit-dialog [aria-label="禁言"]').click();
+  await tick();
+  clickText('.group-edit-dialog button', '保存');
+  await tick();
+  assert.deepEqual(phone.activeIdentity.groupMembers[bob], {
+    nickname: '小波',
+    title: '闪光',
+    level: 1,
+    admin: true,
+    muted: true,
+  });
+  phone.updateGroupMember(bob, { muted: false });
+  await phone.synchronize();
+  assert.equal(phone.activeIdentity.groupMembers[bob].title, '闪光');
+  assert.equal(phone.activeIdentity.groupAutoTranslate, true);
+  const groupPromptInput = {
+    cardKey: 'card',
+    chatKey: 'test',
+    cardName: 'Alice',
+    identity: phone.activeIdentity,
+    thread: phone.activeThread,
+    appSnapshot: phone.activeSnapshot,
+    availableStickers: '',
+    presets: phone.settings.presets,
+    moduleSettings: phone.settings.moduleSettings,
+    voiceServices: phone.settings.voiceServices,
+    groupMembers: [phone.state.identities[alice], phone.state.identities[bob]],
+    groupPreferences: {
+      [alice]: { sourceLanguage: '韩语', targetLanguage: '简体中文' },
+      [bob]: { sourceLanguage: '日语', targetLanguage: '简体中文' },
+    },
+    groupVoices: { [alice]: { provider: 'off' }, [bob]: { provider: 'off' } },
+  };
+  const followPrompt = buildModulePrompt(groupPromptInput, ['messages'], true);
+  assert(followPrompt.includes('群聊消息协议'));
+  assert(followPrompt.includes('messages=[]'));
+  assert(followPrompt.includes('actorKey'));
+  assert(followPrompt.includes('韩语') && followPrompt.includes('日语'));
+  assert(!followPrompt.includes('至少 1 条、最多'));
+  assert(!buildPhonePrompts(groupPromptInput).some(item => item.content?.startsWith('[电波手机·私聊回复]')));
+  assert(buildPhonePrompts(groupPromptInput).some(item => item.content?.startsWith('[电波手机·群聊最终输出协议]')));
+  phone.updateGroupDetails({ autoTranslate: false });
   assert.equal(phone.state.mode, 'single');
   phone.settings.generation.followEnabled = true;
   phone.settings.generation.requiredModules = ['status'];
@@ -195,6 +263,19 @@ const clickText = (selector, text) => {
   phone.settings.api.model = 'test';
   phone.settings.generation.narrativeMode = 'independent';
   phone.settings.sendMode = 'secondary_api';
+  global.generateRaw = async () =>
+    JSON.stringify({
+      version: 1,
+      char_id: group,
+      char_name: phone.activeIdentity.name,
+      messages: [{ sender: 'char', type: 'text', content: '主动消息', payload: { actorKey: bob } }],
+      app_updates: {},
+    });
+  phone.updateGroupMember(bob, { muted: true });
+  await assert.rejects(phone.generateModule('messages'), /禁言/);
+  phone.updateGroupMember(bob, { muted: false });
+  assert.match(await phone.generateModule('messages'), /新内容/);
+  assert.equal(phone.activeThread.messages.at(-1).content, '主动消息');
   global.generateRaw = async args => {
     assert(!args.ordered_prompts.includes('chat_history'));
     assert(args.user_input.includes('群聊'));
@@ -213,6 +294,10 @@ const clickText = (selector, text) => {
   assert.equal(phone.activeThread.messages.at(-1).payload.electric, '演示记录 {not json}');
   assert.equal(phone.activeThread.messages.at(-1).payload.narrativeRelation, 'independent');
   assert.equal(phone.activeThread.messages.at(-1).payload.actorKey, alice);
+  phone.updateGroupMember(bob, { transferOwner: true });
+  assert.equal(phone.activeIdentity.groupOwnerKey, bob);
+  assert.throws(() => phone.updateGroupMember(alice, { admin: true }), /只有群主/);
+  assert.throws(() => phone.updateActiveIdentityProfile({ avatar: 'https://example.com/group.png' }), /只有群主/);
   const beforeCount = phone.activeThread.messages.filter(message => message.sender === 'char').length;
   global.generateRaw = async () =>
     JSON.stringify({
@@ -220,7 +305,7 @@ const clickText = (selector, text) => {
       messages: [{ sender: 'char', content: '错误成员', payload: { actorKey: 'unknown' } }],
       app_updates: {},
     });
-  await assert.rejects(phone.sendMessage('再聊一句', true), /成员标识/);
+  await assert.rejects(phone.sendMessage('再聊一句', true), /成员身份/);
   assert.equal(phone.activeThread.messages.filter(message => message.sender === 'char').length, beforeCount);
   assert(phone.activeThread.messages.some(message => message.status === 'failed'));
 
@@ -241,17 +326,16 @@ const clickText = (selector, text) => {
   await tick();
   clickText('[role=menuitem]', '从世界书导入角色');
   await tick();
-  const bookSelect = document.querySelector('[role=dialog] select');
-  assert.equal(bookSelect.value, '角色设定', 'bound character worldbook is selected by default');
-  assert.equal(bookSelect.options[1].value, '角色设定');
-  assert([...bookSelect.options].some(option => option.value === '其他世界书'));
-  bookSelect.value = '其他世界书';
-  bookSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  const bookSelect = document.querySelector('[role=dialog] [aria-label="选择世界书"]');
+  assert(bookSelect.textContent.includes('角色设定'), 'bound character worldbook is selected by default');
+  bookSelect.click();
+  await tick();
+  clickText('[role=dialog] [role=option]', '其他世界书');
   await tick();
   await tick();
-  const entrySelect = document.querySelectorAll('[role=dialog] select')[1];
-  entrySelect.value = '7';
-  entrySelect.dispatchEvent(new Event('change', { bubbles: true }));
+  document.querySelector('[role=dialog] [aria-label="选择要导入的角色条目"]').click();
+  await tick();
+  clickText('[role=dialog] [role=option]', 'Dora');
   await tick();
   assert.equal(document.querySelector('[role=dialog] input').value, 'Dora');
   clickText('[role=dialog] button', '导入角色');

@@ -368,7 +368,20 @@ const electricTitle = computed(() => {
   const payloadTitle = props.message.payload.electricTitle;
   return typeof payloadTitle === 'string' && payloadTitle.trim() ? payloadTitle.trim() : '查看 Ecot';
 });
-const preferences = computed(() => ChatPreferencesSchema.parse(phone.state.chatPreferences[phone.state.activeCharKey]));
+const memberKey = computed(() =>
+  phone.activeIdentity?.source === 'local_group' && props.message.sender === 'char'
+    ? String(props.message.payload.actorKey || '')
+    : phone.state.activeCharKey,
+);
+const preferences = computed(() => {
+  const selected = ChatPreferencesSchema.parse(phone.state.chatPreferences[memberKey.value]);
+  if (phone.activeIdentity?.source !== 'local_group') return selected;
+  return {
+    ...selected,
+    autoTranslate: Boolean(phone.activeIdentity.groupAutoTranslate),
+    outgoingTranslation: false,
+  };
+});
 const originalText = computed(() => {
   const stored = props.message.payload.originalText;
   const source = props.message.sender === 'user' && typeof stored === 'string' ? stored : props.message.content;
@@ -565,7 +578,13 @@ async function toggleVoice(): Promise<void> {
     voiceAudio?.pause();
     return;
   }
-  const voice = CharacterVoiceSchema.parse(phone.state.characterVoices[phone.state.activeCharKey]);
+  const voice = CharacterVoiceSchema.parse(
+    phone.activeIdentity?.source === 'local_group'
+      ? phone.activeIdentity.groupVoiceFollowPrivate
+        ? phone.state.characterVoices[memberKey.value]
+        : undefined
+      : phone.state.characterVoices[phone.state.activeCharKey],
+  );
   const cacheKey = JSON.stringify([voiceTranscript.value, voice, phone.settings.voiceServices]);
   voiceError.value = '';
   const controller = new AbortController();

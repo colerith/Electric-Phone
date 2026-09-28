@@ -5,6 +5,7 @@
     role="switch"
     :aria-label="ariaLabel"
     :aria-checked="modelValue"
+    :disabled="disabled"
     :class="{ active: modelValue }"
     @click="$emit('update:modelValue', !modelValue)"
   >
@@ -13,6 +14,6 @@
 </template>
 
 <script setup lang="ts">
-withDefaults(defineProps<{ modelValue: boolean; ariaLabel?: string }>(), { ariaLabel: '切换选项' });
+withDefaults(defineProps<{ modelValue: boolean; ariaLabel?: string; disabled?: boolean }>(), { ariaLabel: '切换选项' });
 defineEmits<{ 'update:modelValue': [value: boolean] }>();
 </script>

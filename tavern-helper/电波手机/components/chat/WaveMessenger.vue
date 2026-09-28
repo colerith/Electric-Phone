@@ -205,20 +205,26 @@
           </template>
           <template v-else-if="dialog === 'worldbook'">
             <label
-              >世界书<select v-model="selectedBook" @change="loadWorldbookEntries">
-                <option value="" disabled>选择世界书</option>
-                <option v-for="book in worldbooks" :key="book" :value="book">{{ book }}</option>
-              </select></label
-            >
+              >世界书<WaveSelect
+                :model-value="selectedBook"
+                :options="worldbooks.map(book => ({ value: book, label: book }))"
+                aria-label="选择世界书"
+                @update:model-value="chooseBook"
+            /></label>
             <p v-if="loadingBook" role="status">正在读取条目…</p>
             <label
-              >角色条目<select v-model="selectedEntry" :disabled="loadingBook" @change="fillWorldbookCharacter">
-                <option value="" disabled>选择要导入的角色条目</option>
-                <option v-for="entry in worldbookEntries" :key="entry.uid" :value="String(entry.uid)">
-                  {{ entry.name || `条目 ${entry.uid}` }}
-                </option>
-              </select></label
-            >
+              >角色条目<WaveSelect
+                :model-value="selectedEntry"
+                :options="
+                  worldbookEntries.map(entry => ({
+                    value: String(entry.uid),
+                    label: entry.name || `条目 ${entry.uid}`,
+                  }))
+                "
+                :disabled="loadingBook"
+                aria-label="选择要导入的角色条目"
+                @update:model-value="chooseEntry"
+            /></label>
             <label>角色名称<input v-model="newName" placeholder="确认角色名称" /></label>
             <label
               >角色资料<textarea v-model="about" rows="6" placeholder="选中条目后，可在此修改角色资料"></textarea>
@@ -283,6 +289,7 @@ import { usePhoneStore } from '../../stores/phone';
 import { displayIdentityName } from '../../services/core/identity';
 import { formatMessagePreview } from '../../services/chat/message-format';
 import WaveMoments from '../space/WaveMoments.vue';
+import WaveSelect from '../shared/WaveSelect.vue';
 import { groupContacts } from '../../services/chat/contact-alphabet';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
 import type { Identity } from '../../schemas';
@@ -333,6 +340,14 @@ const newName = ref(''),
 const worldbooks = ref<string[]>([]);
 const selectedBook = ref('');
 const selectedEntry = ref('');
+function chooseBook(value: string) {
+  selectedBook.value = value;
+  void loadWorldbookEntries();
+}
+function chooseEntry(value: string) {
+  selectedEntry.value = value;
+  fillWorldbookCharacter();
+}
 const worldbookEntries = ref<WorldbookEntry[]>([]);
 const loadingBook = ref(false);
 let bookRequest = 0;

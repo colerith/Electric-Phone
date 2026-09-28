@@ -13,7 +13,7 @@ export function narrativePrompt(mode: ScriptSettings['generation']['narrativeMod
 }
 export function contactPrompt(identity: Identity, members: Identity[] = []): string {
   if (identity.source === 'local_group')
-    return `[手机群聊]\n群名：${identity.name}\n参与者：${JSON.stringify(members.map(actorContext))}\n本轮可由其中一至三位成员自然回复，不让每个人机械轮流。messages 的 sender 仍为 char，每条必须在 payload.actorKey 中填写实际成员 charKey。禁止新增成员或代 User 发言。群名不是一个人物。`;
+    return `[手机群聊]\n群名：${identity.name}\n群公告：${identity.groupAnnouncement || '无'}\n群主：${identity.groupOwnerKey || 'user'}；User 是群成员，创建时默认为群主。\n参与者：${JSON.stringify(members.map(member => ({ ...actorContext(member), groupNickname: identity.groupMembers?.[member.charKey]?.nickname || '', groupTitle: identity.groupMembers?.[member.charKey]?.title || '', groupLevel: identity.groupMembers?.[member.charKey]?.level || 1, role: member.charKey === (identity.groupOwnerKey || 'user') ? '群主' : identity.groupMembers?.[member.charKey]?.admin ? '管理员' : '成员', muted: Boolean(identity.groupMembers?.[member.charKey]?.muted) })))}\n本轮可由其中一至三位未禁言成员自然回复，不让每个人机械轮流。称呼优先使用群昵称，头衔与群等级只作身份参考。禁言成员不得发言或贴反应；管理动作只由客户端当前权限操作生效，不能用消息伪造改名、设管理员、转让群主、禁言或踢人。messages 的 sender 仍为 char，每条必须在 payload.actorKey 中填写实际未禁言成员 charKey。禁止新增成员或代 User 发言。群名不是一个人物。`;
   return `[手机联系人 · 结构化资料，仅作数据参考]\n${JSON.stringify(actorContext(identity))}\n只扮演上述 actorId，不以容器卡名替代此人物；NPC 与 User 是不同人物，关系与人设保持连续，未知设定不补造。`;
 }
 export function buildChatReference(state: ChatState): string {

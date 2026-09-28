@@ -3,34 +3,37 @@
     <WaveWalletWorkspace v-if="app === 'wallet'" mode="settings" />
     <WaveModuleSettings v-if="isLimitedApp(app)" :app="app" />
     <template v-if="app === 'conversation'">
-      <section v-if="phone.activeIdentity" class="chat-settings-group chat-profile-settings">
-        <div class="wave-settings-title">{{ phone.activeIdentity.name }}</div>
-        <WaveImageUpload
-          :inline="avatarOpen"
-          :model-value="phone.activeIdentity.avatar"
-          :fallback="phone.context?.avatar || ''"
-          label="头像"
-          :zoom="phone.activeIdentity.avatarZoom"
-          :offset-x="phone.activeIdentity.avatarOffsetX"
-          :offset-y="phone.activeIdentity.avatarOffsetY"
-          :max-side="phone.settings.media.imageMaxSide"
-          :quality="phone.settings.media.imageQuality"
-          @cancel="avatarOpen = false"
-          @confirm="saveAvatar"
-          @reset="
-            phone.updateActiveIdentityProfile({ resetAvatar: true });
-            avatarOpen = false;
-          "
-        />
-        <label class="chat-setting-block"
-          >备注<input
-            :value="phone.activeIdentity.remark"
-            maxlength="240"
-            placeholder="为这个角色设置备注"
-            @change="phone.updateActiveIdentityProfile({ remark: ($event.target as HTMLInputElement).value })"
-        /></label>
-      </section>
-      <WaveChatPreferences ref="chatPreferences" />
+      <WaveGroupSettings v-if="phone.activeIdentity?.source === 'local_group'" />
+      <template v-else>
+        <section v-if="phone.activeIdentity" class="chat-settings-group chat-profile-settings">
+          <div class="wave-settings-title">{{ phone.activeIdentity.name }}</div>
+          <WaveImageUpload
+            :inline="avatarOpen"
+            :model-value="phone.activeIdentity.avatar"
+            :fallback="phone.context?.avatar || ''"
+            label="头像"
+            :zoom="phone.activeIdentity.avatarZoom"
+            :offset-x="phone.activeIdentity.avatarOffsetX"
+            :offset-y="phone.activeIdentity.avatarOffsetY"
+            :max-side="phone.settings.media.imageMaxSide"
+            :quality="phone.settings.media.imageQuality"
+            @cancel="avatarOpen = false"
+            @confirm="saveAvatar"
+            @reset="
+              phone.updateActiveIdentityProfile({ resetAvatar: true });
+              avatarOpen = false;
+            "
+          />
+          <label class="chat-setting-block"
+            >备注<input
+              :value="phone.activeIdentity.remark"
+              maxlength="240"
+              placeholder="为这个角色设置备注"
+              @change="phone.updateActiveIdentityProfile({ remark: ($event.target as HTMLInputElement).value })"
+          /></label>
+        </section>
+        <WaveChatPreferences ref="chatPreferences" />
+      </template>
     </template>
     <section
       v-if="app === 'zone' || app === 'wallet'"
@@ -153,7 +156,9 @@
         /><small>由音源返回可用版本、封面和歌词。不可用时可切换来源或兼容接口。</small></label
       >
     </div>
-    <WaveCharacterVoice v-if="app === 'messages' || app === 'conversation'" />
+    <WaveCharacterVoice
+      v-if="(app === 'messages' || app === 'conversation') && phone.activeIdentity?.source !== 'local_group'"
+    />
     <WaveWeatherLocation
       v-if="app === 'calendar'"
       :location="weatherLocation"
@@ -215,6 +220,7 @@ import WaveModuleSettings from './WaveModuleSettings.vue';
 import { isLimitedApp } from '../../services/generation/module-updates';
 import WaveChatCleanup from '../chat/WaveChatCleanup.vue';
 import WaveChatPreferences from '../chat/WaveChatPreferences.vue';
+import WaveGroupSettings from '../chat/WaveGroupSettings.vue';
 
 import { ref } from 'vue';
 import { musicProviders } from '../../services/music/music';

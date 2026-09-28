@@ -35,7 +35,7 @@ const app = vue.createApp(Backup).use(createPinia());
 app.mount('#app');
 const tick = () => vue.nextTick();
 const click = text => {
-  const button = [...document.querySelectorAll('button')].find(b => b.textContent.includes(text));
+  const button = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === text);
   assert(button, text);
   button.click();
 };
@@ -47,22 +47,37 @@ URL.createObjectURL = blob => {
 URL.revokeObjectURL = () => {};
 dom.window.HTMLAnchorElement.prototype.click = () => {};
 (async () => {
-  const checks = [...document.querySelectorAll('input[type=checkbox]')];
+  assert.equal(document.querySelectorAll('.backup-modules input[type=checkbox]').length, 0);
+  assert(!document.body.textContent.includes('仅消息设置与角色'));
+  click('分批导出备份');
+  await tick();
+  const checks = [...document.querySelectorAll('.backup-dialog .backup-modules input[type=checkbox]')];
   assert.equal(checks.length, 12);
   assert.deepEqual(
     checks.filter(c => c.checked).map(c => c.value),
     ['messages'],
   );
-  click('全选');
+  document.querySelector('.backup-select-all input').click();
   await tick();
   assert(checks.every(c => c.checked));
-  click('仅消息设置与角色');
+  for (const check of checks) {
+    if (check.value !== 'messages') {
+      check.click();
+      await tick();
+    }
+  }
   await tick();
   click('导出备份');
   await tick();
   assert(exported);
   const file = new File([await exported.arrayBuffer()], 'messages.zip');
   assert.deepEqual(await inspectPhoneBackup(file), ['messages']);
+  click('全量导出备份');
+  await tick();
+  assert.deepEqual(
+    await inspectPhoneBackup(new File([await exported.arrayBuffer()], 'all.zip')).then(items => items.length),
+    12,
+  );
   if (process.env.WAVE_QA_HTML) fs.writeFileSync(process.env.WAVE_QA_HTML, document.querySelector('#app').innerHTML);
   const selected = createPhoneBackup(['messages', 'history']);
   const input = document.querySelector('input[type=file]');
