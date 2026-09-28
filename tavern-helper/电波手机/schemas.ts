@@ -14,7 +14,7 @@ import { ZoneInteractionsSchema } from './services/space/zone';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.1.43';
+export const WAVE_PHONE_RELEASE_VERSION = '1.1.44';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -421,6 +421,7 @@ export const ChatStateSchema = z
     threads: z.record(z.string(), ThreadSchema).prefault({}),
     snapshots: z.record(z.string(), AppSnapshotSchema).prefault({}),
     independentAppUpdates: z.array(IndependentAppUpdateSchema).prefault([]),
+    restoredAppSnapshots: z.record(z.string(), z.partialRecord(z.enum(APP_IDS), z.string())).prefault({}),
     contentTombstones: z.record(z.string(), z.record(z.string(), z.array(z.string()))).prefault({}),
     appFloorCutoffs: z.record(z.string(), z.record(z.string(), z.number().int())).prefault({}),
     zoneInteractions: ZoneInteractionsSchema,

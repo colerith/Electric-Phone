@@ -1,3 +1,4 @@
+import { modularize, importModules, ModularBackupSchema, BACKUP_MODULES, type BackupModule } from './backup-modules';
 import { CHARACTER_DEFAULTS_KEY, CharacterDefaultsSchema } from './character-defaults';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { klona } from 'klona';
@@ -48,6 +49,8 @@ const PhoneBackupSchema = z.object({
   chat: ChatStateSchema.nullable(),
 });
 
+export type PhoneBackup = z.infer<typeof PhoneBackupSchema>;
+
 function unwrapStored(value: unknown): unknown {
   if (!value || typeof value !== 'object') return undefined;
   const envelope = value as Partial<StorageEnvelope>;
@@ -66,7 +69,7 @@ function timestampName(): string {
   return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 }
 
-export function createPhoneBackup(): { filename: string; blob: Blob } {
+export function createPhoneBackup(selected?: BackupModule[]): { filename: string; blob: Blob } {
   const globalVariables = getVariables({ type: 'global' }) || {};
   const chatVariables = getVariables({ type: 'chat' }) || {};
   const runtime = getRuntimeContext();
@@ -88,9 +91,15 @@ export function createPhoneBackup(): { filename: string; blob: Blob } {
   });
   const archive = zipSync(
     {
-      'backup.json': strToU8(JSON.stringify(backup)),
+      'backup.json': strToU8(JSON.stringify(selected ? modularize(backup, selected) : backup)),
       'README.txt': strToU8(
-        '电波手机备份。包含设置、API 配置、角色与用户资料，以及导出时的当前聊天数据。请勿公开分享包含密钥的备份文件。',
+        selected
+          ? `电波手机分模块备份：${BACKUP_MODULES.filter(item => selected.includes(item.id))
+              .map(item => item.name)
+              .join(
+                '、',
+              )}。导入时可再次选择需要的模块。${selected.includes('general') ? '包含 API 配置，请勿公开分享含有密钥的备份。' : ''}`
+          : '电波手机完整备份。包含设置、API 配置、角色与用户资料，以及导出时的当前聊天数据。请勿公开分享包含密钥的备份文件。',
       ),
     },
     { level: 6 },
@@ -101,7 +110,7 @@ export function createPhoneBackup(): { filename: string; blob: Blob } {
   };
 }
 
-export async function importPhoneBackup(file: File): Promise<{ chatImported: boolean; message: string }> {
+async function readBackupFile(file: File): Promise<unknown> {
   if (file.size > MAX_ZIP_BYTES) throw Error('备份 ZIP 不能超过 20MB');
   let files: ReturnType<typeof unzipSync>;
   try {
@@ -118,7 +127,25 @@ export async function importPhoneBackup(file: File): Promise<{ chatImported: boo
   } catch {
     throw Error('backup.json 不是有效的 JSON');
   }
+  return raw;
+}
+
+export async function inspectPhoneBackup(file: File): Promise<BackupModule[]> {
+  const raw = await readBackupFile(file);
+  if ((raw as { formatVersion?: number })?.formatVersion === 2)
+    return Object.keys(ModularBackupSchema.parse(raw).modules) as BackupModule[];
+  PhoneBackupSchema.parse(raw);
+  return BACKUP_MODULES.map(item => item.id);
+}
+
+export async function importPhoneBackup(
+  file: File,
+  selected?: BackupModule[],
+): Promise<{ chatImported: boolean; message: string }> {
+  const raw = await readBackupFile(file);
+  if ((raw as { formatVersion?: number })?.formatVersion === 2) return importModules(raw, selected);
   const backup = PhoneBackupSchema.parse(raw);
+  if (selected) return importModules(modularize(backup, selected), selected);
   if (backup.storageVersion > WAVE_PHONE_STORAGE_VERSION) throw Error('备份来自更高版本，请先更新电波手机');
 
   const globalVariables = getVariables({ type: 'global' }) || {};

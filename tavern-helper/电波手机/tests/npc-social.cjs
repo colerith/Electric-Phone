@@ -188,11 +188,12 @@ const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments
   await tick();
   assert.equal(document.querySelector('.wave-person-name').textContent, 'Soap_Mac');
   assert(document.querySelector('.npc-profile-about').textContent.includes('还没有留下介绍'));
-  assert.equal(
-    document.querySelector('.wave-person-action'),
-    null,
-    'legacy guests retain names without invented identities',
-  );
+  click('.npc-profile-page button', '添加好友');
+  await tick();
+  const guest = phone.identities.find(identity => identity.name === 'Soap_Mac');
+  assert(guest, 'explicitly adding a generated space guest creates a contact');
+  assert.equal(guest.avatar, spaceAvatarUrl('space-guest:Soap_Mac'));
+  assert.equal(document.querySelector('.wave-person-action').textContent.trim(), '发消息');
   document.querySelector('.wave-person-overlay').click();
   await tick();
   assert.equal(document.activeElement, guestName, 'closing the modal restores the name button focus');
@@ -217,7 +218,7 @@ const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments
   await tick();
   assert.equal(document.querySelector('.npc-profile-avatar img'), null);
   assert(document.querySelector('.npc-profile-avatar').textContent.includes('小'));
-  click('.npc-profile-page button', '添加到通讯录');
+  click('.npc-profile-page button', '添加好友');
   await tick();
   assert.equal(phone.state.identities[id].actorType, 'npc');
   assert.equal(phone.state.identities[id].npcProfile, batch.npcs[0].profile);

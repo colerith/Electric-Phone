@@ -48,11 +48,16 @@
             <p>{{ about }}</p>
           </div>
         </div>
-        <button v-if="!isSelf && !anonymous && (contact || npc)" class="wave-person-action" type="button" @click="act">
-          {{ contact ? '发消息' : '添加到通讯录' }}
+        <button
+          v-if="!isSelf && !anonymous && (contact || npc || fallbackName)"
+          class="wave-person-action"
+          type="button"
+          @click="act"
+        >
+          {{ contact ? '发消息' : '添加好友' }}
         </button>
         <p v-if="notice" role="status" class="wave-person-note">{{ notice }}</p>
-        <p v-if="!isSelf && !anonymous && (contact || npc)" class="wave-person-note">
+        <p v-if="!isSelf && !anonymous && (contact || npc || fallbackName)" class="wave-person-note">
           {{ contact ? '头像、关系与人设可在私聊设置里修改。' : '添加后可在联系人列表找到这位朋友。' }}
         </p>
       </section>
@@ -85,9 +90,10 @@ const surface = inject(phoneSurfaceKey, ref(null));
 const dialog = ref<HTMLElement | null>(null),
   closeButton = ref<HTMLButtonElement | null>(null);
 const titleId = useId();
+const personKey = computed(() => props.npcId || (props.fallbackName ? `space-guest:${props.fallbackName}` : ''));
 const isSelf = computed(() => !props.anonymous && props.npcId === 'user');
 const npc = computed(() => (props.anonymous ? undefined : phone.state.moments.npcs[props.npcId]));
-const contact = computed(() => (props.anonymous ? undefined : phone.state.identities[props.npcId]));
+const contact = computed(() => (props.anonymous ? undefined : phone.state.identities[personKey.value]));
 const profile = computed(() => parseZonePage(phone.state.snapshots[props.npcId]?.zone || '').profile);
 const name = computed(() =>
   isSelf.value
@@ -146,11 +152,11 @@ function trapFocus(event: KeyboardEvent): void {
 function act(): void {
   try {
     if (contact.value) {
-      phone.startConversation(props.npcId);
+      phone.startConversation(personKey.value);
       phone.currentPage = 'conversation';
       emit('close');
-    } else if (npc.value) {
-      phone.addMomentNpc(props.npcId);
+    } else {
+      phone.addSpaceContact(personKey.value, name.value, avatar.value, about.value);
       notice.value = '已添加到通讯录';
     }
   } catch (error) {

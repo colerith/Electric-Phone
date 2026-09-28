@@ -193,18 +193,15 @@
             <div class="wave-settings-title">{{ dialogTitle }}</div>
             <button type="button" aria-label="关闭" @click="closeDialog">×</button>
           </div>
-          <template v-if="dialog === 'friend'">
+          <template v-if="dialog === 'friend' || dialog === 'character'">
             <label>联系人名称<input v-model="newName" maxlength="40" placeholder="填写名称" /></label>
             <label
-              >联系人资料<textarea
-                v-model="about"
-                maxlength="1000"
-                rows="3"
-                placeholder="关系、性格或已知背景（选填）"
-              ></textarea>
+              >联系人资料<textarea v-model="about" rows="3" placeholder="关系、性格或已知背景（选填）"></textarea>
             </label>
             <p>添加到当前手机通讯录，资料用于这位联系人的回复。</p>
-            <button class="settings-save-wide" type="button" @click="submitFriend">添加好友</button>
+            <button class="settings-save-wide" type="button" @click="submitFriend">
+              {{ dialog === 'character' ? '导入角色' : '添加好友' }}
+            </button>
           </template>
           <template v-else-if="dialog === 'worldbook'">
             <label
@@ -300,7 +297,7 @@ const emit = defineEmits<{
 const phone = usePhoneStore(),
   surface = inject(phoneSurfaceKey, ref(null));
 type Tab = 'messages' | 'contacts' | 'me';
-type Dialog = 'start' | 'friend' | 'group' | 'worldbook';
+type Dialog = 'start' | 'friend' | 'group' | 'worldbook' | 'character';
 const tabs: { id: Tab; name: string; icon: string }[] = [
   { id: 'messages', name: '消息', icon: 'fa-solid fa-comment' },
   { id: 'contacts', name: '联系人', icon: 'fa-regular fa-address-book' },
@@ -315,6 +312,7 @@ const menuItems: { id: Dialog; name: string; icon: string }[] = [
   { id: 'start', name: '发起聊天', icon: 'fa-regular fa-comment' },
   { id: 'friend', name: '添加好友', icon: 'fa-solid fa-user-plus' },
   { id: 'worldbook', name: '从世界书导入角色', icon: 'fa-solid fa-book-open' },
+  { id: 'character', name: '从角色卡描述导入', icon: 'fa-solid fa-id-card' },
   { id: 'group', name: '创建群聊', icon: 'fa-solid fa-user-group' },
 ];
 const tab = ref<Tab>('messages'),
@@ -490,6 +488,13 @@ async function showDialog(value: Dialog) {
   contactQuery.value = '';
   memberKeys.value = [];
   notice.value = '';
+  if (value === 'character') {
+    importContext = contextKey();
+    const card = getCharData('current');
+    newName.value = card?.name || '';
+    about.value = card?.description || card?.data?.description || '';
+    if (!about.value) notice.value = '当前角色卡未填写角色描述，可手动补充后导入。';
+  }
   if (value === 'worldbook') {
     importContext = contextKey();
     selectedBook.value = '';
@@ -528,9 +533,10 @@ function pick(key: string) {
 }
 function submitFriend() {
   try {
-    if (dialog.value === 'worldbook' && contextKey() !== importContext)
-      throw Error('聊天已切换，请重新打开世界书导入。');
-    phone.addContact(newName.value, about.value);
+    if (['worldbook', 'character'].includes(dialog.value || '') && contextKey() !== importContext)
+      throw Error('聊天已切换，请重新打开角色导入。');
+    if (dialog.value === 'character') phone.importCardContact(newName.value, about.value);
+    else phone.addContact(newName.value, about.value);
     closeDialog();
     changeTab('contacts');
   } catch (error) {

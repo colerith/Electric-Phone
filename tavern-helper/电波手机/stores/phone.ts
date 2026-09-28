@@ -775,6 +775,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const floor = Math.max(-1, ...readChatFloors().map(message => message.message_id));
     state.value.appFloorCutoffs[charKey] ||= {};
     state.value.appFloorCutoffs[charKey][app] = floor;
+    if (state.value.restoredAppSnapshots[charKey]) delete state.value.restoredAppSnapshots[charKey][app];
     state.value.independentAppUpdates = state.value.independentAppUpdates.filter(
       update => update.charKey !== charKey || update.app !== app,
     );
@@ -947,6 +948,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       mergedIdentity.actorType = previous.actorType;
       mergedIdentity.relationshipToUser = previous.relationshipToUser;
       mergedIdentity.npcProfile = previous.npcProfile;
+      mergedIdentity.about = previous.about || mergedIdentity.about;
     }
     nextState.identities[mergedIdentity.charKey] = mergedIdentity;
     ensureThread(nextState, runtime, mergedIdentity);
@@ -1119,7 +1121,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           ),
         );
       }
-      nextState.snapshots = {};
+      nextState.snapshots = Object.fromEntries(
+        Object.entries(nextState.restoredAppSnapshots).map(([key, value]) => [key, AppSnapshotSchema.parse(value)]),
+      );
 
       if (isMulti) {
         removeEmptySinglePlaceholder(nextState);
@@ -2067,6 +2071,49 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
     return npcId;
   }
+  function importCardContact(name: string, about: string): string {
+    const runtime = context.value;
+    if (!runtime || !name.trim()) throw Error('请填写角色名称');
+    const existing = identities.value.find(
+      identity => identity.source !== 'local_group' && identity.name === name.trim(),
+    );
+    if (!existing) {
+      const key = addContact(name, about);
+      state.value.identities[key].avatar = runtime.avatar;
+      saveChat();
+      return key;
+    }
+    // The current card already has an automatic contact: update its description, never create a duplicate.
+    existing.about = about.trim();
+    if (existing.source === 'auto_single_card') existing.actorType = 'main';
+    existing.updatedAt = nowIso();
+    saveChat();
+    return existing.charKey;
+  }
+
+  function addSpaceContact(key: string, name: string, avatar: string, about: string): string {
+    if (!context.value || !key || key === 'user' || !name.trim()) throw Error('人物资料不完整，无法添加好友');
+    if (state.value.identities[key]) return key;
+    if (state.value.moments.npcs[key]) return addMomentNpc(key);
+    const identity = IdentitySchema.parse({
+      charKey: key,
+      stableId: key,
+      name: name.trim(),
+      avatar,
+      about,
+      npcProfile: about.slice(0, 10000),
+      actorType: 'npc',
+      source: 'local_contact',
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    });
+    state.value.deletedCharKeys = state.value.deletedCharKeys.filter(value => value !== key);
+    upsertIdentity(state.value, identity, context.value);
+    ensureThread(state.value, context.value, identity).hidden = true;
+    saveChat();
+    return key;
+  }
+
   function addContact(name: string, about: string): string {
     const title = name.trim();
     if (!context.value || !title) throw Error('请填写联系人名称');
@@ -3059,6 +3106,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     startConversation,
     addMomentNpc,
     addContact,
+    importCardContact,
+    addSpaceContact,
     createGroup,
     moduleGenerating,
     manualGeneratingApp,

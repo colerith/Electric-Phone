@@ -32,7 +32,7 @@ let vars = { script: {}, chat: {} };
 let chatId = 'test';
 Object.assign(global, {
   SillyTavern: { name1: 'User', getCurrentChatId: () => chatId, characterId: '1' },
-  getCharData: () => ({ name: 'Alice' }),
+  getCharData: () => ({ name: 'Alice', description: '角色卡描述：喜欢旅行。' }),
   getWorldbookNames: () => ['其他世界书', '角色设定'],
   getCharWorldbookNames: () => ({ primary: '角色设定', additional: [] }),
   getWorldbook: async () => [{ uid: 7, name: 'Dora', content: '世界书角色资料'.repeat(200) }],
@@ -104,7 +104,7 @@ const clickText = (selector, text) => {
   assert.equal(phone.activeThread.hidden, false);
   component.toggleMenu();
   await tick();
-  assert.equal(document.querySelectorAll('[role=menuitem]').length, 4);
+  assert.equal(document.querySelectorAll('[role=menuitem]').length, 5);
   clickText('[role=menuitem]', '添加好友');
   await tick();
   assert.equal(document.querySelector('[role=dialog]').getAttribute('aria-label'), '添加好友');
@@ -204,6 +204,18 @@ const clickText = (selector, text) => {
   assert.equal(phone.activeThread.messages.filter(message => message.sender === 'char').length, beforeCount);
   assert(phone.activeThread.messages.some(message => message.status === 'failed'));
 
+  component.toggleMenu();
+  await tick();
+  clickText('[role=menuitem]', '从角色卡描述导入');
+  await tick();
+  assert.equal(document.querySelector('[role=dialog] input').value, 'Alice');
+  assert.equal(document.querySelector('[role=dialog] textarea').value, '角色卡描述：喜欢旅行。');
+  clickText('[role=dialog] button', '导入角色');
+  await tick();
+  await phone.synchronize();
+  assert.equal(phone.state.identities[alice].about, '角色卡描述：喜欢旅行。');
+  assert.equal(phone.identities.filter(identity => identity.name === 'Alice').length, 1);
+
   // Exercise the worldbook import through the real Vue dialog.
   component.toggleMenu();
   await tick();
@@ -239,6 +251,7 @@ const clickText = (selector, text) => {
   assert.equal(phone.state.identities[bob].avatar, 'custom.png');
   assert.equal(phone.state.identities[bob].npcProfile, '保留的角色资料');
   assert.equal(phone.state.identities[imported.charKey].about, imported.about);
+  assert.equal(phone.state.identities[alice].about, '角色卡描述：喜欢旅行。');
   assert(!phone.state.identities[clara.charKey], 'deleted contacts must not return');
   assert(
     Object.values(phone.state.threads).every(thread => !thread.messages.length),

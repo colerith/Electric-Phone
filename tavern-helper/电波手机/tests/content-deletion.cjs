@@ -76,6 +76,25 @@ const delta = content => ({
     parseMemoData(phone.activeSnapshot.memo).notes.map(item => item.id),
     ['memo-2'],
   );
+  const { createPhoneBackup, importPhoneBackup } = require(base + '/services/core/backup.ts');
+  const backup = createPhoneBackup(['memo']);
+  const archive = new File([await backup.blob.arrayBuffer()], 'memo.zip');
+  phone.clearAppContent('memo');
+  await phone.synchronize();
+  await importPhoneBackup(archive, ['memo']);
+  await phone.synchronize();
+  assert.deepEqual(
+    parseMemoData(phone.activeSnapshot.memo).notes.map(item => item.id),
+    ['memo-2'],
+    'restored app snapshot survives synchronization',
+  );
+  phone.clearAppContent('memo');
+  await phone.synchronize();
+  assert.equal(
+    parseMemoData(phone.activeSnapshot.memo).notes.length,
+    0,
+    'clearing restored content does not bring it back',
+  );
   console.log(
     'PASS: item tombstones and app floor cutoffs prevent deleted content from returning while allowing new data.',
   );
