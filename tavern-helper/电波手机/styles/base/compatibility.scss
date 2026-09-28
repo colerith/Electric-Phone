@@ -147,12 +147,13 @@
     padding: 8px 10px 10px;
   }
   .wave-device.page-conversation :is(.composer, .extras-panel, .composer-context, .message-multi-toolbar) {
-    background: var(--wave-surface, #f2f2f2) !important;
+    background: var(--wave-card, #fff) !important;
     box-shadow: none;
     border-color: transparent;
     backdrop-filter: none;
   }
-  // Continue the messenger's white canvas beneath the transparent home indicator.
+  // Extend the input surface through the reserved bottom area; the indicator stays transparent.
+  .wave-device.page-conversation:has(.composer, .message-multi-toolbar)::after,
   .wave-device.page-messages:has(.messenger-app)::after {
     content: '';
     position: absolute;

@@ -17,7 +17,11 @@
         >
         <WaveSlider v-model="appearance.homeBarHeight" :min="16" :max="64" :step="2" aria-label="底部小白条区域高度" />
       </div>
-      <button type="button" @click="appearance.homeBarHeight = 40">恢复默认高度</button>
+      <div class="settings-actions">
+        <button type="button" class="appearance-reset-height" @click="appearance.homeBarHeight = 40">
+          <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> 恢复默认高度
+        </button>
+      </div>
     </section>
     <section class="settings-card appearance-group">
       <div class="wave-settings-title">Ecot 内容</div>
