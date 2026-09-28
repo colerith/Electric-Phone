@@ -238,24 +238,26 @@
               >群聊名称<input v-model="newName" maxlength="40" placeholder="填写群名（选填）"
             /></label>
             <input v-model="contactQuery" placeholder="搜索联系人" aria-label="搜索联系人" />
-            <div class="messenger-picker" :role="dialog === 'group' ? 'group' : undefined" aria-label="选择联系人">
+            <div
+              class="messenger-picker"
+              :class="{ 'messenger-group-picker': dialog === 'group' }"
+              :role="dialog === 'group' ? 'group' : undefined"
+              aria-label="选择联系人"
+            >
               <button
                 v-for="contact in pickerContacts"
                 :key="contact.charKey"
                 type="button"
-                :aria-pressed="dialog === 'group' ? memberKeys.includes(contact.charKey) : undefined"
+                :class="{ 'is-selected': dialog === 'group' && memberKeys.includes(contact.charKey) }"
+                :role="dialog === 'group' ? 'checkbox' : undefined"
+                :aria-checked="dialog === 'group' ? memberKeys.includes(contact.charKey) : undefined"
                 @click="pick(contact.charKey)"
               >
                 <span>{{ displayIdentityName(contact) }}</span
-                ><i
-                  :class="
-                    dialog === 'group' && memberKeys.includes(contact.charKey)
-                      ? 'fa-solid fa-circle-check'
-                      : dialog === 'group'
-                        ? 'fa-regular fa-circle'
-                        : 'fa-solid fa-chevron-right'
-                  "
-                ></i>
+                ><span v-if="dialog === 'group'" class="messenger-member-check" aria-hidden="true"
+                  ><i v-if="memberKeys.includes(contact.charKey)" class="fa-solid fa-check"></i
+                ></span>
+                <i v-else class="fa-solid fa-chevron-right" aria-hidden="true"></i>
               </button>
             </div>
             <p v-if="!pickerContacts.length">没有匹配的联系人，可先从加号菜单添加好友。</p>

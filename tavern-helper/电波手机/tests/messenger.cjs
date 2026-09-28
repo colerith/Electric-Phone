@@ -124,6 +124,26 @@ const clickText = (selector, text) => {
   await tick();
   assert(!phone.state.identities[clara.charKey]);
   assert(phone.state.deletedCharKeys.includes(clara.charKey));
+  component.toggleMenu();
+  await tick();
+  clickText('[role=menuitem]', '创建群聊');
+  await tick();
+  const choices = [...document.querySelectorAll('.messenger-group-picker [role=checkbox]')];
+  assert(choices.length >= 2);
+  assert.equal(choices[0].getAttribute('aria-checked'), 'false');
+  choices[0].click();
+  await tick();
+  assert(choices[0].classList.contains('is-selected'));
+  assert.equal(choices[0].getAttribute('aria-checked'), 'true');
+  assert(choices[0].querySelector('.messenger-member-check .fa-check'));
+  assert(document.querySelector('.messenger-dialog .settings-save-wide').disabled);
+  choices[1].click();
+  await tick();
+  assert(!document.querySelector('.messenger-dialog .settings-save-wide').disabled);
+  if (process.env.WAVE_QA_GROUP_HTML)
+    fs.writeFileSync(process.env.WAVE_QA_GROUP_HTML, document.querySelector('.messenger-dialog').outerHTML);
+  document.querySelector('[aria-label="关闭"]').click();
+  await tick();
   const group = phone.createGroup('一起聊天', [alice, bob]);
   phone.startConversation(group);
   await phone.synchronize();

@@ -59,10 +59,10 @@
                 </div>
                 <div class="anniversary-avatar">
                   <img
-                    v-if="phone.activeIdentity?.avatar || cover"
-                    :src="phone.activeIdentity?.avatar || cover"
-                    alt="你"
-                  /><span v-else>你</span>
+                    v-if="anniversaryCharacter?.avatar || (!anniversaryCharacter && cover)"
+                    :src="anniversaryCharacter?.avatar || cover"
+                    :alt="anniversaryName || '你'"
+                  /><span v-else>{{ anniversaryName.slice(0, 1) || '你' }}</span>
                 </div>
                 <svg class="anniversary-headphones" viewBox="0 0 240 180" fill="none" aria-hidden="true">
                   <defs>
@@ -91,7 +91,7 @@
                 </svg>
               </div>
               <div class="anniversary-copy">
-                <small>与你 · 每一天</small>
+                <small>{{ anniversaryName ? `与${anniversaryName}` : '与你' }} · 每一天</small>
                 <strong
                   >{{ anniversaryDays === null ? '待开启' : anniversaryDays
                   }}<em v-if="anniversaryDays !== null"> 天</em></strong
@@ -222,6 +222,8 @@ import { presetIcon } from '../../assets/icons/preset-icon';
 import { appIcons } from '../../assets/icons/app-icons';
 import { usePhoneStore } from '../../stores/phone';
 import { useSystemClockStore } from '../../stores/system-clock';
+import { resolveAnniversaryCharacter, anniversaryDateFor } from '../../services/core/anniversary';
+import { displayIdentityName } from '../../services/core/identity';
 import { useMusicStore } from '../../stores/music';
 import type { AppId } from '../../schemas';
 const props = defineProps<{
@@ -258,7 +260,19 @@ const filteredApps = computed(() =>
     (phone.settings.appearance.iconNames[app.id] || app.name).toLowerCase().includes(query.value.trim().toLowerCase()),
   ),
 );
-const anniversary = computed(() => phone.settings.appearance.anniversaries[props.cardKey] || '');
+const anniversaryCharacter = computed(() =>
+  resolveAnniversaryCharacter(
+    phone.identities,
+    phone.settings.appearance.anniversaryBindings[props.cardKey],
+    phone.state.activeCharKey,
+  ),
+);
+const anniversaryName = computed(() =>
+  anniversaryCharacter.value ? displayIdentityName(anniversaryCharacter.value) : '',
+);
+const anniversary = computed(() =>
+  anniversaryDateFor(phone.settings.appearance, props.cardKey, anniversaryCharacter.value?.charKey || ''),
+);
 const anniversaryDays = computed(() => {
   void props.clock;
   if (!anniversary.value) return null;

@@ -15,7 +15,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.1.45';
+export const WAVE_PHONE_RELEASE_VERSION = '1.1.46';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -113,6 +113,8 @@ export const AppearanceSettingsSchema = z
     iconNames: z.record(z.string(), z.string()).prefault({}),
     iconImages: z.record(z.string(), z.string()).prefault({}),
     anniversaries: z.record(z.string(), z.string()).prefault({}),
+    anniversaryBindings: z.record(z.string(), z.string()).prefault({}),
+    anniversaryDates: z.record(z.string(), z.string()).prefault({}),
     fontFamily: z.enum(['system', 'source_serif', 'source_sans']).prefault('system'),
     fontScale: z.coerce
       .number()
@@ -282,6 +284,7 @@ export type CardRosterMap = z.infer<typeof CardRosterMapSchema>;
 
 export const CharacterProfileOverrideSchema = z
   .object({
+    conversationPinned: z.boolean().optional(),
     remark: z.string().prefault(''),
     avatar: z.string().prefault(''),
     avatarZoom: z.coerce

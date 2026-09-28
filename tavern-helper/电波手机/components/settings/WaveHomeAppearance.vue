@@ -17,9 +17,9 @@
         >
         <WaveSlider v-model="appearance.homeBarHeight" :min="16" :max="64" :step="2" aria-label="底部小白条区域高度" />
       </div>
-      <div class="settings-actions">
+      <div class="settings-actions appearance-height-actions">
         <button type="button" class="appearance-reset-height" @click="appearance.homeBarHeight = 40">
-          <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> 恢复默认高度
+          <i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>恢复默认高度</span>
         </button>
       </div>
     </section>
@@ -33,12 +33,23 @@
     </section>
     <section class="settings-card appearance-group">
       <div class="wave-settings-title">纪念日</div>
-      <p id="wave-anniversary-help">为当前角色设置故事开始的日期</p>
+      <p id="wave-anniversary-help">选择主要角色，绑定纪念日与主屏显示的头像。</p>
+      <label class="appearance-date-field">
+        <span>绑定角色</span>
+        <WaveSelect
+          v-model="boundCharacter"
+          :options="anniversaryOptions"
+          :disabled="!anniversaryOptions.length"
+          aria-label="纪念日绑定角色"
+        />
+      </label>
+      <p v-if="!anniversaryOptions.length">暂无主要角色，可在联系人设置中将角色类型设为“主要角色”。</p>
       <label class="appearance-date-field">
         <span>纪念日起始日期</span>
         <input
           id="wave-anniversary-date"
-          v-model="appearance.anniversaries[cardKey]"
+          v-model="anniversaryDate"
+          :disabled="!boundCharacter"
           type="date"
           aria-label="纪念日起始日期"
           aria-describedby="wave-anniversary-help"
@@ -99,6 +110,13 @@ import { computed, ref } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import WaveToggle from '../shared/WaveToggle.vue';
 import WaveSlider from '../shared/WaveSlider.vue';
+import WaveSelect from '../shared/WaveSelect.vue';
+import {
+  mainAnniversaryCharacters,
+  resolveAnniversaryCharacter,
+  anniversaryDateFor,
+} from '../../services/core/anniversary';
+import { displayIdentityName } from '../../services/core/identity';
 import { presetIcon } from '../../assets/icons/preset-icon';
 import { appIcons } from '../../assets/icons/app-icons';
 import WaveImageUpload from '../shared/WaveImageUpload.vue';
@@ -110,6 +128,35 @@ const showElectric = computed({
   set: value => (appearance.value.hideElectric = !value),
 });
 const cardKey = computed(() => phone.context?.cardKey || '');
+const anniversaryOptions = computed(() =>
+  mainAnniversaryCharacters(phone.identities).map(identity => ({
+    value: identity.charKey,
+    label: displayIdentityName(identity),
+  })),
+);
+const boundCharacter = computed({
+  get: () =>
+    resolveAnniversaryCharacter(
+      phone.identities,
+      appearance.value.anniversaryBindings[cardKey.value],
+      phone.state.activeCharKey,
+    )?.charKey || '',
+  set: key => {
+    const previous = boundCharacter.value;
+    const legacy = appearance.value.anniversaries[cardKey.value];
+    if (!appearance.value.anniversaryBindings[cardKey.value] && previous && legacy)
+      appearance.value.anniversaryDates[`${cardKey.value}::${previous}`] ||= legacy;
+    appearance.value.anniversaryBindings[cardKey.value] = key;
+  },
+});
+const anniversaryDate = computed({
+  get: () => anniversaryDateFor(appearance.value, cardKey.value, boundCharacter.value),
+  set: date => {
+    if (!boundCharacter.value) return;
+    appearance.value.anniversaryDates[`${cardKey.value}::${boundCharacter.value}`] = date;
+    appearance.value.anniversaryBindings[cardKey.value] = boundCharacter.value;
+  },
+});
 const editableApps = computed(() => [
   ...props.apps,
   { id: 'settings', name: '设置' },

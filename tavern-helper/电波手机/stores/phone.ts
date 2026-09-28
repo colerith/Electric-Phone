@@ -328,7 +328,9 @@ function persistChatState(state: ChatState): void {
 
 function ensureThread(state: ChatState, context: RuntimeContext, identity: Identity): Thread {
   const id = makeThreadId(context, identity.charKey);
-  const existing = state.threads[id];
+  const legacyKey = Object.keys(state.threads).find(key => state.threads[key].charKey === identity.charKey);
+  const existing = state.threads[id] || (legacyKey ? state.threads[legacyKey] : undefined);
+  if (!state.threads[id] && legacyKey && legacyKey !== id) delete state.threads[legacyKey];
   const thread =
     existing ||
     ThreadSchema.parse({
@@ -343,6 +345,7 @@ function ensureThread(state: ChatState, context: RuntimeContext, identity: Ident
       generationId: '',
       updatedAt: nowIso(),
     });
+  thread.id = id;
   state.threads[id] = thread;
   return thread;
 }
@@ -951,7 +954,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       mergedIdentity.about = previous.about || mergedIdentity.about;
     }
     nextState.identities[mergedIdentity.charKey] = mergedIdentity;
-    ensureThread(nextState, runtime, mergedIdentity);
+    const thread = ensureThread(nextState, runtime, mergedIdentity);
+    if (profile?.conversationPinned !== undefined) thread.pinned = profile.conversationPinned;
+    else if (thread.pinned) {
+      characterProfiles.value[profileKey] = CharacterProfileMapSchema.parse({
+        [profileKey]: { ...characterProfiles.value[profileKey], conversationPinned: true, updatedAt: nowIso() },
+      })[profileKey];
+      persistCharacterProfiles(characterProfiles.value);
+    }
     ensureWalletAccounts(nextState.walletBook, mergedIdentity.charKey, mergedIdentity.name);
     if (!nextState.snapshots[mergedIdentity.charKey]) {
       nextState.snapshots[mergedIdentity.charKey] = AppSnapshotSchema.parse({});
@@ -1977,6 +1987,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const thread = Object.values(state.value.threads).find(item => item.charKey === charKey);
     if (thread) {
       thread.pinned = !thread.pinned;
+      if (context.value) {
+        const key = `${context.value.cardKey}::${charKey}`;
+        characterProfiles.value[key] = CharacterProfileMapSchema.parse({
+          [key]: { ...characterProfiles.value[key], conversationPinned: thread.pinned, updatedAt: nowIso() },
+        })[key];
+        persistCharacterProfiles(characterProfiles.value);
+      }
+      ++syncToken;
       saveChat();
     }
   }

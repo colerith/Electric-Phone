@@ -129,6 +129,7 @@ export function modularize(backup: PhoneBackup, selected: BackupModule[]) {
               'avatarCustomized',
               'chatPreferences',
               'characterVoice',
+              'conversationPinned',
               'updatedAt',
             ]),
           ]),
@@ -233,6 +234,7 @@ export function importModules(input: unknown, selected?: BackupModule[]) {
                 'avatarCustomized',
                 'chatPreferences',
                 'characterVoice',
+                'conversationPinned',
                 'updatedAt',
               ];
         const target = `${runtime.cardKey}::${key}`;

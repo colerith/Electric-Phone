@@ -33,8 +33,8 @@
     <template v-else>
       <p>读取柏宝书摘要页的当前时间，实时监听更新。分钟与日期不会自动增加，也不会读取摘要卡片里的历史时间段。</p>
       <p role="status">{{ clock.status }}</p>
-      <button type="button" class="system-action" @click="clock.refresh()">
-        <i class="fa-solid fa-rotate"></i>重新读取
+      <button type="button" class="system-action clock-refresh" @click="clock.refresh()">
+        <i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>重新读取</span>
       </button>
     </template>
     <p v-if="error" class="clock-error" role="alert">{{ error }}</p>

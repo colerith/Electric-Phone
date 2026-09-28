@@ -143,3 +143,34 @@
   min-height: 40px !important;
   box-sizing: border-box !important;
 }
+
+#wave-phone-script-root .wave-device .home-appearance-editor .appearance-height-actions {
+  display: flex;
+  justify-content: center;
+  .appearance-reset-height {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: auto;
+    min-width: 170px;
+    padding: 12px 22px;
+  }
+}
+#wave-phone-script-root .wave-device .wave-clock-settings {
+  .clock-refresh {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 14px;
+    > i {
+      flex: 0 0 auto;
+    }
+  }
+  .wave-select .wave-select-trigger strong,
+  .wave-select .wave-select-menu [role='option'] strong {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+}
