@@ -1,3 +1,4 @@
+import { paymentDetails } from '../services/chat/payment';
 import {
   randomAnonymousId,
   randomAnonymousAvatarSeed,
@@ -2671,6 +2672,61 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
   }
 
+  function respondToPayment(threadId: string, messageId: string, decision: 'received' | 'refunded'): void {
+    const thread = activeThread.value;
+    const message = thread?.messages.find(item => item.id === messageId);
+    if (!context.value || !thread || thread.id !== threadId || !message)
+      throw Error('会话已切换或消息已不存在，请重新打开。');
+    const payment = paymentDetails(message);
+    if (!payment.canRespond) throw Error('这笔红包或转账已处理，或不能由你领取。');
+    if (decision === 'received' && !payment.canReceive) throw Error('金额无效或红包已领完，无法收款。');
+    const currency = String(message.payload.currency || 'CNY');
+    const receiptId = `${walletChatPrefix(context.value.chatKey)}payment:${thread.charKey}:${message.id}:user`;
+    const now = nowIso();
+    if (decision === 'received') {
+      ensureWalletAccounts(state.value.walletBook, thread.charKey, activeIdentity.value?.name || '角色');
+      const account = state.value.walletBook.accounts.user;
+      account.manual[receiptId] ||= AccountRowSchema.parse({
+        id: receiptId,
+        title: message.type === 'red_packet' ? '收到红包' : '收到转账',
+        amount: payment.share,
+        currency,
+        direction: 'income',
+        category: '社交',
+        date: now.slice(0, 10),
+        note: String(message.payload.note || message.content),
+        state: 'received',
+      });
+      message.payload.userReceivedAmount = payment.share;
+      if (payment.group) {
+        message.payload.claimedCount = payment.claimed + 1;
+        message.payload.claimedAmount =
+          Math.round(((Number(message.payload.claimedAmount) || 0) + payment.share) * 100) / 100;
+        message.payload.state = payment.claimed + 1 >= payment.count ? 'group_empty' : 'group_claimed';
+      }
+    }
+    if (!payment.group) message.payload.state = decision;
+    message.payload.userPaymentDecision = decision;
+    message.payload.userPaymentAt = now;
+    const title = message.type === 'red_packet' ? '红包' : '转账';
+    const savedDraft = thread.draft;
+    const receipt = addUserMessage(thread, {
+      type: 'text',
+      content: decision === 'received' ? `已领取${title} ${currency} ${payment.share.toFixed(2)}` : `已拒收${title}`,
+      quotedMessageId: message.id,
+      payload: {
+        interaction: 'payment_receipt',
+        paymentMessageId: message.id,
+        paymentDecision: decision,
+        awaitingReply: true,
+      },
+    });
+    receipt.status = 'sent';
+    thread.draft = savedDraft;
+    ++syncToken;
+    saveChat();
+  }
+
   function editMessage(messageId: string, content: string): void {
     const thread = activeThread.value;
     const message = thread?.messages.find(item => item.id === messageId);
@@ -3078,6 +3134,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     deleteMessage,
     deleteMessages,
     editMessage,
+    respondToPayment,
     toggleReaction,
     toggleFavorite,
     withdrawMessage,

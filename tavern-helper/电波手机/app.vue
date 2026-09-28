@@ -21,6 +21,7 @@
         aria-label="电波手机"
         @click.capture="onInteractionSound"
       >
+        <div class="wave-inner-rim" aria-hidden="true"></div>
         <div class="wave-statusbar">
           <span v-if="store.settings.appearance.showStatusBar" class="wave-status-time">{{ clock }}</span>
           <WaveGenerationIsland
@@ -394,7 +395,11 @@
                       :char-name="displayIdentityName(store.activeIdentity)"
                     />
                     <div v-else class="message-stack">
-                      <WaveMessageContent :message="message" :quoted-text="quotedMessageText(message)" />
+                      <WaveMessageContent
+                        :message="message"
+                        :quoted-text="quotedMessageText(message)"
+                        :payment-interactive="!multiSelectMode"
+                      />
                       <div
                         v-if="canReactToMessage(message) && message.reactions?.length"
                         class="message-reactions"

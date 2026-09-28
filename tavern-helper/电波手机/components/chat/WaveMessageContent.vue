@@ -161,7 +161,17 @@
         <p v-if="voiceError" class="voice-play-error" role="alert">{{ voiceError }}</p>
       </div>
 
-      <div v-else-if="message.type === 'transfer'" class="wave-message-transfer" :class="`transfer-${transferState}`">
+      <div
+        v-else-if="message.type === 'transfer'"
+        class="wave-message-transfer"
+        :class="`transfer-${transferState}`"
+        :role="message.sender === 'char' && paymentInteractive ? 'button' : undefined"
+        :tabindex="message.sender === 'char' && paymentInteractive ? 0 : undefined"
+        aria-label="查看转账详情"
+        @click="openPayment"
+        @keydown.enter.stop.prevent="openPayment"
+        @keydown.space.stop.prevent="openPayment"
+      >
         <div class="wave-transfer-amount">
           <i>✦</i><strong>{{ payloadString('currency') || 'CNY' }} {{ amountText }}</strong
           ><i>✦</i>
@@ -178,6 +188,12 @@
         v-else-if="message.type === 'red_packet'"
         class="wave-message-red-packet"
         :class="[`red-packet-${redPacketState}`, { 'red-packet-group': redPacketIsGroup }]"
+        :role="message.sender === 'char' && paymentInteractive ? 'button' : undefined"
+        :tabindex="message.sender === 'char' && paymentInteractive ? 0 : undefined"
+        aria-label="查看红包详情"
+        @click="openPayment"
+        @keydown.enter.stop.prevent="openPayment"
+        @keydown.space.stop.prevent="openPayment"
       >
         <div class="wave-red-packet-body">
           <span class="wave-red-packet-icon" aria-hidden="true"><i class="fa-solid fa-envelope-open-text"></i></span>
@@ -272,10 +288,18 @@
         </section>
       </div>
     </Teleport>
+    <WavePaymentDialog
+      v-if="paymentOpen"
+      :message="message"
+      :thread-id="paymentThreadId"
+      @close="paymentOpen = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import WavePaymentDialog from './WavePaymentDialog.vue';
+import { paymentDetails } from '../../services/chat/payment';
 import { translateText } from '../../services/generation/translation';
 import { ChatPreferencesSchema } from '../../services/chat/chat-preferences';
 import { klona } from 'klona';
@@ -306,7 +330,10 @@ async function playVideo(): Promise<void> {
   }
 }
 
-const props = withDefaults(defineProps<{ message: PhoneMessage; quotedText?: string }>(), { quotedText: '' });
+const props = withDefaults(
+  defineProps<{ message: PhoneMessage; quotedText?: string; paymentInteractive?: boolean }>(),
+  { quotedText: '', paymentInteractive: true },
+);
 const albumExpanded = ref(false);
 const album = computed(() =>
   Array.isArray(props.message.payload.images)
@@ -324,6 +351,14 @@ const transcriptOpen = ref(false);
 const voicePlaying = ref(false);
 const phone = usePhoneStore();
 const surface = inject(phoneSurfaceKey, ref(null));
+const paymentOpen = ref(false);
+const paymentThreadId = ref('');
+function openPayment(event?: Event) {
+  if (!props.paymentInteractive || props.message.sender !== 'char' || props.message.withdrawn) return;
+  event?.stopPropagation();
+  paymentThreadId.value = phone.activeThread?.id || '';
+  paymentOpen.value = true;
+}
 const electricText = computed(() =>
   [String(props.message.payload.electric || ''), splitElectric(props.message.content).electric]
     .filter(Boolean)
@@ -472,17 +507,15 @@ function jumpToZone(): void {
   });
 }
 const transferState = computed<'pending' | 'received' | 'refunded'>(() => {
-  const state = payloadString('state').toLowerCase();
+  const state = (payloadString('userPaymentDecision') || payloadString('state')).toLowerCase();
   if (['received', 'paid', 'accepted'].includes(state)) return 'received';
   if (['refunded', 'refund', 'returned'].includes(state)) return 'refunded';
   return 'pending';
 });
-const transferStateLabel = computed(
-  () => ({ pending: '未收款', received: '已收款', refunded: '已退款' })[transferState.value],
-);
+const transferStateLabel = computed(() => paymentDetails(props.message).label);
 type RedPacketState = 'pending' | 'received' | 'refunded' | 'group_available' | 'group_claimed' | 'group_empty';
 const redPacketState = computed<RedPacketState>(() => {
-  const state = payloadString('state').toLowerCase();
+  const state = (payloadString('userPaymentDecision') || payloadString('state')).toLowerCase();
   if (['received', 'paid', 'accepted'].includes(state)) return 'received';
   if (['refunded', 'refund', 'returned'].includes(state)) return 'refunded';
   if (state === 'group_claimed') return 'group_claimed';
@@ -502,6 +535,7 @@ const redPacketClaimedCount = computed(() =>
   ),
 );
 const redPacketStateLabel = computed(() => {
+  if (props.message.payload.userPaymentDecision) return paymentDetails(props.message).label;
   if (!redPacketIsGroup.value)
     return ({ pending: '未收款', received: '已收款', refunded: '已退回' } as Record<string, string>)[
       redPacketState.value

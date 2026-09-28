@@ -33,6 +33,17 @@
     padding-bottom: calc(var(--wave-homebar-height, 40px) + var(--wave-bottom-inset));
     container-type: inline-size;
   }
+  // Above the content surfaces and home indicator, below dialogs; never intercept touches.
+  .wave-device > .wave-inner-rim {
+    position: absolute;
+    inset: 0;
+    z-index: 45;
+    border-radius: 36px;
+    pointer-events: none;
+    box-shadow:
+      inset 0 0 0 1px rgba(69, 84, 118, 0.17),
+      inset 0 -3px 7px rgba(42, 55, 84, 0.07);
+  }
   .wave-device .wave-screen,
   .wave-device .wave-loading {
     min-height: 0;
@@ -203,6 +214,9 @@
   &.wave-mobile-viewport .wave-device {
     --wave-bottom-inset: max(16px, env(safe-area-inset-bottom, 0px));
     border: 0;
+    border-radius: 0;
+  }
+  &.wave-mobile-viewport .wave-device > .wave-inner-rim {
     border-radius: 0;
   }
   &.wave-mobile-viewport .wave-statusbar {
