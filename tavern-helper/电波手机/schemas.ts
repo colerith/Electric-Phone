@@ -14,7 +14,7 @@ import { ZoneInteractionsSchema } from './services/space/zone';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.1.40';
+export const WAVE_PHONE_RELEASE_VERSION = '1.1.41';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -103,6 +103,10 @@ export const AppearanceSettingsSchema = z
   .object({
     hideElectric: z.boolean().prefault(false),
     showStatusBar: z.boolean().prefault(true),
+    homeBarHeight: z.coerce
+      .number()
+      .transform(value => _.clamp(value, 16, 64))
+      .prefault(40),
     coverWallpaper: z.string().prefault(''),
     desktopWallpaper: z.string().prefault(''),
     iconNames: z.record(z.string(), z.string()).prefault({}),

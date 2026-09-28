@@ -33,7 +33,8 @@ let chatId = 'test';
 Object.assign(global, {
   SillyTavern: { name1: 'User', getCurrentChatId: () => chatId, characterId: '1' },
   getCharData: () => ({ name: 'Alice' }),
-  getWorldbookNames: () => ['角色设定'],
+  getWorldbookNames: () => ['其他世界书', '角色设定'],
+  getCharWorldbookNames: () => ({ primary: '角色设定', additional: [] }),
   getWorldbook: async () => [{ uid: 7, name: 'Dora', content: '世界书角色资料'.repeat(200) }],
   getCharAvatarPath: () => '',
   getChatMessages: () => [],
@@ -209,7 +210,10 @@ const clickText = (selector, text) => {
   clickText('[role=menuitem]', '从世界书导入角色');
   await tick();
   const bookSelect = document.querySelector('[role=dialog] select');
-  bookSelect.value = '角色设定';
+  assert.equal(bookSelect.value, '角色设定', 'bound character worldbook is selected by default');
+  assert.equal(bookSelect.options[1].value, '角色设定');
+  assert([...bookSelect.options].some(option => option.value === '其他世界书'));
+  bookSelect.value = '其他世界书';
   bookSelect.dispatchEvent(new Event('change', { bubbles: true }));
   await tick();
   await tick();

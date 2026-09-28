@@ -496,7 +496,12 @@ async function showDialog(value: Dialog) {
     selectedEntry.value = '';
     worldbookEntries.value = [];
     try {
-      worldbooks.value = getWorldbookNames();
+      const books = getWorldbookNames();
+      const bound = getCharWorldbookNames('current');
+      const preferred = [bound.primary, ...bound.additional].filter((book): book is string => Boolean(book));
+      worldbooks.value = [...new Set([...preferred, ...books])];
+      selectedBook.value = preferred[0] || books[0] || '';
+      if (selectedBook.value) void loadWorldbookEntries();
       if (!worldbooks.value.length) notice.value = '暂无世界书，请先在酒馆中添加世界书。';
     } catch (error) {
       notice.value = `读取世界书列表失败：${String(error)}`;

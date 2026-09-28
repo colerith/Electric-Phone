@@ -1388,6 +1388,7 @@ const deviceStyle = computed<Record<string, string>>(() => {
     '--wave-display-font': displayFont,
     '--wave-font-scale': String(store.settings.appearance.fontScale),
     '--wave-serif-weight': String(store.settings.appearance.serifWeight),
+    '--wave-homebar-height': `${store.settings.appearance.homeBarHeight}px`,
   };
 });
 const pageTitle = computed(() =>

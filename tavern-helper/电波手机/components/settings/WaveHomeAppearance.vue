@@ -9,6 +9,17 @@
       <p>此开关不会隐藏中间的灵动岛。</p>
     </section>
     <section class="settings-card appearance-group">
+      <div class="wave-settings-title">底部小白条</div>
+      <div class="settings-slider-row">
+        <span
+          ><strong>底部栏高度</strong><small>调整小白条所在区域的高度，背景随页面保持沉浸</small
+          ><b>{{ appearance.homeBarHeight }} px</b></span
+        >
+        <WaveSlider v-model="appearance.homeBarHeight" :min="16" :max="64" :step="2" aria-label="底部小白条区域高度" />
+      </div>
+      <button type="button" @click="appearance.homeBarHeight = 40">恢复默认高度</button>
+    </section>
+    <section class="settings-card appearance-group">
       <div class="wave-settings-title">Ecot 内容</div>
       <div class="system-toggle-row appearance-ecot-toggle">
         <span><strong>显示 Ecot</strong><small>以折叠形式查看模型附带的剧情辅助信息</small></span>
@@ -83,6 +94,7 @@
 import { computed, ref } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import WaveToggle from '../shared/WaveToggle.vue';
+import WaveSlider from '../shared/WaveSlider.vue';
 import { presetIcon } from '../../assets/icons/preset-icon';
 import { appIcons } from '../../assets/icons/app-icons';
 import WaveImageUpload from '../shared/WaveImageUpload.vue';

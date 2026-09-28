@@ -30,7 +30,7 @@
     flex-shrink: 0;
     transform: scale(var(--wave-panel-scale, 1));
     transform-origin: center;
-    padding-bottom: calc(40px + var(--wave-bottom-inset));
+    padding-bottom: calc(var(--wave-homebar-height, 40px) + var(--wave-bottom-inset));
     container-type: inline-size;
   }
   .wave-device .wave-screen,
@@ -48,8 +48,8 @@
     inset: auto 0 var(--wave-bottom-inset);
     display: grid;
     place-items: center;
-    height: 40px;
-    min-height: 40px;
+    height: var(--wave-homebar-height, 40px);
+    min-height: var(--wave-homebar-height, 40px);
     padding: 0;
     margin: 0;
     z-index: 40;
@@ -91,7 +91,7 @@
     overscroll-behavior-y: contain;
   }
   .wave-device .music-bottom-dock {
-    bottom: calc(44px + var(--wave-bottom-inset));
+    bottom: calc(var(--wave-homebar-height, 40px) + 4px + var(--wave-bottom-inset));
   }
   // Explicitly include number/url/password fields: Tavern themes use attribute selectors.
   .wave-device input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
@@ -147,7 +147,7 @@
     padding: 8px 10px 10px;
   }
   .wave-device.page-conversation :is(.composer, .extras-panel, .composer-context, .message-multi-toolbar) {
-    background: var(--wave-card, #f4f7fc) !important;
+    background: var(--wave-surface, #f2f2f2) !important;
     box-shadow: none;
     border-color: transparent;
     backdrop-filter: none;
@@ -157,7 +157,7 @@
     content: '';
     position: absolute;
     inset: auto 0 0;
-    height: calc(40px + var(--wave-bottom-inset));
+    height: calc(var(--wave-homebar-height, 40px) + var(--wave-bottom-inset));
     background: var(--wave-card, #fff);
     pointer-events: none;
   }
