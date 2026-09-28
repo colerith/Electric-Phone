@@ -1,6 +1,7 @@
 <template>
   <div class="system-settings">
     <template v-if="section === 'basic'">
+      <WaveClockSettings />
       <section class="settings-card system-settings-card">
         <div class="wave-settings-title">更新提醒</div>
         <div class="system-toggle-row">
@@ -201,6 +202,8 @@ import { previewPhoneRequest } from '../../services/generation/generation';
 import WaveToggle from '../shared/WaveToggle.vue';
 import WaveSelect from '../shared/WaveSelect.vue';
 import WaveMultiSelect from '../shared/WaveMultiSelect.vue';
+import WaveClockSettings from './WaveClockSettings.vue';
+import { parseCivilTime, validTimeZone } from '../../services/core/system-clock';
 const props = defineProps<{ section: 'basic' | 'worldbooks' | 'debug' }>();
 const phone = usePhoneStore();
 const notice = ref(''),
@@ -330,6 +333,12 @@ async function previewPrompt() {
 }
 function save() {
   try {
+    if (props.section === 'basic') {
+      const clock = phone.settings.basic.systemClock;
+      if (clock.source === 'custom' && parseCivilTime(clock.customTime) === null) throw Error('请填写有效的自定义时间');
+      if (clock.source === 'timezone' && clock.timeZone === 'iana' && !validTimeZone(clock.customZone))
+        throw Error('请填写有效的地区时区');
+    }
     phone.saveSettings();
     notice.value = '已保存';
     if (props.section === 'basic') void phone.synchronize();

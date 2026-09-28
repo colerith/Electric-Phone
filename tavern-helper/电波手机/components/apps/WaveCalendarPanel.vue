@@ -41,15 +41,17 @@
     <article class="calendar-days-card">
       <header>
         <label
-          ><span>{{ selectedDate.slice(0, 4) }} 年 {{ Number(selectedDate.slice(5, 7)) }} 月</span
+          ><span>{{
+            selectedDate ? `${selectedDate.slice(0, 4)} 年 ${Number(selectedDate.slice(5, 7))} 月` : '等待系统时间'
+          }}</span
           ><input v-model="selectedDate" type="date" aria-label="选择日程日期" @change="alignDays"
         /></label>
         <div class="calendar-date-shortcuts">
           <button type="button" :disabled="!firstEventDate" @click="firstEvent">日程起始</button
-          ><button type="button" @click="today">今天</button>
+          ><button type="button" :disabled="!systemClock.labels.date" @click="today">今天</button>
         </div>
       </header>
-      <div class="calendar-five-days">
+      <div v-if="selectedDate" class="calendar-five-days">
         <button
           v-for="day in days"
           :key="day.key"
@@ -65,7 +67,7 @@
           ><i v-if="events.some(event => event.date === day.key)"></i>
         </button>
       </div>
-      <div class="calendar-day-controls">
+      <div v-if="selectedDate" class="calendar-day-controls">
         <button type="button" aria-label="前五天" @click="moveDays(-5)"><i class="fa-solid fa-chevron-left"></i></button
         ><small>日期导航</small
         ><button type="button" aria-label="后五天" @click="moveDays(5)">
@@ -108,10 +110,24 @@
 import { computed, ref, watch, onBeforeUnmount } from 'vue';
 import { fetchWeather, weatherLabel, type WeatherLocation, type WeatherResponse } from '../../services/core/weather';
 import { dateKey, parseCalendar } from '../../services/apps/calendar';
+import { useSystemClockStore } from '../../stores/system-clock';
 const props = defineProps<{ raw: string; location: WeatherLocation | null }>();
 defineEmits<{ settings: []; delete: [eventId: string] }>();
-const selectedDate = ref(dateKey(new Date()));
-const firstDay = ref(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 2));
+const systemClock = useSystemClockStore();
+const selectedDate = ref(systemClock.labels.date);
+const initialDate = systemClock.civilDate || new Date(2000, 0, 1);
+const firstDay = ref(new Date(initialDate.getFullYear(), initialDate.getMonth(), initialDate.getDate() - 2));
+watch(
+  () => systemClock.labels.date,
+  (date, previous) => {
+    if (date && (!selectedDate.value || selectedDate.value === previous)) {
+      selectedDate.value = date;
+      const showAll = allEvents.value;
+      alignDays();
+      allEvents.value = showAll;
+    }
+  },
+);
 const allEvents = ref(true);
 const events = computed(() => parseCalendar(props.raw));
 const firstEventDate = computed(
@@ -135,7 +151,8 @@ const days = computed(() =>
 );
 function alignDays(): void {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate.value)) {
-    selectedDate.value = dateKey(new Date());
+    selectedDate.value = systemClock.labels.date;
+    if (!selectedDate.value) return;
   }
   const date = new Date(`${selectedDate.value}T12:00:00`);
   date.setDate(date.getDate() - 2);
@@ -143,7 +160,8 @@ function alignDays(): void {
   allEvents.value = false;
 }
 function today(): void {
-  selectedDate.value = dateKey(new Date());
+  if (!systemClock.labels.date) return;
+  selectedDate.value = systemClock.labels.date;
   alignDays();
 }
 function firstEvent(): void {

@@ -15,6 +15,7 @@ import {
   WAVE_PHONE_IDENTIFIER,
   WAVE_PHONE_STORAGE_VERSION,
   type ChatState,
+  type AppId,
 } from '../../schemas';
 import { CHARACTER_DEFAULTS_KEY, CharacterDefaultsSchema } from './character-defaults';
 import { MomentUserProfileMapSchema } from '../space/moments';
@@ -97,8 +98,8 @@ function keysFor(id: BackupModule): string[] {
       )
     : settingKeys[id] || [];
 }
-function appFor(id: BackupModule) {
-  return id === 'history' ? 'messages' : APP_IDS.includes(id as never) && id !== 'messages' ? id : null;
+function appFor(id: BackupModule): AppId | null {
+  return id === 'history' ? 'messages' : APP_IDS.includes(id as AppId) && id !== 'messages' ? (id as AppId) : null;
 }
 export function modularize(backup: PhoneBackup, selected: BackupModule[]) {
   if (!selected.length) throw Error('请至少选择一个模块');

@@ -1036,6 +1036,7 @@ import { formatPhoneMessage } from './services/chat/message-format';
 import { displayIdentityName } from './services/core/identity';
 import { parseLegacyMessages } from './services/generation/parser';
 import { usePhoneStore } from './stores/phone';
+import { useSystemClockStore } from './stores/system-clock';
 
 const store = usePhoneStore();
 const music = useMusicStore();
@@ -1046,7 +1047,8 @@ watch(
   },
   { immediate: true },
 );
-const clock = ref('00:00');
+const systemClock = useSystemClockStore();
+const clock = computed(() => systemClock.labels.time);
 const originalUserName = ref('我');
 const originalUserAvatar = ref('');
 const userName = computed(() => store.state.moments.profile.nickname || originalUserName.value);
@@ -1204,7 +1206,6 @@ const momentsSurfaceStyle = computed(() => ({
     ? `url(${JSON.stringify(store.state.moments.profile.cover)})`
     : 'linear-gradient(135deg,#a9bbd2,#d9b8c9)',
 }));
-let clockTimer = 0;
 let messageHoldTimer = 0;
 let messageHoldOrigin: { x: number; y: number } | null = null;
 
@@ -2435,23 +2436,24 @@ watch(
 );
 
 onMounted(async () => {
-  const updateClock = () => {
-    clock.value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-  };
-  updateClock();
-  clockTimer = window.setInterval(updateClock, 30_000);
+  systemClock.start(window.parent);
   await store.initialize();
   refreshUserProfile();
   personaEvents.push(eventOn('persona_changed', (avatarId: string) => refreshUserProfile(avatarId)));
   personaEvents.push(eventOn(tavern_events.SETTINGS_UPDATED, () => refreshUserProfile()));
-  personaEvents.push(eventOn(tavern_events.CHAT_CHANGED, () => refreshUserProfile()));
+  personaEvents.push(
+    eventOn(tavern_events.CHAT_CHANGED, () => {
+      systemClock.refresh();
+      refreshUserProfile();
+    }),
+  );
 });
 onUnmounted(() => {
   cancelAvatarHome();
   cancelReturnPress();
   stopNotification();
   music.stop();
-  window.clearInterval(clockTimer);
+  systemClock.stop();
   window.clearTimeout(messageHoldTimer);
   window.clearTimeout(revealTimer);
   personaEvents.splice(0).forEach(event => event.stop());

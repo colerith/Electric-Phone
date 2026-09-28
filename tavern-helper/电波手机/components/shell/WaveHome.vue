@@ -221,6 +221,7 @@ import { computed, ref, watch, onMounted } from 'vue';
 import { presetIcon } from '../../assets/icons/preset-icon';
 import { appIcons } from '../../assets/icons/app-icons';
 import { usePhoneStore } from '../../stores/phone';
+import { useSystemClockStore } from '../../stores/system-clock';
 import { useMusicStore } from '../../stores/music';
 import type { AppId } from '../../schemas';
 const props = defineProps<{
@@ -237,6 +238,7 @@ const props = defineProps<{
 }>();
 defineEmits<{ open: [id: AppId]; settings: []; appearance: []; presets: [] }>();
 const phone = usePhoneStore();
+const systemClock = useSystemClockStore();
 const music = useMusicStore();
 const page = defineModel<number>('page', { default: 0 });
 onMounted(() => {
@@ -261,7 +263,8 @@ const anniversaryDays = computed(() => {
   void props.clock;
   if (!anniversary.value) return null;
   const start = new Date(anniversary.value + 'T00:00:00');
-  const now = new Date();
+  const now = systemClock.civilDate;
+  if (!now) return null;
   return Math.floor(
     (Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) -
       Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())) /
