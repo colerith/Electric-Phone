@@ -255,7 +255,10 @@ function readChatState(context: RuntimeContext): ChatState {
   const variables = getVariables({ type: 'chat' }) || {};
   const saved = variables[CHAT_VARIABLE_KEY] || {};
   const parsed = ChatStateSchema.parse(saved);
+  // Generation belongs to this script instance, never to a saved chat.
   Object.values(parsed.threads).forEach(thread => {
+    thread.generating = false;
+    thread.generationId = '';
     thread.messages.forEach(message => {
       const generatedAt = message.id.match(/^(?:char|system)-(\d{13})-/)?.[1];
       if (!generatedAt || message.sender === 'user' || message.payload.storyCreatedAt) return;
@@ -314,7 +317,12 @@ function persistCardRosters(rosters: CardRosterMap): void {
 
 function persistChatState(state: ChatState): void {
   const variables = getVariables({ type: 'chat' }) || {};
-  replaceVariables({ ...variables, [CHAT_VARIABLE_KEY]: klona(state) }, { type: 'chat' });
+  const saved = klona(state);
+  Object.values(saved.threads).forEach(thread => {
+    thread.generating = false;
+    thread.generationId = '';
+  });
+  replaceVariables({ ...variables, [CHAT_VARIABLE_KEY]: saved }, { type: 'chat' });
 }
 
 function ensureThread(state: ChatState, context: RuntimeContext, identity: Identity): Thread {
@@ -377,6 +385,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   const offEvents: EventOnReturn[] = [];
   let syncToken = 0;
   let syncTimer = 0;
+  const activeSends = new Map<string, symbol>();
+  let syncDeferred = false;
 
   const identities = computed(() => Object.values(state.value.identities));
   const activeIdentity = computed(
@@ -845,6 +855,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     updateCharacterDefaults(defaults => {
       defaults.walletBook = klona(state.value.walletBook);
     });
+    const roster = (cardRosters.value[context.value.cardKey] ||= {});
+    Object.values(state.value.identities)
+      .filter(isRosterIdentity)
+      .forEach(identity => {
+        roster[identity.charKey] = IdentitySchema.parse(klona(identity));
+      });
+    persistCardRosters(cardRosters.value);
     persistChatState(ChatStateSchema.parse(state.value));
   }
   function updateCharacterDefaults(update: (defaults: CharacterDefaults) => void): void {
@@ -939,13 +956,26 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     return mergedIdentity;
   }
 
+  function isRosterIdentity(identity: Identity): boolean {
+    return (
+      identity.source !== 'local_group' &&
+      identity.source !== 'temporary' &&
+      (identity.source !== 'auto_single_card' || identity.actorType === 'main') &&
+      (identity.actorType !== 'npc' || identity.source === 'local_contact')
+    );
+  }
+
   function hydrateCardRoster(nextState: ChatState, runtime: RuntimeContext): void {
     cardRosters.value = readCardRosters();
     const roster = cardRosters.value[runtime.cardKey] || {};
     Object.values(roster)
-      .filter(identity => identity.actorType === 'main' && identity.source !== 'local_group')
+      .filter(identity => isRosterIdentity(identity) && !nextState.deletedCharKeys.includes(identity.charKey))
       .forEach(identity =>
-        upsertIdentity(nextState, IdentitySchema.parse({ ...identity, updatedAt: nowIso() }), runtime),
+        upsertIdentity(
+          nextState,
+          IdentitySchema.parse({ ...identity, ...nextState.identities[identity.charKey], updatedAt: nowIso() }),
+          runtime,
+        ),
       );
   }
 
@@ -953,7 +983,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const runtime = context.value;
     if (!runtime || identity.source === 'local_group') return;
     const roster = (cardRosters.value[runtime.cardKey] ||= {});
-    if (identity.actorType === 'main') roster[identity.charKey] = IdentitySchema.parse(klona(identity));
+    if (isRosterIdentity(identity)) roster[identity.charKey] = IdentitySchema.parse(klona(identity));
     else delete roster[identity.charKey];
     if (!Object.keys(roster).length) delete cardRosters.value[runtime.cardKey];
     persistCardRosters(cardRosters.value);
@@ -1001,6 +1031,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         isReady.value = true;
         syncError.value = '当前角色卡已排除，已暂停同步与生成';
         logDiagnostic('同步跳过', syncError.value);
+        return;
+      }
+      // Do not replace live thread objects while translation or generation awaits.
+      if (context.value && (context.value.cardKey !== runtime.cardKey || context.value.chatKey !== runtime.chatKey))
+        cancelLiveSends();
+      const prefix = `${runtime.cardKey}::${runtime.chatKey}::`;
+      if ([...activeSends.keys()].some(key => key.startsWith(prefix))) {
+        syncDeferred = true;
         return;
       }
       stage = '读取聊天存档';
@@ -1313,6 +1351,17 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           }
         }
       }
+      // Older versions stored both a contact key and its shared stable ID.
+      // Keep explicit contact deletions, but never let an alias delete a surviving duplicate.
+      const survivingIds = new Set(
+        Object.values(nextState.identities)
+          .filter(identity => !nextState.deletedCharKeys.includes(identity.charKey))
+          .map(identity => identity.stableId)
+          .filter(Boolean),
+      );
+      nextState.deletedCharKeys = nextState.deletedCharKeys.filter(
+        key => !survivingIds.has(key) || Boolean(nextState.identities[key]),
+      );
       const deleted = new Set(nextState.deletedCharKeys);
       for (const identity of Object.values(nextState.identities)) {
         if (!deleted.has(identity.charKey) && !deleted.has(identity.stableId)) continue;
@@ -1326,6 +1375,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           if (nextState.threads[threadId]?.charKey === identity.charKey) delete nextState.threads[threadId];
         });
         updatedByChar.delete(identity.charKey);
+      }
+      if (!Object.keys(nextState.identities).length && !runtime.isGroup) {
+        const fallback = makeSingleCardIdentity(runtime);
+        nextState.deletedCharKeys = nextState.deletedCharKeys.filter(
+          key => key !== fallback.charKey && key !== fallback.stableId,
+        );
+        upsertIdentity(nextState, fallback, runtime);
       }
       if (!nextState.activeCharKey || !nextState.identities[nextState.activeCharKey])
         nextState.activeCharKey = Object.keys(nextState.identities)[0] || '';
@@ -1381,6 +1437,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     events.forEach(eventName => offEvents.push(eventOn(eventName, () => scheduleSync())));
     offEvents.push(
       eventOn(tavern_events.CHAT_CHANGED, () => {
+        cancelLiveSends();
         syncToken += 1;
         if (moduleGenerationId) void stopPhoneGeneration(moduleGenerationId);
         moduleGenerationId = '';
@@ -1444,7 +1501,21 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     await synchronize();
   }
 
+  function cancelLiveSends(): void {
+    activeSends.clear();
+    syncDeferred = false;
+    Object.values(state.value.threads).forEach(thread => {
+      if (thread.generationId)
+        void stopPhoneGeneration(thread.generationId).catch(error =>
+          console.warn(LOG_PREFIX, '停止旧会话生成失败', error),
+        );
+      thread.generating = false;
+      thread.generationId = '';
+    });
+  }
+
   function dispose(): void {
+    cancelLiveSends();
     disposeMoments?.();
     disposeMoments = null;
     disposeFollow?.();
@@ -1921,9 +1992,16 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (!Object.keys(cardRosters.value[runtime.cardKey]).length) delete cardRosters.value[runtime.cardKey];
       persistCardRosters(cardRosters.value);
     }
-    state.value.deletedCharKeys = [...new Set([...state.value.deletedCharKeys, charKey, identity.stableId])].filter(
-      Boolean,
+    const sharedStableId = Object.values(state.value.identities).some(
+      other => other.charKey !== charKey && other.stableId === identity.stableId,
     );
+    state.value.deletedCharKeys = [
+      ...new Set([
+        ...state.value.deletedCharKeys.filter(key => !sharedStableId || key !== identity.stableId),
+        charKey,
+        ...(sharedStableId ? [] : [identity.stableId]),
+      ]),
+    ].filter(Boolean);
     delete state.value.identities[charKey];
     delete state.value.snapshots[charKey];
     delete state.value.appUnread[charKey];
@@ -1939,8 +2017,19 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (key.startsWith(`${charKey}:`)) delete state.value.electricTitleByApp[key];
     });
     Object.keys(state.value.threads).forEach(threadId => {
-      if (state.value.threads[threadId]?.charKey === charKey) delete state.value.threads[threadId];
+      const thread = state.value.threads[threadId];
+      if (thread?.charKey !== charKey) return;
+      if (runtime) activeSends.delete(`${runtime.cardKey}::${runtime.chatKey}::${threadId}`);
+      if (thread.generationId)
+        void stopPhoneGeneration(thread.generationId).catch(error =>
+          console.warn(LOG_PREFIX, '停止已删除联系人生成失败', error),
+        );
+      delete state.value.threads[threadId];
     });
+    if (syncDeferred && !activeSends.size) {
+      syncDeferred = false;
+      scheduleSync(0);
+    }
     Object.values(state.value.identities).forEach(item => {
       if (item.memberKeys?.includes(charKey)) item.memberKeys = item.memberKeys.filter(key => key !== charKey);
     });
@@ -2179,6 +2268,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const preferences = ChatPreferencesSchema.parse(state.value.chatPreferences[identity.charKey]);
     let formattedInput = '';
     let sendStage: RequestStage = '准备上下文';
+    const operation = Symbol('send');
+    activeSends.set(namespace, operation);
+    ++syncToken;
 
     try {
       thread.generating = true;
@@ -2217,9 +2309,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (
         context.value?.cardKey !== runtime.cardKey ||
         context.value?.chatKey !== runtime.chatKey ||
-        state.value.threads[thread.id] !== thread
+        state.value.threads[thread.id] !== thread ||
+        activeSends.get(namespace) !== operation
       ) {
-        thread.generating = false;
         return;
       }
       userMessage.status = 'sent';
@@ -2465,7 +2557,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         `模式：${settings.value.sendMode}｜${detail.includes('｜阶段：') ? detail : describeRequestError(error, sendStage, secrets).detail}`,
       );
       const currentThread = state.value.threads[thread.id];
-      if (currentThread) {
+      if (
+        currentThread &&
+        context.value?.cardKey === runtime.cardKey &&
+        context.value?.chatKey === runtime.chatKey &&
+        activeSends.get(namespace) === operation
+      ) {
         currentThread.generating = false;
         currentThread.generationId = '';
         const storedMessage = currentThread.messages.find(message => message.id === userMessage.id);
@@ -2476,16 +2573,38 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         saveChat();
       }
       throw error;
+    } finally {
+      if (activeSends.get(namespace) === operation) {
+        activeSends.delete(namespace);
+        if (context.value?.cardKey === runtime.cardKey && context.value?.chatKey === runtime.chatKey) {
+          const current = state.value.threads[thread.id];
+          if (current) {
+            current.generating = false;
+            current.generationId = '';
+            saveChat();
+          }
+        }
+      }
+      if (syncDeferred && !activeSends.size) {
+        syncDeferred = false;
+        scheduleSync(0);
+      }
     }
   }
 
   async function stopActiveGeneration(): Promise<void> {
     const thread = activeThread.value;
-    if (!thread?.generationId) return;
-    await stopPhoneGeneration(thread.generationId);
+    if (!thread || !context.value) return;
+    const generationId = thread.generationId;
+    activeSends.delete(`${context.value.cardKey}::${context.value.chatKey}::${thread.id}`);
     thread.generating = false;
     thread.generationId = '';
     saveChat();
+    if (syncDeferred) {
+      syncDeferred = false;
+      scheduleSync(0);
+    }
+    if (generationId) await stopPhoneGeneration(generationId);
   }
 
   async function stopManualGeneration(): Promise<void> {

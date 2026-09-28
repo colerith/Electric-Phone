@@ -206,6 +206,36 @@
             <p>添加到当前手机通讯录，资料用于这位联系人的回复。</p>
             <button class="settings-save-wide" type="button" @click="submitFriend">添加好友</button>
           </template>
+          <template v-else-if="dialog === 'worldbook'">
+            <label
+              >世界书<select v-model="selectedBook" @change="loadWorldbookEntries">
+                <option value="" disabled>选择世界书</option>
+                <option v-for="book in worldbooks" :key="book" :value="book">{{ book }}</option>
+              </select></label
+            >
+            <p v-if="loadingBook" role="status">正在读取条目…</p>
+            <label
+              >角色条目<select v-model="selectedEntry" :disabled="loadingBook" @change="fillWorldbookCharacter">
+                <option value="" disabled>选择要导入的角色条目</option>
+                <option v-for="entry in worldbookEntries" :key="entry.uid" :value="String(entry.uid)">
+                  {{ entry.name || `条目 ${entry.uid}` }}
+                </option>
+              </select></label
+            >
+            <label>角色名称<input v-model="newName" placeholder="确认角色名称" /></label>
+            <label
+              >角色资料<textarea v-model="about" rows="6" placeholder="选中条目后，可在此修改角色资料"></textarea>
+            </label>
+            <p>将所选条目创建为联系人。同一角色卡的新聊天会保留角色资料，聊天记录独立保存。</p>
+            <button
+              class="settings-save-wide"
+              type="button"
+              :disabled="loadingBook || !selectedEntry || !newName.trim()"
+              @click="submitFriend"
+            >
+              导入角色
+            </button>
+          </template>
           <template v-else>
             <label v-if="dialog === 'group'"
               >群聊名称<input v-model="newName" maxlength="40" placeholder="填写群名（选填）"
@@ -270,7 +300,7 @@ const emit = defineEmits<{
 const phone = usePhoneStore(),
   surface = inject(phoneSurfaceKey, ref(null));
 type Tab = 'messages' | 'contacts' | 'me';
-type Dialog = 'start' | 'friend' | 'group';
+type Dialog = 'start' | 'friend' | 'group' | 'worldbook';
 const tabs: { id: Tab; name: string; icon: string }[] = [
   { id: 'messages', name: '消息', icon: 'fa-solid fa-comment' },
   { id: 'contacts', name: '联系人', icon: 'fa-regular fa-address-book' },
@@ -284,6 +314,7 @@ const filters = [
 const menuItems: { id: Dialog; name: string; icon: string }[] = [
   { id: 'start', name: '发起聊天', icon: 'fa-regular fa-comment' },
   { id: 'friend', name: '添加好友', icon: 'fa-solid fa-user-plus' },
+  { id: 'worldbook', name: '从世界书导入角色', icon: 'fa-solid fa-book-open' },
   { id: 'group', name: '创建群聊', icon: 'fa-solid fa-user-group' },
 ];
 const tab = ref<Tab>('messages'),
@@ -299,6 +330,38 @@ const newName = ref(''),
   contactQuery = ref(''),
   memberKeys = ref<string[]>([]),
   notice = ref('');
+const worldbooks = ref<string[]>([]);
+const selectedBook = ref('');
+const selectedEntry = ref('');
+const worldbookEntries = ref<WorldbookEntry[]>([]);
+const loadingBook = ref(false);
+let bookRequest = 0;
+let importContext = '';
+const contextKey = () => `${phone.context?.cardKey || ''}::${phone.context?.chatKey || ''}`;
+async function loadWorldbookEntries() {
+  const request = ++bookRequest;
+  worldbookEntries.value = [];
+  selectedEntry.value = '';
+  newName.value = '';
+  about.value = '';
+  notice.value = '';
+  loadingBook.value = true;
+  try {
+    const entries = await getWorldbook(selectedBook.value);
+    if (request !== bookRequest || dialog.value !== 'worldbook') return;
+    worldbookEntries.value = entries;
+    if (!entries.length) notice.value = '这本世界书没有可导入的条目。';
+  } catch (error) {
+    if (request === bookRequest) notice.value = `读取世界书失败：${String(error)}`;
+  } finally {
+    if (request === bookRequest) loadingBook.value = false;
+  }
+}
+function fillWorldbookCharacter() {
+  const entry = worldbookEntries.value.find(item => String(item.uid) === selectedEntry.value);
+  newName.value = entry?.name || '';
+  about.value = entry?.content || '';
+}
 const dialogTitle = computed(() => menuItems.find(item => item.id === dialog.value)?.name || '');
 const contacts = computed(() => phone.identities.filter(identity => identity.source !== 'local_group'));
 const groups = computed(() => phone.identities.filter(identity => identity.source === 'local_group'));
@@ -427,10 +490,24 @@ async function showDialog(value: Dialog) {
   contactQuery.value = '';
   memberKeys.value = [];
   notice.value = '';
+  if (value === 'worldbook') {
+    importContext = contextKey();
+    selectedBook.value = '';
+    selectedEntry.value = '';
+    worldbookEntries.value = [];
+    try {
+      worldbooks.value = getWorldbookNames();
+      if (!worldbooks.value.length) notice.value = '暂无世界书，请先在酒馆中添加世界书。';
+    } catch (error) {
+      notice.value = `读取世界书列表失败：${String(error)}`;
+    }
+  }
   await nextTick();
   dialogElement.value?.querySelector<HTMLElement>('input,button')?.focus();
 }
 function closeDialog() {
+  ++bookRequest;
+  loadingBook.value = false;
   dialog.value = null;
   if (previousFocus?.isConnected) previousFocus.focus();
   else root.value?.closest('.wave-device')?.querySelector<HTMLElement>('[data-messenger-plus]')?.focus();
@@ -446,6 +523,8 @@ function pick(key: string) {
 }
 function submitFriend() {
   try {
+    if (dialog.value === 'worldbook' && contextKey() !== importContext)
+      throw Error('聊天已切换，请重新打开世界书导入。');
     phone.addContact(newName.value, about.value);
     closeDialog();
     changeTab('contacts');
@@ -465,7 +544,9 @@ function submitGroup() {
 function trapFocus(event: KeyboardEvent) {
   if (event.key !== 'Tab') return;
   const elements = [
-    ...(dialogElement.value?.querySelectorAll<HTMLElement>('button:not(:disabled),input,textarea') || []),
+    ...(dialogElement.value?.querySelectorAll<HTMLElement>(
+      'button:not(:disabled),input,textarea,select:not(:disabled)',
+    ) || []),
   ];
   const index = elements.indexOf(dialogElement.value?.ownerDocument.activeElement as HTMLElement);
   if (!elements.length) return;

@@ -246,7 +246,7 @@
             />
 
             <section v-else-if="store.currentPage === 'conversation'" class="chat-page">
-              <WaveTogether />
+              <WaveTogether :user-avatar="userAvatar" :character-avatar-style="avatarStyle(store.activeIdentity)" />
               <div ref="threadElement" class="chat-thread" @click="closeMessageMenu">
                 <div
                   v-for="(message, messageIndex) in visibleMessages"
@@ -361,10 +361,15 @@
                       class="chat-avatar"
                       role="button"
                       tabindex="0"
-                      title="双击头像拍一拍"
+                      :title="message.sender === 'char' ? '点击查看手机，双击拍一拍' : '双击头像拍一拍'"
                       :aria-label="message.sender === 'user' ? userName : displayIdentityName(messageIdentity(message))"
-                      @keydown.enter.stop.prevent="pokeAvatar(message.sender, messageIdentity(message))"
-                      @dblclick.stop="pokeAvatar(message.sender, messageIdentity(message))"
+                      @click.stop="scheduleAvatarHome(message.sender, messageIdentity(message))"
+                      @keydown.enter.stop.prevent="openAvatarHome(message.sender, messageIdentity(message))"
+                      @keydown.space.stop.prevent="openAvatarHome(message.sender, messageIdentity(message))"
+                      @dblclick.stop="
+                        cancelAvatarHome();
+                        pokeAvatar(message.sender, messageIdentity(message));
+                      "
                     >
                       <img
                         v-if="message.sender === 'user' ? userAvatar : messageIdentity(message)?.avatar"
@@ -1478,9 +1483,7 @@ const showTypingBubble = computed(
     ) ||
       Boolean(store.activeThread?.id && revealTypingThreadId.value === store.activeThread.id && revealQueue.length)),
 );
-const primaryReplyGenerating = computed(() =>
-  Boolean(store.activeThread?.generating && replyVisualThreadId.value === store.activeThread.id),
-);
+const primaryReplyGenerating = computed(() => Boolean(store.activeThread?.generating));
 function revealDelay(message: PhoneMessage | undefined, first: boolean): number {
   const contentLength = message?.content.trim().length || 0;
   const readingDelay = Math.min(1800, contentLength * 28);
@@ -1810,6 +1813,21 @@ function onInteractionSound(event: MouseEvent): void {
   lastInteractionSound = Date.now();
   sound('click');
 }
+let avatarHomeTimer: ReturnType<typeof setTimeout> | undefined;
+function cancelAvatarHome(): void {
+  clearTimeout(avatarHomeTimer);
+}
+function openAvatarHome(sender: string, identity: Identity | null): void {
+  cancelAvatarHome();
+  if (sender !== 'char' || !identity) return;
+  store.selectIdentity(identity.charKey);
+  store.currentPage = 'home';
+}
+function scheduleAvatarHome(sender: string, identity: Identity | null): void {
+  cancelAvatarHome();
+  avatarHomeTimer = setTimeout(() => openAvatarHome(sender, identity), 350);
+}
+
 async function pokeAvatar(sender: string, target: Identity | null = store.activeIdentity): Promise<void> {
   if (multiSelectMode.value || store.activeThread?.generating) return;
   sound('poke');
@@ -2423,6 +2441,7 @@ onMounted(async () => {
   personaEvents.push(eventOn(tavern_events.CHAT_CHANGED, () => refreshUserProfile()));
 });
 onUnmounted(() => {
+  cancelAvatarHome();
   cancelReturnPress();
   stopNotification();
   music.stop();

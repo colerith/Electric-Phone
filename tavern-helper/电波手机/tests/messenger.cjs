@@ -29,9 +29,12 @@ require.extensions['.vue'] = (m, f) => {
 global._ = require('lodash');
 global.z = require('zod').z;
 let vars = { script: {}, chat: {} };
+let chatId = 'test';
 Object.assign(global, {
-  SillyTavern: { name1: 'User', getCurrentChatId: () => 'test', characterId: '1' },
+  SillyTavern: { name1: 'User', getCurrentChatId: () => chatId, characterId: '1' },
   getCharData: () => ({ name: 'Alice' }),
+  getWorldbookNames: () => ['角色设定'],
+  getWorldbook: async () => [{ uid: 7, name: 'Dora', content: '世界书角色资料'.repeat(200) }],
   getCharAvatarPath: () => '',
   getChatMessages: () => [],
   getVariables: ({ type }) => vars[type],
@@ -100,7 +103,7 @@ const clickText = (selector, text) => {
   assert.equal(phone.activeThread.hidden, false);
   component.toggleMenu();
   await tick();
-  assert.equal(document.querySelectorAll('[role=menuitem]').length, 3);
+  assert.equal(document.querySelectorAll('[role=menuitem]').length, 4);
   clickText('[role=menuitem]', '添加好友');
   await tick();
   assert.equal(document.querySelector('[role=dialog]').getAttribute('aria-label'), '添加好友');
@@ -199,6 +202,52 @@ const clickText = (selector, text) => {
   await assert.rejects(phone.sendMessage('再聊一句', true), /成员标识/);
   assert.equal(phone.activeThread.messages.filter(message => message.sender === 'char').length, beforeCount);
   assert(phone.activeThread.messages.some(message => message.status === 'failed'));
+
+  // Exercise the worldbook import through the real Vue dialog.
+  component.toggleMenu();
+  await tick();
+  clickText('[role=menuitem]', '从世界书导入角色');
+  await tick();
+  const bookSelect = document.querySelector('[role=dialog] select');
+  bookSelect.value = '角色设定';
+  bookSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  await tick();
+  await tick();
+  const entrySelect = document.querySelectorAll('[role=dialog] select')[1];
+  entrySelect.value = '7';
+  entrySelect.dispatchEvent(new Event('change', { bubbles: true }));
+  await tick();
+  assert.equal(document.querySelector('[role=dialog] input').value, 'Dora');
+  clickText('[role=dialog] button', '导入角色');
+  await tick();
+  const imported = phone.identities.find(identity => identity.name === 'Dora');
+  assert.equal(imported.about, '世界书角色资料'.repeat(200));
+  phone.selectIdentity(bob);
+  phone.updateActiveIdentityProfile({ remark: '老朋友', avatar: 'custom.png', avatarZoom: 1.5 });
+  phone.setContactDetails({ actorType: 'npc', npcProfile: '保留的角色资料', relationshipToUser: '朋友' });
+  phone.startConversation(bob);
+  await phone.sendMessage('只属于旧聊天', false);
+  const oldChat = structuredClone(vars.chat);
+  chatId = 'new-chat';
+  vars.chat = {};
+  await phone.synchronize();
+  assert.equal(phone.state.identities[bob].remark, '老朋友');
+  assert.equal(phone.state.identities[bob].avatar, 'custom.png');
+  assert.equal(phone.state.identities[bob].npcProfile, '保留的角色资料');
+  assert.equal(phone.state.identities[imported.charKey].about, imported.about);
+  assert(!phone.state.identities[clara.charKey], 'deleted contacts must not return');
+  assert(
+    Object.values(phone.state.threads).every(thread => !thread.messages.length),
+    'new chat starts with empty records',
+  );
+  chatId = 'test';
+  vars.chat = oldChat;
+  await phone.synchronize();
+  assert(
+    Object.values(phone.state.threads).some(thread =>
+      thread.messages.some(message => message.content === '只属于旧聊天'),
+    ),
+  );
 
   clickText('.messenger-dock button', '我的');
   await tick();

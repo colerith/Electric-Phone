@@ -147,7 +147,7 @@
     padding: 8px 10px 10px;
   }
   .wave-device.page-conversation :is(.composer, .extras-panel, .composer-context, .message-multi-toolbar) {
-    background: transparent !important;
+    background: var(--wave-card, #f4f7fc) !important;
     box-shadow: none;
     border-color: transparent;
     backdrop-filter: none;
@@ -195,7 +195,9 @@
     min-height: 38px;
     max-height: 95px;
     resize: none;
-    padding: 6px 10px;
+    box-sizing: border-box;
+    line-height: 20px;
+    padding: 8px 10px;
   }
   &.wave-mobile-viewport .wave-device {
     --wave-bottom-inset: max(16px, env(safe-area-inset-bottom, 0px));
