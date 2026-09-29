@@ -335,6 +335,10 @@ const clickText = (selector, text) => {
   phone.activeThread.hidden = true;
   assert.equal(buildChatReference(phone.state), '');
   phone.activeThread.hidden = false;
+  const { resolveGroupActor } = require(base + '/services/chat/group-replies.ts');
+  assert.equal(resolveGroupActor(phone.activeIdentity, phone.state.identities, {actorKey: ' Alice '}), alice);
+  assert.throws(() => resolveGroupActor(phone.activeIdentity, phone.state.identities, {}), /缺少发言者/);
+  assert.throws(() => resolveGroupActor(phone.activeIdentity, phone.state.identities, {actorKey: alice, actorName: 'Bob'}), /无法唯一/);
   phone.settings.api.enabled = true;
   phone.settings.api.apiurl = 'https://test.invalid/v1';
   phone.settings.api.model = 'test';
@@ -345,7 +349,7 @@ const clickText = (selector, text) => {
       version: 1,
       char_id: group,
       char_name: phone.activeIdentity.name,
-      messages: [{ sender: 'char', type: 'text', content: '主动消息', payload: { actorKey: bob } }],
+      messages: [{ sender: 'char', type: 'text', content: '主动消息', payload: { actor_key: '小波' } }],
       app_updates: {},
     });
   phone.updateGroupMember(bob, { muted: true });
@@ -361,13 +365,14 @@ const clickText = (selector, text) => {
       JSON.stringify({
         context_relation: 'linked',
         thread_id: phone.activeThread.id,
-        messages: [{ sender: 'char', type: 'text', content: '大家晚上好', payload: { actorKey: alice } }],
+        messages: [{ sender: 'char', type: 'voice', content: '大家晚上好', actor_key: 'Alice', payload: {} }],
         app_updates: {},
       })
     );
   };
   await phone.sendMessage('群里晚上好', true);
   assert.equal(phone.activeThread.messages.at(-1).content, '大家晚上好');
+  assert.equal(phone.activeThread.messages.at(-1).type, 'text', '未启用语音时保留文字回复');
   assert.equal(phone.activeThread.messages.at(-1).payload.electric, '演示记录 {not json}');
   assert.equal(phone.activeThread.messages.at(-1).payload.narrativeRelation, 'independent');
   assert.equal(phone.activeThread.messages.at(-1).payload.actorKey, alice);
@@ -382,7 +387,7 @@ const clickText = (selector, text) => {
       messages: [{ sender: 'char', content: '错误成员', payload: { actorKey: 'unknown' } }],
       app_updates: {},
     });
-  await assert.rejects(phone.sendMessage('再聊一句', true), /成员身份/);
+  await assert.rejects(phone.sendMessage('再聊一句', true), /第 1 条回复无效.*无法唯一对应群成员/);
   assert.equal(phone.activeThread.messages.filter(message => message.sender === 'char').length, beforeCount);
   assert(phone.activeThread.messages.some(message => message.status === 'failed'));
 

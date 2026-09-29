@@ -460,13 +460,15 @@
   .group-sender-name {
     color: var(--settings-muted);
     font: 400 10px/1.4 var(--wave-ui-font);
-    margin: 0 0 4px 44px;
+    margin: 10px 0 3px 38px;
+    min-height: 16px;
+    flex-wrap: wrap;
     display: flex;
     align-items: center;
     gap: 5px;
     &.is-user {
       justify-content: flex-end;
-      margin: 0 44px 4px 0;
+      margin: 10px 38px 3px 0;
     }
     .group-member-badge {
       border-radius: 5px;
@@ -558,4 +560,9 @@
       border-color: var(--settings-accent, #5e80be);
     }
   }
+}
+
+#wave-phone-script-root .wave-device .group-sender-name + .message-row {
+  margin-top: 0;
+  margin-bottom: 8px;
 }

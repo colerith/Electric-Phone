@@ -1,3 +1,4 @@
+import { resolveGroupActor } from '../services/chat/group-replies';
 import { paymentDetails } from '../services/chat/payment';
 import {
   randomAnonymousId,
@@ -1652,6 +1653,32 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       wallet: currentWalletGrant(),
     };
   }
+  function normalizeGroupReplies<
+    T extends { sender: string; type: string; content: string; payload: Record<string, unknown> },
+  >(group: Identity, messages: T[]): T[] {
+    if (group.source !== 'local_group') return messages;
+    return messages.map((message, index) => {
+      if (message.sender !== 'char') return message;
+      try {
+        const actorKey = resolveGroupActor(group, state.value.identities, message.payload);
+        const normalized = { ...message, payload: { ...message.payload, actorKey } };
+        if (message.type === 'voice') {
+          const voice = CharacterVoiceSchema.parse(state.value.characterVoices[actorKey]);
+          if (
+            !group.groupVoiceFollowPrivate ||
+            voice.provider === 'off' ||
+            !settings.value.voiceServices[voice.provider].enabled
+          ) {
+            if (!message.content.trim()) throw Error('语音未启用且回复没有可显示的文字');
+            normalized.type = 'text';
+          }
+        }
+        return normalized;
+      } catch (error) {
+        throw Error(`群聊第 ${index + 1} 条回复无效：${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+  }
   function groupPromptSettings(identity: Identity) {
     if (identity.source !== 'local_group') return {};
     const members = (identity.memberKeys || []).flatMap(key =>
@@ -1754,22 +1781,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         const identity = state.value.identities[charKey];
         const thread = state.value.threads[runtime.input.thread.id];
         if (!identity || !thread) throw Error('消息会话已变更，主动消息未写入');
-        if (
-          identity.source === 'local_group' &&
-          delta.messages.some(message => {
-            if (message.sender !== 'char') return false;
-            const actorKey = String(message.payload.actorKey || '');
-            if (!identity.memberKeys?.includes(actorKey) || identity.groupMembers?.[actorKey]?.muted) return true;
-            if (message.type !== 'voice') return false;
-            const voice = CharacterVoiceSchema.parse(state.value.characterVoices[actorKey]);
-            return (
-              !identity.groupVoiceFollowPrivate ||
-              voice.provider === 'off' ||
-              !settings.value.voiceServices[voice.provider].enabled
-            );
-          })
-        )
-          throw Error('群聊主动消息的成员身份、禁言状态或语音配置无效');
+        delta.messages = normalizeGroupReplies(identity, delta.messages);
         applyCharacterReactions(
           thread.messages,
           delta.reactions,
@@ -2833,6 +2845,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       });
 
       sendStage = '应用回复';
+      result.data.messages = normalizeGroupReplies(state.value.identities[identity.charKey] || identity, result.data.messages);
       if (preferences.autoTranslate || (identity.source === 'local_group' && identity.groupAutoTranslate)) {
         await Promise.all(
           result.data.messages.map(async message => {
@@ -2877,22 +2890,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (result.data.thread_id && result.data.thread_id !== thread.id) {
         throw Error('副 API 返回了错误的 thread_id，结果已拒绝。');
       }
-      if (
-        identity.source === 'local_group' &&
-        result.data.messages.some(message => {
-          if (message.sender !== 'char') return false;
-          const actorKey = String(message.payload.actorKey || '');
-          if (!identity.memberKeys?.includes(actorKey) || identity.groupMembers?.[actorKey]?.muted) return true;
-          if (message.type !== 'voice') return false;
-          const voice = CharacterVoiceSchema.parse(state.value.characterVoices[actorKey]);
-          return (
-            !identity.groupVoiceFollowPrivate ||
-            voice.provider === 'off' ||
-            !settings.value.voiceServices[voice.provider].enabled
-          );
-        })
-      )
-        throw Error('群聊回复的成员身份、禁言状态或语音配置无效');
+      result.data.messages = normalizeGroupReplies(state.value.identities[identity.charKey] || identity, result.data.messages);
       const narrativeRelation = resolveNarrativeRelation(narrativeMode, result.data.context_relation);
       pending.forEach(message => {
         message.payload.narrativeRelation = narrativeRelation;

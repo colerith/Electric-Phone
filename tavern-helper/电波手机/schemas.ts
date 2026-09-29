@@ -15,7 +15,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.1.56';
+export const WAVE_PHONE_RELEASE_VERSION = '1.1.57';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -460,14 +460,27 @@ export const ChatStateSchema = z
   .prefault({});
 export type ChatState = z.infer<typeof ChatStateSchema>;
 
-export const ModelMessageSchema = z.object({
-  client_id: z.string().prefault(''),
-  sender: z.enum(['char', 'system']),
-  type: MessageTypeSchema.prefault('text'),
-  content: z.string().prefault(''),
-  created_at: z.string().prefault(''),
-  payload: z.record(z.string(), z.unknown()).prefault({}),
-});
+export const ModelMessageSchema = z
+  .object({
+    client_id: z.string().prefault(''),
+    sender: z.enum(['char', 'system']),
+    type: MessageTypeSchema.prefault('text'),
+    content: z.string().prefault(''),
+    created_at: z.string().prefault(''),
+    actorKey: z.string().optional(),
+    actor_key: z.string().optional(),
+    actorName: z.string().optional(),
+    payload: z.record(z.string(), z.unknown()).prefault({}),
+  })
+  .transform(({ actorKey, actor_key, actorName, ...message }) => ({
+    ...message,
+    payload: {
+      ...(actorKey ? { actorKey } : {}),
+      ...(actor_key ? { actor_key } : {}),
+      ...(actorName ? { actorName } : {}),
+      ...message.payload,
+    },
+  }));
 
 export const ModelReactionsSchema = z
   .array(z.object({ message_id: z.string(), emoji: z.string().max(32), actor_key: z.string().optional() }))

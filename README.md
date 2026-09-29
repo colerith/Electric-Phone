@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.1.56`
+当前发布版本：`v1.1.57`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.56/file/index-1.1.56.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.57/file/index-1.1.57.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：双人群头像上下平分，新建时只选两位联系人强制仅围观，群主只能从这两人中指定。
+本版更新：改进群回复身份兼容与逐条错误提示，未开启语音时保留文字回复，优化群昵称与气泡间距。
 
 ## 首次配置
 
