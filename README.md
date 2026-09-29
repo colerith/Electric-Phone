@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.1.53`
+当前发布版本：`v1.1.54`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.53/file/index-1.1.53.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.54/file/index-1.1.54.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：角色卡导入支持切换卡片并自动读取资料，统一关闭按钮居中，群头像四宫格铺满遮罩。
+本版更新：角色卡导入请求完整卡片数据，修复未打开的卡片无法读取角色描述。
 
 ## 首次配置
 

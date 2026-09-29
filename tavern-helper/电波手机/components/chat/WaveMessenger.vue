@@ -214,15 +214,26 @@
                 aria-label="选择角色卡"
                 @update:model-value="chooseCard"
             /></label>
-            <label>角色名称<input v-model="newName" placeholder="确认角色名称" /></label>
+            <p v-if="loadingCard && dialog === 'character'" role="status">正在读取完整角色资料…</p>
             <label
-              >角色资料<textarea v-model="about" rows="6" placeholder="自动读取角色描述，可在此修改"></textarea>
+              >角色名称<input
+                v-model="newName"
+                :disabled="dialog === 'character' && loadingCard"
+                placeholder="确认角色名称"
+            /></label>
+            <label
+              >角色资料<textarea
+                v-model="about"
+                :disabled="loadingCard"
+                rows="6"
+                placeholder="自动读取角色描述，可在此修改"
+              ></textarea>
             </label>
             <p>将所选角色卡导入为联系人，可修改名称和资料。</p>
             <button
               class="settings-save-wide"
               type="button"
-              :disabled="!selectedCard || !newName.trim()"
+              :disabled="loadingCard || !selectedCard || !newName.trim()"
               @click="submitFriend"
             >
               导入角色
@@ -367,22 +378,40 @@ const newName = ref(''),
 const selectedCard = ref('');
 const cardOptions = ref<{ value: string; label: string }[]>([]);
 const cardAvatar = ref('');
-function chooseCard(value: string) {
+const loadingCard = ref(false);
+let cardRequest = 0;
+async function chooseCard(value: string) {
+  const request = ++cardRequest;
+  loadingCard.value = true;
   selectedCard.value = value;
   newName.value = '';
   about.value = '';
   cardAvatar.value = '';
   notice.value = '';
   try {
-    const card = getCharData(value, true);
+    let card = getCharData(value, true);
     if (!card) throw Error('角色卡不存在，请重新选择');
+    if (card.avatar) {
+      const response = await fetch('/api/characters/get', {
+        method: 'POST',
+        headers: SillyTavern.getRequestHeaders(),
+        body: JSON.stringify({ avatar_url: card.avatar }),
+      });
+      if (!response.ok) throw Error(`读取完整角色卡失败（HTTP ${response.status}）`);
+      card = await response.json();
+      if (!card || typeof card !== 'object') throw Error('角色卡数据无效');
+    }
+    if (request !== cardRequest || dialog.value !== 'character') return;
     newName.value = card.name || card.data?.name || '';
     about.value = card.description || card.data?.description || '';
     cardAvatar.value = getCharAvatarPath(value, true) || '';
     if (!about.value) notice.value = '此角色卡未填写角色描述，可手动补充后导入。';
   } catch (error) {
+    if (request !== cardRequest || dialog.value !== 'character') return;
     selectedCard.value = '';
     notice.value = `读取角色卡失败：${String(error)}`;
+  } finally {
+    if (request === cardRequest) loadingCard.value = false;
   }
 }
 const worldbooks = ref<string[]>([]);
@@ -584,6 +613,8 @@ async function showDialog(value: Dialog) {
   dialogElement.value?.querySelector<HTMLElement>('input,button')?.focus();
 }
 function closeDialog() {
+  ++cardRequest;
+  loadingCard.value = false;
   ++bookRequest;
   loadingBook.value = false;
   dialog.value = null;
@@ -603,6 +634,7 @@ function submitFriend() {
   try {
     if (['worldbook', 'character'].includes(dialog.value || '') && contextKey() !== importContext)
       throw Error('聊天已切换，请重新打开角色导入。');
+    if (dialog.value === 'character' && (loadingCard.value || !selectedCard.value)) return;
     if (dialog.value === 'character') phone.importCardContact(newName.value, about.value, cardAvatar.value);
     else phone.addContact(newName.value, about.value);
     closeDialog();

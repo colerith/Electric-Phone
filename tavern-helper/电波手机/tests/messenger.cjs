@@ -35,12 +35,21 @@ Object.assign(global, {
     name1: 'User',
     getCurrentChatId: () => chatId,
     characterId: '1',
+    getRequestHeaders: () => ({ 'Content-Type': 'application/json' }),
     characters: [{ name: 'Other', avatar: 'other.png' }],
   },
   getCharData: value =>
     value === 'other.png'
-      ? { name: 'Other', data: { description: '其他卡片描述' } }
+      ? { name: 'Other', avatar: 'other.png', shallow: true }
       : { name: 'Alice', description: '角色卡描述：喜欢旅行。' },
+  fetch: async (url, options) => {
+    assert.equal(url, '/api/characters/get');
+    assert.equal(JSON.parse(options.body).avatar_url, 'other.png');
+    return {
+      ok: true,
+      json: async () => ({ name: 'Other', avatar: 'other.png', data: { description: '其他卡片描述' } }),
+    };
+  },
   getWorldbookNames: () => ['其他世界书', '角色设定'],
   getCharWorldbookNames: () => ({ primary: '角色设定', additional: [] }),
   getWorldbook: async () => [{ uid: 7, name: 'Dora', content: '世界书角色资料'.repeat(200) }],
@@ -367,6 +376,8 @@ const clickText = (selector, text) => {
   document.querySelector('[aria-label="选择角色卡"]').click();
   await tick();
   clickText('[role=option]', 'Other');
+  await tick();
+  await tick();
   await tick();
   assert.equal(document.querySelector('[role=dialog] textarea').value, '其他卡片描述');
   const importedName = document.querySelector('[role=dialog] input');
