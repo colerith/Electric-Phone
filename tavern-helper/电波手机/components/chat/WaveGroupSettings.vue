@@ -79,7 +79,7 @@
             >{{ member.role }} · Lv.{{ member.meta.level
             }}<template v-if="member.meta.title"> · {{ member.meta.title }}</template
             ><template v-if="member.meta.muted"> · 已禁言</template></small
-          ></span
+          ><small class="group-member-experience">{{ groupExperienceLabel(member.meta) }}</small></span
         >
         <button
           v-if="canEdit"
@@ -142,6 +142,7 @@
   </template>
 </template>
 <script setup lang="ts">
+import { groupExperienceLabel } from '../../services/chat/group-activity';
 import { computed, inject, nextTick, ref } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { identityAvatarStyle } from '../../services/core/avatar';

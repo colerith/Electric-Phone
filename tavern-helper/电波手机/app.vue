@@ -354,7 +354,12 @@
                     :class="{ 'is-user': message.sender === 'user' }"
                   >
                     <span>{{ groupMemberName(message) }}</span>
-                    <b v-if="groupMemberBadge(message)" class="group-member-badge">{{ groupMemberBadge(message) }}</b>
+                    <b
+                      v-if="groupMemberBadge(message)"
+                      class="group-member-badge"
+                      :class="`badge-${groupMemberRole(message)}`"
+                      >{{ groupMemberBadge(message) }}</b
+                    >
                     <small>Lv.{{ groupMemberLevel(message) }}</small>
                   </div>
                   <article
@@ -1764,6 +1769,11 @@ function groupMemberBadge(message: PhoneMessage): string {
   return (
     title || (key === (group?.groupOwnerKey || 'user') ? '群主' : group?.groupMembers?.[key]?.admin ? '管理员' : '')
   );
+}
+function groupMemberRole(message: PhoneMessage): string {
+  const key = groupMemberKey(message);
+  const group = store.activeIdentity;
+  return key === (group?.groupOwnerKey || 'user') ? 'owner' : group?.groupMembers?.[key]?.admin ? 'admin' : 'member';
 }
 function groupMemberLevel(message: PhoneMessage): number {
   return store.activeIdentity?.groupMembers?.[groupMemberKey(message)]?.level || 1;

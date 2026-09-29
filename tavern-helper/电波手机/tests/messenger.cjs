@@ -255,6 +255,8 @@ const clickText = (selector, text) => {
     nickname: '小波',
     title: '闪光',
     level: 1,
+    messageCount: 0,
+    experience: 0,
     admin: true,
     muted: true,
   });

@@ -477,6 +477,18 @@
       color: #fff;
       font-size: 9px;
       font-weight: 600;
+      &.badge-owner {
+        background: #b58b52;
+        color: #fffaf0;
+      }
+      &.badge-admin {
+        background: #6083ad;
+        color: #f5f9ff;
+      }
+      &.badge-member {
+        background: #9685a8;
+        color: #fcf8ff;
+      }
     }
     small {
       color: var(--settings-accent);

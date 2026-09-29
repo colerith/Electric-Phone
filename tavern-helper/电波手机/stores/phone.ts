@@ -1,3 +1,4 @@
+import { updateGroupActivity } from '../services/chat/group-activity';
 import { stickerPrompt } from '../services/chat/stickers';
 import { resolveGroupActor } from '../services/chat/group-replies';
 import { paymentDetails } from '../services/chat/payment';
@@ -893,22 +894,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     for (const group of Object.values(state.value.identities).filter(item => item.source === 'local_group')) {
       const thread = Object.values(state.value.threads).find(item => item.charKey === group.charKey);
       if (!thread) continue;
-      const members = { ...group.groupMembers };
-      const counts: Record<string, number> = {};
-      for (const message of thread.messages) {
-        if (message.status !== 'sent' || message.withdrawn) continue;
-        const key =
-          message.sender === 'user' ? 'user' : message.sender === 'char' ? String(message.payload.actorKey || '') : '';
-        if (key) counts[key] = (counts[key] || 0) + 1;
-      }
-      for (const key of [...(group.groupObserver ? [] : ['user']), ...(group.memberKeys || [])]) {
-        const previous = members[key] || { nickname: '', title: '', level: 1, admin: false, muted: false };
-        members[key] = {
-          ...previous,
-          level: Math.min(99, Math.max(previous.level, 1 + Math.floor((counts[key] || 0) / 20))),
-        };
-      }
-      group.groupMembers = members;
+      updateGroupActivity(group, thread);
     }
     updateCharacterDefaults(defaults => {
       defaults.walletBook = klona(state.value.walletBook);
