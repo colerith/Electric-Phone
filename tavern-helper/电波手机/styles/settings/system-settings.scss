@@ -163,8 +163,8 @@
     border-radius: var(--settings-radius);
     background: var(--settings-control);
     color: var(--settings-text);
-    // Match the compact action typography used by “恢复默认高度”.
-    font-size: calc(9px * var(--wave-font-scale, 1)) !important;
+    // Match the original system-time refresh action, including the height reset button.
+    font-size: 14px !important;
     > i {
       flex: 0 0 auto;
       font-size: inherit;

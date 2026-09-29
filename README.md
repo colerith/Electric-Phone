@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.1.50`
+当前发布版本：`v1.1.51`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.50/file/index-1.1.50.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.51/file/index-1.1.51.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：系统时间“重新读取”按钮与“恢复默认高度”统一字号和图标尺寸。
+本版更新：以原“重新读取”按钮为准，将“恢复默认高度”改为相同的较大字号和图标。
 
 ## 首次配置
 
