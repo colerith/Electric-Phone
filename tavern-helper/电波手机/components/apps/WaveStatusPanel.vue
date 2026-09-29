@@ -6,7 +6,9 @@
       </div>
       <div class="status-profile-main">
         <span class="status-avatar"
-          ><img v-if="avatar" :src="avatar" alt="" /><span v-else>{{ displayName.slice(0, 1) }}</span></span
+          ><img v-if="avatar" :src="avatar" :style="avatarStyle" alt="" /><span v-else>{{
+            displayName.slice(0, 1)
+          }}</span></span
         >
         <div class="status-profile-copy">
           <strong class="status-profile-name">{{ displayName }}</strong
@@ -82,7 +84,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { parseStatusProfile } from '../../services/apps/status';
-const props = defineProps<{ raw: string; name: string; avatar: string }>();
+const props = defineProps<{ raw: string; name: string; avatar: string; avatarStyle?: Record<string, string> }>();
 const profile = computed(() => parseStatusProfile(props.raw));
 const displayName = computed(() => props.name || profile.value.name || 'TA');
 const metrics = computed(() => [

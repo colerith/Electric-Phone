@@ -61,6 +61,7 @@
                   <img
                     v-if="anniversaryCharacter?.avatar || (!anniversaryCharacter && cover)"
                     :src="anniversaryCharacter?.avatar || cover"
+                    :style="identityAvatarStyle(anniversaryCharacter)"
                     :alt="anniversaryName || '你'"
                   /><span v-else>{{ anniversaryName.slice(0, 1) || '你' }}</span>
                 </div>
@@ -214,6 +215,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import { identityAvatarStyle } from '../../services/core/avatar';
 function showTwitterPlaceholder() {
   toastr.info('推特暂为占位，敬请期待');
 }

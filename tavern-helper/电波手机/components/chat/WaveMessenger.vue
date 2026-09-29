@@ -284,6 +284,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import { identityAvatarStyle as avatarStyle } from '../../services/core/avatar';
 import { computed, inject, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { displayIdentityName } from '../../services/core/identity';
@@ -438,12 +439,7 @@ function timeLabel(value?: string) {
     ? date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
     : date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
 }
-function avatarStyle(identity: Identity) {
-  const max = Math.max(0, (identity.avatarZoom - 1) * 50);
-  return {
-    transform: `translate(${Math.max(-max, Math.min(max, identity.avatarOffsetX * 0.32))}%,${Math.max(-max, Math.min(max, identity.avatarOffsetY * 0.32))}%) scale(${identity.avatarZoom})`,
-  };
-}
+
 function open(key: string) {
   phone.startConversation(key);
   emit('open', key);

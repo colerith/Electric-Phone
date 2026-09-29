@@ -395,7 +395,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   const identities = computed(() => Object.values(state.value.identities));
   const panelCharacters = computed(() =>
     identities.value.filter(
-      identity => identity.actorType !== 'npc' && !['local_group', 'temporary'].includes(identity.source),
+      identity => identity.actorType === 'main' && !['local_group', 'temporary'].includes(identity.source),
     ),
   );
   function selectPanelCharacter(charKey: string): void {
@@ -999,7 +999,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       : identity;
     const previous = nextState.identities[mergedIdentity.charKey];
     if (previous) {
-      mergedIdentity.actorType = previous.actorType;
+      mergedIdentity.actorType = previous.actorType ?? mergedIdentity.actorType;
       mergedIdentity.relationshipToUser = previous.relationshipToUser;
       mergedIdentity.npcProfile = previous.npcProfile;
       mergedIdentity.about = previous.about || mergedIdentity.about;
@@ -2354,6 +2354,39 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
   }
 
+  function groupMemberDisplayName(group: Identity, key: string): string {
+    return (
+      group.groupMembers?.[key]?.nickname ||
+      (key === 'user'
+        ? state.value.moments.profile.nickname || SillyTavern.name1 || '我'
+        : state.value.identities[key]?.name || '成员')
+    );
+  }
+
+  function appendGroupNotice(group: Identity, action: string, content: string, targetKey = ''): void {
+    if (!context.value) return;
+    const thread = ensureThread(state.value, context.value, group);
+    const createdAt = nextReceivedAt(thread);
+    thread.messages.push(
+      PhoneMessageSchema.parse({
+        id: makeId('group-notice'),
+        sender: 'system',
+        type: 'system',
+        content,
+        createdAt,
+        status: 'sent',
+        payload: {
+          interaction: 'group_management',
+          action,
+          actorKey: 'user',
+          actorName: groupMemberDisplayName(group, 'user'),
+          targetKey,
+        },
+      }),
+    );
+    thread.updatedAt = createdAt;
+  }
+
   function updateGroupDetails(changes: {
     name?: string;
     announcement?: string;
@@ -2373,6 +2406,16 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       groupVoiceFollowPrivate: changes.voiceFollowPrivate ?? group.groupVoiceFollowPrivate,
       updatedAt: nowIso(),
     });
+    const updated = state.value.identities[group.charKey];
+    const actor = groupMemberDisplayName(group, 'user');
+    if (name !== group.name) appendGroupNotice(group, 'name', `${actor}将群名称修改为「${name}」`);
+    if ((updated.groupAnnouncement || '') !== (group.groupAnnouncement || ''))
+      appendGroupNotice(
+        group,
+        'announcement',
+        updated.groupAnnouncement ? `${actor}发布了群公告：\n${updated.groupAnnouncement}` : `${actor}清空了群公告`,
+      );
+    ++syncToken;
     saveChat();
   }
 
@@ -2415,6 +2458,45 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       groupMembers,
       updatedAt: nowIso(),
     });
+    const actor = groupMemberDisplayName(group, 'user');
+    const target = groupMemberDisplayName(group, key);
+    const next = groupMembers[key];
+    if (changes.remove) appendGroupNotice(group, 'remove', `${actor}将「${target}」移出了群聊`, key);
+    else {
+      if (next.nickname !== previous.nickname)
+        appendGroupNotice(
+          group,
+          'nickname',
+          next.nickname
+            ? `${actor}将「${target}」的群昵称修改为「${next.nickname}」`
+            : `${actor}清除了「${target}」的群昵称`,
+          key,
+        );
+      if (next.title !== previous.title)
+        appendGroupNotice(
+          group,
+          'title',
+          next.title ? `${actor}将「${target}」的群头衔修改为「${next.title}」` : `${actor}清除了「${target}」的群头衔`,
+          key,
+        );
+      if (!changes.transferOwner && next.admin !== previous.admin)
+        appendGroupNotice(
+          group,
+          'admin',
+          next.admin ? `${actor}将「${target}」设为管理员` : `${actor}取消了「${target}」的管理员身份`,
+          key,
+        );
+      if (next.muted !== previous.muted)
+        appendGroupNotice(
+          group,
+          'muted',
+          next.muted ? `${actor}禁言了「${target}」` : `${actor}解除了「${target}」的禁言`,
+          key,
+        );
+      if (changes.transferOwner && owner !== key)
+        appendGroupNotice(group, 'owner', `${actor}将群主转让给了「${target}」`, key);
+    }
+    ++syncToken;
     saveChat();
   }
 
@@ -2472,6 +2554,15 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       updatedAt: updated.updatedAt,
     };
     persistCharacterProfiles(characterProfiles.value);
+    if (
+      identity.source === 'local_group' &&
+      (identity.avatar !== updated.avatar ||
+        identity.avatarZoom !== updated.avatarZoom ||
+        identity.avatarOffsetX !== updated.avatarOffsetX ||
+        identity.avatarOffsetY !== updated.avatarOffsetY)
+    )
+      appendGroupNotice(identity, 'avatar', `${groupMemberDisplayName(identity, 'user')}修改了群头像`);
+    ++syncToken;
     saveChat();
   }
 
@@ -2480,6 +2571,15 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!thread) return;
     thread.draft = value;
     thread.updatedAt = nowIso();
+    if (
+      identity.source === 'local_group' &&
+      (identity.avatar !== updated.avatar ||
+        identity.avatarZoom !== updated.avatarZoom ||
+        identity.avatarOffsetX !== updated.avatarOffsetX ||
+        identity.avatarOffsetY !== updated.avatarOffsetY)
+    )
+      appendGroupNotice(identity, 'avatar', `${groupMemberDisplayName(identity, 'user')}修改了群头像`);
+    ++syncToken;
     saveChat();
   }
 

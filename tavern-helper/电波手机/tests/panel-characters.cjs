@@ -88,8 +88,12 @@ const tick = () => vue.nextTick();
   phone.setContactDetails({ actorType: 'npc', relationshipToUser: '路人', npcProfile: '' });
   phone.selectIdentity(bob);
   phone.setContactDetails({ actorType: 'main', relationshipToUser: '朋友', npcProfile: '' });
+  const unknown = phone.addContact('未标记角色', '未知');
+  delete phone.state.identities[unknown].actorType;
   const group = phone.createGroup('群聊', [alice, bob]);
   assert.deepEqual(phone.panelCharacters.map(x => x.charKey).sort(), [alice, bob].sort());
+  phone.selectPanelCharacter(unknown);
+  assert.equal(phone.activeIdentity.charKey, bob);
   phone.selectPanelCharacter(npc);
   assert.equal(phone.activeIdentity.charKey, bob);
   phone.selectPanelCharacter(group);
@@ -116,7 +120,7 @@ const tick = () => vue.nextTick();
       .join('\n');
     const componentStyle = parse(fs.readFileSync(base + '/components/shared/WaveCharacterSwitch.vue', 'utf8'))
       .descriptor.styles[0].content;
-    const css = styles + sass.compileString(componentStyle).css;
+    const css = sass.compileString(componentStyle).css + styles;
     const menu = document.querySelector('.wave-character-switch').outerHTML;
     fs.writeFileSync(
       process.env.WAVE_PANEL_QA,
@@ -128,6 +132,23 @@ const tick = () => vue.nextTick();
   await tick();
   assert.equal(phone.activeIdentity.charKey, alice);
   assert(!document.querySelector('.wave-character-switch [role=listbox]'));
+  phone.selectIdentity(bob);
+  phone.setContactDetails({ actorType: 'npc', relationshipToUser: '路人', npcProfile: '' });
+  await tick();
+  assert.equal(phone.activeIdentity.charKey, alice, '当前角色降为 NPC 后退出其面板');
+  await phone.synchronize();
+  assert.equal(phone.state.identities[bob].actorType, 'npc');
+  assert(!phone.panelCharacters.some(identity => identity.charKey === bob));
+  const { createParsedIdentity } = require(base + '/services/core/identity.ts');
+  assert.equal(
+    createParsedIdentity(phone.context, phone.state, {
+      stableId: phone.state.identities[bob].stableId,
+      name: 'Bob',
+      messageId: 1,
+      ordinal: 0,
+    }).actorType,
+    'npc',
+  );
   assert.equal(ModuleSettingsSchema.parse({}).memo.sortOrder, 'asc');
   assert.deepEqual(
     [...document.querySelectorAll('.memo-paper-title')].map(x => x.textContent),

@@ -38,7 +38,8 @@
   </WaveSelect>
 </template>
 <script setup lang="ts">
-import { computed, reactive } from 'vue';
+import { computed, reactive, watch } from 'vue';
+import { identityAvatarStyle } from '../../services/core/avatar';
 import { usePhoneStore } from '../../stores/phone';
 import { displayIdentityName } from '../../services/core/identity';
 import WaveSelect from './WaveSelect.vue';
@@ -48,21 +49,27 @@ const options = computed(() =>
   phone.panelCharacters.map(identity => ({ value: identity.charKey, label: displayIdentityName(identity) })),
 );
 function avatar(key: string): string {
-  return failed[key] ? '' : phone.state.identities[key]?.avatar || '';
+  return failed[key] || !phone.panelCharacters.some(identity => identity.charKey === key)
+    ? ''
+    : phone.state.identities[key]?.avatar || '';
 }
 function crop(key: string): Record<string, string> {
-  const identity = phone.state.identities[key];
-  if (!identity) return {};
-  const maximum = Math.max(0, (identity.avatarZoom - 1) * 50);
-  return {
-    transform: `translate(${_.clamp(identity.avatarOffsetX * 0.32, -maximum, maximum)}%, ${_.clamp(identity.avatarOffsetY * 0.32, -maximum, maximum)}%) scale(${identity.avatarZoom})`,
-  };
+  return identityAvatarStyle(phone.state.identities[key]);
 }
+watch(
+  [() => phone.state.activeCharKey, options],
+  () => {
+    if (!options.value.some(option => option.value === phone.state.activeCharKey) && options.value[0])
+      phone.selectPanelCharacter(options.value[0].value);
+  },
+  { immediate: true },
+);
 </script>
 <style lang="scss">
-#wave-phone-script-root .wave-device .wave-character-switch {
+#wave-phone-script-root .wave-device .wave-character-switch.wave-select {
   flex: 0 0 38px;
   width: 38px;
+  max-width: 38px;
   > .wave-select-trigger {
     display: flex;
     align-items: center;
@@ -70,6 +77,10 @@ function crop(key: string): Record<string, string> {
     width: 38px;
     height: 38px;
     min-height: 0;
+    max-height: 38px;
+    margin: 0;
+    appearance: none;
+    box-shadow: none;
     padding: 0;
     border: 0;
     border-radius: 50%;
@@ -105,9 +116,14 @@ function crop(key: string): Record<string, string> {
   > .wave-select-menu {
     left: auto;
     right: 0;
-    width: min(220px, 65vw);
+    width: min(220px, 75cqw);
     min-width: 0;
     [role='option'] {
+      min-height: 46px;
+      margin: 0;
+      padding: 7px 9px;
+      border: 0;
+      box-shadow: none;
       display: flex;
       align-items: center;
       gap: 10px;

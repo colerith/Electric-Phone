@@ -169,3 +169,39 @@
     }
   }
 }
+
+// Square boxes must not size their grid tracks from the original image's aspect ratio.
+#wave-phone-script-root .wave-device .wave-image-modal {
+  .wave-upload-preview.avatar-preview {
+    position: relative;
+    border: 0;
+  }
+  .wave-avatar-size-preview > span {
+    position: relative;
+    display: block;
+    border: 0;
+    aspect-ratio: 1;
+  }
+  .wave-upload-preview.avatar-preview > img,
+  .wave-avatar-size-preview > span > img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    object-fit: cover;
+  }
+  .wave-upload-preview.avatar-preview .wave-crop-frame {
+    inset: 0;
+    border: 0;
+    box-shadow: none;
+  }
+}

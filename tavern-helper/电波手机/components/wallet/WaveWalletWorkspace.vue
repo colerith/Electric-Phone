@@ -82,6 +82,7 @@
                 ><img
                   v-if="accountAvatar(selectedId) && !failedAvatars[accountAvatar(selectedId)]"
                   :src="accountAvatar(selectedId)"
+                  :style="accountAvatarStyle(selectedId)"
                   alt=""
                   @error="failedAvatars[accountAvatar(selectedId)] = true" /><i
                   v-else
@@ -96,6 +97,7 @@
                 ><img
                   v-if="accountAvatar(option.value) && !failedAvatars[accountAvatar(option.value)]"
                   :src="accountAvatar(option.value)"
+                  :style="accountAvatarStyle(option.value)"
                   alt=""
                   @error="failedAvatars[accountAvatar(option.value)] = true" /><i
                   v-else
@@ -115,6 +117,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
+import { identityAvatarStyle } from '../../services/core/avatar';
 import { accountWallet, currencies } from '../../services/wallet/wallet-accounts';
 import WaveSelect from '../shared/WaveSelect.vue';
 import WaveWalletPanel from './WaveWalletPanel.vue';
@@ -122,6 +125,10 @@ const props = defineProps<{ mode: 'mine' | 'app' | 'settings'; artwork?: string;
 defineEmits<{ settings: [] }>();
 const phone = usePhoneStore();
 const failedAvatars = reactive<Record<string, boolean>>({});
+function accountAvatarStyle(id: string): Record<string, string> {
+  const account = accounts.value.find(item => item.id === id);
+  return account?.ownerType === 'char' ? identityAvatarStyle(phone.state.identities[account.ownerId]) : {};
+}
 function accountAvatar(id: string): string {
   const target = accounts.value.find(a => a.id === id);
   return target?.ownerType === 'user'

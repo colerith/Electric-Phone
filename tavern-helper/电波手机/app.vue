@@ -366,7 +366,9 @@
                         selected: selectedMessageIds.has(message.id),
                         'selection-anchor': selectionAnchorId === message.id,
                         'has-favorite': message.favorite,
-                        'is-poke': message.payload.interaction === 'poke' && !message.withdrawn,
+                        'is-poke':
+                          ['poke', 'group_management'].includes(String(message.payload.interaction)) &&
+                          !message.withdrawn,
                       },
                     ]"
                     @contextmenu.prevent="openMessageMenu(message)"
@@ -425,6 +427,12 @@
                       :message="message"
                       :char-name="displayIdentityName(store.activeIdentity)"
                     />
+                    <div
+                      v-else-if="message.payload.interaction === 'group_management' && !message.withdrawn"
+                      class="wave-poke-notice wave-group-notice"
+                    >
+                      {{ message.content }}
+                    </div>
                     <div v-else class="message-stack">
                       <WaveMessageContent
                         :message="message"
@@ -971,6 +979,7 @@
               v-else-if="currentApp"
               :key="`${store.activeIdentity?.charKey}-${currentApp.id}`"
               :app-id="currentApp.id"
+              :avatar-style="avatarStyle(store.activeIdentity)"
               :memo-sort-order="store.settings.moduleSettings.memo.sortOrder"
               :raw="store.activeSnapshot[currentApp.id]"
               :name="displayIdentityName(store.activeIdentity)"
@@ -1067,6 +1076,7 @@ import WaveBackupSettings from './components/settings/WaveBackupSettings.vue';
 import WaveCopyrightCredits from './components/settings/WaveCopyrightCredits.vue';
 import { formatPhoneMessage } from './services/chat/message-format';
 import { displayIdentityName } from './services/core/identity';
+import { identityAvatarStyle as avatarStyle } from './services/core/avatar';
 import { parseLegacyMessages } from './services/generation/parser';
 import { usePhoneStore } from './stores/phone';
 import { useSystemClockStore } from './stores/system-clock';
@@ -1729,17 +1739,6 @@ function groupMemberBadge(message: PhoneMessage): string {
 }
 function groupMemberLevel(message: PhoneMessage): number {
   return store.activeIdentity?.groupMembers?.[groupMemberKey(message)]?.level || 1;
-}
-function avatarStyle(identity: Identity | null | undefined): Record<string, string> {
-  if (!identity) return {};
-  const maximumTranslation = Math.max(0, (identity.avatarZoom - 1) * 50);
-  const translateX = _.clamp(identity.avatarOffsetX * 0.32, -maximumTranslation, maximumTranslation);
-  const translateY = _.clamp(identity.avatarOffsetY * 0.32, -maximumTranslation, maximumTranslation);
-  return {
-    objectPosition: 'center',
-    transform: `translate3d(${translateX}%, ${translateY}%, 0) scale(${identity.avatarZoom})`,
-    transformOrigin: 'center',
-  };
 }
 function updateAvatar(value: { avatar: string; zoom: number; offsetX: number; offsetY: number }): void {
   const avatarChanged = value.avatar !== store.activeIdentity?.avatar;

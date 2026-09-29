@@ -69,6 +69,7 @@ export function makeSingleCardIdentity(context: RuntimeContext, existing?: Ident
     remark: existing?.remark || '',
     avatarCustomized: existing?.avatarCustomized || false,
     source: 'auto_single_card',
+    actorType: existing?.actorType || 'main',
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };
@@ -96,6 +97,9 @@ export function createParsedIdentity(
     remark: existing?.remark || '',
     avatarCustomized: existing?.avatarCustomized || false,
     source: input.name || input.stableId ? 'parsed' : 'temporary',
+    actorType: existing?.actorType,
+    relationshipToUser: existing?.relationshipToUser,
+    npcProfile: existing?.npcProfile,
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };

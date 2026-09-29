@@ -1,6 +1,6 @@
 <template>
   <section class="wave-app-content" :class="`app-${appId}`">
-    <WaveStatusPanel v-if="appId === 'status'" :raw="raw" :name="name" :avatar="avatar" />
+    <WaveStatusPanel v-if="appId === 'status'" :raw="raw" :name="name" :avatar="avatar" :avatar-style="avatarStyle" />
     <WaveMemoPanel
       v-else-if="appId === 'memo'"
       :raw="raw"
@@ -14,6 +14,13 @@
 import WaveMemoPanel from '../apps/WaveMemoPanel.vue';
 import WaveStatusPanel from '../apps/WaveStatusPanel.vue';
 import type { AppId } from '../../schemas';
-defineProps<{ appId: AppId; raw: string; name: string; avatar: string; memoSortOrder?: 'asc' | 'desc' }>();
+defineProps<{
+  appId: AppId;
+  raw: string;
+  name: string;
+  avatar: string;
+  avatarStyle?: Record<string, string>;
+  memoSortOrder?: 'asc' | 'desc';
+}>();
 defineEmits<{ delete: [app: 'memo', kind: 'note' | 'doodle', id: string] }>();
 </script>

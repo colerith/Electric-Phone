@@ -142,6 +142,7 @@
 </template>
 
 <script setup lang="ts">
+import { avatarCropStyle } from '../../services/core/avatar';
 import { computed, ref, watch, nextTick, onBeforeUnmount, inject } from 'vue';
 import WaveSlider from './WaveSlider.vue';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
@@ -220,11 +221,19 @@ const errorText = ref('');
 const imageFailed = ref(false);
 const previewSizes = [24, 40, 58];
 const displayValue = computed(() => (imageFailed.value ? '' : props.modelValue || props.fallback));
-const avatarTransform = computed(() => makeTransform(props.zoom, props.offsetX, props.offsetY));
-const draftTransform = computed(() => makeTransform(draftZoom.value, draftOffsetX.value, draftOffsetY.value));
+const avatarTransform = computed(() => avatarCropStyle(props.zoom, props.offsetX, props.offsetY));
+const draftTransform = computed(() => avatarCropStyle(draftZoom.value, draftOffsetX.value, draftOffsetY.value));
 const zoomLabel = computed(() => `${Math.round(draftZoom.value * 100)}%`);
 const panLimit = computed(() => Math.max(0, Math.min(60, Math.floor(((draftZoom.value - 1) * 50) / 0.32))));
-let cropDrag: { pointerId: number; startX: number; startY: number; offsetX: number; offsetY: number } | null = null;
+let cropDrag: {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  offsetX: number;
+  offsetY: number;
+  width: number;
+  height: number;
+} | null = null;
 
 watch(
   () => props.modelValue,
@@ -239,17 +248,6 @@ function loadDraft(): void {
   draftOffsetX.value = props.offsetX;
   draftOffsetY.value = props.offsetY;
   errorText.value = '';
-}
-
-function makeTransform(zoom: number, offsetX: number, offsetY: number): Record<string, string> {
-  const maximumTranslation = Math.max(0, (zoom - 1) * 50);
-  const translateX = _.clamp(offsetX * 0.32, -maximumTranslation, maximumTranslation);
-  const translateY = _.clamp(offsetY * 0.32, -maximumTranslation, maximumTranslation);
-  return {
-    objectPosition: 'center',
-    transform: `translate3d(${translateX}%, ${translateY}%, 0) scale(${zoom})`,
-    transformOrigin: 'center',
-  };
 }
 
 function isAllowedImageSource(value: string): boolean {
@@ -274,16 +272,26 @@ function startCropDrag(event: PointerEvent): void {
     startY: event.clientY,
     offsetX: draftOffsetX.value,
     offsetY: draftOffsetY.value,
+    width: (event.currentTarget as HTMLElement).getBoundingClientRect().width,
+    height: (event.currentTarget as HTMLElement).getBoundingClientRect().height,
   };
 }
 
 function moveCropDrag(event: PointerEvent): void {
   if (!cropDrag || cropDrag.pointerId !== event.pointerId) return;
   draftOffsetX.value = Math.round(
-    _.clamp(cropDrag.offsetX + (event.clientX - cropDrag.startX) / 2, -panLimit.value, panLimit.value),
+    _.clamp(
+      cropDrag.offsetX + (((event.clientX - cropDrag.startX) / Math.max(1, cropDrag.width)) * 100) / 0.32,
+      -panLimit.value,
+      panLimit.value,
+    ),
   );
   draftOffsetY.value = Math.round(
-    _.clamp(cropDrag.offsetY + (event.clientY - cropDrag.startY) / 2, -panLimit.value, panLimit.value),
+    _.clamp(
+      cropDrag.offsetY + (((event.clientY - cropDrag.startY) / Math.max(1, cropDrag.height)) * 100) / 0.32,
+      -panLimit.value,
+      panLimit.value,
+    ),
   );
 }
 

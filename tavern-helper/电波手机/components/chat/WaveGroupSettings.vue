@@ -20,7 +20,10 @@
         "
       />
       <div v-else class="group-avatar-readonly">
-        <img v-if="group.avatar" :src="group.avatar" alt="群头像" /><i v-else class="fa-solid fa-user-group"></i>
+        <img v-if="group.avatar" :src="group.avatar" :style="identityAvatarStyle(group)" alt="群头像" /><i
+          v-else
+          class="fa-solid fa-user-group"
+        ></i>
       </div>
       <label class="chat-setting-block"
         >群名称<input :value="group.name" maxlength="40" :disabled="!isOwner" @change="updateName"
@@ -60,9 +63,12 @@
       <div class="wave-settings-title">群成员 · {{ members.length }}</div>
       <div v-for="member in members" :key="member.key" class="group-member-row">
         <span class="group-member-avatar"
-          ><img v-if="member.avatar" :src="member.avatar" alt="" /><span v-else>{{
-            member.name.slice(0, 1)
-          }}</span></span
+          ><img
+            v-if="member.avatar"
+            :src="member.avatar"
+            :style="member.key === 'user' ? undefined : identityAvatarStyle(phone.state.identities[member.key])"
+            alt=""
+          /><span v-else>{{ member.name.slice(0, 1) }}</span></span
         >
         <span class="group-member-copy"
           ><strong>{{ member.meta.nickname || member.name }}</strong
@@ -135,6 +141,7 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, ref } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
+import { identityAvatarStyle } from '../../services/core/avatar';
 import WaveImageUpload from '../shared/WaveImageUpload.vue';
 import WaveToggle from '../shared/WaveToggle.vue';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
