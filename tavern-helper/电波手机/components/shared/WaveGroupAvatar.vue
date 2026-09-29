@@ -55,7 +55,7 @@ const cells = computed(() => {
   min-width: 0;
   min-height: 0;
   gap: 1px;
-  padding: 2px;
+  padding: 0;
   box-sizing: border-box;
   overflow: hidden;
   background: var(--settings-control, #e9edf4);
@@ -67,7 +67,7 @@ const cells = computed(() => {
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    border-radius: 2px;
+    border-radius: 0;
     background: var(--wave-tint, #edf2fa);
     container-type: inline-size;
     > img {

@@ -2244,7 +2244,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
     return npcId;
   }
-  function importCardContact(name: string, about: string): string {
+  function importCardContact(name: string, about: string, avatar?: string): string {
     const runtime = context.value;
     if (!runtime || !name.trim()) throw Error('请填写角色名称');
     const existing = identities.value.find(
@@ -2252,7 +2252,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     );
     if (!existing) {
       const key = addContact(name, about);
-      state.value.identities[key].avatar = runtime.avatar;
+      state.value.identities[key].avatar = avatar ?? runtime.avatar;
       saveChat();
       return key;
     }

@@ -235,3 +235,34 @@
     top: calc(7px + env(safe-area-inset-top, 0px));
   }
 }
+
+// A geometric cross avoids font baseline and inherited icon padding in dialog headers.
+#wave-phone-script-root .wave-device button[aria-label^='关闭'] {
+  position: relative;
+  display: inline-grid !important;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 0 !important;
+  line-height: 1 !important;
+  font-size: 0 !important;
+  > * {
+    visibility: hidden;
+  }
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 13px;
+    height: 1.5px;
+    margin: 0;
+    border-radius: 1px;
+    background: currentColor;
+    transform: translate(-50%, -50%) rotate(45deg);
+    pointer-events: none;
+  }
+  &::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+  }
+}

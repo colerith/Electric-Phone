@@ -31,12 +31,20 @@ global.z = require('zod').z;
 let vars = { script: {}, chat: {} };
 let chatId = 'test';
 Object.assign(global, {
-  SillyTavern: { name1: 'User', getCurrentChatId: () => chatId, characterId: '1' },
-  getCharData: () => ({ name: 'Alice', description: '角色卡描述：喜欢旅行。' }),
+  SillyTavern: {
+    name1: 'User',
+    getCurrentChatId: () => chatId,
+    characterId: '1',
+    characters: [{ name: 'Other', avatar: 'other.png' }],
+  },
+  getCharData: value =>
+    value === 'other.png'
+      ? { name: 'Other', data: { description: '其他卡片描述' } }
+      : { name: 'Alice', description: '角色卡描述：喜欢旅行。' },
   getWorldbookNames: () => ['其他世界书', '角色设定'],
   getCharWorldbookNames: () => ({ primary: '角色设定', additional: [] }),
   getWorldbook: async () => [{ uid: 7, name: 'Dora', content: '世界书角色资料'.repeat(200) }],
-  getCharAvatarPath: () => '',
+  getCharAvatarPath: value => (value === 'other.png' ? '/characters/other.png' : ''),
   getChatMessages: () => [],
   getVariables: ({ type }) => vars[type],
   replaceVariables: (v, { type }) => (vars[type] = v),
@@ -350,6 +358,26 @@ const clickText = (selector, text) => {
   await phone.synchronize();
   assert.equal(phone.state.identities[alice].about, '角色卡描述：喜欢旅行。');
   assert.equal(phone.identities.filter(identity => identity.name === 'Alice').length, 1);
+
+  component.toggleMenu();
+  await tick();
+  clickText('[role=menuitem]', '从角色卡描述导入');
+  await tick();
+  assert(document.querySelector('[aria-label="选择角色卡"]').textContent.includes('当前卡片'));
+  document.querySelector('[aria-label="选择角色卡"]').click();
+  await tick();
+  clickText('[role=option]', 'Other');
+  await tick();
+  assert.equal(document.querySelector('[role=dialog] textarea').value, '其他卡片描述');
+  const importedName = document.querySelector('[role=dialog] input');
+  importedName.value = '改名角色';
+  importedName.dispatchEvent(new Event('input', { bubbles: true }));
+  await tick();
+  clickText('[role=dialog] button', '导入角色');
+  await tick();
+  const otherCard = phone.identities.find(identity => identity.name === '改名角色');
+  assert.equal(otherCard.about, '其他卡片描述');
+  assert.equal(otherCard.avatar, '/characters/other.png');
 
   // Exercise the worldbook import through the real Vue dialog.
   component.toggleMenu();

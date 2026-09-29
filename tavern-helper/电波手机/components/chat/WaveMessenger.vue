@@ -196,7 +196,7 @@
             <div class="wave-settings-title">{{ dialogTitle }}</div>
             <button type="button" aria-label="关闭" @click="closeDialog">×</button>
           </div>
-          <template v-if="dialog === 'friend' || dialog === 'character'">
+          <template v-if="dialog === 'friend'">
             <label>联系人名称<input v-model="newName" maxlength="40" placeholder="填写名称" /></label>
             <label
               >联系人资料<textarea v-model="about" rows="3" placeholder="关系、性格或已知背景（选填）"></textarea>
@@ -204,6 +204,28 @@
             <p>添加到当前手机通讯录，资料用于这位联系人的回复。</p>
             <button class="settings-save-wide" type="button" @click="submitFriend">
               {{ dialog === 'character' ? '导入角色' : '添加好友' }}
+            </button>
+          </template>
+          <template v-else-if="dialog === 'character'">
+            <label
+              >角色卡<WaveSelect
+                :model-value="selectedCard"
+                :options="cardOptions"
+                aria-label="选择角色卡"
+                @update:model-value="chooseCard"
+            /></label>
+            <label>角色名称<input v-model="newName" placeholder="确认角色名称" /></label>
+            <label
+              >角色资料<textarea v-model="about" rows="6" placeholder="自动读取角色描述，可在此修改"></textarea>
+            </label>
+            <p>将所选角色卡导入为联系人，可修改名称和资料。</p>
+            <button
+              class="settings-save-wide"
+              type="button"
+              :disabled="!selectedCard || !newName.trim()"
+              @click="submitFriend"
+            >
+              导入角色
             </button>
           </template>
           <template v-else-if="dialog === 'worldbook'">
@@ -342,6 +364,27 @@ const newName = ref(''),
   contactQuery = ref(''),
   memberKeys = ref<string[]>([]),
   notice = ref('');
+const selectedCard = ref('');
+const cardOptions = ref<{ value: string; label: string }[]>([]);
+const cardAvatar = ref('');
+function chooseCard(value: string) {
+  selectedCard.value = value;
+  newName.value = '';
+  about.value = '';
+  cardAvatar.value = '';
+  notice.value = '';
+  try {
+    const card = getCharData(value, true);
+    if (!card) throw Error('角色卡不存在，请重新选择');
+    newName.value = card.name || card.data?.name || '';
+    about.value = card.description || card.data?.description || '';
+    cardAvatar.value = getCharAvatarPath(value, true) || '';
+    if (!about.value) notice.value = '此角色卡未填写角色描述，可手动补充后导入。';
+  } catch (error) {
+    selectedCard.value = '';
+    notice.value = `读取角色卡失败：${String(error)}`;
+  }
+}
 const worldbooks = ref<string[]>([]);
 const selectedBook = ref('');
 const selectedEntry = ref('');
@@ -507,10 +550,18 @@ async function showDialog(value: Dialog) {
   notice.value = '';
   if (value === 'character') {
     importContext = contextKey();
-    const card = getCharData('current');
-    newName.value = card?.name || '';
-    about.value = card?.description || card?.data?.description || '';
-    if (!about.value) notice.value = '当前角色卡未填写角色描述，可手动补充后导入。';
+    const current = getCharData('current');
+    cardOptions.value = [
+      ...(current ? [{ value: 'current', label: `${current.name}（当前卡片）` }] : []),
+      ...(SillyTavern.characters || [])
+        .filter(card => card.avatar !== current?.avatar || !card.avatar)
+        .map(card => ({ value: card.avatar || card.name, label: card.name })),
+    ];
+    if (current) chooseCard('current');
+    else {
+      selectedCard.value = '';
+      notice.value = '请选择要导入的角色卡。';
+    }
   }
   if (value === 'worldbook') {
     importContext = contextKey();
@@ -552,7 +603,7 @@ function submitFriend() {
   try {
     if (['worldbook', 'character'].includes(dialog.value || '') && contextKey() !== importContext)
       throw Error('聊天已切换，请重新打开角色导入。');
-    if (dialog.value === 'character') phone.importCardContact(newName.value, about.value);
+    if (dialog.value === 'character') phone.importCardContact(newName.value, about.value, cardAvatar.value);
     else phone.addContact(newName.value, about.value);
     closeDialog();
     changeTab('contacts');
