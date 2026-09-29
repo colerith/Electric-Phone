@@ -518,6 +518,11 @@
                       alt=""
                       :style="avatarStyle(store.activeIdentity)"
                     />
+                    <WaveGroupAvatar
+                      v-else-if="store.activeIdentity?.source === 'local_group'"
+                      :group="store.activeIdentity"
+                      :user-avatar="userAvatar"
+                    />
                     <span v-else>{{ displayIdentityName(store.activeIdentity).slice(0, 1) }}</span>
                   </span>
                   <span class="typing-bubble wave-message-text" aria-label="对方正在输入"> <i></i><i></i><i></i> </span>
@@ -1002,6 +1007,7 @@
           <WaveForwardDialog
             v-if="forwardDraft"
             :identities="store.identities"
+            :user-avatar="userAvatar"
             :title="forwardDraft.title"
             :preview="forwardDraft.preview"
             @cancel="forwardDraft = null"
@@ -1033,6 +1039,7 @@ import WaveDeviceStatus from './components/shell/WaveDeviceStatus.vue';
 import WavePokeNotice from './components/chat/WavePokeNotice.vue';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, provide } from 'vue';
 import WaveImageUpload from './components/shared/WaveImageUpload.vue';
+import WaveGroupAvatar from './components/shared/WaveGroupAvatar.vue';
 import WaveMessageContent from './components/chat/WaveMessageContent.vue';
 import WaveSelect, { type WaveSelectOption } from './components/shared/WaveSelect.vue';
 import WaveSlider from './components/shared/WaveSlider.vue';

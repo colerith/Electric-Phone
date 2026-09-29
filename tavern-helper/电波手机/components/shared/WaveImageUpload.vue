@@ -8,7 +8,9 @@
       @click="openEditor"
     >
       <img v-if="displayValue" :src="displayValue" :alt="label" :style="avatarTransform" @error="imageFailed = true" />
-      <span v-else class="wave-image-fallback"><i class="fa-solid fa-user-astronaut"></i></span>
+      <slot v-else name="fallback"
+        ><span class="wave-image-fallback"><i class="fa-solid fa-user-astronaut"></i></span
+      ></slot>
       <span class="wave-image-edit"><i class="fa-solid fa-camera"></i> 修改</span>
     </button>
 
@@ -53,14 +55,16 @@
               @pointercancel="endCropDrag"
             >
               <img v-if="draftValue" :src="draftValue" :alt="`${label}预览`" :style="draftTransform" />
-              <span v-else><i class="fa-solid fa-image"></i></span>
+              <slot v-else name="fallback"
+                ><span><i class="fa-solid fa-image"></i></span
+              ></slot>
               <i v-if="purpose === 'avatar'" class="wave-crop-frame" aria-hidden="true"></i>
             </div>
 
             <div v-if="purpose === 'avatar'" class="wave-avatar-size-preview" aria-label="小头像效果预览">
               <span v-for="size in previewSizes" :key="size" :style="{ width: `${size}px`, height: `${size}px` }">
                 <img v-if="draftValue" :src="draftValue" alt="" :style="draftTransform" />
-                <i v-else class="fa-solid fa-user"></i>
+                <slot v-else name="fallback"><i class="fa-solid fa-user"></i></slot>
               </span>
               <small>24 / 40 / 58 px 实际显示效果</small>
             </div>

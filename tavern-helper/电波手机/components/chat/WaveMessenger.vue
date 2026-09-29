@@ -64,8 +64,11 @@
                   :src="row.identity.avatar"
                   alt=""
                   :style="avatarStyle(row.identity)"
-                /><i v-else-if="row.identity.source === 'local_group'" class="fa-solid fa-user-group"></i
-                ><span v-else>{{ displayIdentityName(row.identity).slice(0, 1) }}</span
+                /><WaveGroupAvatar
+                  v-else-if="row.identity.source === 'local_group'"
+                  :group="row.identity"
+                  :user-avatar="userAvatar"
+                /><span v-else>{{ displayIdentityName(row.identity).slice(0, 1) }}</span
                 ><b v-if="row.thread?.unread">{{ row.thread.unread > 99 ? '99+' : row.thread.unread }}</b></span
               >
               <span class="messenger-row-copy"
@@ -291,6 +294,7 @@ import { displayIdentityName } from '../../services/core/identity';
 import { formatMessagePreview } from '../../services/chat/message-format';
 import WaveMoments from '../space/WaveMoments.vue';
 import WaveSelect from '../shared/WaveSelect.vue';
+import WaveGroupAvatar from '../shared/WaveGroupAvatar.vue';
 import { groupContacts } from '../../services/chat/contact-alphabet';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
 import type { Identity } from '../../schemas';

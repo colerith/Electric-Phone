@@ -39,7 +39,11 @@
               <i :class="selected.includes(identity.charKey) ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
               <span class="wave-forward-avatar">
                 <img v-if="identity.avatar" :src="identity.avatar" alt="" />
-                <i v-else-if="identity.source === 'local_group'" class="fa-solid fa-user-group"></i>
+                <WaveGroupAvatar
+                  v-else-if="identity.source === 'local_group'"
+                  :group="identity"
+                  :user-avatar="userAvatar"
+                />
                 <b v-else>{{ displayIdentityName(identity).slice(0, 1) }}</b>
               </span>
               <span
@@ -65,10 +69,11 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onMounted, ref } from 'vue';
 import type { Identity } from '../../schemas';
+import WaveGroupAvatar from '../shared/WaveGroupAvatar.vue';
 import { displayIdentityName } from '../../services/core/identity';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
 
-const props = defineProps<{ identities: Identity[]; title: string; preview: string }>();
+const props = defineProps<{ identities: Identity[]; userAvatar?: string; title: string; preview: string }>();
 const emit = defineEmits<{ cancel: []; confirm: [targets: string[], note: string] }>();
 const surface = inject(phoneSurfaceKey, ref(null));
 const dialog = ref<HTMLElement | null>(null);

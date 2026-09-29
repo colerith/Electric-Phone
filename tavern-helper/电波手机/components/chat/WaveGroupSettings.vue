@@ -18,12 +18,15 @@
           phone.updateActiveIdentityProfile({ resetAvatar: true });
           avatarOpen = false;
         "
-      />
+      >
+        <template #fallback><WaveGroupAvatar :group="group" :user-avatar="userAvatar" /></template>
+      </WaveImageUpload>
       <div v-else class="group-avatar-readonly">
-        <img v-if="group.avatar" :src="group.avatar" :style="identityAvatarStyle(group)" alt="群头像" /><i
+        <img v-if="group.avatar" :src="group.avatar" :style="identityAvatarStyle(group)" alt="群头像" /><WaveGroupAvatar
           v-else
-          class="fa-solid fa-user-group"
-        ></i>
+          :group="group"
+          :user-avatar="userAvatar"
+        />
       </div>
       <label class="chat-setting-block"
         >群名称<input :value="group.name" maxlength="40" :disabled="!isOwner" @change="updateName"
@@ -143,6 +146,7 @@ import { computed, inject, nextTick, ref } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { identityAvatarStyle } from '../../services/core/avatar';
 import WaveImageUpload from '../shared/WaveImageUpload.vue';
+import WaveGroupAvatar from '../shared/WaveGroupAvatar.vue';
 import WaveToggle from '../shared/WaveToggle.vue';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
 const props = defineProps<{ userAvatar?: string }>();
