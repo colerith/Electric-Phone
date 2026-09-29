@@ -43,12 +43,19 @@ updateGroupActivity(restored, thread);
 assert.equal(restored.groupMembers.a.experience, 210);
 thread.messages = Array.from({ length: 2000 }, (_, i) => msg('bulk' + i));
 updateGroupActivity(group, thread);
-assert.equal(group.groupMembers.a.level, 99);
+assert.equal(group.groupMembers.a.level, 100);
 assert(groupExperienceLabel(group.groupMembers.a).includes('已满级'));
 const legacy = { memberKeys: ['a'], groupMembers: { a: { level: 5 } } };
 updateGroupActivity(legacy, { id: 'old', messages: Array.from({ length: 80 }, (_, i) => msg(i)) });
 assert.equal(legacy.groupMembers.a.experience, 800);
 assert.equal(legacy.groupMembers.a.level, 5);
 console.log(
-  'PASS: group activity, experience, upgrade, no duplicate credit, clear/history persistence, observer exclusion, legacy levels and level 99 cap',
+  'PASS: group activity, experience, upgrade, no duplicate credit, clear/history persistence, observer exclusion, legacy levels and level 100 cap',
 );
+
+const nearMax = {memberKeys:['a'], groupMembers:{a:{level:99,experience:19790,messageCount:1979}}, groupActivityIds:[]};
+assert(groupExperienceLabel(nearMax.groupMembers.a).includes('距升级 10'));
+updateGroupActivity(nearMax,{id:'near-max',messages:[msg('last')]});
+assert.equal(nearMax.groupMembers.a.level,100);
+assert.equal(nearMax.groupMembers.a.experience,19800);
+assert(groupExperienceLabel(nearMax.groupMembers.a).includes('已满级'));

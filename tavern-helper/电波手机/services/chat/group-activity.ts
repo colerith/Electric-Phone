@@ -1,7 +1,7 @@
 import type { Identity, Thread } from '../../schemas';
 export const GROUP_EXP_PER_MESSAGE = 10;
 export const GROUP_EXP_PER_LEVEL = 200;
-export const GROUP_MAX_LEVEL = 99;
+export const GROUP_MAX_LEVEL = 100;
 export function updateGroupActivity(group: Identity, thread: Thread): void {
   const keys = [...(group.groupObserver ? [] : ['user']), ...(group.memberKeys || [])];
   const credited = new Set(group.groupActivityIds || []);
