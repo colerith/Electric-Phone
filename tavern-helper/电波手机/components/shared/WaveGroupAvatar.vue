@@ -1,5 +1,5 @@
 <template>
-  <span class="wave-group-avatar-grid" role="img" aria-label="群成员头像四宫格">
+  <span :class="['wave-group-avatar-grid', `members-${cells.length}`]" role="img" aria-label="群成员头像四宫格">
     <span v-for="(member, index) in cells" :key="member?.key || `empty-${index}`" class="wave-group-avatar-cell">
       <img
         v-if="member?.avatar && !failed[member.avatar]"
@@ -22,7 +22,7 @@ const phone = usePhoneStore();
 const failed = reactive<Record<string, boolean>>({});
 const cells = computed(() => {
   const keys = [
-    'user',
+    ...(props.group.groupObserver ? [] : ['user']),
     ...new Set(
       (props.group.memberKeys || []).filter(
         key => key !== 'user' && phone.state.identities[key]?.source !== 'local_group' && phone.state.identities[key],
@@ -42,7 +42,7 @@ const cells = computed(() => {
         : phone.state.identities[key].avatar,
     style: key === 'user' ? {} : identityAvatarStyle(phone.state.identities[key]),
   }));
-  return Array.from({ length: 4 }, (_, index) => members[index] || null);
+  return members;
 });
 </script>
 <style lang="scss">
@@ -60,6 +60,16 @@ const cells = computed(() => {
   overflow: hidden;
   background: var(--settings-control, #e9edf4);
   border-radius: inherit;
+  &.members-3 > .wave-group-avatar-cell:first-child {
+    grid-row: span 2;
+  }
+  &.members-2 {
+    grid-template-rows: 1fr;
+  }
+  &.members-1 {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+  }
   > .wave-group-avatar-cell {
     position: relative;
     display: grid;

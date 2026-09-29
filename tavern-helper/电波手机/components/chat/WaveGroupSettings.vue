@@ -154,12 +154,20 @@ const phone = usePhoneStore();
 const surface = inject(phoneSurfaceKey, ref(null));
 const group = computed(() => (phone.activeIdentity?.source === 'local_group' ? phone.activeIdentity : null));
 const ownerKey = computed(() => group.value?.groupOwnerKey || 'user');
-const isOwner = computed(() => ownerKey.value === 'user');
-const canEdit = computed(() => isOwner.value || Boolean(group.value?.groupMembers?.user?.admin));
-const roleLabel = computed(() => (canEdit.value ? '你是群管理员，可编辑群昵称、头衔与普通成员。' : '你是群成员。'));
+const isOwner = computed(() => !group.value?.groupObserver && ownerKey.value === 'user');
+const canEdit = computed(
+  () => !group.value?.groupObserver && (isOwner.value || Boolean(group.value?.groupMembers?.user?.admin)),
+);
+const roleLabel = computed(() =>
+  group.value?.groupObserver
+    ? '你不在本群中，仅围观。'
+    : canEdit.value
+      ? '你是群管理员，可编辑群昵称、头衔与普通成员。'
+      : '你是群成员。',
+);
 const members = computed(() => {
   if (!group.value) return [];
-  return ['user', ...(group.value.memberKeys || [])].map(key => {
+  return [...(group.value.groupObserver ? [] : ['user']), ...(group.value.memberKeys || [])].map(key => {
     const identity = phone.state.identities[key];
     const meta = group.value?.groupMembers?.[key] || { nickname: '', title: '', level: 1, admin: false, muted: false };
     return {

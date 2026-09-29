@@ -565,11 +565,15 @@
               </div>
 
               <WaveDraftTranslation
-                v-if="!multiSelectMode"
+                v-if="!multiSelectMode && !observingGroup"
                 ref="draftTranslation"
                 :disabled="Boolean(editingMessageId) || composerComposing"
               />
-              <section v-if="suggestedStickers.length" class="sticker-suggestions" aria-label="表情包联想">
+              <section
+                v-if="suggestedStickers.length && !observingGroup"
+                class="sticker-suggestions"
+                aria-label="表情包联想"
+              >
                 <header>
                   <span>表情包联想 · 点击发送</span
                   ><button type="button" aria-label="关闭表情包联想" @click="dismissStickerSuggestions">×</button>
@@ -587,7 +591,18 @@
                   </button>
                 </div>
               </section>
-              <form v-if="!multiSelectMode" class="composer" @submit.prevent="handlePrimarySend">
+              <div v-if="observingGroup" class="composer">
+                <span>仅围观 · 你不在本群中</span
+                ><button
+                  type="button"
+                  :disabled="store.moduleGenerating"
+                  aria-label="继续围观"
+                  @click="runManualGeneration('messages')"
+                >
+                  <i class="fa-solid fa-rotate-right"></i>
+                </button>
+              </div>
+              <form v-if="!multiSelectMode && !observingGroup" class="composer" @submit.prevent="handlePrimarySend">
                 <button type="button" aria-label="扩展功能" @click="toggleExtras">
                   <i class="fa-solid fa-plus"></i>
                 </button>
@@ -622,7 +637,7 @@
                   <i :class="primaryReplyGenerating ? 'fa-solid fa-stop' : 'fa-solid fa-paper-plane'"></i>
                 </button>
               </form>
-              <div v-if="extrasOpen && !multiSelectMode" class="extras-panel">
+              <div v-if="extrasOpen && !multiSelectMode && !observingGroup" class="extras-panel">
                 <button v-for="extra in extras" :key="extra.name" type="button" @click="useExtra(extra.name)">
                   <span><i :class="extra.icon"></i></span>{{ extra.name }}
                 </button>
@@ -1469,10 +1484,16 @@ const pageTitle = computed(() =>
                     ? '修改头像'
                     : '电波手机'),
 );
+const observingGroup = computed(
+  () => store.activeIdentity?.source === 'local_group' && Boolean(store.activeIdentity.groupObserver),
+);
 const groupMemberCount = computed(() => {
   const group = store.activeIdentity;
   if (group?.source !== 'local_group') return 0;
-  return 1 + new Set((group.memberKeys || []).filter(key => Boolean(store.state.identities[key]))).size;
+  return (
+    (group.groupObserver ? 0 : 1) +
+    new Set((group.memberKeys || []).filter(key => Boolean(store.state.identities[key]))).size
+  );
 });
 const profileSourceLabel = computed(() => {
   const source = store.activeIdentity?.source;
@@ -1901,6 +1922,7 @@ function scheduleAvatarHome(sender: string, identity: Identity | null): void {
 }
 
 async function pokeAvatar(sender: string, target: Identity | null = store.activeIdentity): Promise<void> {
+  if (observingGroup.value) return;
   if (multiSelectMode.value || store.activeThread?.generating) return;
   sound('poke');
   try {

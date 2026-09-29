@@ -279,6 +279,18 @@
             <label v-if="dialog === 'group'"
               >群聊名称<input v-model="newName" maxlength="40" placeholder="填写群名（选填）"
             /></label>
+            <template v-if="dialog === 'group'">
+              <label class="chat-setting-row"
+                ><span>仅围观（我不加入群聊）</span><WaveToggle v-model="groupObserver" aria-label="仅围观"
+              /></label>
+              <label
+                >群主<WaveSelect
+                  :model-value="selectedOwner"
+                  :options="ownerOptions"
+                  aria-label="选择群主"
+                  @update:model-value="value => (groupOwner = value)"
+              /></label>
+            </template>
             <input v-model="contactQuery" placeholder="搜索联系人" aria-label="搜索联系人" />
             <div
               class="messenger-picker"
@@ -307,10 +319,10 @@
               v-if="dialog === 'group'"
               class="settings-save-wide"
               type="button"
-              :disabled="memberKeys.length < 2"
+              :disabled="memberKeys.length < 2 || !selectedOwner"
               @click="submitGroup"
             >
-              创建群聊（{{ memberKeys.length }} 位联系人 + 我）
+              创建群聊（{{ memberKeys.length }} 位联系人{{ groupObserver ? ' · 仅围观' : ' + 我' }}）
             </button>
           </template>
           <p v-if="notice" role="status">{{ notice }}</p>
@@ -326,6 +338,7 @@ import { usePhoneStore } from '../../stores/phone';
 import { displayIdentityName } from '../../services/core/identity';
 import { formatMessagePreview } from '../../services/chat/message-format';
 import WaveMoments from '../space/WaveMoments.vue';
+import WaveToggle from '../shared/WaveToggle.vue';
 import WaveSelect from '../shared/WaveSelect.vue';
 import WaveGroupAvatar from '../shared/WaveGroupAvatar.vue';
 import { groupContacts } from '../../services/chat/contact-alphabet';
@@ -370,6 +383,17 @@ const tab = ref<Tab>('messages'),
 const root = ref<HTMLElement | null>(null),
   dialogElement = ref<HTMLElement | null>(null),
   dialog = ref<Dialog | null>(null);
+const groupObserver = ref(false);
+const groupOwner = ref('user');
+const ownerOptions = computed(() => [
+  ...(groupObserver.value ? [] : [{ value: 'user', label: '我' }]),
+  ...memberKeys.value.map(key => ({ value: key, label: displayIdentityName(phone.state.identities[key]) })),
+]);
+const selectedOwner = computed(() =>
+  ownerOptions.value.some(option => option.value === groupOwner.value)
+    ? groupOwner.value
+    : ownerOptions.value[0]?.value || '',
+);
 const newName = ref(''),
   about = ref(''),
   contactQuery = ref(''),
@@ -576,6 +600,8 @@ async function showDialog(value: Dialog) {
   about.value = '';
   contactQuery.value = '';
   memberKeys.value = [];
+  groupObserver.value = false;
+  groupOwner.value = 'user';
   notice.value = '';
   if (value === 'character') {
     importContext = contextKey();
@@ -645,7 +671,10 @@ function submitFriend() {
 }
 function submitGroup() {
   try {
-    const key = phone.createGroup(newName.value, memberKeys.value);
+    const key = phone.createGroup(newName.value, memberKeys.value, {
+      observer: groupObserver.value,
+      ownerKey: selectedOwner.value,
+    });
     closeDialog();
     open(key);
   } catch (error) {

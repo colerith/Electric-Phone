@@ -82,10 +82,12 @@ const note = ref('');
 const selected = ref<string[]>([]);
 const filtered = computed(() => {
   const needle = query.value.trim().toLocaleLowerCase();
-  if (!needle) return props.identities;
-  return props.identities.filter(identity =>
-    `${displayIdentityName(identity)} ${identity.name} ${identity.remark}`.toLocaleLowerCase().includes(needle),
-  );
+  if (!needle) return props.identities.filter(identity => !identity.groupObserver);
+  return props.identities
+    .filter(identity => !identity.groupObserver)
+    .filter(identity =>
+      `${displayIdentityName(identity)} ${identity.name} ${identity.remark}`.toLocaleLowerCase().includes(needle),
+    );
 });
 function toggle(key: string): void {
   selected.value = selected.value.includes(key)

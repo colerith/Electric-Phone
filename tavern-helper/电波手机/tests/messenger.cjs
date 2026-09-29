@@ -162,8 +162,27 @@ const clickText = (selector, text) => {
   assert(!document.querySelector('.messenger-dialog .settings-save-wide').disabled);
   if (process.env.WAVE_QA_GROUP_HTML)
     fs.writeFileSync(process.env.WAVE_QA_GROUP_HTML, document.querySelector('.messenger-dialog').outerHTML);
-  document.querySelector('[aria-label="关闭"]').click();
+  document.querySelector('[aria-label="仅围观"]').click();
   await tick();
+  document.querySelector('[aria-label="选择群主"]').click();
+  await tick();
+  assert(![...document.querySelectorAll('[role=option]')].some(item => item.textContent.trim() === '我'));
+  clickText('[role=option]', 'Bob');
+  await tick();
+  document.querySelector('.messenger-dialog .settings-save-wide').click();
+  await tick();
+  const observer = phone.activeIdentity.charKey;
+  await tick();
+  assert.equal(phone.activeIdentity.groupOwnerKey, bob);
+  assert.equal(phone.activeIdentity.groupMembers.user, undefined);
+  assert.equal(document.querySelectorAll('.wave-group-settings .group-member-row').length, 2);
+  assert.equal(document.querySelectorAll('.wave-group-settings .wave-group-avatar-cell').length, 2);
+  await assert.rejects(phone.sendMessage('不能发送'), /仅可围观/);
+  await phone.synchronize();
+  assert.equal(phone.state.identities[observer].groupObserver, true);
+  assert.equal(phone.state.identities[observer].groupMembers.user, undefined);
+  assert.equal(phone.state.identities[observer].groupOwnerKey, bob);
+  phone.deleteContact(observer);
   const group = phone.createGroup('一起聊天', [alice, bob]);
   phone.startConversation(group);
   await phone.synchronize();
@@ -173,7 +192,7 @@ const clickText = (selector, text) => {
   await tick();
   assert.equal(document.querySelector('.group-member-avatar img').getAttribute('src'), '/User Avatars/persona.png');
   const groupAvatar = () => document.querySelector('.wave-group-settings .wave-group-avatar-grid');
-  assert.equal(groupAvatar().children.length, 4, '默认群头像固定为四宫格');
+  assert.equal(groupAvatar().children.length, 3, '三人群头像不保留空格');
   assert.equal(groupAvatar().querySelector('img').getAttribute('src'), '/User Avatars/persona.png');
   const originalAliceAvatar = phone.state.identities[alice].avatar;
   phone.state.identities[alice].avatar = 'updated-member.png';
@@ -185,7 +204,7 @@ const clickText = (selector, text) => {
   phone.updateActiveIdentityProfile({ resetAvatar: true });
   phone.state.identities[alice].avatar = originalAliceAvatar;
   await tick();
-  assert.equal(groupAvatar().children.length, 4, '清除自定义头像后恢复四宫格');
+  assert.equal(groupAvatar().children.length, 3, '清除自定义头像后恢复三人布局');
   phone.selectIdentity(alice);
   phone.startConversation(group);
   phone.currentPage = 'conversation';
@@ -257,6 +276,8 @@ const clickText = (selector, text) => {
   };
   const followPrompt = buildModulePrompt(groupPromptInput, ['messages'], true);
   assert(followPrompt.includes('群聊消息协议'));
+  const observerPrompt = buildModulePrompt({...groupPromptInput, identity: {...groupPromptInput.identity, groupObserver: true}}, ['messages']);
+  assert(observerPrompt.includes('User 不在本群，仅围观'));
   assert(followPrompt.includes('messages=[]'));
   assert(followPrompt.includes('actorKey'));
   assert(followPrompt.includes('韩语') && followPrompt.includes('日语'));

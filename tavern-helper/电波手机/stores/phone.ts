@@ -899,7 +899,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           message.sender === 'user' ? 'user' : message.sender === 'char' ? String(message.payload.actorKey || '') : '';
         if (key) counts[key] = (counts[key] || 0) + 1;
       }
-      for (const key of ['user', ...(group.memberKeys || [])]) {
+      for (const key of [...(group.groupObserver ? [] : ['user']), ...(group.memberKeys || [])]) {
         const previous = members[key] || { nickname: '', title: '', level: 1, admin: false, muted: false };
         members[key] = {
           ...previous,
@@ -2209,7 +2209,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (!item.memberKeys?.includes(charKey)) return;
       item.memberKeys = item.memberKeys.filter(key => key !== charKey);
       if (item.groupMembers) delete item.groupMembers[charKey];
-      if (item.groupOwnerKey === charKey) item.groupOwnerKey = 'user';
+      if (item.groupOwnerKey === charKey) item.groupOwnerKey = item.groupObserver ? item.memberKeys[0] || '' : 'user';
     });
     if (state.value.activeCharKey === charKey) state.value.activeCharKey = Object.keys(state.value.identities)[0] || '';
     saveChat();
@@ -2308,11 +2308,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
     return id;
   }
-  function createGroup(name: string, keys: string[]): string {
+  function createGroup(name: string, keys: string[], options: { observer?: boolean; ownerKey?: string } = {}): string {
     const memberKeys = [...new Set(keys)].filter(
       key => state.value.identities[key] && state.value.identities[key].source !== 'local_group',
     );
-    if (!context.value || memberKeys.length < 2) throw Error('请至少选择两位联系人，与我一起创建群聊');
+    if (!context.value || memberKeys.length < 2) throw Error('请至少选择两位联系人创建群聊');
+    const participants = [...(options.observer ? [] : ['user']), ...memberKeys];
+    const ownerKey = options.ownerKey || participants[0];
+    if (!participants.includes(ownerKey)) throw Error('请选择群成员作为群主');
     const id = makeId('group');
     const identity = IdentitySchema.parse({
       charKey: id,
@@ -2324,9 +2327,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           .join('、')
           .slice(0, 40),
       memberKeys,
-      groupOwnerKey: 'user',
+      groupOwnerKey: ownerKey,
+      groupObserver: Boolean(options.observer),
       groupMembers: Object.fromEntries(
-        ['user', ...memberKeys].map(key => [key, { nickname: '', title: '', level: 1, admin: false, muted: false }]),
+        participants.map(key => [key, { nickname: '', title: '', level: 1, admin: false, muted: false }]),
       ),
       groupAnnouncement: '',
       groupAutoTranslate: false,
@@ -2394,7 +2398,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     voiceFollowPrivate?: boolean;
   }): void {
     const group = activeIdentity.value;
-    if (!group || group.source !== 'local_group' || (group.groupOwnerKey || 'user') !== 'user') return;
+    if (!group || group.groupObserver || group.source !== 'local_group' || (group.groupOwnerKey || 'user') !== 'user')
+      return;
     const name = changes.name === undefined ? group.name : changes.name.trim().slice(0, 40);
     if (!name) throw Error('群名称不能为空');
     state.value.identities[group.charKey] = IdentitySchema.parse({
@@ -2431,7 +2436,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     },
   ): void {
     const group = activeIdentity.value;
-    if (!group || group.source !== 'local_group' || !['user', ...(group.memberKeys || [])].includes(key)) return;
+    if (
+      !group ||
+      group.groupObserver ||
+      group.source !== 'local_group' ||
+      ![...(group.groupObserver ? [] : ['user']), ...(group.memberKeys || [])].includes(key)
+    )
+      return;
     const owner = group.groupOwnerKey || 'user';
     const userAdmin = Boolean(group.groupMembers?.user?.admin);
     if (owner !== 'user' && !userAdmin) throw Error('只有群主或管理员可以编辑成员');
@@ -2643,6 +2654,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         : { content: String(input ?? thread?.draft ?? '').trim(), type: 'text', payload: {} };
     const text = draftInput.content;
     if (!runtime || !identity || !thread) throw Error('当前没有可发送的 Char。');
+    if (identity.source === 'local_group' && identity.groupObserver) throw Error('你不在这个群中，仅可围观');
     const hasInput = Boolean(text || Object.keys(draftInput.payload || {}).length);
     const queued = [...thread.messages]
       .reverse()
@@ -3082,6 +3094,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   }
 
   function respondToPayment(threadId: string, messageId: string, decision: 'received' | 'refunded'): void {
+    if (activeIdentity.value?.groupObserver) throw Error('你不在本群，不能领取或处理群内收款');
     const thread = activeThread.value;
     const message = thread?.messages.find(item => item.id === messageId);
     if (!context.value || !thread || thread.id !== threadId || !message)
@@ -3157,6 +3170,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   }
 
   function toggleReaction(messageId: string, emoji: string): void {
+    if (activeIdentity.value?.groupObserver) return;
     const message = activeThread.value?.messages.find(item => item.id === messageId);
     if (!message || !toggleMessageReaction(message, emoji)) return;
     saveChat();
@@ -3193,7 +3207,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   function forwardMessage(messageId: string, targetCharKey: string): void {
     const source = activeThread.value?.messages.find(item => item.id === messageId);
     const target = Object.values(state.value.threads).find(item => item.charKey === targetCharKey);
-    if (!source || !target || source.withdrawn) return;
+    if (!source || !target || source.withdrawn || state.value.identities[targetCharKey]?.groupObserver) return;
     const forwardedAt = nowIso();
     target.messages.push({
       ...klona(source),
@@ -3219,7 +3233,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!runtime) return 0;
     const targets = [...new Set(targetCharKeys)].flatMap(key => {
       const identity = state.value.identities[key];
-      return identity ? [ensureThread(state.value, runtime, identity)] : [];
+      return identity && !identity.groupObserver ? [ensureThread(state.value, runtime, identity)] : [];
     });
     for (const thread of targets) {
       const message = addUserMessage(thread, {
