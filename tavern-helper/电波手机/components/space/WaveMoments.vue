@@ -260,6 +260,7 @@
             <img
               v-if="avatarFor(post.authorKey, post.authorName || post.id)"
               :src="avatarFor(post.authorKey, post.authorName || post.id)"
+              :style="avatarCropFor(post.authorKey)"
               alt=""
               @error="markAvatarFailed(post.authorKey, post.authorName || post.id)"
             /><span v-else>{{ nameFor(post.authorKey, post.authorName).slice(0, 1) }}</span>
@@ -360,6 +361,7 @@
                 <img
                   v-if="avatarFor(comment.authorKey, comment.authorName || comment.id)"
                   :src="avatarFor(comment.authorKey, comment.authorName || comment.id)"
+                  :style="avatarCropFor(comment.authorKey)"
                   alt=""
                   @error="markAvatarFailed(comment.authorKey, comment.authorName || comment.id)"
                 /><span v-else>{{ nameFor(comment.authorKey, comment.authorName).slice(0, 1) }}</span>
@@ -607,6 +609,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import { identityAvatarStyle } from '../../services/core/avatar';
 import WaveAnonymousAvatar from './WaveAnonymousAvatar.vue';
 import { randomAnonymousId, randomAnonymousAvatarSeed } from '../../services/space/tree-hole';
 import WaveDeleteConfirm from '../shared/WaveDeleteConfirm.vue';
@@ -733,6 +736,10 @@ function accountFor(key: string) {
 }
 function avatarToken(key: string, fallbackSeed: string): string {
   return key || `guest:${fallbackSeed}`;
+}
+function avatarCropFor(key: string) {
+  const identity = phone.state.identities[key];
+  return key !== 'user' && identity?.avatar ? identityAvatarStyle(identity) : undefined;
 }
 function avatarFor(key: string, fallbackSeed = '') {
   const token = avatarToken(key, fallbackSeed);

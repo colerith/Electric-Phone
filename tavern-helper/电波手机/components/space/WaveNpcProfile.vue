@@ -22,9 +22,13 @@
         </header>
         <div class="npc-profile-hero">
           <div class="npc-profile-avatar">
-            <img v-if="avatar && !broken" :src="avatar" alt="" @error="broken = true" /><span v-else>{{
-              name.slice(0, 1)
-            }}</span>
+            <img
+              v-if="avatar && !broken"
+              :src="avatar"
+              :style="!isSelf && contact?.avatar ? identityAvatarStyle(contact) : undefined"
+              alt=""
+              @error="broken = true"
+            /><span v-else>{{ name.slice(0, 1) }}</span>
           </div>
           <div>
             <strong :id="titleId" class="wave-person-name" role="heading" aria-level="2">{{ name }}</strong>
@@ -67,6 +71,7 @@
 <script setup lang="ts">
 import { computed, inject, ref, watch, onMounted, onUnmounted, useId } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
+import { identityAvatarStyle } from '../../services/core/avatar';
 import { npcAvatarUrl } from '../../services/space/npc-avatar';
 import { parseZonePage } from '../../services/space/zone';
 import { displayIdentityName } from '../../services/core/identity';

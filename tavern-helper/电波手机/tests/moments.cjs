@@ -325,6 +325,28 @@ const input = (el, text) => {
   interaction.likes.push(interaction.likes[0]);
   syncMomentEvents(fresh, ['<wave_moments>' + JSON.stringify(interaction) + '</wave_moments>'], now);
   assert.equal(fresh.events.length, 0);
+  view.value = 'feed';
+  phone.state.identities[key].avatar = 'https://example.com/crop.png';
+  phone.state.identities[key].avatarZoom = 1.8;
+  phone.state.identities[key].avatarOffsetX = 20;
+  phone.state.identities[key].avatarOffsetY = -10;
+  phone.state.moments.posts.push(
+    MomentPostSchema.parse({
+      id: 'crop-post',
+      authorKey: key,
+      authorName: 'Alice',
+      content: '头像裁剪',
+      createdAt: Date.now() - 1000,
+      availableAt: Date.now() - 1000,
+    }),
+  );
+  await tick();
+  const cropImage = document.querySelector('.moment-author-avatar img[src="https://example.com/crop.png"]');
+  assert(cropImage, '动态头像可见');
+  assert.equal(cropImage.style.transform, 'translate3d(6.4%, -3.2%, 0) scale(1.8)');
+  phone.state.identities[key].avatarZoom = 2;
+  await tick();
+  assert(cropImage.style.transform.includes('scale(2)'), '全局裁剪修改即时同步');
   app.unmount();
   console.log(
     'PASS: alphabetical grouping; actual Vue multi-image-description publishing, persistence/profile/own feed; privacy-safe planning/prompt, delayed replay, deduplication, deletion and unauthorized-comment rejection.',
