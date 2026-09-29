@@ -2313,8 +2313,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       key => state.value.identities[key] && state.value.identities[key].source !== 'local_group',
     );
     if (!context.value || memberKeys.length < 2) throw Error('请至少选择两位联系人创建群聊');
-    const participants = [...(options.observer ? [] : ['user']), ...memberKeys];
-    const ownerKey = options.ownerKey || participants[0];
+    const observer = memberKeys.length === 2 || Boolean(options.observer);
+    const participants = [...(observer ? [] : ['user']), ...memberKeys];
+    const ownerKey = observer && options.ownerKey === 'user' ? participants[0] : options.ownerKey || participants[0];
     if (!participants.includes(ownerKey)) throw Error('请选择群成员作为群主');
     const id = makeId('group');
     const identity = IdentitySchema.parse({
@@ -2328,7 +2329,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           .slice(0, 40),
       memberKeys,
       groupOwnerKey: ownerKey,
-      groupObserver: Boolean(options.observer),
+      groupObserver: observer,
       groupMembers: Object.fromEntries(
         participants.map(key => [key, { nickname: '', title: '', level: 1, admin: false, muted: false }]),
       ),

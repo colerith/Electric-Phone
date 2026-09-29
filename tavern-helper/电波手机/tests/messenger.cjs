@@ -162,7 +162,8 @@ const clickText = (selector, text) => {
   assert(!document.querySelector('.messenger-dialog .settings-save-wide').disabled);
   if (process.env.WAVE_QA_GROUP_HTML)
     fs.writeFileSync(process.env.WAVE_QA_GROUP_HTML, document.querySelector('.messenger-dialog').outerHTML);
-  document.querySelector('[aria-label="仅围观"]').click();
+  assert(document.querySelector('[aria-label="仅围观"]').disabled);
+  assert.equal(document.querySelector('[aria-label="仅围观"]').getAttribute('aria-checked'), 'true');
   await tick();
   document.querySelector('[aria-label="选择群主"]').click();
   await tick();
@@ -184,6 +185,11 @@ const clickText = (selector, text) => {
   assert.equal(phone.state.identities[observer].groupOwnerKey, bob);
   phone.deleteContact(observer);
   const group = phone.createGroup('一起聊天', [alice, bob]);
+  assert.equal(phone.state.identities[group].groupObserver, true, '两位联系人强制仅围观');
+  assert.notEqual(phone.state.identities[group].groupOwnerKey, 'user');
+  // Existing three-person groups remain joined; exercise their unchanged management behavior.
+  phone.state.identities[group].groupObserver = false;
+  phone.state.identities[group].groupOwnerKey = 'user';
   phone.startConversation(group);
   await phone.synchronize();
   assert.equal(phone.activeIdentity.source, 'local_group');
@@ -276,7 +282,10 @@ const clickText = (selector, text) => {
   };
   const followPrompt = buildModulePrompt(groupPromptInput, ['messages'], true);
   assert(followPrompt.includes('群聊消息协议'));
-  const observerPrompt = buildModulePrompt({...groupPromptInput, identity: {...groupPromptInput.identity, groupObserver: true}}, ['messages']);
+  const observerPrompt = buildModulePrompt(
+    { ...groupPromptInput, identity: { ...groupPromptInput.identity, groupObserver: true } },
+    ['messages'],
+  );
   assert(observerPrompt.includes('User 不在本群，仅围观'));
   assert(followPrompt.includes('messages=[]'));
   assert(followPrompt.includes('actorKey'));

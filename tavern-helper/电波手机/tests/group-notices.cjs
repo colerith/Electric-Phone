@@ -54,6 +54,11 @@ phone.settings.basic.cacheEnabled = false;
   const alice = phone.activeIdentity.charKey,
     bob = phone.addContact('Bob', '朋友');
   const group = phone.createGroup('测试群', [alice, bob]);
+  assert.equal(phone.state.identities[group].groupObserver, true, '两位联系人强制仅围观');
+  assert.notEqual(phone.state.identities[group].groupOwnerKey, 'user');
+  // Existing three-person groups remain joined; exercise their unchanged management behavior.
+  phone.state.identities[group].groupObserver = false;
+  phone.state.identities[group].groupOwnerKey = 'user';
   phone.startConversation(group);
   phone.currentPage = 'conversation';
   const notices = () => phone.activeThread.messages.filter(m => m.payload.interaction === 'group_management');

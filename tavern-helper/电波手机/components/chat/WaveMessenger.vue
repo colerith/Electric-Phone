@@ -281,8 +281,14 @@
             /></label>
             <template v-if="dialog === 'group'">
               <label class="chat-setting-row"
-                ><span>仅围观（我不加入群聊）</span><WaveToggle v-model="groupObserver" aria-label="仅围观"
+                ><span>仅围观（我不加入群聊）</span
+                ><WaveToggle
+                  :model-value="effectiveObserver"
+                  :disabled="memberKeys.length === 2"
+                  aria-label="仅围观"
+                  @update:model-value="value => (groupObserver = value)"
               /></label>
+              <p v-if="memberKeys.length === 2">两人群仅含这两位联系人，我不加入，仅围观。</p>
               <label
                 >群主<WaveSelect
                   :model-value="selectedOwner"
@@ -322,7 +328,7 @@
               :disabled="memberKeys.length < 2 || !selectedOwner"
               @click="submitGroup"
             >
-              创建群聊（{{ memberKeys.length }} 位联系人{{ groupObserver ? ' · 仅围观' : ' + 我' }}）
+              创建群聊（{{ memberKeys.length }} 位联系人{{ effectiveObserver ? ' · 仅围观' : ' + 我' }}）
             </button>
           </template>
           <p v-if="notice" role="status">{{ notice }}</p>
@@ -384,9 +390,10 @@ const root = ref<HTMLElement | null>(null),
   dialogElement = ref<HTMLElement | null>(null),
   dialog = ref<Dialog | null>(null);
 const groupObserver = ref(false);
+const effectiveObserver = computed(() => memberKeys.value.length === 2 || groupObserver.value);
 const groupOwner = ref('user');
 const ownerOptions = computed(() => [
-  ...(groupObserver.value ? [] : [{ value: 'user', label: '我' }]),
+  ...(effectiveObserver.value ? [] : [{ value: 'user', label: '我' }]),
   ...memberKeys.value.map(key => ({ value: key, label: displayIdentityName(phone.state.identities[key]) })),
 ]);
 const selectedOwner = computed(() =>
@@ -672,7 +679,7 @@ function submitFriend() {
 function submitGroup() {
   try {
     const key = phone.createGroup(newName.value, memberKeys.value, {
-      observer: groupObserver.value,
+      observer: effectiveObserver.value,
       ownerKey: selectedOwner.value,
     });
     closeDialog();

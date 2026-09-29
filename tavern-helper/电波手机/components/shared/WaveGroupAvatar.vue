@@ -1,5 +1,5 @@
 <template>
-  <span :class="['wave-group-avatar-grid', `members-${cells.length}`]" role="img" aria-label="群成员头像四宫格">
+  <span :class="['wave-group-avatar-grid', `members-${cells.length}`]" role="img" aria-label="群成员组合头像">
     <span v-for="(member, index) in cells" :key="member?.key || `empty-${index}`" class="wave-group-avatar-cell">
       <img
         v-if="member?.avatar && !failed[member.avatar]"
@@ -64,7 +64,9 @@ const cells = computed(() => {
     grid-row: span 2;
   }
   &.members-2 {
-    grid-template-rows: 1fr;
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 0;
   }
   &.members-1 {
     grid-template-columns: 1fr;
