@@ -13,7 +13,9 @@ export const bilingual = {
 };
 export const ModuleSettingsSchema = z
   .object({
-    memo: z.object({ maxNew: limit, maxDoodles: limit, ...bilingual }).prefault({}),
+    memo: z
+      .object({ maxNew: limit, maxDoodles: limit, sortOrder: z.enum(['asc', 'desc']).prefault('asc'), ...bilingual })
+      .prefault({}),
     zone: z.object({ maxNew: limit, ...bilingual }).prefault({}),
     calendar: z.object({ maxNew: limit }).prefault({}),
     browse: z.object({ maxNew: limit, ...bilingual }).prefault({}),

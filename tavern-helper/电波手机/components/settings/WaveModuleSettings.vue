@@ -30,6 +30,22 @@
       <small><span>不新增</span><span>最多 5 张</span></small>
     </div>
   </section>
+  <section v-if="app === 'memo'" class="chat-settings-group">
+    <div class="wave-settings-title">查看顺序</div>
+    <label class="chat-setting-block"
+      >备忘排列
+      <WaveSelect
+        v-model="phone.settings.moduleSettings.memo.sortOrder"
+        :options="[
+          { value: 'desc', label: '倒序：最新在前' },
+          { value: 'asc', label: '顺序：最新在后' },
+        ]"
+        aria-label="备忘查看顺序"
+        @update:model-value="save"
+      />
+    </label>
+    <p class="chat-settings-note">便签与涂鸦按新增顺序排列，不改变原始记录。</p>
+  </section>
   <WaveBilingualSettings
     v-if="languagePrefs"
     :prefs="languagePrefs"
@@ -42,6 +58,7 @@ import { computed } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import type { LimitedApp } from '../../services/generation/module-settings';
 import WaveSlider from '../shared/WaveSlider.vue';
+import WaveSelect from '../shared/WaveSelect.vue';
 import WaveBilingualSettings from '../shared/WaveBilingualSettings.vue';
 const props = defineProps<{ app: LimitedApp }>();
 const phone = usePhoneStore();

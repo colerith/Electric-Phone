@@ -1,6 +1,6 @@
 <template>
   <template v-if="group">
-    <section class="chat-settings-group wave-group-settings">
+    <section class="chat-settings-group wave-group-settings chat-profile-settings">
       <div class="wave-settings-title">群资料</div>
       <WaveImageUpload
         v-if="isOwner"
@@ -106,10 +106,6 @@
           <label v-if="editing !== ownerKey" class="chat-setting-row"
             ><span>禁言</span><WaveToggle v-model="memberDraft.muted" aria-label="禁言"
           /></label>
-          <div class="group-edit-actions">
-            <button type="button" @click="editing = ''">取消</button>
-            <button type="button" class="group-edit-primary" @click="saveMember">保存</button>
-          </div>
           <button
             v-if="isOwner && editing !== 'user' && editing !== ownerKey"
             type="button"
@@ -126,7 +122,11 @@
           >
             移出群聊
           </button>
-          <p v-if="error" role="alert">{{ error }}</p>
+          <p v-if="error" class="group-edit-error" role="alert">{{ error }}</p>
+          <div class="group-edit-actions">
+            <button type="button" @click="editing = ''">取消</button>
+            <button type="button" class="group-edit-primary" @click="saveMember">保存</button>
+          </div>
         </section>
       </div>
     </Teleport>
@@ -138,6 +138,7 @@ import { usePhoneStore } from '../../stores/phone';
 import WaveImageUpload from '../shared/WaveImageUpload.vue';
 import WaveToggle from '../shared/WaveToggle.vue';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
+const props = defineProps<{ userAvatar?: string }>();
 const phone = usePhoneStore();
 const surface = inject(phoneSurfaceKey, ref(null));
 const group = computed(() => (phone.activeIdentity?.source === 'local_group' ? phone.activeIdentity : null));
@@ -156,7 +157,7 @@ const members = computed(() => {
         key === 'user'
           ? phone.state.moments.profile.nickname || SillyTavern.name1 || '我'
           : identity?.name || '已移除成员',
-      avatar: key === 'user' ? phone.state.moments.profile.avatar : identity?.avatar || '',
+      avatar: key === 'user' ? props.userAvatar || phone.state.moments.profile.avatar : identity?.avatar || '',
       meta,
       role: key === ownerKey.value ? '群主' : meta.admin ? '管理员' : '成员',
     };
@@ -285,6 +286,21 @@ function removeMember() {
     color: var(--settings-muted);
   }
   .group-member-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 34px;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    font-size: 13px;
+    i {
+      display: block;
+      margin: 0;
+      line-height: 1;
+    }
     width: 34px;
     height: 34px;
     border: 1px solid var(--settings-line);
@@ -304,20 +320,33 @@ function removeMember() {
 }
 #wave-phone-script-root .wave-device .group-edit-overlay .group-edit-dialog {
   width: min(100%, 380px);
-  max-height: 88%;
+  max-height: 100%;
+  min-width: 0;
+  margin: 0;
+  overscroll-behavior: contain;
   overflow-y: auto;
   box-sizing: border-box;
   padding: 18px;
 }
 #wave-phone-script-root .wave-device .group-edit-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  padding: 12px 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 16px 0 0;
+  margin-top: 12px;
+  border-top: 1px solid var(--settings-line);
 }
 #wave-phone-script-root .wave-device .group-edit-actions button {
-  min-height: 42px;
-  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0 12px;
+  font-size: 14px;
+  line-height: 1;
   border: 1px solid var(--settings-line);
   border-radius: 12px;
   background: var(--settings-control);
@@ -328,8 +357,15 @@ function removeMember() {
   color: #fff;
 }
 #wave-phone-script-root .wave-device .group-edit-link {
-  padding: 10px 0;
-  border: 0;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 40px;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--settings-line);
+  border-radius: 10px;
+  line-height: 1.4;
   background: transparent;
   color: var(--settings-accent);
   text-align: left;

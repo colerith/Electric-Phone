@@ -121,6 +121,13 @@
               >
                 <i :class="appSettingsOpen ? 'fa-solid fa-check' : 'fa-solid fa-bars'"></i>
               </button>
+              <WaveCharacterSwitch
+                v-if="
+                  !appSettingsOpen &&
+                  ['status', 'memo', 'zone', 'calendar', 'browse', 'music'].includes(store.currentPage)
+                "
+                :key="store.currentPage"
+              />
             </div>
           </header>
 
@@ -148,6 +155,7 @@
               ref="appSettings"
               :app="store.currentPage"
               :name="pageTitle"
+              :user-avatar="userAvatar"
               :artwork="currentArtwork"
               :weather-location="store.weatherLocation"
               :search-engine="store.settings.browserSearchEngine"
@@ -963,6 +971,7 @@
               v-else-if="currentApp"
               :key="`${store.activeIdentity?.charKey}-${currentApp.id}`"
               :app-id="currentApp.id"
+              :memo-sort-order="store.settings.moduleSettings.memo.sortOrder"
               :raw="store.activeSnapshot[currentApp.id]"
               :name="displayIdentityName(store.activeIdentity)"
               :avatar="store.activeIdentity?.avatar || ''"
@@ -1021,6 +1030,7 @@ import WaveSlider from './components/shared/WaveSlider.vue';
 import WaveStickerPicker from './components/chat/WaveStickerPicker.vue';
 import { parseZonePage } from './services/space/zone';
 import WaveAppSettings from './components/settings/WaveAppSettings.vue';
+import WaveCharacterSwitch from './components/shared/WaveCharacterSwitch.vue';
 import WaveBrowserPanel from './components/apps/WaveBrowserPanel.vue';
 import type { BrowserEntry } from './services/apps/browser';
 import WaveCalendarPanel from './components/apps/WaveCalendarPanel.vue';

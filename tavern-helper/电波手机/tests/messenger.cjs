@@ -69,7 +69,7 @@ const app = vue.createApp({
           onOpen: key => (opened = key),
         }),
         vue.h(Generation),
-        vue.h(GroupSettings),
+        vue.h(GroupSettings, { userAvatar: '/User Avatars/persona.png' }),
       ]);
   },
 });
@@ -153,6 +153,22 @@ const clickText = (selector, text) => {
   assert.equal(phone.activeIdentity.source, 'local_group');
   assert.deepEqual([...phone.activeIdentity.memberKeys], [alice, bob]);
   assert.equal(phone.activeIdentity.groupOwnerKey, 'user');
+  await tick();
+  assert.equal(document.querySelector('.group-member-avatar img').getAttribute('src'), '/User Avatars/persona.png');
+  phone.selectIdentity(alice);
+  phone.startConversation(group);
+  phone.currentPage = 'conversation';
+  phone.currentPage = 'home';
+  assert.equal(phone.activeIdentity.charKey, alice, '离开群聊后恢复真实角色');
+  assert.equal(phone.state.activeCharKey, alice, 'App 的读写目标同步恢复');
+  phone.startConversation(group);
+  phone.currentPage = 'conversation';
+  phone.currentPage = 'memo';
+  assert.equal(phone.activeIdentity.charKey, alice, '直接打开 App 也不能沿用群聊');
+  phone.startConversation(group);
+  phone.currentPage = 'conversation';
+  await tick();
+
   assert.equal(document.querySelectorAll('.wave-group-settings .group-member-row').length, 3);
   const nameInput = document.querySelector('.wave-group-settings input[maxlength="40"]');
   nameInput.value = '新群名';

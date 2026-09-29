@@ -3,7 +3,7 @@
     <WaveWalletWorkspace v-if="app === 'wallet'" mode="settings" />
     <WaveModuleSettings v-if="isLimitedApp(app)" :app="app" />
     <template v-if="app === 'conversation'">
-      <WaveGroupSettings v-if="phone.activeIdentity?.source === 'local_group'" />
+      <WaveGroupSettings v-if="phone.activeIdentity?.source === 'local_group'" :user-avatar="userAvatar" />
       <template v-else>
         <section v-if="phone.activeIdentity" class="chat-settings-group chat-profile-settings">
           <div class="wave-settings-title">{{ phone.activeIdentity.name }}</div>
@@ -235,6 +235,7 @@ import WaveWeatherLocation from './WaveWeatherLocation.vue';
 import type { WeatherLocation } from '../../services/core/weather';
 import { zoneArtworks, walletArtworks, artworkUrl } from '../../services/core/artworks';
 defineProps<{
+  userAvatar?: string;
   app: string;
   name: string;
   artwork: string;

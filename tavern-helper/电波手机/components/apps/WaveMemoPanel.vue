@@ -106,25 +106,32 @@
 import { computed, ref, watch } from 'vue';
 import WaveModuleTranslation from '../shared/WaveModuleTranslation.vue';
 import { parseMemoData } from '../../services/apps/memo';
-const props = defineProps<{ raw: string }>();
+const props = withDefaults(defineProps<{ raw: string; sortOrder?: 'asc' | 'desc' }>(), { sortOrder: 'asc' });
 defineEmits<{ delete: [kind: 'note' | 'doodle', id: string] }>();
 const query = ref('');
 const filter = ref<'all' | 'notes' | 'doodle'>('all');
 const expanded = ref(new Set([0]));
 const page = computed(() => parseMemoData(props.raw));
 const search = computed(() => query.value.trim().toLocaleLowerCase());
+function displayOrder<T>(items: T[]): T[] {
+  return props.sortOrder === 'desc' ? [...items].reverse() : items;
+}
 const visibleNotes = computed(() =>
   filter.value === 'doodle'
     ? []
-    : page.value.notes
-        .map((note, index) => ({ ...note, index }))
-        .filter(note => `${note.title}\n${note.content}`.toLocaleLowerCase().includes(search.value)),
+    : displayOrder(
+        page.value.notes
+          .map((note, index) => ({ ...note, index }))
+          .filter(note => `${note.title}\n${note.content}`.toLocaleLowerCase().includes(search.value)),
+      ),
 );
 const visibleDoodles = computed(() =>
   filter.value === 'notes'
     ? []
-    : page.value.doodles.filter(d =>
-        `${d.title}\n${d.content}\n${d.interpretation}`.toLocaleLowerCase().includes(search.value),
+    : displayOrder(
+        page.value.doodles.filter(d =>
+          `${d.title}\n${d.content}\n${d.interpretation}`.toLocaleLowerCase().includes(search.value),
+        ),
       ),
 );
 let doodleDrag: { pointerId: number; startX: number; scrollLeft: number; target: HTMLElement } | undefined;

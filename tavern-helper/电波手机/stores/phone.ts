@@ -86,7 +86,7 @@ import { WeatherLocationSchema, type WeatherLocation } from '../services/core/we
 import { parseWallet, walletTotals, type WalletTransaction } from '../services/wallet/wallet';
 import { klona } from 'klona';
 import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import {
   AppSnapshotSchema,
   PhoneMessageSchema,
@@ -393,9 +393,40 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   let syncDeferred = false;
 
   const identities = computed(() => Object.values(state.value.identities));
+  const panelCharacters = computed(() =>
+    identities.value.filter(
+      identity => identity.actorType !== 'npc' && !['local_group', 'temporary'].includes(identity.source),
+    ),
+  );
+  function selectPanelCharacter(charKey: string): void {
+    if (panelCharacters.value.some(identity => identity.charKey === charKey)) selectIdentity(charKey);
+  }
   const activeIdentity = computed(
     () => state.value.identities[state.value.activeCharKey] || identities.value[0] || null,
   );
+  // 群聊只作为聊天对象；离开消息页面后恢复上一个真实角色。
+  let lastCharacterKey = '';
+  watch(
+    () => activeIdentity.value,
+    identity => {
+      if (identity && identity.source !== 'local_group') lastCharacterKey = identity.charKey;
+    },
+    { flush: 'sync' },
+  );
+  function restoreCharacterForApp(): void {
+    if (
+      currentPage.value === 'conversation' ||
+      currentPage.value === 'messages' ||
+      activeIdentity.value?.source !== 'local_group'
+    )
+      return;
+    const previous = state.value.identities[lastCharacterKey];
+    const character =
+      (previous?.source !== 'local_group' ? previous : undefined) ||
+      identities.value.find(identity => identity.source !== 'local_group');
+    if (character) selectIdentity(character.charKey);
+  }
+  watch(currentPage, restoreCharacterForApp, { flush: 'sync' });
   const weatherLocation = computed<WeatherLocation | null>(() => {
     const identity = activeIdentity.value;
     const runtime = context.value;
@@ -1455,6 +1486,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (token !== syncToken) return;
       context.value = runtime;
       state.value = ChatStateSchema.parse(nextState);
+      if (!isReady.value) restoreCharacterForApp();
       migrateLegacyWeatherLocation();
       const updatedWalletAccount = updatedWalletAccountByChar.get(state.value.activeCharKey);
       if (updatedWalletAccount) walletSelectedAccountId.value = updatedWalletAccount;
@@ -3406,6 +3438,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     deleteWalletTransaction,
     deleteMusicTrack,
     selectIdentity,
+    panelCharacters,
+    selectPanelCharacter,
     updateActiveIdentityProfile,
     setDraft,
     sendMessage,
