@@ -20,7 +20,13 @@
         </div>
       </div>
       <div v-if="message.type === 'text'" class="wave-bilingual-message wave-message-text">
-        <p class="wave-original-text">{{ primaryText }}</p>
+        <p class="wave-original-text">
+          <template v-for="(part, index) in inlineStickerParts(primaryText)" :key="index"
+            ><img v-if="part.url" class="wave-inline-sticker" :src="part.url" alt="表情包" /><template v-else>{{
+              part.text
+            }}</template></template
+          >
+        </p>
         <div v-if="quotedText" class="wave-message-quote wave-message-quote-inline" aria-label="引用消息">
           <i class="fa-solid fa-reply" aria-hidden="true"></i>
           <p :title="quotedText">{{ quotedText }}</p>
@@ -300,6 +306,7 @@
 <script setup lang="ts">
 import WavePaymentDialog from './WavePaymentDialog.vue';
 import { paymentDetails } from '../../services/chat/payment';
+import { inlineStickerParts } from '../../services/chat/stickers';
 import { translateText } from '../../services/generation/translation';
 import { ChatPreferencesSchema } from '../../services/chat/chat-preferences';
 import { klona } from 'klona';
@@ -408,7 +415,10 @@ const secondaryText = computed(() => (isTranslatedUserMessage.value ? originalTe
 const secondaryLabel = computed(() => (props.message.sender === 'user' ? '原文' : '翻译'));
 const translationOpen = ref(preferences.value.expandTranslation && Boolean(translation.value));
 watch(translation, (next, previous) => {
-  if (next && !previous && preferences.value.expandTranslation) translationOpen.value = true;
+  if (next) {
+    translationError.value = '';
+    if (!previous && preferences.value.expandTranslation) translationOpen.value = true;
+  }
 });
 const translationBusy = ref(false);
 const translationError = ref(
@@ -484,7 +494,8 @@ const safeMediaUrl = computed(() => {
 });
 const stickerUrl = computed(() => {
   const value = payloadString('stickerUrl') || payloadString('url');
-  const markedSticker = payloadString('emojiType') === 'sticker' || Boolean(payloadString('stickerUrl'));
+  const markedSticker =
+    props.message.type === 'emoji' || payloadString('emojiType') === 'sticker' || Boolean(payloadString('stickerUrl'));
   return markedSticker && (/^https?:\/\//i.test(value) || value.startsWith('data:image/')) ? value : '';
 });
 const safeLinkUrl = computed(() => {

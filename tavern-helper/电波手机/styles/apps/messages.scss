@@ -197,3 +197,14 @@
     white-space: nowrap;
   }
 }
+
+#wave-phone-script-root .wave-device .wave-inline-sticker {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(160px, 100%);
+  max-height: 180px;
+  object-fit: contain;
+  margin: 6px 0 0;
+  border-radius: 8px;
+}

@@ -1,3 +1,4 @@
+import { stickerPrompt } from '../chat/stickers';
 import { resolveModuleSettings, resolveBilingual } from './module-settings';
 import { validateWalletPatch, type WalletAuthorization } from '../wallet/wallet-accounts';
 import { isLimitedApp, limitModulePatch } from './module-updates';
@@ -282,15 +283,7 @@ function buildInputContext(input: GenerationInput): PhonePromptInput {
     voiceServices: input.settings.voiceServices,
     presets: input.settings.presets,
     moduleSettings: resolveModuleSettings(input.settings.moduleSettings, input.chatPreferences),
-    availableStickers: input.settings.stickers.stickers
-      .filter(
-        sticker =>
-          sticker.scope === 'global' ||
-          (sticker.scope === 'char' && (!sticker.charKey || sticker.charKey === input.identity.charKey)),
-      )
-      .slice(0, 80)
-      .map(sticker => `${sticker.name}：[${sticker.url}]`)
-      .join('\n'),
+    availableStickers: stickerPrompt(input.identity, input.settings.stickers.stickers),
   };
 }
 

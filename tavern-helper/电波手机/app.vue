@@ -559,7 +559,7 @@
                   ><strong>{{ editingMessageId ? '编辑消息' : '引用消息' }}</strong
                   ><small>{{ editingMessageId ? '保存后不会重新触发生成' : quotedMessage?.content }}</small></span
                 >
-                <button type="button" aria-label="取消" @click="clearComposerContext">
+                <button type="button" aria-label="取消编辑或引用" @click.stop.prevent="clearComposerContext">
                   <i class="fa-solid fa-xmark"></i>
                 </button>
               </div>
@@ -2433,9 +2433,11 @@ function leaveMultiSelect(): void {
   selectionAnchorId.value = '';
 }
 function clearComposerContext(): void {
-  if (editingMessageId.value) store.setDraft('');
+  const wasEditing = Boolean(editingMessageId.value);
   editingMessageId.value = '';
   quotedMessageId.value = '';
+  closeMessageMenu();
+  if (wasEditing) store.setDraft('');
 }
 function saveSettings(): void {
   store.saveSettings();

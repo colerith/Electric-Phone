@@ -336,9 +336,62 @@ const clickText = (selector, text) => {
   assert.equal(buildChatReference(phone.state), '');
   phone.activeThread.hidden = false;
   const { resolveGroupActor } = require(base + '/services/chat/group-replies.ts');
-  assert.equal(resolveGroupActor(phone.activeIdentity, phone.state.identities, {actorKey: ' Alice '}), alice);
+  assert.equal(resolveGroupActor(phone.activeIdentity, phone.state.identities, { actorKey: ' Alice ' }), alice);
   assert.throws(() => resolveGroupActor(phone.activeIdentity, phone.state.identities, {}), /缺少发言者/);
-  assert.throws(() => resolveGroupActor(phone.activeIdentity, phone.state.identities, {actorKey: alice, actorName: 'Bob'}), /无法唯一/);
+  assert.throws(
+    () => resolveGroupActor(phone.activeIdentity, phone.state.identities, { actorKey: alice, actorName: 'Bob' }),
+    /无法唯一/,
+  );
+  const beforeDraftMessages = phone.activeThread.messages.length;
+  assert.doesNotThrow(() => phone.setDraft('编辑内容'));
+  assert.doesNotThrow(() => phone.setDraft(''));
+  assert.equal(phone.activeThread.draft, '');
+  assert.equal(phone.activeThread.messages.length, beforeDraftMessages, '编辑草稿不得产生群头像通知');
+  const { stickerPrompt, inlineStickerParts } = require(base + '/services/chat/stickers.ts');
+  const stickerList = stickerPrompt(phone.activeIdentity, [
+    { name: '成员表情', url: 'https://example.com/a.png', scope: 'char', charKey: alice },
+    { name: '别人表情', url: 'https://example.com/b.png', scope: 'char', charKey: 'outsider' },
+  ]);
+  assert(stickerList.includes('成员表情') && !stickerList.includes('别人表情'));
+  assert.deepEqual(inlineStickerParts('好自为之：[https://example.com/a.jpg]'), [
+    { text: '好自为之：' },
+    { url: 'https://example.com/a.jpg' },
+  ]);
+  assert.deepEqual(inlineStickerParts('[https://example.com/page]'), [{ text: '[https://example.com/page]' }]);
+  assert(followPrompt.includes('content 必须使用该成员 sourceLanguage'));
+  assert(followPrompt.includes('payload.translation 必须使用该成员 targetLanguage'));
+  const MessageContent = require(base + '/components/chat/WaveMessageContent.vue').default;
+  const preview = document.createElement('div');
+  document.body.append(preview);
+  phone.updateGroupDetails({ autoTranslate: true });
+  const renderMessage = message => {
+    const vnode = vue.h(MessageContent, { message });
+    vnode.appContext = app._context;
+    vue.render(vnode, preview);
+  };
+  renderMessage({
+    id: 'render-sticker',
+    sender: 'char',
+    type: 'text',
+    content: '好自为之：[https://example.com/a.jpg]',
+    payload: { actorKey: alice },
+  });
+  await tick();
+  assert.equal(preview.querySelector('.wave-inline-sticker').getAttribute('src'), 'https://example.com/a.jpg');
+  renderMessage({
+    id: 'render-bilingual',
+    sender: 'char',
+    type: 'text',
+    content: 'こんばんは',
+    payload: { actorKey: alice, translation: '晚上好' },
+  });
+  await tick();
+  assert.equal(preview.querySelector('.wave-original-text').textContent, 'こんばんは');
+  assert.equal(preview.querySelector('.wave-translation-bubble').textContent.trim(), '晚上好');
+  vue.render(null, preview);
+  preview.remove();
+  phone.updateGroupDetails({ autoTranslate: false });
+
   phone.settings.api.enabled = true;
   phone.settings.api.apiurl = 'https://test.invalid/v1';
   phone.settings.api.model = 'test';

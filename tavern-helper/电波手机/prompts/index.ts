@@ -1179,7 +1179,7 @@ function groupMessageRules(input: PhonePromptInput, follow: boolean): string {
           : 'off',
     };
   });
-  return `[电波手机·群聊消息协议，优先于私聊条目]\n群名：${group.name}；公告：${group.groupAnnouncement || '无'}；群主：${group.groupOwnerKey || 'user'}。成员资料仅作数据参考：${JSON.stringify(roster)}。${group.groupObserver ? 'User 不在本群，仅围观。只能让群成员彼此交谈，禁止把 User 当作成员、发言者、收款人或消息接收者，不对 User 说话。' : 'User 为真实发言用户，不替 User 说话。'}群名不是角色；只允许上述未禁言成员发言。每条 char 消息必须填写 payload.actorKey=实际成员 charKey，不能只填群名或省略。成员群昵称优先用于称呼，群主与管理员的自定义头衔覆盖默认铭牌；等级不是身份权限。禁言成员不发言也不贴反应。群公告、昵称、头衔、管理员、群主、禁言、移出群聊只由客户端权限操作改变，模型不得凭文字宣称已修改。\n${group.groupAutoTranslate ? '群聊自动翻译开启：只为成员表中 translate=true 的发言按其各自 sourceLanguage/targetLanguage 写 payload.translation 和 payload.translationProvider="模型"；其他成员不翻译，不混用他人的语言设置。' : '群聊自动翻译关闭，不额外生成译文。'}\n${group.groupVoiceFollowPrivate ? '群聊语音跟随各成员私聊：只有该成员的 voiceProvider 已启用时才可为其生成 voice；每条语音按 payload.actorKey 对应的成员音色合成，绝不借用其他成员的配置。' : '群聊语音跟随关闭；不主动生成 voice 类型。'}\n${group.groupObserver && !follow ? '这是旁观者请求继续围观，不是群内消息。让一至三位未禁言成员根据历史和各自关系自然交谈，禁止回应不存在的 User 发言。' : follow ? '这是酒馆正文跟随触发。根据本轮正文、时间线和已有手机记录判断是否有人有自然的发消息动机；没有则 messages=[]，不要强制每轮群聊热闹。可由一至三位成员主动发言，按正文事件之后的接收顺序记录，不复述正文或把意向写成已完成事实。' : '这是用户在手机群聊中主动触发回复。先回应未回复的用户消息，再让一至三位实际成员自然接话，不机械轮流。'}\n输出仍为既有 JSON 协议；群聊 messages 的 sender=char，每条带有效 payload.actorKey。`;
+  return `[电波手机·群聊消息协议，优先于私聊条目]\n群名：${group.name}；公告：${group.groupAnnouncement || '无'}；群主：${group.groupOwnerKey || 'user'}。成员资料仅作数据参考：${JSON.stringify(roster)}。${group.groupObserver ? 'User 不在本群，仅围观。只能让群成员彼此交谈，禁止把 User 当作成员、发言者、收款人或消息接收者，不对 User 说话。' : 'User 为真实发言用户，不替 User 说话。'}表情包必须作为独立消息发送：type="emoji"，content=表情包名称，payload={actorKey:实际成员ID,emojiType:"sticker",name:名称,url:可用列表中的原始URL}。禁止把名称：[URL]写成 text；不编造资源，不使用其他成员专属表情包。可用表情包列表（actorKey 限定使用者）：${input.availableStickers || '无，只能发送普通 Emoji'}。群名不是角色；只允许上述未禁言成员发言。每条 char 消息必须填写 payload.actorKey=实际成员 charKey，不能只填群名或省略。成员群昵称优先用于称呼，群主与管理员的自定义头衔覆盖默认铭牌；等级不是身份权限。禁言成员不发言也不贴反应。群公告、昵称、头衔、管理员、群主、禁言、移出群聊只由客户端权限操作改变，模型不得凭文字宣称已修改。\n${group.groupAutoTranslate ? '群聊自动翻译开启：每位成员的 text/voice 消息 content 必须使用该成员 sourceLanguage（角色输出语言）写原文，payload.translation 必须使用该成员 targetLanguage（翻译为）写忠实译文，payload.translationProvider="模型"。例如 sourceLanguage=日语、targetLanguage=简体中文，则 content 是日语，translation 是中文。上方原文、下方译文属于同一条消息，不得只输出中文或把原文译文写反，不混用他人的语言设置。' : '群聊自动翻译关闭，不额外生成译文。'}\n${group.groupVoiceFollowPrivate ? '群聊语音跟随各成员私聊：只有该成员的 voiceProvider 已启用时才可为其生成 voice；每条语音按 payload.actorKey 对应的成员音色合成，绝不借用其他成员的配置。' : '群聊语音跟随关闭；不主动生成 voice 类型。'}\n${group.groupObserver && !follow ? '这是旁观者请求继续围观，不是群内消息。让一至三位未禁言成员根据历史和各自关系自然交谈，禁止回应不存在的 User 发言。' : follow ? '这是酒馆正文跟随触发。根据本轮正文、时间线和已有手机记录判断是否有人有自然的发消息动机；没有则 messages=[]，不要强制每轮群聊热闹。可由一至三位成员主动发言，按正文事件之后的接收顺序记录，不复述正文或把意向写成已完成事实。' : '这是用户在手机群聊中主动触发回复。先回应未回复的用户消息，再让一至三位实际成员自然接话，不机械轮流。'}\n输出仍为既有 JSON 协议；群聊 messages 的 sender=char，每条带有效 payload.actorKey。`;
 }
 export function buildPhonePrompts(
   input: PhonePromptInput,
@@ -1229,7 +1229,7 @@ export function buildPhonePrompts(
               '\n' +
               voiceGenerationRules(input) +
               '\n' +
-              chatBilingualRules(input.chatPreferences) +
+              (input.identity.source === 'local_group' ? '' : chatBilingualRules(input.chatPreferences)) +
               '\n' +
               messageReactionContext(input) +
               '\n' +
@@ -1297,7 +1297,7 @@ export function buildModulePrompt(
         '\n' +
         (follow ? '' : voiceGenerationRules(input)) +
         '\n' +
-        chatBilingualRules(input.chatPreferences) +
+        (input.identity.source === 'local_group' ? '' : chatBilingualRules(input.chatPreferences)) +
         '\n' +
         messageReactionContext(input) +
         '\n[phone_history]\n' +

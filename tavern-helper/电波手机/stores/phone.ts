@@ -1,3 +1,4 @@
+import { stickerPrompt } from '../services/chat/stickers';
 import { resolveGroupActor } from '../services/chat/group-replies';
 import { paymentDetails } from '../services/chat/payment';
 import {
@@ -1727,7 +1728,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         ...groupPromptSettings(activeIdentity.value),
         thread: activeThread.value,
         appSnapshot: generationSnapshot(),
-        availableStickers: '',
+        availableStickers: stickerPrompt(activeIdentity.value, settings.value.stickers.stickers),
       },
     };
   }
@@ -2595,14 +2596,6 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!thread) return;
     thread.draft = value;
     thread.updatedAt = nowIso();
-    if (
-      identity.source === 'local_group' &&
-      (identity.avatar !== updated.avatar ||
-        identity.avatarZoom !== updated.avatarZoom ||
-        identity.avatarOffsetX !== updated.avatarOffsetX ||
-        identity.avatarOffsetY !== updated.avatarOffsetY)
-    )
-      appendGroupNotice(identity, 'avatar', `${groupMemberDisplayName(identity, 'user')}修改了群头像`);
     ++syncToken;
     saveChat();
   }
@@ -2777,15 +2770,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
               thread,
               appSnapshot: generationSnapshot(),
               zoneInteractions: state.value.zoneInteractions[identity.charKey] || {},
-              availableStickers: settings.value.stickers.stickers
-                .filter(
-                  sticker => sticker.scope === 'global' || !sticker.charKey || sticker.charKey === identity.charKey,
-                )
-                .slice(0, 80)
-                .map(sticker => `${sticker.name}：[${sticker.url}]`)
-                .join('\n'),
+              availableStickers: stickerPrompt(identity, settings.value.stickers.stickers),
             }),
-        languageContext(preferences),
+        identity.source === 'local_group' ? '' : languageContext(preferences),
       ]
         .filter(Boolean)
         .join('\n\n');
@@ -2845,7 +2832,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       });
 
       sendStage = '应用回复';
-      result.data.messages = normalizeGroupReplies(state.value.identities[identity.charKey] || identity, result.data.messages);
+      result.data.messages = normalizeGroupReplies(
+        state.value.identities[identity.charKey] || identity,
+        result.data.messages,
+      );
       if (preferences.autoTranslate || (identity.source === 'local_group' && identity.groupAutoTranslate)) {
         await Promise.all(
           result.data.messages.map(async message => {
@@ -2890,7 +2880,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (result.data.thread_id && result.data.thread_id !== thread.id) {
         throw Error('副 API 返回了错误的 thread_id，结果已拒绝。');
       }
-      result.data.messages = normalizeGroupReplies(state.value.identities[identity.charKey] || identity, result.data.messages);
+      result.data.messages = normalizeGroupReplies(
+        state.value.identities[identity.charKey] || identity,
+        result.data.messages,
+      );
       const narrativeRelation = resolveNarrativeRelation(narrativeMode, result.data.context_relation);
       pending.forEach(message => {
         message.payload.narrativeRelation = narrativeRelation;
