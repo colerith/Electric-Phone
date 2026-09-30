@@ -49,7 +49,6 @@
         ><span>自动翻译<small>按发言成员的私聊语言设置翻译，各成员独立</small></span
         ><WaveToggle
           :model-value="Boolean(group.groupAutoTranslate)"
-          :disabled="!isOwner"
           aria-label="群聊自动翻译"
           @update:model-value="value => phone.updateGroupDetails({ autoTranslate: value })"
       /></label>
@@ -57,7 +56,6 @@
         ><span>语音跟随私聊<small>各成员使用自己的私聊语音配置，不共享音色</small></span
         ><WaveToggle
           :model-value="Boolean(group.groupVoiceFollowPrivate)"
-          :disabled="!isOwner"
           aria-label="群聊语音跟随私聊"
           @update:model-value="value => phone.updateGroupDetails({ voiceFollowPrivate: value })"
       /></label>

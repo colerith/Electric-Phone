@@ -2399,15 +2399,17 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     voiceFollowPrivate?: boolean;
   }): void {
     const group = activeIdentity.value;
-    if (!group || group.groupObserver || group.source !== 'local_group' || (group.groupOwnerKey || 'user') !== 'user')
-      return;
-    const name = changes.name === undefined ? group.name : changes.name.trim().slice(0, 40);
+    if (!group || group.source !== 'local_group') return;
+    const canManage = !group.groupObserver && (group.groupOwnerKey || 'user') === 'user';
+    const name = !canManage || changes.name === undefined ? group.name : changes.name.trim().slice(0, 40);
     if (!name) throw Error('群名称不能为空');
     state.value.identities[group.charKey] = IdentitySchema.parse({
       ...group,
       name,
       groupAnnouncement:
-        changes.announcement === undefined ? group.groupAnnouncement : changes.announcement.trim().slice(0, 2000),
+        !canManage || changes.announcement === undefined
+          ? group.groupAnnouncement
+          : changes.announcement.trim().slice(0, 2000),
       groupAutoTranslate: changes.autoTranslate ?? group.groupAutoTranslate,
       groupVoiceFollowPrivate: changes.voiceFollowPrivate ?? group.groupVoiceFollowPrivate,
       updatedAt: nowIso(),

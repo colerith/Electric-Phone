@@ -236,6 +236,27 @@ const clickText = (selector, text) => {
   announcement.dispatchEvent(new Event('change', { bubbles: true }));
   await tick();
   assert.equal(phone.activeIdentity.groupAnnouncement, '请文明聊天');
+  for (const role of ['member', 'admin', 'observer']) {
+    phone.activeIdentity.groupOwnerKey = alice;
+    phone.activeIdentity.groupObserver = role === 'observer';
+    phone.activeIdentity.groupMembers.user = { ...phone.activeIdentity.groupMembers.user, admin: role === 'admin' };
+    await tick();
+    for (const label of ['群聊自动翻译', '群聊语音跟随私聊']) {
+      const toggle = document.querySelector(`[aria-label="${label}"]`);
+      assert(!toggle.disabled, role + ' 的个人偏好开关可用');
+    }
+    phone.updateGroupDetails({ autoTranslate: true, voiceFollowPrivate: true, name: '不可修改', announcement: '不可发布' });
+    assert.equal(phone.activeIdentity.groupAutoTranslate, true);
+    assert.equal(phone.activeIdentity.groupVoiceFollowPrivate, true);
+    assert.equal(phone.activeIdentity.name, '新群名');
+    assert.equal(phone.activeIdentity.groupAnnouncement, '请文明聊天');
+    phone.updateGroupDetails({ autoTranslate: false, voiceFollowPrivate: false });
+    assert.equal(phone.activeIdentity.groupAutoTranslate, false);
+    assert.equal(phone.activeIdentity.groupVoiceFollowPrivate, false);
+  }
+  phone.activeIdentity.groupOwnerKey = 'user';
+  phone.activeIdentity.groupObserver = false;
+  await tick();
   phone.updateGroupDetails({ autoTranslate: true, voiceFollowPrivate: true });
   const bobEdit = document.querySelector(`[aria-label="编辑Bob"]`);
   bobEdit.click();

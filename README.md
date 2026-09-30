@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.1.64`
+当前发布版本：`v1.1.65`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.64/file/index-1.1.64.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.65/file/index-1.1.65.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：修复自定义表情包 Base64 注入提示词导致上下文超限；使用短引用并在本地还原图片，无需删除表情包。
+本版更新：群聊自动翻译、语音跟随私聊不受身份权限限制，普通成员和围观者也可自由切换。
 
 ## 首次配置
 
