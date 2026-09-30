@@ -964,7 +964,7 @@
   }
   .space-tag-entry {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     gap: 8px;
   }
   .space-tag-entry input {
@@ -972,9 +972,38 @@
     min-width: 0;
   }
   .space-tag-entry button {
-    flex-shrink: 0;
-    color: var(--settings-accent);
+    appearance: none;
+    flex: 0 0 56px;
+    min-height: 40px;
+    margin: 0;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: var(--settings-accent, #5f85be);
+    color: #fff;
+    font: inherit;
     font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+  }
+  .space-tag-entry button:disabled {
+    background: #edf1f7;
+    color: #929dae;
+    opacity: 1;
+    cursor: default;
+  }
+  .space-tag-entry button:focus-visible {
+    outline: 2px solid var(--settings-accent, #5f85be);
+    outline-offset: 2px;
+  }
+  .space-tag-entry button:not(:disabled):active {
+    opacity: 0.8;
   }
   .space-tag-editor > small {
     color: var(--settings-muted);
