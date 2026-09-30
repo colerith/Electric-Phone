@@ -1,3 +1,4 @@
+import { sharedChatHistory } from '../services/chat/shared-history';
 import { updateGroupActivity } from '../services/chat/group-activity';
 import { resolveStickerMessage, stickerPrompt } from '../services/chat/stickers';
 import { resolveGroupActor } from '../services/chat/group-replies';
@@ -1668,11 +1669,16 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     });
   }
   function groupPromptSettings(identity: Identity) {
-    if (identity.source !== 'local_group') return {};
+    const thread = Object.values(state.value.threads).find(item => item.charKey === identity.charKey);
+    const sharedHistory = thread
+      ? sharedChatHistory(identity, thread, state.value.identities, state.value.threads, settings.value.chat)
+      : '';
+    if (identity.source !== 'local_group') return { sharedHistory };
     const members = (identity.memberKeys || []).flatMap(key =>
       state.value.identities[key] ? [state.value.identities[key]] : [],
     );
     return {
+      sharedHistory,
       groupMembers: members,
       groupPreferences: Object.fromEntries(
         members.map(member => [

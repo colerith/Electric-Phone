@@ -23,6 +23,7 @@ import { MomentBatchSchema, type MomentPlan, type MomentsState, type MomentPost 
 import { ZoneUpdateSchema, type ZoneUpdate } from '../space/zone';
 
 type GenerationInput = {
+  sharedHistory?: string;
   replyCount?: PhonePromptInput['replyCount'];
   chatPreferences?: PhonePromptInput['chatPreferences'];
   voice?: PhonePromptInput['voice'];

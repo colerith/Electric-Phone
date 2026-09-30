@@ -303,7 +303,11 @@ const clickText = (selector, text) => {
     },
     groupVoices: { [alice]: { provider: 'off' }, [bob]: { provider: 'off' } },
   };
+  groupPromptInput.sharedHistory = '[跨会话测试记录] Alice 的私聊记忆';
   const followPrompt = buildModulePrompt(groupPromptInput, ['messages'], true);
+  assert(followPrompt.includes(groupPromptInput.sharedHistory));
+  assert(buildPhonePrompts(groupPromptInput).some(item => item.content?.includes(groupPromptInput.sharedHistory)));
+  assert(!buildModulePrompt(groupPromptInput, ['memo'], false).includes(groupPromptInput.sharedHistory));
   assert(followPrompt.includes('群聊消息协议'));
   const observerPrompt = buildModulePrompt(
     { ...groupPromptInput, identity: { ...groupPromptInput.identity, groupObserver: true } },

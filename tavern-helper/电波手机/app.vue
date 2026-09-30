@@ -837,6 +837,29 @@
                         aria-label="为酒馆提供手机聊天参考"
                       />
                     </div>
+                    <div class="toggle-row">
+                      <span
+                        ><strong>群聊与私聊互通</strong
+                        ><small>角色可参考自己的私聊及所在群聊，不受群管理权限限制</small></span
+                      >
+                      <WaveToggle v-model="store.settings.chat.shareConversations" aria-label="群聊与私聊互通" />
+                    </div>
+                    <label v-if="store.settings.chat.shareConversations">
+                      <strong>互通读取消息条数</strong>
+                      <input
+                        v-model.number="store.settings.chat.sharedHistoryCount"
+                        type="number"
+                        min="0"
+                        max="200"
+                        step="1"
+                        inputmode="numeric"
+                        aria-label="互通读取消息条数"
+                      />
+                      <small
+                        >每位角色从其他会话合计读取最近 0–200 条，0
+                        表示不读取。撤回、失败及未回复的待处理消息不计入；单条最多读取 2000 字符。</small
+                      >
+                    </label>
                     <p class="api-note">
                       回车发送消息，点击纸飞机才激活回复；可连续发送多条后一起回复。电脑 Shift+Enter 换行，手机输入栏 ↵
                       长按换行。

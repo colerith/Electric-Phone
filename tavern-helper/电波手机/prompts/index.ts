@@ -99,6 +99,7 @@ import {
 import { formatPhoneMessage } from '../services/chat/message-format';
 import type { AppSnapshot, Identity, Thread } from '../schemas';
 export type PhonePromptInput = {
+  sharedHistory?: string;
   replyCount?: { minReplies: number; maxReplies: number };
   chatPreferences?: ChatPreferences;
   voice?: CharacterVoice;
@@ -1233,7 +1234,9 @@ export function buildPhonePrompts(
               '\n' +
               messageReactionContext(input) +
               '\n' +
-              groupMessageRules(input, false)
+              groupMessageRules(input, false) +
+              '\n' +
+              (input.sharedHistory || '')
             : '',
       },
       { role: 'system', content: walletAccountRules(input) },
@@ -1287,6 +1290,7 @@ export function buildModulePrompt(
       : '[手动电波手机模块生成]',
     ...rules,
     modules.includes('messages') ? groupMessageRules(input, follow) : '',
+    modules.includes('messages') ? input.sharedHistory || '' : '',
     modules.includes('messages') && follow
       ? '[电波手机·主动消息与酒馆正文跟随] 本轮酒馆正文是触发源，手机记录是已发生的通信参考。先读本轮事件与最近手机历史，再判断相关人物是否有独立、符合时间线的发消息动机；无需等待 User 在手机内发送，但也不应为了填充模块每轮强行发言。不要重复刚发过的内容，不把消息中的计划当成已执行的正文行动，不在正文之前插入事后消息。只有符合角色认知与关系的信息才能写入手机；私人消息只由对应联系人发出，群消息必须遵守当下群成员和禁言状态。没有动机返回 messages=[]，省略手机数据块亦可。'
       : '',
