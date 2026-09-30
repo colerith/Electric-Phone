@@ -3,6 +3,15 @@ export const providerDefaults: Partial<Record<Provider, string>> = {
   siliconflow: 'https://api.siliconflow.cn/v1',
   deepseek: 'https://api.deepseek.com/v1',
 };
+export function normalizeApiBase(value: string, google = false): string {
+  const url = new URL(value);
+  if (url.protocol !== 'https:') throw Error('API 地址必须使用 HTTPS。');
+  url.hash = '';
+  url.search = '';
+  url.pathname = url.pathname.replace(/\/+$/, '').replace(/\/(?:chat\/completions|models)$/, '');
+  if (!url.pathname || url.pathname === '/') url.pathname = google ? '/v1beta' : '/v1';
+  return url.href.replace(/\/+$/, '');
+}
 export function omitSampling(model: string): boolean {
   return /(?:gemini|google)[^\s]*3[.-][5-8](?:[.-]|$)[^\s]*flash/i.test(model);
 }
@@ -10,7 +19,11 @@ export function buildCustomApi(settings: ScriptSettings): CustomApiConfig {
   const api = settings.api;
   if (!api.enabled) throw Error('请先启用副 API。');
   if (!api.model.trim()) throw Error('请填写或选择模型。');
-  const endpoint = api.apiurl.trim() || providerDefaults[api.provider] || '';
+  const rawEndpoint = api.apiurl.trim() || providerDefaults[api.provider] || '';
+  const endpoint =
+    rawEndpoint && ['openai', 'siliconflow', 'deepseek'].includes(api.provider)
+      ? normalizeApiBase(rawEndpoint)
+      : rawEndpoint;
   if (endpoint && !/^https:\/\//i.test(endpoint)) throw Error('API 地址必须使用 HTTPS。');
   if (['openai', 'siliconflow', 'deepseek'].includes(api.provider) && !endpoint) throw Error('请填写 API 地址。');
   if (['google_ai_studio', 'vertex_ai'].includes(api.provider) && !api.key.trim() && !endpoint)
@@ -46,6 +59,7 @@ export async function fetchApiModels(api: ScriptSettings['api'], signal?: AbortS
     if (api.provider === 'vertex_ai' && !base) throw Error('Vertex 模型列表请填写兼容代理地址，或手动输入模型 ID。');
     if (google && !base) base = 'https://generativelanguage.googleapis.com/v1beta';
     if (!/^https:\/\//i.test(base)) throw Error('请填写有效的 HTTPS API 地址。');
+    base = normalizeApiBase(base, google);
     if (google && !/\/v1(?:beta)?$/.test(base)) base += '/v1beta';
     const models = new Set<string>();
     let pageToken = '';
@@ -57,17 +71,29 @@ export async function fetchApiModels(api: ScriptSettings['api'], signal?: AbortS
         headers[google ? 'x-goog-api-key' : 'Authorization'] = google ? api.key.trim() : `Bearer ${api.key.trim()}`;
       const response = await fetch(url.href, { headers, signal: controller.signal, credentials: 'omit' });
       if (!response.ok) throw Error(`模型列表请求失败（HTTP ${response.status}），请检查地址、密钥和跨域支持。`);
-      const data = await response.json();
+      const body = await response.text();
+      if (/^\s*</.test(body) || response.headers.get('content-type')?.includes('text/html'))
+        throw Error(
+          `模型列表返回了网页（HTML），并非 API JSON。请确认填写的是 API 基础地址（通常以 /v1 结尾），而非站点首页、登录页；也可能被站点验证页拦截。可手动填写模型 ID。`,
+        );
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch {
+        throw Error('模型列表返回的内容不是有效 JSON，请检查 API 地址或服务商响应；也可手动填写模型 ID。');
+      }
+      if (!data || typeof data !== 'object') throw Error('接口没有返回有效的模型列表。');
       const rows = google ? data.models : data.data;
       if (!Array.isArray(rows)) throw Error('接口没有返回有效的模型列表。');
       rows.forEach(row => {
+        if (!row || typeof row !== 'object') return;
         if (
           google &&
           Array.isArray(row.supportedGenerationMethods) &&
           !row.supportedGenerationMethods.includes('generateContent')
         )
           return;
-        const id = google ? row.name?.replace(/^models\//, '') : row.id;
+        const id = google ? (typeof row.name === 'string' ? row.name.replace(/^models\//, '') : '') : row.id;
         if (typeof id === 'string' && id) models.add(id);
       });
       pageToken = google && typeof data.nextPageToken === 'string' ? data.nextPageToken : '';

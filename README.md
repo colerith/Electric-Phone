@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.1.62`
+当前发布版本：`v1.1.63`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.62/file/index-1.1.62.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.63/file/index-1.1.63.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：修复停止生成的同步返回值兼容问题，超时清理不再掩盖原始错误。
+本版更新：兼容跨窗口世界书关键词，规范模型列表地址与 HTML 错误提示，改善手机键盘输入和遮挡。
 
 ## 首次配置
 

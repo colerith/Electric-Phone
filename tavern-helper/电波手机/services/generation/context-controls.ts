@@ -40,12 +40,18 @@ export function boundWorldbooks(): string[] {
   const char = getCharWorldbookNames('current');
   return [...new Set([char.primary, ...char.additional].filter((name): name is string => Boolean(name)))];
 }
-function matches(key: string | RegExp, text: string): boolean {
-  if (key instanceof RegExp) {
-    key.lastIndex = 0;
-    return key.test(text);
+export function matchesWorldbookKey(key: unknown, text: string): boolean {
+  if (typeof key === 'string') return Boolean(key) && text.toLocaleLowerCase().includes(key.toLocaleLowerCase());
+  // Worldbook regexes may originate in the host window, so instanceof is not reliable.
+  if (Object.prototype.toString.call(key) === '[object RegExp]') {
+    try {
+      const regex = key as RegExp;
+      return new RegExp(regex.source, regex.flags).test(text);
+    } catch {
+      return false;
+    }
   }
-  return Boolean(key) && text.toLocaleLowerCase().includes(key.toLocaleLowerCase());
+  return false;
 }
 export async function collectManagedWorldbooks(settings: ScriptSettings, text: string): Promise<string> {
   const names = boundWorldbooks();
@@ -56,8 +62,13 @@ export async function collectManagedWorldbooks(settings: ScriptSettings, text: s
     for (const entry of entries) {
       const mode = settings.worldbooks.entries[managedEntryKey(name, entry.uid)];
       if (mode === 'exclude') continue;
-      const secondary = entry.strategy.keys_secondary;
-      const results = secondary.keys.map(key => matches(key, text));
+      if (mode === 'include') {
+        content.push(`[${name} / ${entry.name}]\n${stripExcludedTags(entry.content, settings.basic.excludedTags)}`);
+        continue;
+      }
+      if (!entry.enabled) continue;
+      const secondary = entry.strategy.keys_secondary || { keys: [], logic: 'and_any' };
+      const results = (Array.isArray(secondary.keys) ? secondary.keys : []).map(key => matchesWorldbookKey(key, text));
       const secondaryMatch =
         !results.length ||
         (secondary.logic === 'and_any'
@@ -71,9 +82,11 @@ export async function collectManagedWorldbooks(settings: ScriptSettings, text: s
         entry.enabled &&
         (entry.strategy.type === 'constant' ||
           (entry.strategy.type === 'selective' &&
-            entry.strategy.keys.some(key => matches(key, text)) &&
+            (Array.isArray(entry.strategy.keys) ? entry.strategy.keys : []).some(key =>
+              matchesWorldbookKey(key, text),
+            ) &&
             secondaryMatch));
-      if (mode === 'include' || active)
+      if (active)
         content.push(`[${name} / ${entry.name}]\n${stripExcludedTags(entry.content, settings.basic.excludedTags)}`);
     }
   }

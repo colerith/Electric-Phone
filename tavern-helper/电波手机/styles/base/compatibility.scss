@@ -266,3 +266,10 @@
     transform: translate(-50%, -50%) rotate(-45deg);
   }
 }
+
+#wave-phone-script-root .wave-device :is(input, textarea, [contenteditable='true']) {
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: auto;
+  scroll-margin-block: 16px;
+}
