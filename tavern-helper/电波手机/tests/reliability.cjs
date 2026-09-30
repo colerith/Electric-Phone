@@ -18,7 +18,9 @@ const { diagnostics } = require(base + '/services/core/diagnostics.ts');
 const { describeRequestError } = require(base + '/services/core/request-error.ts');
 const { validatePhoneBlocks } = require(base + '/services/generation/parser.ts');
 const { cachedParse } = require(base + '/services/core/local-cache.ts');
-const { generatePhoneReply, testSecondaryApi } = require(base + '/services/generation/generation.ts');
+const { generatePhoneReply, testSecondaryApi, stopPhoneGeneration } = require(
+  base + '/services/generation/generation.ts',
+);
 let chat = 'one',
   vars = { global: {}, script: {}, chat: {} };
 Object.assign(global, {
@@ -158,7 +160,27 @@ async function run() {
   settings.api.retryCount = 0;
   settings.api.timeoutMs = 5;
   global.generateRaw = () => new Promise(() => {});
-  await assert.rejects(testSecondaryApi(settings), /请求超时/);
+  for (const stop of [
+    () => true,
+    () => undefined,
+    async () => true,
+    () => {
+      throw Error('停止失败');
+    },
+    async () => {
+      throw Error('停止失败');
+    },
+  ]) {
+    global.stopGenerationById = stop;
+    await assert.rejects(testSecondaryApi(settings), /请求超时/);
+  }
+  global.stopGenerationById = () => true;
+  assert.equal(await stopPhoneGeneration('sync-stop'), true);
+  global.stopGenerationById = () => {
+    throw Error('停止失败');
+  };
+  await assert.rejects(stopPhoneGeneration('throw-stop'), /停止失败/);
+
   settings.api.enabled = false;
   await assert.rejects(testSecondaryApi(settings), /配置错误/);
   assert.match(diagnostics.logs[0].detail, /配置检查/);

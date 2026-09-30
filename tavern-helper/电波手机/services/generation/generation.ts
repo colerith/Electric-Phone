@@ -66,7 +66,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, generation
   try {
     return await Promise.race([promise, timeout]);
   } catch (error) {
-    if (String(error).includes('超时')) void stopGenerationById(generationId).catch(() => false);
+    if (String(error).includes('超时')) void stopBackendGeneration(generationId).catch(() => false);
     throw error;
   } finally {
     window.clearTimeout(timer);
@@ -243,10 +243,14 @@ export async function generatePhoneReply(
   );
   return { generationId, data };
 }
+// Runtime versions may return a boolean synchronously despite the Promise declaration.
+async function stopBackendGeneration(generationId: string): Promise<boolean> {
+  return Boolean(await stopGenerationById(generationId));
+}
 export function stopPhoneGeneration(generationId: string): Promise<boolean> {
   const request = runningRequests.get(generationId);
   if (request) request.cancelled = true;
-  return stopGenerationById(generationId);
+  return stopBackendGeneration(generationId);
 }
 export async function translatePhoneText(settings: ScriptSettings, text: string, language: string): Promise<string> {
   return requestConfigured(
