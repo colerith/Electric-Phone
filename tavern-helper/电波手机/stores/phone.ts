@@ -1,5 +1,5 @@
 import { updateGroupActivity } from '../services/chat/group-activity';
-import { stickerPrompt } from '../services/chat/stickers';
+import { resolveStickerMessage, stickerPrompt } from '../services/chat/stickers';
 import { resolveGroupActor } from '../services/chat/group-replies';
 import { paymentDetails } from '../services/chat/payment';
 import {
@@ -1643,7 +1643,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   function normalizeGroupReplies<
     T extends { sender: string; type: string; content: string; payload: Record<string, unknown> },
   >(group: Identity, messages: T[]): T[] {
-    if (group.source !== 'local_group') return messages;
+    if (group.source !== 'local_group')
+      return messages.map(message => resolveStickerMessage(message, group.charKey, settings.value.stickers.stickers));
     return messages.map((message, index) => {
       if (message.sender !== 'char') return message;
       try {
@@ -1660,7 +1661,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             normalized.type = 'text';
           }
         }
-        return normalized;
+        return resolveStickerMessage(normalized, actorKey, settings.value.stickers.stickers);
       } catch (error) {
         throw Error(`群聊第 ${index + 1} 条回复无效：${error instanceof Error ? error.message : String(error)}`);
       }
