@@ -288,7 +288,7 @@ function buildInputContext(input: GenerationInput): PhonePromptInput {
     voiceServices: input.settings.voiceServices,
     presets: input.settings.presets,
     moduleSettings: resolveModuleSettings(input.settings.moduleSettings, input.chatPreferences),
-    availableStickers: stickerPrompt(input.identity, input.settings.stickers.stickers),
+    availableStickers: stickerPrompt(input.identity, input.settings.stickers.stickers, input.thread),
   };
 }
 

@@ -1,9 +1,14 @@
-import type { Identity, ScriptSettings } from '../../schemas';
+import { phoneHistory } from './chat-history';
+import type { Identity, ScriptSettings, Thread } from '../../schemas';
 /** 图片仅保存在本地；提示词使用稳定短引用，兼容旧预设的 payload.url 协议。 */
 function stickerReference(id: string): string {
   return `sticker://${encodeURIComponent(id)}`;
 }
-export function stickerPrompt(identity: Identity, stickers: ScriptSettings['stickers']['stickers']): string {
+export function stickerPrompt(
+  identity: Identity,
+  stickers: ScriptSettings['stickers']['stickers'],
+  thread?: Thread,
+): string {
   const allowed = identity.source === 'local_group' ? identity.memberKeys || [] : [identity.charKey];
   const catalog = stickers
     .filter(item => item.scope === 'global' || !item.charKey || allowed.includes(item.charKey))
@@ -16,8 +21,28 @@ export function stickerPrompt(identity: Identity, stickers: ScriptSettings['stic
       }),
     )
     .join('\n');
+  const recent = thread
+    ? phoneHistory(thread)
+        .slice(-20)
+        .filter(
+          message =>
+            message.type === 'emoji' &&
+            (message.payload.emojiType === 'sticker' || message.payload.stickerUrl || message.payload.url),
+        )
+        .map(message => ({
+          sender: message.sender,
+          actorKey: message.payload.actorKey || identity.charKey,
+          name: String(message.payload.name || message.content).slice(0, 120),
+          reference: message.payload.stickerId ? stickerReference(String(message.payload.stickerId)) : undefined,
+        }))
+    : [];
+  const variety =
+    '表情包仅在契合情绪时偶尔发送，不作为每轮固定结尾。每轮最多一张，同轮不重复；避免复用最近20条消息中出现的同一表情包，也不要机械模仿用户刚发的表情。没有合适的新表情包就只发文字，不为换图而编造资源。\n[近期表情包，仅用于避重复]\n' +
+    JSON.stringify(recent) +
+    '\n';
   return catalog
-    ? '以下 url 是本地表情包引用，不是图片网址。发送 type="emoji"、payload.emojiType="sticker"，将引用原样填入 payload.url，客户端自动还原图片，勿展开图片数据。\n' +
+    ? variety +
+        '以下 url 是本地表情包引用，不是图片网址。发送 type="emoji"、payload.emojiType="sticker"，将引用原样填入 payload.url，客户端自动还原图片，勿展开图片数据。\n' +
         catalog
     : '';
 }

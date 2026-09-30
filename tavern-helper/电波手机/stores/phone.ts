@@ -1,3 +1,4 @@
+import { messageClockTime } from '../services/core/message-clock';
 import { sharedChatHistory } from '../services/chat/shared-history';
 import { updateGroupActivity } from '../services/chat/group-activity';
 import { resolveStickerMessage, stickerPrompt } from '../services/chat/stickers';
@@ -170,7 +171,9 @@ function nextReceivedAt(thread: Thread): string {
     const value = Date.parse(message.createdAt);
     return Number.isFinite(value) ? Math.max(latest, value) : latest;
   }, 0);
-  return new Date(Math.max(Date.now(), last + 1000)).toISOString();
+  const current = messageClockTime(usePhoneStore().settings.basic.systemClock);
+  // 仅维持同一分钟内的接收顺序；旧系统时间或主动回拨不能拉走手机时间。
+  return new Date(last >= current && last - current < 60_000 ? last + 1 : current).toISOString();
 }
 
 type StorageEnvelope = { identifier: string; version: number; data: unknown };
@@ -1721,7 +1724,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         ...groupPromptSettings(activeIdentity.value),
         thread: activeThread.value,
         appSnapshot: generationSnapshot(),
-        availableStickers: stickerPrompt(activeIdentity.value, settings.value.stickers.stickers),
+        availableStickers: stickerPrompt(activeIdentity.value, settings.value.stickers.stickers, activeThread.value),
       },
     };
   }
@@ -2602,7 +2605,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       sender: 'user',
       type: input.type || 'text',
       content: input.content,
-      createdAt: nowIso(),
+      createdAt: nextReceivedAt(thread),
       status: 'sending',
       payload: input.payload || {},
       quotedMessageId: input.quotedMessageId || '',
@@ -2765,7 +2768,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
               thread,
               appSnapshot: generationSnapshot(),
               zoneInteractions: state.value.zoneInteractions[identity.charKey] || {},
-              availableStickers: stickerPrompt(identity, settings.value.stickers.stickers),
+              availableStickers: stickerPrompt(identity, settings.value.stickers.stickers, thread),
             }),
         identity.source === 'local_group' ? '' : languageContext(preferences),
       ]
@@ -3195,7 +3198,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const source = activeThread.value?.messages.find(item => item.id === messageId);
     const target = Object.values(state.value.threads).find(item => item.charKey === targetCharKey);
     if (!source || !target || source.withdrawn || state.value.identities[targetCharKey]?.groupObserver) return;
-    const forwardedAt = nowIso();
+    const forwardedAt = nextReceivedAt(target);
     target.messages.push({
       ...klona(source),
       id: makeId('forward'),

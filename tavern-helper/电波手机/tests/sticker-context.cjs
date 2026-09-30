@@ -39,3 +39,10 @@ assert.equal(
 assert.equal(stickers[0].url, image, '生成提示词不能修改上传资源');
 assert.equal(stickerPrompt({ charKey: 'a' }, []), '');
 console.log('sticker context regression passed');
+
+const recentPrompt = stickerPrompt({ charKey: 'a' }, stickers, { messages: [{
+  ...restored, id: 'recent', sender: 'char', status: 'sent', createdAt: '2026-01-01',
+}], historyArchive: [] });
+assert(recentPrompt.includes('近期表情包') && recentPrompt.includes('每轮最多一张'));
+assert(recentPrompt.includes('"reference":"sticker://local"'));
+assert(!recentPrompt.includes('AAAA'));
