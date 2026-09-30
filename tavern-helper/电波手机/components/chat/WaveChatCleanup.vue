@@ -4,6 +4,12 @@
     <button type="button" @click="open('display')">清空聊天记录</button>
     <button type="button" class="clear-context" @click="open('context')">清空聊天记录与历史上下文</button>
     <p class="chat-settings-note">仅清理当前聊天对象。头像、人设、关系、其他应用和酒馆原楼层会保留。</p>
+    <button type="button" :disabled="phone.activeThread?.generating" @click="repairTime">修复时间</button>
+    <p class="chat-settings-note">
+      以手机当前时间为最后一条，按发送顺序每条间隔 1
+      秒重排当前聊天及归档。保留内容和原时间备份；这是重建时间轴，无法还原真实历史时间。
+    </p>
+    <p v-if="repairNotice" class="chat-settings-note" role="status">{{ repairNotice }}</p>
     <div v-if="notice" class="chat-cleanup-notice" role="status">
       <span aria-hidden="true"><i class="fa-solid fa-check"></i></span>
       <div>
@@ -59,6 +65,14 @@ const phone = usePhoneStore(),
   notice = ref(''),
   error = ref(''),
   dialog = ref<HTMLElement | null>(null);
+const repairNotice = ref('');
+function repairTime() {
+  try {
+    repairNotice.value = `已修复 ${phone.repairConversationTime()} 条消息的时间`;
+  } catch (error) {
+    repairNotice.value = error instanceof Error ? error.message : String(error);
+  }
+}
 let actor = '',
   previous: HTMLElement | null = null;
 async function open(value: 'display' | 'context') {
@@ -95,6 +109,7 @@ watch(
   () => {
     mode.value = '';
     notice.value = '';
+    repairNotice.value = '';
     error.value = '';
   },
 );

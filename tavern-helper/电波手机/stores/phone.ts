@@ -1,3 +1,4 @@
+import { repairThreadTime } from '../services/chat/repair-time';
 import { messageClockTime } from '../services/core/message-clock';
 import { sharedChatHistory } from '../services/chat/shared-history';
 import { updateGroupActivity } from '../services/chat/group-activity';
@@ -267,16 +268,6 @@ function readChatState(context: RuntimeContext): ChatState {
   Object.values(parsed.threads).forEach(thread => {
     thread.generating = false;
     thread.generationId = '';
-    thread.messages.forEach(message => {
-      const generatedAt = message.id.match(/^(?:char|system)-(\d{13})-/)?.[1];
-      if (!generatedAt || message.sender === 'user' || message.payload.storyCreatedAt) return;
-      const receivedAt = Number(generatedAt);
-      if (!Number.isFinite(receivedAt)) return;
-      const storyAt = Date.parse(message.createdAt);
-      if (Number.isFinite(storyAt) && Math.abs(storyAt - receivedAt) > 60_000)
-        message.payload.storyCreatedAt = message.createdAt;
-      message.createdAt = new Date(receivedAt).toISOString();
-    });
   });
   if (!Object.hasOwn(saved, 'walletBook')) {
     for (const [key, snapshot] of Object.entries(parsed.snapshots)) {
@@ -1348,10 +1339,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             for (const char of JSON.stringify(message)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
             const id = `wave-floor-${block.messageId}-${block.ordinal}-${index}-${hash >>> 0}`;
             const existing = oldFloorMessages.get(id);
-            if (existing && !existing.payload.storyCreatedAt) {
-              if (existing.createdAt) existing.payload.storyCreatedAt = existing.createdAt;
-              existing.createdAt = nextReceivedAt(thread);
-            }
+
             thread.messages.push(
               existing ||
                 PhoneMessageSchema.parse({
@@ -2589,6 +2577,16 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
   }
 
+  function repairConversationTime(): number {
+    const thread = activeThread.value;
+    if (!thread) return 0;
+    if (thread.generating) throw Error('请等当前回复结束后再修复时间');
+    const count = repairThreadTime(thread, messageClockTime(settings.value.basic.systemClock));
+    ++syncToken;
+    saveChat();
+    return count;
+  }
+
   function setDraft(value: string): void {
     const thread = activeThread.value;
     if (!thread) return;
@@ -3550,6 +3548,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     stopActiveGeneration,
     setContactDetails,
     clearActiveConversation,
+    repairConversationTime,
     deleteMessage,
     deleteMessages,
     editMessage,

@@ -462,6 +462,23 @@ const clickText = (selector, text) => {
   assert.equal(receivedAt.getFullYear(), 2018);
   assert.equal(receivedAt.getHours(), 15);
   assert.equal(receivedAt.getMinutes(), 4);
+  const clockThreadId = phone.activeThread.id;
+  const clockCharKey = phone.activeIdentity.charKey;
+  const timeBeforeReload = phone.activeThread.messages.filter(message => message.content === '群里晚上好' || message.id.startsWith('char-')).map(message => [message.id, message.createdAt]);
+  await phone.synchronize();
+  for (const [id, timestamp] of timeBeforeReload) {
+    assert.equal(phone.state.threads[clockThreadId].messages.find(message => message.id === id)?.createdAt, timestamp, '重载不能用消息 ID 的系统时间覆盖手机时间');
+  }
+  phone.startConversation(clockCharKey);
+  const repairedCount = phone.repairConversationTime();
+  assert(repairedCount > 0);
+  const repairedTimes = phone.activeThread.messages.map(message => [message.id, message.createdAt]);
+  assert.equal(new Date(phone.activeThread.messages.at(-1).createdAt).getHours(), 15);
+  await phone.synchronize();
+  for (const [id, timestamp] of repairedTimes) {
+    assert.equal(phone.state.threads[clockThreadId].messages.find(message => message.id === id)?.createdAt, timestamp, '修复结果必须在重新同步后保留');
+  }
+
   assert.equal(phone.activeThread.messages.at(-1).content, '大家晚上好');
   assert.equal(phone.activeThread.messages.at(-1).type, 'text', '未启用语音时保留文字回复');
   assert.equal(phone.activeThread.messages.at(-1).payload.electric, '演示记录 {not json}');
