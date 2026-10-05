@@ -162,6 +162,9 @@ function snapshot(name) {
   characterApp.mount('#app');
   await vue.nextTick();
   assert(document.body.textContent.includes('Alice'));
+  assert.equal(document.querySelectorAll('.character-image-settings > .image-section').length, 4);
+  assert.equal(window.getComputedStyle(document.querySelector('.character-image-settings label')).fontWeight, '400');
+  assert.equal(window.getComputedStyle(document.querySelector('.character-image-settings textarea')).fontWeight, '400');
   const appearance = document.querySelector('textarea');
   assert.equal(appearance.value, 'silver hair, green eyes');
   appearance.value = 'blue hair';
@@ -176,6 +179,39 @@ function snapshot(name) {
   assert(!document.querySelector('.wave-upload-dialog'));
   snapshot('character-image');
   characterApp.unmount();
+  const speech = require(base + '/services/chat/speech.ts');
+  phone.setCharacterVoice(speech.CharacterVoiceSchema.parse({ provider: 'fish', voiceId: 'first' }));
+  const libraryApp = vue.createApp(require(base + '/components/chat/WaveCharacterVoice.vue').default).use(pinia);
+  libraryApp.mount('#app');
+  const note = document.querySelector('input[maxlength="100"]');
+  note.value = '轻声';
+  note.dispatchEvent(new Event('input', { bubbles: true }));
+  click('保存当前音色');
+  await vue.nextTick();
+  assert.equal(phone.state.characterVoices.alice.savedVoices[0].note, '轻声');
+  const idInput = document.querySelector('input[placeholder="当前角色的音色 ID"]');
+  idInput.value = 'second';
+  idInput.dispatchEvent(new Event('input', { bubbles: true }));
+  await vue.nextTick();
+  note.value = '日常';
+  note.dispatchEvent(new Event('input', { bubbles: true }));
+  click('保存当前音色');
+  await vue.nextTick();
+  assert.equal(phone.state.characterVoices.alice.savedVoices.length, 2);
+  document.querySelector('.character-voice-library .wave-select-trigger').click();
+  await vue.nextTick();
+  const option = [...document.querySelectorAll('[role="option"]')].find(item => item.textContent.includes('轻声'));
+  assert(option);
+  option.click();
+  await vue.nextTick();
+  assert.equal(phone.state.characterVoices.alice.voiceId, 'first');
+  assert.equal(document.querySelector('input[maxlength="100"]').value, '轻声');
+  snapshot('character-voice');
+  click('移出音色列表');
+  await vue.nextTick();
+  assert.equal(phone.state.characterVoices.alice.savedVoices.length, 1);
+  assert.equal(phone.state.characterVoices.alice.voiceId, 'first');
+  libraryApp.unmount();
   global.fetch = async () =>
     new Response(
       JSON.stringify({

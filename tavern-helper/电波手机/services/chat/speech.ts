@@ -34,6 +34,16 @@ export const CharacterVoiceSchema = z
   .object({
     provider: z.enum(['off', 'minimax', 'elevenlabs', 'fish']).prefault('off'),
     voiceId: z.string().prefault(''),
+    savedVoices: z
+      .array(
+        z.object({
+          id: z.string(),
+          provider: z.enum(['minimax', 'elevenlabs', 'fish']),
+          voiceId: z.string().min(1),
+          note: z.string().prefault(''),
+        }),
+      )
+      .prefault([]),
     speed: z.number().min(0.5).max(2).prefault(1),
     pitch: z.number().int().min(-12).max(12).prefault(0),
     style: z.number().min(0).max(1).prefault(0),

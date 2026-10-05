@@ -100,10 +100,14 @@ export async function collectManagedWorldbooks(settings: ScriptSettings, text: s
   }
   return content.join('\n\n');
 }
-export async function prepareContext(settings: ScriptSettings, afterFloor = -1): Promise<Overrides> {
+export async function prepareContext(
+  settings: ScriptSettings,
+  afterFloor = -1,
+  beforeFloor = Infinity,
+): Promise<Overrides> {
   const all = readChatFloors({ hide_state: 'unhidden' });
   const messages = retainHistory(
-    all.filter(message => message.message_id > afterFloor),
+    all.filter(message => message.message_id > afterFloor && message.message_id < beforeFloor),
     settings.basic.historyDepth,
   ).map(message => ({
     role: message.role,

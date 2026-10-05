@@ -2098,7 +2098,8 @@ async function stopGeneration(): Promise<void> {
 }
 function useExtra(name: string): void {
   if (name === '刷新') {
-    void store.synchronize();
+    if (store.activeIdentity?.source === 'local_group') void store.synchronize();
+    else void regenerateReply();
     extrasOpen.value = false;
     return;
   }
@@ -2117,6 +2118,22 @@ function useExtra(name: string): void {
     state: groupPacket ? 'group_available' : 'pending',
     content: '',
   };
+}
+async function regenerateReply(): Promise<void> {
+  const threadId = store.activeThread?.id || '';
+  if (store.activeThread?.generating) {
+    toastr.info('这个会话正在生成，请稍候或先停止');
+    return;
+  }
+  replyVisualThreadId.value = threadId;
+  replyMessageVisibleThreadId.value = '';
+  try {
+    await store.regenerateLatestReply();
+  } catch (error) {
+    toastr.error(String(error), '重新生成失败，原回复已保留');
+  } finally {
+    if (replyVisualThreadId.value === threadId) replyVisualThreadId.value = '';
+  }
 }
 function closeExtra(): void {
   extraMode.value = '';

@@ -14,7 +14,7 @@
     margin: 0;
     min-width: 0;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
   }
   input,
   textarea {
@@ -29,6 +29,7 @@
     background: #8881;
     color: inherit;
     font: inherit;
+    font-weight: 400;
     box-shadow: none;
   }
   textarea {
@@ -92,6 +93,7 @@
     opacity: 0.65;
     font-size: 12px;
     line-height: 1.7;
+    font-weight: 400;
   }
   .image-status {
     margin: 0;
@@ -155,7 +157,7 @@
   }
   .image-heading strong {
     font-size: 15px;
-    font-weight: 650;
+    font-weight: 500;
   }
   .image-count {
     padding: 4px 9px;
@@ -209,7 +211,7 @@
   }
   .vibe-card-heading input {
     padding: 7px 9px;
-    font-weight: 500;
+    font-weight: 400;
   }
   .vibe-file-input {
     display: none;

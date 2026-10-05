@@ -24,6 +24,7 @@ import { MomentBatchSchema, type MomentPlan, type MomentsState, type MomentPost 
 import { ZoneUpdateSchema, type ZoneUpdate } from '../space/zone';
 
 type GenerationInput = {
+  historyBeforeFloor?: number;
   sharedHistory?: string;
   replyCount?: PhonePromptInput['replyCount'];
   chatPreferences?: PhonePromptInput['chatPreferences'];
@@ -67,7 +68,13 @@ async function requestConfigured<T>(
   prompts: (BuiltinPrompt | RolePrompt)[],
   userInput: string,
   parse: (raw: string) => T,
-  namespace?: { cardKey: string; chatKey: string; thread?: Thread; onElectric?: (text: string, title: string) => void },
+  namespace?: {
+    cardKey: string;
+    chatKey: string;
+    thread?: Thread;
+    historyBeforeFloor?: number;
+    onElectric?: (text: string, title: string) => void;
+  },
 ): Promise<T> {
   const request = { cancelled: false, backendId: generationId };
   let stage: RequestStage = '配置检查';
@@ -107,7 +114,7 @@ async function requestConfigured<T>(
     stage = '准备上下文';
     contextStep = '读取历史楼层与世界书';
     const overrides = namespace
-      ? await prepareContext(settings, namespace.thread?.historyFloorCutoff ?? -1)
+      ? await prepareContext(settings, namespace.thread?.historyFloorCutoff ?? -1, namespace.historyBeforeFloor)
       : undefined;
     contextStep = '清理手机提示词';
     const filtered = prompts.map(prompt =>

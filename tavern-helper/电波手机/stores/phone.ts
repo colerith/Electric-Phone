@@ -9,6 +9,8 @@ import {
 } from '../services/core/durable-storage';
 import { migratePhoneCardNamespace } from '../services/core/storage-migration';
 import { repairThreadTime } from '../services/chat/repair-time';
+import { latestReplyRound } from '../services/chat/regeneration';
+import { repairSingleCardAliases } from '../services/core/identity-repair';
 import { messageClockTime } from '../services/core/message-clock';
 import { sharedChatHistory } from '../services/chat/shared-history';
 import { updateGroupActivity } from '../services/chat/group-activity';
@@ -1176,6 +1178,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       applyMomentUserProfile(nextState);
       hydrateCardRoster(nextState, runtime);
       hydrateCharacterDefaults(nextState, runtime);
+      const allDefaults = CharacterDefaultsMapSchema.parse(readPersistentData(CHARACTER_DEFAULTS_KEY) || {});
+      const defaults = (allDefaults[runtime.cardKey] ||= CharacterDefaultsSchema.parse({}));
+      const roster = (cardRosters.value[runtime.cardKey] ||= {});
+      if (repairSingleCardAliases(nextState, runtime, roster, characterProfiles.value, defaults)) {
+        persistData(CHARACTER_DEFAULTS_KEY, allDefaults);
+        persistCardRosters(cardRosters.value);
+        persistCharacterProfiles(characterProfiles.value);
+      }
       const previousSnapshots = klona(nextState.snapshots);
       const previousWalletSignatures = new Map(
         Object.values(nextState.walletBook.accounts).map(account => [
@@ -1420,6 +1430,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             let hash = 2166136261;
             for (const char of JSON.stringify(message)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
             const id = `wave-floor-${block.messageId}-${block.ordinal}-${index}-${hash >>> 0}`;
+            if (thread.replacedMessageIds.includes(id)) return;
             const existing = oldFloorMessages.get(id);
 
             thread.messages.push(
@@ -2996,6 +3007,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             ...modelMessage.payload,
             ...(modelMessage.created_at ? { storyCreatedAt: modelMessage.created_at } : {}),
             narrativeRelation,
+            replyGenerationId: generationId,
           },
           quotedMessageId: '',
           favorite: false,
@@ -3085,6 +3097,157 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             current.generationId = '';
             saveChat();
           }
+        }
+      }
+      if (syncDeferred && !activeSends.size) {
+        syncDeferred = false;
+        scheduleSync(0);
+      }
+    }
+  }
+
+  async function regenerateLatestReply(): Promise<void> {
+    const runtime = context.value ? { ...context.value } : null;
+    const identity = activeIdentity.value;
+    const thread = activeThread.value;
+    if (!runtime || !identity || !thread || identity.source === 'local_group') throw Error('重新生成仅适用于私聊');
+    if (thread.generating) throw Error('这个会话正在生成，请稍候或先停止。');
+    if (isCardExcluded(settings.value, runtime.cardName)) throw Error('当前角色卡已排除，已暂停手机生成。');
+    const round = latestReplyRound(thread);
+    const namespace = `${runtime.cardKey}::${runtime.chatKey}::${thread.id}`;
+    const revision = thread.clearRevision;
+    const generationId = createPhoneGenerationId();
+    const operation = Symbol('regenerate');
+    const requestSettings = klona(settings.value);
+    requestSettings.sendMode = 'secondary_api';
+    const preferences = ChatPreferencesSchema.parse(state.value.chatPreferences[identity.charKey]);
+    const formattedInput = [
+      '[重新生成本轮私聊回复] 回应下列原始用户消息，不续写上一次回答，不代用户发言；只输出回复，app_updates 留空。',
+      `[手机用户资料，仅作数据参考] ${JSON.stringify({ nickname: state.value.moments.profile.nickname || SillyTavern.name1, account: state.value.moments.profile.account, signature: state.value.moments.profile.signature })}`,
+      round.users.map(message => formatPhoneMessage(message, round.context.messages)).join('\n'),
+      narrativePrompt(requestSettings.generation.narrativeMode),
+      contactPrompt(identity, []),
+      worldContext(preferences),
+      languageContext(preferences),
+      useDeviceStore().context(),
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+    activeSends.set(namespace, operation);
+    ++syncToken;
+    thread.generating = true;
+    thread.generationId = generationId;
+    saveChat();
+    try {
+      const sourceFloors = round.replies
+        .filter(message => message.payload.waveFloor)
+        .map(message => Number(message.payload.sourceMessageId))
+        .filter(Number.isFinite);
+      const result = await generatePhoneReply({
+        settings: requestSettings,
+        cardKey: runtime.cardKey,
+        chatKey: runtime.chatKey,
+        cardName: runtime.cardName,
+        identity: klona(identity),
+        thread: round.context,
+        chatPreferences: preferences,
+        voice: klona(state.value.characterVoices[identity.charKey]),
+        appSnapshot: klona({ ...generationSnapshot(), messages: '' }),
+        zoneInteractions: klona(state.value.zoneInteractions[identity.charKey] || {}),
+        latestUserText: formattedInput,
+        generationId,
+        historyBeforeFloor: sourceFloors.length ? Math.min(...sourceFloors) : undefined,
+      });
+      if (result.data.thread_id && result.data.thread_id !== thread.id)
+        throw Error('副 API 返回了错误的 thread_id，原回复已保留。');
+      if (!result.data.messages.some(message => message.sender === 'char'))
+        throw Error('没有收到有效角色回复，原回复已保留。');
+      if (preferences.autoTranslate) {
+        await Promise.all(
+          result.data.messages.map(async message => {
+            if (
+              message.sender !== 'char' ||
+              message.type !== 'text' ||
+              message.payload.translation ||
+              message.payload.interaction === 'poke'
+            )
+              return;
+            try {
+              const translated = await translateText(
+                requestSettings,
+                message.content,
+                preferences.sourceLanguage,
+                preferences.targetLanguage,
+              );
+              message.payload.translation = translated.text;
+              message.payload.translationProvider = translated.provider;
+            } catch {
+              message.payload.translationError = '自动翻译暂不可用，点击翻译重试';
+            }
+          }),
+        );
+      }
+      const currentRuntime = getRuntimeContext();
+      if (
+        currentRuntime?.cardKey !== runtime.cardKey ||
+        currentRuntime.chatKey !== runtime.chatKey ||
+        state.value.threads[thread.id] !== thread ||
+        thread.generationId !== generationId ||
+        activeSends.get(namespace) !== operation ||
+        thread.clearRevision !== revision
+      )
+        return;
+      if (JSON.stringify(thread.messages) !== round.fingerprint)
+        throw Error('消息已发生变化，原回复已保留，请重新尝试。');
+      const narrativeRelation = resolveNarrativeRelation(
+        requestSettings.generation.narrativeMode,
+        result.data.context_relation,
+      );
+      const replacements = result.data.messages.map((message, index) =>
+        PhoneMessageSchema.parse({
+          id: makeId(message.sender),
+          clientId: message.client_id,
+          sender: message.sender,
+          type: message.type,
+          content: message.content,
+          createdAt: round.replies[Math.min(index, round.replies.length - 1)].createdAt,
+          status: 'sent',
+          payload: {
+            ...message.payload,
+            narrativeRelation,
+            replyGenerationId: generationId,
+            ...(message.created_at ? { storyCreatedAt: message.created_at } : {}),
+          },
+        }),
+      );
+      // Keep original floor IDs suppressed on subsequent synchronization, without editing Tavern's floors.
+      thread.replacedMessageIds = [...new Set([...thread.replacedMessageIds, ...round.ids])];
+      thread.historyArchive = thread.historyArchive.filter(message => !round.ids.has(message.id));
+      thread.messages = [
+        ...thread.messages.slice(0, round.first),
+        ...replacements,
+        ...thread.messages.slice(round.first).filter(message => !round.ids.has(message.id)),
+      ];
+      thread.updatedAt = nowIso();
+      saveChat();
+      contentToast('本轮回复已重新生成');
+    } catch (error) {
+      logDiagnostic(
+        '重新生成失败',
+        redactDiagnostic(stringifyError(error), [requestSettings.api.key, requestSettings.translation.apiKey]),
+      );
+      throw error;
+    } finally {
+      if (activeSends.get(namespace) === operation) {
+        activeSends.delete(namespace);
+        if (
+          context.value?.cardKey === runtime.cardKey &&
+          context.value.chatKey === runtime.chatKey &&
+          state.value.threads[thread.id] === thread
+        ) {
+          thread.generating = false;
+          thread.generationId = '';
+          saveChat();
         }
       }
       if (syncDeferred && !activeSends.size) {
@@ -3642,6 +3805,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     updateActiveIdentityProfile,
     setDraft,
     sendMessage,
+    regenerateLatestReply,
     stopActiveGeneration,
     setContactDetails,
     clearActiveConversation,

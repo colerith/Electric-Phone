@@ -6,6 +6,8 @@ import type { ChatState } from '../../schemas';
 export const CHARACTER_DEFAULTS_KEY = 'wave_phone_character_defaults';
 export const CharacterDefaultsSchema = z
   .object({
+    identityAliases: z.record(z.string(), z.string()).prefault({}),
+    identityRecovery: z.record(z.string(), z.unknown()).prefault({}),
     artwork: z.record(z.string(), z.record(z.string(), z.string())).prefault({}),
     walletBook: WalletBookSchema,
     migratedChats: z.array(z.string()).prefault([]),

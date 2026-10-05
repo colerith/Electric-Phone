@@ -1,115 +1,130 @@
 <template>
-  <section class="wave-image-settings">
-    <div class="image-heading">
-      <strong>角色生图</strong
-      ><WaveToggle
-        :model-value="config.enabled"
-        aria-label="启用角色生图"
-        @update:model-value="value => update({ enabled: value })"
-      />
-    </div>
-    <p class="image-help">
-      当前角色：{{ phone.activeIdentity?.name }}。配置自动保存；仅点击「生成并发到私聊」时请求生图。
-    </p>
-    <template v-if="config.enabled">
-      <label
+  <section class="wave-image-settings image-settings-manager character-image-settings">
+    <section class="image-section" aria-label="角色生图接口">
+      <div class="image-heading">
+        <strong>角色生图</strong
+        ><WaveToggle
+          :model-value="config.enabled"
+          aria-label="启用角色生图"
+          @update:model-value="value => update({ enabled: value })"
+        />
+      </div>
+      <p class="image-help">
+        当前角色：{{ phone.activeIdentity?.name }}。配置自动保存；仅点击「生成并发到私聊」时请求生图。
+      </p>
+      <label v-if="config.enabled"
         >使用的生图接口<WaveSelect
           :model-value="config.profileId"
           :options="phone.settings.imageServices.profiles.map(p => ({ value: p.id, label: p.name }))"
           placeholder="请先在「图像生成」中添加接口"
           @update:model-value="value => update({ profileId: value })"
       /></label>
-      <p v-if="!selectedProfile" class="image-help">还没有可用配置，请前往「设置 → 图像生成」。</p>
-      <label
-        >角色前置提示词<textarea
-          :value="config.prefix"
-          rows="4"
-          placeholder="发色、瞳色、体型、服装等固定外貌；生成时始终放在画面描述前。"
-          @change="update({ prefix: ($event.target as HTMLTextAreaElement).value })"
+      <p v-if="config.enabled && !selectedProfile" class="image-help">还没有可用配置，请前往「设置 → 图像生成」。</p>
+    </section>
+    <template v-if="config.enabled">
+      <section class="image-section" aria-label="角色外貌">
+        <div class="image-heading"><strong>角色外貌</strong><span class="image-count">自动保存</span></div>
+        <label
+          >角色前置提示词<textarea
+            :value="config.prefix"
+            rows="4"
+            placeholder="发色、瞳色、体型、服装等固定外貌；生成时始终放在画面描述前。"
+            @change="update({ prefix: ($event.target as HTMLTextAreaElement).value })"
+          />
+        </label>
+        <div class="image-actions"><button type="button" @click="loadBaibai">读取柏宝绘角色 / 参考图</button></div>
+        <div v-if="characters.length" class="image-grid">
+          <label
+            >柏宝绘角色档案<WaveSelect
+              v-model="selectedCharacter"
+              :options="
+                characters.map((c, i) => ({
+                  value: String(i),
+                  label: `${c.name} · ${c.scope === 'global' ? '全局' : '当前聊天'}`,
+                }))
+              "
+          /></label>
+          <button type="button" @click="applyCharacter">使用此外貌</button>
+        </div>
+      </section>
+      <section class="image-section" aria-label="角色参考图">
+        <div class="image-heading">
+          <strong>参考图</strong><span class="image-count">{{ config.references.length }} / 8</span>
+        </div>
+        <div v-if="vibes.length" class="image-import-row">
+          <label
+            >柏宝绘参考图<WaveSelect v-model="selectedVibe" :options="vibes.map(v => ({ value: v.id, label: v.name }))"
+          /></label>
+          <button type="button" :disabled="importing" @click="importReference">
+            {{ importing ? '读取中…' : '添加此参考图' }}
+          </button>
+        </div>
+        <div class="image-heading">
+          <button type="button" :disabled="config.references.length >= 8" @click="editingReference = 'new'">
+            ＋ 本地图片 / 地址
+          </button>
+        </div>
+        <p v-if="!config.references.length" class="image-help">
+          还没有参考图，可添加本地图片、图片地址，或读取柏宝绘参考图。
+        </p>
+        <div v-for="reference in config.references" :key="reference.id" class="image-reference">
+          <img v-if="reference.image" :src="reference.image" :alt="reference.name" />
+          <label
+            >{{ reference.name }}<small v-if="!reference.image">仅 NovelAI Vibe 编码</small
+            ><input
+              :value="reference.strength"
+              type="number"
+              min="0"
+              max="1"
+              step="0.05"
+              aria-label="NovelAI 参考强度"
+              @change="strength(reference.id, Number(($event.target as HTMLInputElement).value))"
+          /></label>
+          <button
+            type="button"
+            aria-label="移除参考图"
+            @click="update({ references: config.references.filter(r => r.id !== reference.id) })"
+          >
+            移除
+          </button>
+        </div>
+        <p class="image-help">
+          NovelAI 使用 Vibe 参考强度；GPT Image 使用原图。外貌提示词与参考图用于约束人物特征，不能保证每次完全一致。
+        </p>
+        <WaveImageUpload
+          v-if="editingReference"
+          model-value=""
+          purpose="artwork"
+          label="角色参考图"
+          :max-side="1536"
+          :quality="0.9"
+          inline
+          @confirm="addReference"
+          @cancel="editingReference = ''"
+          @reset="editingReference = ''"
         />
-      </label>
-      <div class="image-actions"><button type="button" @click="loadBaibai">读取柏宝绘角色 / 参考图</button></div>
-      <div v-if="characters.length" class="image-grid">
+      </section>
+      <section class="image-section" aria-label="本次生成">
+        <div class="image-heading"><strong>本次生成</strong></div>
         <label
-          >柏宝绘角色档案<WaveSelect
-            v-model="selectedCharacter"
-            :options="
-              characters.map((c, i) => ({
-                value: String(i),
-                label: `${c.name} · ${c.scope === 'global' ? '全局' : '当前聊天'}`,
-              }))
-            "
-        /></label>
-        <button type="button" @click="applyCharacter">使用此外貌</button>
-      </div>
-      <div v-if="vibes.length" class="image-grid">
-        <label
-          >柏宝绘参考图<WaveSelect v-model="selectedVibe" :options="vibes.map(v => ({ value: v.id, label: v.name }))"
-        /></label>
-        <button type="button" :disabled="importing" @click="importReference">
-          {{ importing ? '读取中…' : '添加此参考图' }}
-        </button>
-      </div>
-      <div class="image-heading">
-        <strong>参考图 · {{ config.references.length }}/8</strong
-        ><button type="button" :disabled="config.references.length >= 8" @click="editingReference = 'new'">
-          ＋ 本地图片 / 地址
-        </button>
-      </div>
-      <div v-for="reference in config.references" :key="reference.id" class="image-reference">
-        <img v-if="reference.image" :src="reference.image" :alt="reference.name" />
-        <label
-          >{{ reference.name }}<small v-if="!reference.image">仅 NovelAI Vibe 编码</small
-          ><input
-            :value="reference.strength"
-            type="number"
-            min="0"
-            max="1"
-            step="0.05"
-            aria-label="NovelAI 参考强度"
-            @change="strength(reference.id, Number(($event.target as HTMLInputElement).value))"
-        /></label>
-        <button
-          type="button"
-          aria-label="移除参考图"
-          @click="update({ references: config.references.filter(r => r.id !== reference.id) })"
-        >
-          移除
-        </button>
-      </div>
-      <p class="image-help">
-        NovelAI 使用 Vibe 参考强度；GPT Image 使用原图。外貌提示词与参考图用于约束人物特征，不能保证每次完全一致。
-      </p>
-      <WaveImageUpload
-        v-if="editingReference"
-        model-value=""
-        purpose="artwork"
-        label="角色参考图"
-        :max-side="1536"
-        :quality="0.9"
-        inline
-        @confirm="addReference"
-        @cancel="editingReference = ''"
-        @reset="editingReference = ''"
-      />
-      <label
-        >本次画面描述<textarea
-          v-model="prompt"
-          rows="3"
-          :disabled="busy"
-          placeholder="例如：在窗边读书，白衬衫，午后阳光，半身构图"
-        />
-      </label>
-      <div class="image-actions">
-        <button
-          class="image-primary"
-          type="button"
-          :disabled="busy || !selectedProfile || !prompt.trim()"
-          @click="generate"
-        >
-          {{ busy ? '正在生成…' : '生成并发到私聊' }}</button
-        ><button v-if="busy" type="button" @click="cancel">取消生成</button>
-      </div>
+          >本次画面描述<textarea
+            v-model="prompt"
+            rows="3"
+            :disabled="busy"
+            placeholder="例如：在窗边读书，白衬衫，午后阳光，半身构图"
+          />
+        </label>
+        <div class="image-actions">
+          <button
+            class="image-primary"
+            type="button"
+            :disabled="busy || !selectedProfile || !prompt.trim()"
+            @click="generate"
+          >
+            {{ busy ? '正在生成…' : '生成并发到私聊' }}</button
+          ><button v-if="busy" type="button" @click="cancel">取消生成</button>
+        </div>
+      </section>
     </template>
     <p v-if="status" role="status" class="image-status">{{ status }}</p>
   </section>
