@@ -1,5 +1,6 @@
 <template>
   <div class="wave-phone-host">
+    <WaveFloatingEntry v-if="store.settings.appearance.floatingEntry && !store.isOpen" />
     <div v-if="store.isOpen" class="wave-overlay" @click.self="store.isOpen = false">
       <section
         ref="phoneSurface"
@@ -1069,6 +1070,7 @@
 <script setup lang="ts">
 import { requestErrorToast } from './services/core/request-error';
 import WaveReactionPicker from './components/chat/WaveReactionPicker.vue';
+import WaveFloatingEntry from './components/shared/WaveFloatingEntry.vue';
 import { canReactToMessage } from './services/chat/message-reactions';
 import { parseCalendar } from './services/apps/calendar';
 import WaveTogether from './components/chat/WaveTogether.vue';

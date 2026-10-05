@@ -1,6 +1,18 @@
 <template>
   <div class="home-appearance-editor">
     <section class="settings-card appearance-group">
+      <div class="wave-settings-title">悬浮球入口</div>
+      <div class="system-toggle-row">
+        <span><strong>显示电波手机悬浮球</strong><small>点击打开手机，拖动调整位置，靠近边缘自动吸附</small></span>
+        <WaveToggle
+          v-model="appearance.floatingEntry"
+          aria-label="显示电波手机悬浮球"
+          @update:model-value="phone.saveSettings()"
+        />
+      </div>
+      <p>使用内置图标，位置自动记忆；打开手机时暂时隐藏。也可继续使用酒馆的电波手机按钮。</p>
+    </section>
+    <section class="settings-card appearance-group">
       <div class="wave-settings-title">顶部状态栏</div>
       <div class="system-toggle-row">
         <span><strong>显示状态栏信息</strong><small>显示左侧时间，以及右侧信号、电量信息</small></span>
