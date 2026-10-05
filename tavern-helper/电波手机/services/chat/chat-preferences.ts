@@ -7,7 +7,7 @@ export const ChatPreferencesSchema = z
     outgoingTranslation: z.boolean().prefault(false),
     inputLanguage: z.string().prefault('简体中文'),
     outgoingLanguage: z.string().prefault(''),
-    sourceLanguage: z.string().prefault('韩语'),
+    sourceLanguage: z.string().prefault('简体中文'),
     targetLanguage: z.string().prefault('简体中文'),
     timeMode: z.enum(['real', 'off', 'custom']).prefault('off'),
     customTime: z.string().prefault(''),

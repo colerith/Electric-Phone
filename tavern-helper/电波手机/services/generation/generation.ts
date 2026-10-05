@@ -1,3 +1,9 @@
+import {
+  NpcGenerationOptionsSchema,
+  npcGenerationPrompt,
+  parseGeneratedNpcs,
+  type NpcGenerationOptions,
+} from '../chat/npc-generation';
 import { stopBackendGeneration, withTimeout } from './request-lifecycle';
 import { validateReplyMedia, type ReplyMedia } from '../chat/media-settings';
 import { stickerPrompt } from '../chat/stickers';
@@ -445,5 +451,27 @@ export async function generateMomentsBatch(
       return batch;
     },
     input,
+  );
+}
+
+export async function generateNpcContacts(
+  settings: ScriptSettings,
+  options: NpcGenerationOptions,
+  contacts: Identity[],
+  generationId: string,
+) {
+  const parsed = NpcGenerationOptionsSchema.parse(options);
+  const provider = settings.imageServices.profiles.find(p => p.id === parsed.imageProfileId)?.provider;
+  return requestConfigured(
+    settings,
+    generationId,
+    [{ role: 'system', content: npcGenerationPrompt(parsed, contacts, provider) }],
+    '',
+    raw =>
+      parseGeneratedNpcs(
+        extractJson(raw),
+        parsed.count,
+        contacts.map(c => c.name),
+      ),
   );
 }

@@ -174,6 +174,9 @@
       </div>
     </template>
   </section>
+  <button class="settings-save-wide" type="button" @click="saveAll">
+    <i class="fa-solid fa-floppy-disk"></i> 保存图像生成
+  </button>
 </template>
 <script setup lang="ts">
 import { computed, ref } from 'vue';
@@ -213,6 +216,17 @@ const samplers = [
 ].map(value => ({ value, label: value }));
 const schedules = ['karras', 'native', 'exponential', 'polyexponential'].map(value => ({ value, label: value }));
 const qualities = ['auto', 'low', 'medium', 'high', 'xhigh', 'max'].map(value => ({ value, label: value }));
+function saveAll() {
+  const parsed = ImageProfileSchema.array().safeParse(profiles.value);
+  if (!parsed.success) {
+    status.value = '参数超出范围，请检查各配置的宽高、步数、强度或种子';
+    return;
+  }
+  phone.settings.imageServices.profiles = parsed.data;
+  phone.saveSettings();
+  status.value = '图像生成设置已保存';
+  if (phone.settings.notifications.toastEnabled) toastr.success(status.value, '电波手机');
+}
 function save() {
   const result = ImageProfileSchema.safeParse(profile.value);
   if (!result.success) {

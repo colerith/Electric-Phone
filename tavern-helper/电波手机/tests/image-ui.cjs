@@ -40,6 +40,7 @@ require.extensions['.vue'] = (m, f) => {
 };
 global._ = require('lodash');
 global.z = require('zod').z;
+global.toastr = { success: () => {} };
 const vars = { global: {}, chat: {} };
 Object.assign(global, {
   SillyTavern: { name1: 'User', getCurrentChatId: () => 'backup-ui', characterId: '1' },
@@ -100,11 +101,18 @@ function snapshot(name) {
   width.dispatchEvent(new Event('change', { bubbles: true }));
   await vue.nextTick();
   assert.equal(phone.settings.imageServices.profiles[0].width, 1024, 'invalid drafts never corrupt stored settings');
+  click('保存图像生成');
+  await vue.nextTick();
+  assert.equal(phone.settings.imageServices.profiles[0].width, 1024);
+  assert(document.body.textContent.includes('参数超出范围'));
   width.value = '832';
   width.dispatchEvent(new Event('input', { bubbles: true }));
   width.dispatchEvent(new Event('change', { bubbles: true }));
   await vue.nextTick();
   assert.equal(phone.settings.imageServices.profiles[0].width, 832);
+  click('保存图像生成');
+  await vue.nextTick();
+  assert(document.body.textContent.includes('图像生成设置已保存'));
   const bridge = require(base + '/services/image/baibai.ts');
   bridge.baibaiReferences = () => [{ id: 'style', name: '测试 Vibe' }];
   bridge.importBaibaiReference = async () =>

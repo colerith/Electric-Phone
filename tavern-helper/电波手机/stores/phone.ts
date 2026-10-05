@@ -1,3 +1,9 @@
+import {
+  NpcGenerationOptionsSchema,
+  GeneratedNpcSchema,
+  type GeneratedNpc,
+  type NpcGenerationOptions,
+} from '../services/chat/npc-generation';
 import { CharacterImageSchema, type CharacterImage } from '../services/image/schema';
 import { generateImage, imageSubjectRequest } from '../services/image/generate';
 import { resolveReplyMedia } from '../services/chat/media-settings';
@@ -2535,6 +2541,68 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     return key;
   }
 
+  function addGeneratedNpcs(
+    rows: GeneratedNpc[],
+    options: NpcGenerationOptions,
+    namespace: { cardKey: string; chatKey: string },
+  ): string[] {
+    const runtime = context.value;
+    if (!runtime || runtime.cardKey !== namespace.cardKey || runtime.chatKey !== namespace.chatKey)
+      throw Error('聊天已切换，请重新生成');
+    const config = NpcGenerationOptionsSchema.parse(options);
+    const parsed = GeneratedNpcSchema.array().length(config.count).parse(rows);
+    const names = new Set(identities.value.map(c => c.name.trim().toLocaleLowerCase()));
+    const related = config.relatedKeys.map(key => state.value.identities[key]);
+    if (related.some(c => !c || c.source === 'local_group')) throw Error('关联人物已被移除，请重新选择');
+    const additions = parsed.map(row => {
+      const name = row.name.toLocaleLowerCase();
+      if (names.has(name)) throw Error(`已有同名联系人「${row.name}」，未添加本批人物`);
+      names.add(name);
+      const id = makeId('npc');
+      const about = [related.length ? `关联人物：${related.map(c => c.name).join('、')}` : '', row.profile]
+        .filter(Boolean)
+        .join('\n');
+      return IdentitySchema.parse({
+        charKey: id,
+        stableId: id,
+        name: row.name,
+        about,
+        npcProfile: about,
+        relationshipToUser: row.relationship,
+        actorType: 'npc',
+        source: 'local_contact',
+        avatar: /^data:image\//.test(row.avatar) ? row.avatar : '',
+        avatarCustomized: /^data:image\//.test(row.avatar),
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      });
+    });
+    const preferences = ChatPreferencesSchema.parse({
+      autoTranslate: config.bilingual,
+      sourceLanguage: config.sourceLanguage,
+      targetLanguage: config.targetLanguage,
+    });
+    syncToken += 1;
+    for (const identity of additions) {
+      upsertIdentity(state.value, identity, runtime);
+      ensureThread(state.value, runtime, identity).hidden = true;
+      state.value.chatPreferences[identity.charKey] = { ...preferences };
+      const profileKey = `${runtime.cardKey}::${identity.charKey}`;
+      characterProfiles.value[profileKey] = CharacterProfileMapSchema.parse({
+        [profileKey]: {
+          avatar: identity.avatar,
+          avatarCustomized: identity.avatarCustomized,
+          chatPreferences: { ...preferences },
+          updatedAt: nowIso(),
+        },
+      })[profileKey];
+      persistRosterIdentity(identity);
+    }
+    persistCharacterProfiles(characterProfiles.value);
+    saveChat();
+    return additions.map(c => c.charKey);
+  }
+
   function addContact(name: string, about: string): string {
     const title = name.trim();
     if (!context.value || !title) throw Error('请填写联系人名称');
@@ -3879,6 +3947,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     startConversation,
     addMomentNpc,
     addContact,
+    addGeneratedNpcs,
     importCardContact,
     addSpaceContact,
     createGroup,

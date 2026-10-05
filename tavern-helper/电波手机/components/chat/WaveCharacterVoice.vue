@@ -155,6 +155,10 @@ function update(patch: Partial<CharacterVoice>) {
 }
 </script>
 <style scoped lang="scss">
+#wave-phone-script-root .character-voice-settings > .wave-media-range {
+  padding: 18px 0 22px;
+}
+
 #wave-phone-script-root .character-voice-library {
   display: grid;
   gap: 12px;
