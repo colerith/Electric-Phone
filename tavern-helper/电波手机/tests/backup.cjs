@@ -25,6 +25,7 @@ Object.assign(global, {
 
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 const schemas = require(base + '/schemas.ts');
+const cardKey = require(base + '/services/core/identity.ts').getRuntimeContext().cardKey;
 const { createPhoneBackup, importPhoneBackup, inspectPhoneBackup } = require(base + '/services/core/backup.ts');
 const wrap = data => ({
   identifier: schemas.WAVE_PHONE_IDENTIFIER,
@@ -38,14 +39,15 @@ const wrap = data => ({
   variables.global[schemas.USER_PROFILE_VARIABLE_KEY] = wrap({});
   variables.global[schemas.CARD_ROSTER_VARIABLE_KEY] = wrap({});
   variables.chat[schemas.CHAT_VARIABLE_KEY] = schemas.ChatStateSchema.parse({
-    cardKey: 'character:1',
+    cardKey,
     chatKey,
     activeCharKey: 'alice',
   });
 
+  const cover = 'data:image/jpeg;base64,' + btoa('backup cover bytes');
   variables.global.wave_phone_character_defaults = wrap({
-    'character:1': {
-      artwork: { alice: { zone: 'cover-test' } },
+    [cardKey]: {
+      artwork: { alice: { zone: cover } },
       walletBook: {
         accounts: { user: { id: 'user', name: '我的钱包', ownerType: 'user', ownerId: 'user', opening: { CNY: 123 } } },
       },
@@ -60,23 +62,26 @@ const wrap = data => ({
   delete variables.global.wave_phone_character_defaults;
   const restored = await importPhoneBackup(file);
   assert.equal(restored.chatImported, true);
-  assert.equal(
-    variables.global.wave_phone_character_defaults.data['character:1'].walletBook.accounts.user.opening.CNY,
-    123,
-  );
-  assert.equal(variables.global.wave_phone_character_defaults.data['character:1'].artwork.alice.zone, 'cover-test');
+  assert.equal(variables.global.wave_phone_character_defaults.data[cardKey].walletBook.accounts.user.opening.CNY, 123);
+  assert.equal(variables.global.wave_phone_character_defaults.data[cardKey].artwork.alice.zone, cover);
   assert.equal(variables.global[schemas.SCRIPT_VARIABLE_KEY].data.api.key, 'secret');
   assert.equal(variables.chat[schemas.CHAT_VARIABLE_KEY].activeCharKey, 'alice');
 
   const { unzipSync, zipSync, strFromU8, strToU8 } = require('fflate');
-  const legacyJson = JSON.parse(strFromU8(unzipSync(new Uint8Array(await file.arrayBuffer()))['backup.json']));
+  const { unpackBackupAssets } = require(base + '/services/core/backup-assets.ts');
+  const archiveFiles = unzipSync(new Uint8Array(await file.arrayBuffer()));
+  const legacyJson = unpackBackupAssets(
+    JSON.parse(strFromU8(archiveFiles['backup.json'])),
+    archiveFiles,
+    50 * 1024 * 1024,
+  );
+  legacyJson.formatVersion = 1;
+  delete legacyJson.payloadFormatVersion;
+  delete legacyJson.assets;
   delete legacyJson.global.characterDefaults;
   const legacyFile = new File([zipSync({ 'backup.json': strToU8(JSON.stringify(legacyJson)) })], 'legacy.zip');
   await importPhoneBackup(legacyFile);
-  assert.equal(
-    variables.global.wave_phone_character_defaults.data['character:1'].walletBook.accounts.user.opening.CNY,
-    123,
-  );
+  assert.equal(variables.global.wave_phone_character_defaults.data[cardKey].walletBook.accounts.user.opening.CNY, 123);
   chatKey = 'different-chat';
   variables.chat[schemas.CHAT_VARIABLE_KEY] = schemas.ChatStateSchema.parse({ chatKey });
   const mismatched = await importPhoneBackup(file);
@@ -115,7 +120,7 @@ const wrap = data => ({
   assert.equal(data.modules.messages.roster.bob.about, '旅行朋友');
   assert.equal(data.modules.history.chat.threads.bob.messages[0].content, '私密聊天内容');
   chatKey = 'new-chat';
-  variables.chat[schemas.CHAT_VARIABLE_KEY] = schemas.ChatStateSchema.parse({ cardKey: 'character:1', chatKey });
+  variables.chat[schemas.CHAT_VARIABLE_KEY] = schemas.ChatStateSchema.parse({ cardKey, chatKey });
   await importPhoneBackup(modularFile, ['messages']);
   assert.equal(variables.chat[schemas.CHAT_VARIABLE_KEY].identities.bob.about, '旅行朋友');
   assert.deepEqual(variables.chat[schemas.CHAT_VARIABLE_KEY].threads, {});

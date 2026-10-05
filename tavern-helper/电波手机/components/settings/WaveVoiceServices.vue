@@ -1,10 +1,10 @@
 <template>
   <div class="voice-service-settings">
     <div class="wave-settings-title">语音服务</div>
-    <section v-for="provider in ['minimax', 'elevenlabs'] as const" :key="provider" class="voice-service-card">
+    <section v-for="provider in ['minimax', 'elevenlabs', 'fish'] as const" :key="provider" class="voice-service-card">
       <div class="toggle-row">
         <span
-          ><strong>{{ provider === 'minimax' ? 'MiniMax' : 'ElevenLabs' }}</strong
+          ><strong>{{ provider === 'minimax' ? 'MiniMax' : provider === 'fish' ? 'Fish 鱼声' : 'ElevenLabs' }}</strong
           ><small>{{ provider === 'minimax' ? '国内 / 海外语音合成' : '多语言语音合成' }}</small></span
         ><WaveToggle v-model="phone.settings.voiceServices[provider].enabled" :aria-label="`启用 ${provider}`" />
       </div>
@@ -38,8 +38,17 @@
           ><strong>语音模型</strong
           ><WaveSelect
             v-model="phone.settings.voiceServices[provider].model"
-            :options="provider === 'minimax' ? miniModels : elevenModels"
+            :options="provider === 'minimax' ? miniModels : provider === 'fish' ? fishModels : elevenModels"
         /></label>
+        <template v-if="provider === 'fish'">
+          <button type="button" :disabled="loadingFish" @click="refreshFish">
+            {{ loadingFish ? '读取中…' : '拉取官方模型列表' }}
+          </button>
+          <small role="status">{{ fishStatus }}</small>
+          <label
+            ><strong>模型 ID（可手动填写）</strong><input v-model.trim="phone.settings.voiceServices.fish.model"
+          /></label>
+        </template>
         <label
           ><strong>自定义 API URL（代理）</strong
           ><input
@@ -57,7 +66,28 @@
 import { usePhoneStore } from '../../stores/phone';
 import WaveToggle from '../shared/WaveToggle.vue';
 import WaveSelect from '../shared/WaveSelect.vue';
+import { ref, onMounted } from 'vue';
+import { FISH_MODELS, fetchFishModels } from '../../services/chat/speech';
 const phone = usePhoneStore();
+const fishOptions = (ids: string[]) =>
+  ids.map(value => ({ value, label: value === 'drama-3-preview' ? 'Drama 3（Preview）' : value }));
+const fishModels = ref(fishOptions(FISH_MODELS));
+const loadingFish = ref(false);
+const fishStatus = ref('');
+async function refreshFish() {
+  loadingFish.value = true;
+  try {
+    fishModels.value = fishOptions(await fetchFishModels());
+    fishStatus.value = '已读取官方列表，并补齐内置模型';
+  } catch {
+    fishStatus.value = '官方列表暂不可用，使用内置模型；可手动填写模型 ID';
+  } finally {
+    loadingFish.value = false;
+  }
+}
+onMounted(() => {
+  void refreshFish();
+});
 const miniModels = [
   { value: 'speech-2.8-hd', label: 'Speech 2.8 HD' },
   { value: 'speech-2.8-turbo', label: 'Speech 2.8 Turbo' },

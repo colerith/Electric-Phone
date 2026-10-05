@@ -1,3 +1,4 @@
+import { readPhoneGlobals, writePhoneGlobals, writePhoneChat } from './durable-storage';
 import { klona } from 'klona';
 import { z } from 'zod';
 import {
@@ -129,6 +130,7 @@ export function modularize(backup: PhoneBackup, selected: BackupModule[]) {
               'avatarCustomized',
               'chatPreferences',
               'characterVoice',
+              'characterImage',
               'conversationPinned',
               'updatedAt',
             ]),
@@ -192,7 +194,7 @@ export function importModules(input: unknown, selected?: BackupModule[]) {
   const sameChat = Boolean(
     runtime && backup.context?.cardKey === runtime.cardKey && backup.context?.chatKey === runtime.chatKey,
   );
-  const globals = getVariables({ type: 'global' }) || {};
+  const globals = readPhoneGlobals();
   const variables = getVariables({ type: 'chat' }) || {};
   const settings = ScriptSettingsSchema.parse(unwrap(globals[SCRIPT_VARIABLE_KEY]));
   const state = ChatStateSchema.parse(variables[CHAT_VARIABLE_KEY] || {});
@@ -234,6 +236,7 @@ export function importModules(input: unknown, selected?: BackupModule[]) {
                 'avatarCustomized',
                 'chatPreferences',
                 'characterVoice',
+                'characterImage',
                 'conversationPinned',
                 'updatedAt',
               ];
@@ -312,8 +315,8 @@ export function importModules(input: unknown, selected?: BackupModule[]) {
       ? { [USER_PROFILE_VARIABLE_KEY]: envelope(backup.modules.zone.userProfiles) }
       : {}),
   };
-  replaceVariables(nextGlobals, { type: 'global' });
-  if (chatImported) replaceVariables({ ...variables, [CHAT_VARIABLE_KEY]: parsedState }, { type: 'chat' });
+  writePhoneGlobals(nextGlobals);
+  if (chatImported) writePhoneChat(parsedState);
   return {
     chatImported,
     message: `已导入所选模块${skipped.length ? `；聊天不匹配，跳过内容：${skipped.join('、')}` : ''}`,

@@ -4,6 +4,7 @@ import { ModuleSettingsSchema } from './services/generation/module-settings';
 import { PromptLibrarySchema } from './services/apps/preset-schema';
 import { MomentsStateSchema } from './services/space/moments';
 import { MusicTrackSchema } from './services/music/music';
+import { ImageServicesSchema, CharacterImageSchema } from './services/image/schema';
 import { VoiceServicesSchema, CharacterVoiceSchema } from './services/chat/speech';
 import { BrowserStateSchema, SearchEngineSchema } from './services/apps/browser';
 import { WeatherLocationSchema } from './services/core/weather';
@@ -15,7 +16,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.1.69';
+export const WAVE_PHONE_RELEASE_VERSION = '1.1.71';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -50,8 +51,8 @@ export const ApiSettingsSchema = z
       .prefault(30000),
     timeoutMs: z.coerce
       .number()
-      .transform(value => _.clamp(Math.round(value), 10_000, 180_000))
-      .prefault(60_000),
+      .transform(value => _.clamp(Math.round(value), 10_000, 600_000))
+      .prefault(180_000),
   })
   .prefault({});
 
@@ -236,6 +237,7 @@ export const ScriptSettingsSchema = z
     chat: ChatBehaviorSettingsSchema,
     media: MediaSettingsSchema,
     voiceServices: VoiceServicesSchema,
+    imageServices: ImageServicesSchema,
     notifications: NotificationSettingsSchema,
     appearance: AppearanceSettingsSchema,
     stickers: StickerLibrarySchema,
@@ -327,6 +329,7 @@ export const CharacterProfileOverrideSchema = z
     avatarCustomized: z.boolean().prefault(false),
     chatPreferences: ChatPreferencesSchema.optional(),
     characterVoice: CharacterVoiceSchema.optional(),
+    characterImage: CharacterImageSchema.optional(),
     weatherLocation: WeatherLocationSchema.nullable().optional(),
     updatedAt: z.string().prefault(''),
   })

@@ -20,11 +20,19 @@ export const VoiceServicesSchema = z
         baseUrl: z.string().prefault(''),
       })
       .prefault({}),
+    fish: z
+      .object({
+        enabled: z.boolean().prefault(false),
+        apiKey: z.string().prefault(''),
+        model: z.string().prefault('s2.1-pro'),
+        baseUrl: z.string().prefault(''),
+      })
+      .prefault({}),
   })
   .prefault({});
 export const CharacterVoiceSchema = z
   .object({
-    provider: z.enum(['off', 'minimax', 'elevenlabs']).prefault('off'),
+    provider: z.enum(['off', 'minimax', 'elevenlabs', 'fish']).prefault('off'),
     voiceId: z.string().prefault(''),
     speed: z.number().min(0.5).max(2).prefault(1),
     pitch: z.number().int().min(-12).max(12).prefault(0),
@@ -50,7 +58,9 @@ export function speechRequest(
       ? services.minimax.region === 'cn'
         ? 'https://api.minimaxi.com'
         : 'https://api.minimax.io'
-      : 'https://api.elevenlabs.io');
+      : voice.provider === 'fish'
+        ? 'https://api.fish.audio'
+        : 'https://api.elevenlabs.io');
   if (!safeBrowserUrl(base)) throw new Error('语音 API 地址无效');
   const root = base.replace(/\/$/, '').replace(/\/v1$/, '');
   let url: string, body: Record<string, unknown>;
@@ -72,6 +82,17 @@ export function speechRequest(
         pitch: Math.max(-12, Math.min(12, voice.pitch)),
       },
       audio_setting: { sample_rate: 32000, bitrate: 128000, format: 'mp3', channel: 1 },
+    };
+  } else if (voice.provider === 'fish') {
+    url = `${root}/v1/tts`;
+    headers.Authorization = `Bearer ${service.apiKey.trim()}`;
+    headers.model = service.model;
+    headers.Accept = 'audio/mpeg';
+    body = {
+      text,
+      reference_id: voice.voiceId.trim(),
+      format: 'mp3',
+      prosody: { speed: Math.max(0.5, Math.min(2, voice.speed)) },
     };
   } else {
     url = `${root}/v1/text-to-speech/${encodeURIComponent(voice.voiceId.trim())}`;
@@ -106,7 +127,7 @@ export async function synthesizeSpeech(
   try {
     const response = await fetch(request.url, { ...request.init, signal: controller.signal });
     if (!response.ok) throw new Error(`语音服务返回 ${response.status}，请检查配置或额度`);
-    if (voice.provider === 'elevenlabs') {
+    if (voice.provider === 'elevenlabs' || voice.provider === 'fish') {
       const blob = await response.blob();
       if (!blob.size || blob.type.includes('json')) throw new Error('语音服务未返回音频');
       return blob;
@@ -121,4 +142,16 @@ export async function synthesizeSpeech(
     clearTimeout(timer);
     signal?.removeEventListener('abort', abort);
   }
+}
+
+export const FISH_MODELS = ['s1', 's2-pro', 's2.1-pro', 's2.1-pro-free', 'drama-3-preview'];
+/** /model lists voice IDs, not inference engines. The engine enum lives in the official schema. */
+export async function fetchFishModels(): Promise<string[]> {
+  const response = await fetch('https://api.fish.audio/openapi.json', { signal: AbortSignal.timeout(15000) });
+  if (!response.ok) throw Error(`Fish 模型列表读取失败（${response.status}）`);
+  const data = await response.json();
+  const values = data.paths?.['/v1/tts']?.post?.parameters?.find((p: { name: string }) => p.name === 'model')?.schema
+    ?.enum;
+  if (!Array.isArray(values)) throw Error('官方未提供引擎枚举，已保留内置列表');
+  return [...new Set([...values.filter((v: unknown) => typeof v === 'string'), ...FISH_MODELS])] as string[];
 }

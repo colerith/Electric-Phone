@@ -643,7 +643,14 @@
                 </button>
               </form>
               <div v-if="extrasOpen && !multiSelectMode && !observingGroup" class="extras-panel">
-                <button v-for="extra in extras" :key="extra.name" type="button" @click="useExtra(extra.name)">
+                <button
+                  v-for="extra in extras.filter(
+                    item => item.name !== '生图' || store.activeIdentity?.source !== 'local_group',
+                  )"
+                  :key="extra.name"
+                  type="button"
+                  @click="useExtra(extra.name)"
+                >
                   <span><i :class="extra.icon"></i></span>{{ extra.name }}
                 </button>
               </div>
@@ -658,7 +665,25 @@
                 @close="closeExtra"
               />
 
-              <div v-if="extraMode && extraMode !== '表情'" class="extra-modal-backdrop" @click.self="closeExtra">
+              <div
+                v-if="extraMode === '生图'"
+                class="extra-modal-backdrop"
+                @click.self="closeExtra"
+                @keydown.esc.stop="closeExtra"
+              >
+                <section class="extra-modal wave-image-compose" role="dialog" aria-label="角色生图" aria-modal="true">
+                  <header>
+                    <strong>角色生图</strong
+                    ><button type="button" aria-label="关闭角色生图" @click="closeExtra">×</button>
+                  </header>
+                  <WaveCharacterImage @generated="closeExtra" />
+                </section>
+              </div>
+              <div
+                v-if="extraMode && extraMode !== '表情' && extraMode !== '生图'"
+                class="extra-modal-backdrop"
+                @click.self="closeExtra"
+              >
                 <form class="extra-modal" @submit.prevent="submitExtra">
                   <header>
                     <div>
@@ -907,6 +932,7 @@
                   </button>
                 </div>
 
+                <div v-else-if="settingsSection === 'image'" class="settings-card"><WaveImageServices /></div>
                 <div v-else-if="settingsSection === 'appearance'" class="appearance-settings-page">
                   <WaveHomeAppearance :apps="apps" />
                   <section class="settings-card appearance-settings-card appearance-group">
@@ -1066,6 +1092,7 @@
 </template>
 
 <script setup lang="ts">
+import { requestErrorToast } from './services/core/request-error';
 import WaveReactionPicker from './components/chat/WaveReactionPicker.vue';
 import { canReactToMessage } from './services/chat/message-reactions';
 import { parseCalendar } from './services/apps/calendar';
@@ -1106,6 +1133,8 @@ import { phoneSurfaceKey } from './services/core/ui-context';
 const phoneSurface = ref<HTMLElement | null>(null);
 provide(phoneSurfaceKey, phoneSurface);
 
+import WaveImageServices from './components/settings/WaveImageServices.vue';
+import WaveCharacterImage from './components/chat/WaveCharacterImage.vue';
 import WaveVoiceServices from './components/settings/WaveVoiceServices.vue';
 import WaveTranslationServices from './components/settings/WaveTranslationServices.vue';
 import WaveDraftTranslation from './components/chat/WaveDraftTranslation.vue';
@@ -1315,6 +1344,7 @@ const apps: Array<{ id: AppId; name: string; caption: string; eyebrow: string; i
 const extras = [
   { name: '表情', icon: 'fa-regular fa-face-smile' },
   { name: '媒体', icon: 'fa-regular fa-image' },
+  { name: '生图', icon: 'fa-solid fa-wand-magic-sparkles' },
   { name: '语音', icon: 'fa-solid fa-microphone-lines' },
   { name: '红包', icon: 'fa-solid fa-gift' },
   { name: '转账', icon: 'fa-solid fa-yen-sign' },
@@ -1353,6 +1383,7 @@ type SettingsSectionId =
   | 'api'
   | 'chat'
   | 'media'
+  | 'image'
   | 'appearance'
   | 'notifications'
   | 'backup'
@@ -1396,6 +1427,14 @@ const settingsSections: Array<{
     description: '管理手机生成使用的世界书内容',
     eyebrow: 'WORLDBOOKS',
     icon: 'fa-solid fa-book',
+  },
+  {
+    id: 'image',
+    name: '生图 API',
+    caption: 'NovelAI、GPT Image 与柏宝绘',
+    description: '管理生图接口，角色外貌与参考图在私聊设置中配置。',
+    eyebrow: 'IMAGE GENERATION',
+    icon: 'fa-solid fa-wand-magic-sparkles',
   },
   {
     id: 'media',
@@ -2029,7 +2068,7 @@ async function send(activateReply = true): Promise<void> {
     await nextTick();
     if (threadElement.value) threadElement.value.scrollTop = threadElement.value.scrollHeight;
   } catch (error) {
-    toastr.error(error instanceof Error ? error.message : String(error), '电波发送失败');
+    toastr.error(requestErrorToast(error), '电波发送失败', { escapeHtml: true });
   }
 }
 async function handlePrimarySend(): Promise<void> {
@@ -2108,7 +2147,7 @@ async function sendTyped(input: SendMessageInput): Promise<void> {
     await nextTick();
     if (threadElement.value) threadElement.value.scrollTop = threadElement.value.scrollHeight;
   } catch (error) {
-    toastr.error(error instanceof Error ? error.message : String(error), '电波发送失败');
+    toastr.error(requestErrorToast(error), '电波发送失败', { escapeHtml: true });
   }
 }
 function sendEmoji(emoji: string): void {

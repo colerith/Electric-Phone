@@ -159,6 +159,9 @@
     <WaveCharacterVoice
       v-if="(app === 'messages' || app === 'conversation') && phone.activeIdentity?.source !== 'local_group'"
     />
+    <WaveCharacterImage
+      v-if="(app === 'messages' || app === 'conversation') && phone.activeIdentity?.source !== 'local_group'"
+    />
     <WaveWeatherLocation
       v-if="app === 'calendar'"
       :location="weatherLocation"
@@ -225,6 +228,7 @@ import WaveGroupSettings from '../chat/WaveGroupSettings.vue';
 import { ref } from 'vue';
 import { musicProviders } from '../../services/music/music';
 import { usePhoneStore } from '../../stores/phone';
+import WaveCharacterImage from '../chat/WaveCharacterImage.vue';
 import WaveCharacterVoice from '../chat/WaveCharacterVoice.vue';
 const phone = usePhoneStore();
 import WaveSelect from '../shared/WaveSelect.vue';

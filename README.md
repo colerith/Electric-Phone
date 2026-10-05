@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.1.69`
+当前发布版本：`v1.1.71`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.69/file/index-1.1.69.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.71/file/index-1.1.71.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：修复聊天重载和楼层同步覆盖角色消息时间的问题；聊天设置底部新增修复时间，以手机当前时间重建当前聊天时间轴。
+本版更新：新增 Fish 鱼声、NovelAI / GPT Image 生图配置与私聊角色生图，支持读取柏宝绘接口、外貌和参考图；同时改进备份导入导出样式、ZIP 格式与服务器持久化存档。详见[语音与生图指南](./tavern-helper/电波手机/docs/语音与生图.md)。
 
 ## 首次配置
 

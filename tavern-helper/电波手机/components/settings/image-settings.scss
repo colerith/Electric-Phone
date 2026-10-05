@@ -1,0 +1,135 @@
+.wave-image-settings {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px 0;
+  color: inherit;
+  font: inherit;
+  * {
+    box-sizing: border-box;
+  }
+  label {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  input,
+  textarea {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid #8883;
+    border-radius: 12px;
+    background: #8881;
+    color: inherit;
+    font: inherit;
+    box-shadow: none;
+  }
+  textarea {
+    resize: vertical;
+  }
+  button:not([role='switch']):not(.wave-select-trigger):not([role='option']) {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    margin: 0;
+    padding: 9px 12px;
+    border: 1px solid #8883;
+    border-radius: 12px;
+    background: #8881;
+    color: inherit;
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.5;
+    cursor: pointer;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+  button.image-primary {
+    background: var(--wave-accent, #b56580);
+    color: white;
+    border-color: transparent;
+  }
+  .image-actions,
+  .image-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .image-heading {
+    justify-content: space-between;
+  }
+  .image-profile {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid #8883;
+    border-radius: 18px;
+  }
+  .image-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+  }
+  .image-help,
+  .image-empty,
+  small {
+    margin: 0;
+    color: inherit;
+    opacity: 0.65;
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .image-status {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+  }
+  details {
+    display: grid;
+    gap: 12px;
+  }
+  details label {
+    margin-top: 12px;
+  }
+  summary {
+    cursor: pointer;
+    padding: 8px 0;
+  }
+  .image-reference {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #8883;
+    border-radius: 12px;
+    padding: 10px;
+    min-width: 0;
+  }
+  .image-reference img {
+    width: 48px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+  .image-reference label {
+    flex: 1;
+    overflow-wrap: anywhere;
+  }
+  .image-reference input {
+    padding: 6px;
+  }
+}

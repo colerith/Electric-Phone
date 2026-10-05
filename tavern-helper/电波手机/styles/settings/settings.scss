@@ -261,9 +261,9 @@
     line-height: 1.6;
     opacity: 1;
   }
-  .settings-card input:not([type='range']):not([type='file']),
+  .settings-card input:not([type='range']):not([type='file']):not([type='checkbox']),
   .settings-card textarea,
-  .voice-service-card input:not([type='range']):not([type='file']),
+  .voice-service-card input:not([type='range']):not([type='file']):not([type='checkbox']),
   .service-preference input,
   .chat-setting-block input {
     box-sizing: border-box;
@@ -281,7 +281,7 @@
     font: 400 13px/1.5 var(--wave-ui-font);
     letter-spacing: 0;
   }
-  .settings-card input:not([type='range']):not([type='file'])::placeholder,
+  .settings-card input:not([type='range']):not([type='file']):not([type='checkbox'])::placeholder,
   .service-preference input::placeholder,
   .chat-setting-block input::placeholder {
     color: var(--settings-muted);
@@ -1133,7 +1133,7 @@
     text-transform: none;
     opacity: 1;
   }
-  .system-settings input:not([type='range']):not([type='file']) {
+  .system-settings input:not([type='range']):not([type='file']):not([type='checkbox']) {
     border: 1px solid var(--settings-line) !important;
     border-radius: var(--settings-radius) !important;
     outline: 0 !important;

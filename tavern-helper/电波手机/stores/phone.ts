@@ -1,3 +1,13 @@
+import { CharacterImageSchema, type CharacterImage } from '../services/image/schema';
+import { generateImage } from '../services/image/generate';
+import {
+  readPhoneGlobals,
+  writePhoneGlobals,
+  writePhoneChat,
+  preparePhoneChat,
+  flushPhoneStorage,
+} from '../services/core/durable-storage';
+import { migratePhoneCardNamespace } from '../services/core/storage-migration';
 import { repairThreadTime } from '../services/chat/repair-time';
 import { messageClockTime } from '../services/core/message-clock';
 import { sharedChatHistory } from '../services/chat/shared-history';
@@ -198,7 +208,7 @@ function settingsRecoveryScore(value: unknown): number {
   );
 }
 function readPersistentData(key: string): unknown {
-  const variables = getVariables({ type: 'global' }) || {};
+  const variables = readPhoneGlobals();
   const saved = variables[key] as Partial<StorageEnvelope> | undefined;
   const current =
     saved?.identifier === WAVE_PHONE_IDENTIFIER && saved.version === WAVE_PHONE_STORAGE_VERSION
@@ -229,13 +239,13 @@ function readPersistentData(key: string): unknown {
   return selected;
 }
 function persistData(key: string, data: unknown): void {
-  const variables = getVariables({ type: 'global' }) || {};
+  const variables = readPhoneGlobals();
   const envelope: StorageEnvelope = {
     identifier: WAVE_PHONE_IDENTIFIER,
     version: WAVE_PHONE_STORAGE_VERSION,
     data: klona(data),
   };
-  replaceVariables({ ...variables, [key]: envelope }, { type: 'global' });
+  writePhoneGlobals({ ...variables, [key]: envelope });
 }
 
 function readScriptSettings(): ScriptSettings {
@@ -292,8 +302,7 @@ function readChatState(context: RuntimeContext): ChatState {
     ];
   }
   if (parsed.cardKey && (parsed.cardKey !== context.cardKey || parsed.chatKey !== context.chatKey)) {
-    console.warn(LOG_PREFIX, '聊天变量命名空间不匹配，已为当前聊天建立新状态');
-    return ChatStateSchema.parse({ cardKey: context.cardKey, chatKey: context.chatKey });
+    throw Error('聊天存档归属不匹配，已停止覆盖。请切回原聊天或导入对应备份');
   }
   return ChatStateSchema.parse({ ...parsed, cardKey: context.cardKey, chatKey: context.chatKey });
 }
@@ -315,13 +324,12 @@ function persistCardRosters(rosters: CardRosterMap): void {
 }
 
 function persistChatState(state: ChatState): void {
-  const variables = getVariables({ type: 'chat' }) || {};
   const saved = klona(state);
   Object.values(saved.threads).forEach(thread => {
     thread.generating = false;
     thread.generationId = '';
   });
-  replaceVariables({ ...variables, [CHAT_VARIABLE_KEY]: saved }, { type: 'chat' });
+  writePhoneChat(saved);
 }
 
 function ensureThread(state: ChatState, context: RuntimeContext, identity: Identity): Thread {
@@ -678,6 +686,71 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     message.payload.translationProvider = provider;
     delete message.payload.translationError;
     saveChat();
+  }
+  const characterImage = computed(() =>
+    CharacterImageSchema.parse(
+      characterProfiles.value[`${context.value?.cardKey}::${state.value.activeCharKey}`]?.characterImage,
+    ),
+  );
+  const imageRequests = new Set<string>();
+  function setCharacterImage(value: CharacterImage): void {
+    const runtime = context.value;
+    const charKey = state.value.activeCharKey;
+    if (!runtime || !charKey || activeIdentity.value?.source === 'local_group') return;
+    const profileKey = `${runtime.cardKey}::${charKey}`;
+    characterProfiles.value[profileKey] = {
+      ...characterProfiles.value[profileKey],
+      characterImage: CharacterImageSchema.parse(value),
+      updatedAt: nowIso(),
+    };
+    persistCharacterProfiles(characterProfiles.value);
+  }
+  async function generateCharacterImage(prompt: string, signal: AbortSignal): Promise<void> {
+    const runtime = context.value ? { ...context.value } : null;
+    const identity = activeIdentity.value;
+    const thread = activeThread.value;
+    if (!runtime || !identity || !thread || identity.source === 'local_group') throw Error('生图仅适用于私聊');
+    const character = klona(characterImage.value);
+    const profile = settings.value.imageServices.profiles.find(p => p.id === character.profileId);
+    if (!profile) throw Error('请先选择可用的生图 API 配置');
+    const key = `${runtime.cardKey}::${runtime.chatKey}::${thread.id}`;
+    if (imageRequests.has(key)) throw Error('这个会话正在生图，请等待或取消');
+    const revision = thread.clearRevision;
+    imageRequests.add(key);
+    try {
+      const url = await generateImage(klona(profile), character, prompt, signal);
+      const current = state.value.threads[thread.id];
+      if (signal.aborted) throw Error('生图已取消');
+      if (
+        context.value?.cardKey !== runtime.cardKey ||
+        context.value?.chatKey !== runtime.chatKey ||
+        !current ||
+        current.clearRevision !== revision ||
+        !state.value.identities[identity.charKey]
+      )
+        throw Error('原会话已切换或清空，图片没有写入其他会话');
+      const message = PhoneMessageSchema.parse({
+        id: makeId('image'),
+        sender: 'char',
+        type: 'image',
+        content: prompt.trim(),
+        createdAt: nextReceivedAt(current),
+        status: 'sent',
+        payload: {
+          url,
+          actorKey: identity.charKey,
+          actorName: identity.name,
+          imageModel: profile.model,
+          generatedImage: true,
+        },
+      });
+      current.messages.push(message);
+      current.updatedAt = message.createdAt;
+      ++syncToken;
+      saveChat();
+    } finally {
+      imageRequests.delete(key);
+    }
   }
   function setCharacterVoice(value: CharacterVoice): void {
     const runtime = context.value;
@@ -1088,6 +1161,15 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         syncDeferred = true;
         return;
       }
+      stage = '恢复服务器存档';
+      await preparePhoneChat(runtime);
+      if (
+        token !== syncToken ||
+        getRuntimeContext()?.chatKey !== runtime.chatKey ||
+        getRuntimeContext()?.cardKey !== runtime.cardKey
+      )
+        return;
+      if (migratePhoneCardNamespace(runtime)) characterProfiles.value = readCharacterProfiles();
       stage = '读取聊天存档';
       const nextState = readChatState(runtime);
       stage = '读取跨聊天资料';
@@ -1534,6 +1616,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     );
   }
 
+  async function reloadPersistentData(): Promise<void> {
+    settings.value = readScriptSettings();
+    characterProfiles.value = readCharacterProfiles();
+    momentUserProfiles.value = readMomentUserProfiles();
+    cardRosters.value = readCardRosters();
+    await synchronize();
+  }
+
   async function initialize(): Promise<void> {
     settings.value = readScriptSettings();
     characterProfiles.value = readCharacterProfiles();
@@ -1576,6 +1666,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       },
     );
     await synchronize();
+    saveSettings();
   }
 
   function cancelLiveSends(): void {
@@ -1592,6 +1683,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   }
 
   function dispose(): void {
+    void flushPhoneStorage().catch(() => {});
     cancelLiveSends();
     disposeMoments?.();
     disposeMoments = null;
@@ -2310,7 +2402,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       key => state.value.identities[key] && state.value.identities[key].source !== 'local_group',
     );
     if (!context.value || memberKeys.length < 2) throw Error('请至少选择两位联系人创建群聊');
-    const observer = memberKeys.length === 2 || Boolean(options.observer);
+    const observer = Boolean(options.observer);
     const participants = [...(observer ? [] : ['user']), ...memberKeys];
     const ownerKey = observer && options.ownerKey === 'user' ? participants[0] : options.ownerKey || participants[0];
     if (!participants.includes(ownerKey)) throw Error('请选择群成员作为群主');
@@ -3509,12 +3601,17 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     dispose,
     synchronize,
     saveSettings,
+    saveChat,
+    reloadPersistentData,
     markAppRead,
     setWeatherLocation,
     setBrowserEngine,
     setServicePreference,
     toggleMusicFavorite,
     setCharacterVoice,
+    characterImage,
+    setCharacterImage,
+    generateCharacterImage,
     setChatPreferences,
     saveTranslation,
     rememberMusicTracks,

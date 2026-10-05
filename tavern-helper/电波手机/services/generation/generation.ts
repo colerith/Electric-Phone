@@ -1,3 +1,4 @@
+import { stopBackendGeneration, withTimeout } from './request-lifecycle';
 import { stickerPrompt } from '../chat/stickers';
 import { resolveModuleSettings, resolveBilingual } from './module-settings';
 import { validateWalletPatch, type WalletAuthorization } from '../wallet/wallet-accounts';
@@ -59,22 +60,7 @@ function extractJson(raw: string): unknown {
   return JSON.parse(cleaned.slice(start, end + 1));
 }
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, generationId: string): Promise<T> {
-  let timer = 0;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = window.setTimeout(() => reject(Error('副 API 请求超时。')), timeoutMs);
-  });
-  try {
-    return await Promise.race([promise, timeout]);
-  } catch (error) {
-    if (String(error).includes('超时')) void stopBackendGeneration(generationId).catch(() => false);
-    throw error;
-  } finally {
-    window.clearTimeout(timer);
-  }
-}
-
-const runningRequests = new Map<string, { cancelled: boolean }>();
+const runningRequests = new Map<string, { cancelled: boolean; backendId: string }>();
 async function requestConfigured<T>(
   settings: ScriptSettings,
   generationId: string,
@@ -83,7 +69,7 @@ async function requestConfigured<T>(
   parse: (raw: string) => T,
   namespace?: { cardKey: string; chatKey: string; thread?: Thread; onElectric?: (text: string, title: string) => void },
 ): Promise<T> {
-  const request = { cancelled: false };
+  const request = { cancelled: false, backendId: generationId };
   let stage: RequestStage = '配置检查';
   let attempt = 0;
   let attemptStarted = Date.now();
@@ -140,6 +126,7 @@ async function requestConfigured<T>(
       ensureNamespace();
       try {
         stage = '请求接口';
+        request.backendId = attempt === 0 ? generationId : `${generationId}-retry-${attempt}`;
         attemptStarted = Date.now();
         const raw = await withTimeout(
           generateRaw({
@@ -149,10 +136,10 @@ async function requestConfigured<T>(
             custom_api: api,
             should_stream: false,
             max_chat_history: prompts.includes('chat_history') ? 'all' : 0,
-            generation_id: generationId,
+            generation_id: request.backendId,
           }),
           settings.api.timeoutMs,
-          generationId,
+          request.backendId,
         );
         if (request.cancelled) throw Error('生成已停止。');
         ensureNamespace();
@@ -244,14 +231,10 @@ export async function generatePhoneReply(
   );
   return { generationId, data };
 }
-// Runtime versions may return a boolean synchronously despite the Promise declaration.
-async function stopBackendGeneration(generationId: string): Promise<boolean> {
-  return Boolean(await stopGenerationById(generationId));
-}
 export function stopPhoneGeneration(generationId: string): Promise<boolean> {
   const request = runningRequests.get(generationId);
   if (request) request.cancelled = true;
-  return stopBackendGeneration(generationId);
+  return stopBackendGeneration(request?.backendId || generationId);
 }
 export async function translatePhoneText(settings: ScriptSettings, text: string, language: string): Promise<string> {
   return requestConfigured(

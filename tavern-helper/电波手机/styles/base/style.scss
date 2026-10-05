@@ -4624,3 +4624,12 @@
 #wave-phone-script-root .wave-device .sticker-search input::placeholder {
   font-size: inherit;
 }
+
+#wave-phone-script-root .wave-device .wave-image-compose {
+  max-height: 88%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#wave-phone-script-root .wave-device .wave-image-settings label {
+  display: grid;
+}

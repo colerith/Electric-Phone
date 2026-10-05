@@ -35,6 +35,7 @@
         >留空使用 Google 官方接口。</small
       ></label
     >
+    <p class="api-note">地址按服务商要求填写，支持不带 /v1；不会自动补版本路径。</p>
     <label
       ><strong>API Key / Token</strong><input v-model="phone.settings.api.key" type="password" autocomplete="off"
     /></label>
@@ -90,11 +91,12 @@
       /></label>
       <label
         ><strong>单次超时（毫秒）</strong
-        ><input v-model.number="phone.settings.api.timeoutMs" type="number" min="10000" max="180000" step="1000"
+        ><input v-model.number="phone.settings.api.timeoutMs" type="number" min="10000" max="600000" step="1000"
       /></label>
     </div>
     <p class="api-note">
-      长度单位为 tokens；上下文采用本地估算并为回复预留空间，超限优先移除最旧历史。0 次重试表示只请求一次。
+      长度单位为 tokens；上下文采用本地估算并为回复预留空间，超限优先移除最旧历史。0
+      次重试表示只请求一次。慢速或思考模型可将超时设为 180000–600000 毫秒；已有配置需手动调整。
     </p>
     <p class="api-note">密钥仅保存在脚本变量，不进入聊天提示词。</p>
     <p v-if="feedback" class="api-feedback" role="status">{{ feedback }}</p>

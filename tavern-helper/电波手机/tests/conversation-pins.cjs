@@ -59,6 +59,7 @@ const make = () => {
   cache.cachedParse = () => new Promise(resolve => (release = resolve));
   phone.settings.basic.cacheEnabled = true;
   const pending = phone.synchronize();
+  await new Promise(resolve => setImmediate(resolve));
   assert(release);
   phone.setConversationPinned(key);
   assert.equal(phone.activeThread.pinned, false);

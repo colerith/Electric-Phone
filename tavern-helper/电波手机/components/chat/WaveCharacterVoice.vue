@@ -9,6 +9,7 @@
           { value: 'off', label: '关闭语音合成' },
           { value: 'minimax', label: 'MiniMax' },
           { value: 'elevenlabs', label: 'ElevenLabs' },
+          { value: 'fish', label: 'Fish 鱼声' },
         ]"
         @update:model-value="value => update({ provider: value as CharacterVoice['provider'] })"
     /></label>
@@ -42,7 +43,7 @@
           aria-label="语调"
           @update:model-value="value => update({ pitch: value })"
       /></label>
-      <template v-else
+      <template v-else-if="voice.provider === 'elevenlabs'"
         ><label
           ><span
             >语调表现 <b>{{ Math.round(voice.style * 100) }}%</b></span

@@ -3,7 +3,9 @@ const fs = require('fs'),
   assert = require('node:assert/strict'),
   ts = require('typescript');
 const { JSDOM } = require('jsdom');
-const dom = new JSDOM('<div id="app"></div>', { url: 'http://localhost' });
+const dom = new JSDOM('<div id="wave-phone-script-root"><div class="wave-device"><div id="app"></div></div></div>', {
+  url: 'http://localhost',
+});
 for (const key of ['window', 'document', 'Node', 'Element', 'HTMLElement', 'SVGElement', 'Event', 'MouseEvent'])
   global[key] = dom.window[key];
 const compile = code =>
@@ -11,10 +13,25 @@ const compile = code =>
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
   }).outputText;
 require.extensions['.ts'] = (m, f) => m._compile(compile(fs.readFileSync(f, 'utf8')), f);
-const { parse, compileScript } = require('vue/compiler-sfc');
+const { parse, compileScript, compileStyle } = require('vue/compiler-sfc');
 require.extensions['.vue'] = (m, f) => {
   const { descriptor } = parse(fs.readFileSync(f, 'utf8'));
   m._compile(compile(compileScript(descriptor, { id: f, inlineTemplate: true }).content), f);
+  const id = 'data-v-' + require('node:crypto').createHash('sha1').update(f).digest('hex').slice(0, 8);
+  m.exports.default.__scopeId = id;
+  for (const block of descriptor.styles) {
+    const result = compileStyle({
+      source: block.content,
+      filename: f,
+      id,
+      scoped: block.scoped,
+      preprocessLang: block.lang,
+    });
+    assert.deepEqual(result.errors, []);
+    const style = document.createElement('style');
+    style.textContent = result.code;
+    document.head.append(style);
+  }
 };
 global._ = require('lodash');
 global.z = require('zod').z;
@@ -32,6 +49,10 @@ const base = path.resolve('src/util/酒馆助手脚本/电波手机');
 const Backup = require(base + '/components/settings/WaveBackupSettings.vue').default;
 const { createPhoneBackup, inspectPhoneBackup } = require(base + '/services/core/backup.ts');
 const app = vue.createApp(Backup).use(createPinia());
+app.provide(
+  require(base + '/services/core/ui-context.ts').phoneSurfaceKey,
+  vue.ref(document.querySelector('.wave-device')),
+);
 app.mount('#app');
 const tick = () => vue.nextTick();
 const click = text => {
@@ -53,6 +74,16 @@ dom.window.HTMLAnchorElement.prototype.click = () => {};
   await tick();
   const checks = [...document.querySelectorAll('.backup-dialog .backup-modules input[type=checkbox]')];
   assert.equal(checks.length, 12);
+  const hostileStyle = document.createElement('style');
+  hostileStyle.textContent =
+    '#wave-phone-script-root .wave-device input[type=checkbox] { width: 100%; min-height: 42px; padding: 12px; border-radius: 50%; }';
+  document.head.append(hostileStyle);
+  assert.equal(window.getComputedStyle(checks[0]).width, '1px');
+  assert.equal(window.getComputedStyle(checks[0]).opacity, '0');
+  assert.equal(window.getComputedStyle(checks[0].nextElementSibling).width, '20px');
+  assert.equal(window.getComputedStyle(checks[0].nextElementSibling).height, '20px');
+  assert(!document.querySelector('.backup-dialog').classList.contains('settings-card'));
+  assert(document.querySelector('.wave-backup-dialog-body'));
   assert.deepEqual(
     checks.filter(c => c.checked).map(c => c.value),
     ['messages'],
@@ -85,16 +116,27 @@ dom.window.HTMLAnchorElement.prototype.click = () => {};
   input.dispatchEvent(new Event('change', { bubbles: true }));
   await new Promise(resolve => setTimeout(resolve, 20));
   await tick();
-  const incoming = [...document.querySelectorAll('.backup-confirm input[type=checkbox]')];
+  const incoming = [...document.querySelectorAll('.backup-confirm .backup-modules input[type=checkbox]')];
   assert.deepEqual(
     incoming.map(c => c.value),
     ['messages', 'history'],
   );
+  const selectAll = document.querySelector('.backup-confirm .backup-select-all input');
+  assert(selectAll.checked);
+  selectAll.click();
+  await tick();
+  assert(incoming.every(c => !c.checked));
+  selectAll.click();
+  await tick();
+  assert(incoming.every(c => c.checked));
   for (const checkbox of incoming) {
     checkbox.click();
     await tick();
   }
   assert([...document.querySelectorAll('button')].find(b => b.textContent.includes('确认导入')).disabled);
+  assert(!selectAll.checked);
+  if (process.env.WAVE_QA_IMPORT_HTML)
+    fs.writeFileSync(process.env.WAVE_QA_IMPORT_HTML, document.querySelector('#app').innerHTML);
   click('取消');
   await tick();
   assert(!document.querySelector('.backup-confirm'));

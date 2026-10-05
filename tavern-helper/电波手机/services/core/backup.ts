@@ -1,3 +1,4 @@
+import { readPhoneGlobals, writePhoneGlobals, writePhoneChat, flushPhoneStorage } from './durable-storage';
 import { modularize, importModules, ModularBackupSchema, BACKUP_MODULES, type BackupModule } from './backup-modules';
 import { CHARACTER_DEFAULTS_KEY, CharacterDefaultsSchema } from './character-defaults';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
@@ -18,6 +19,7 @@ import {
 } from '../../schemas';
 import { MomentUserProfileMapSchema } from '../space/moments';
 import { getRuntimeContext } from './identity';
+import { packBackupAssets, unpackBackupAssets } from './backup-assets';
 
 const BACKUP_FORMAT = 'wave-phone-backup';
 const BACKUP_FORMAT_VERSION = 1;
@@ -70,7 +72,7 @@ function timestampName(): string {
 }
 
 export function createPhoneBackup(selected?: BackupModule[]): { filename: string; blob: Blob } {
-  const globalVariables = getVariables({ type: 'global' }) || {};
+  const globalVariables = readPhoneGlobals();
   const chatVariables = getVariables({ type: 'chat' }) || {};
   const runtime = getRuntimeContext();
   const backup = PhoneBackupSchema.parse({
@@ -89,17 +91,20 @@ export function createPhoneBackup(selected?: BackupModule[]): { filename: string
     },
     chat: chatVariables[CHAT_VARIABLE_KEY] || null,
   });
+  const packed = packBackupAssets(selected ? modularize(backup, selected) : backup);
   const archive = zipSync(
     {
-      'backup.json': strToU8(JSON.stringify(selected ? modularize(backup, selected) : backup)),
+      ...packed.files,
+      'backup.json': strToU8(JSON.stringify(packed.data, null, 2) + '\n'),
       'README.txt': strToU8(
-        selected
-          ? `电波手机分模块备份：${BACKUP_MODULES.filter(item => selected.includes(item.id))
-              .map(item => item.name)
-              .join(
-                '、',
-              )}。导入时可再次选择需要的模块。${selected.includes('general') ? '包含 API 配置，请勿公开分享含有密钥的备份。' : ''}`
-          : '电波手机完整备份。包含设置、API 配置、角色与用户资料，以及导出时的当前聊天数据。请勿公开分享包含密钥的备份文件。',
+        '格式 v3：backup.json 为 UTF-8 缩进文本；图片等内嵌资源保存在 assets/，相同资源只保存一份。请保留整个 ZIP 导入，并使用支持 v3 的电波手机版本。\n\n' +
+          (selected
+            ? `电波手机分模块备份：${BACKUP_MODULES.filter(item => selected.includes(item.id))
+                .map(item => item.name)
+                .join(
+                  '、',
+                )}。导入时可再次选择需要的模块。${selected.includes('general') ? '包含 API 配置，请勿公开分享含有密钥的备份。' : ''}`
+            : '电波手机完整备份。包含设置、API 配置、角色与用户资料，以及导出时的当前聊天数据。请勿公开分享包含密钥的备份文件。'),
       ),
     },
     { level: 6 },
@@ -114,7 +119,14 @@ async function readBackupFile(file: File): Promise<unknown> {
   if (file.size > MAX_ZIP_BYTES) throw Error('备份 ZIP 不能超过 20MB');
   let files: ReturnType<typeof unzipSync>;
   try {
-    files = unzipSync(new Uint8Array(await file.arrayBuffer()));
+    let expandedBytes = 0;
+    files = unzipSync(new Uint8Array(await file.arrayBuffer()), {
+      filter: entry => {
+        expandedBytes += entry.originalSize;
+        if (expandedBytes > MAX_BACKUP_BYTES) throw Error('解压后的备份内容过大');
+        return entry.name === 'backup.json' || /^assets\/\d+\.[a-z0-9]+$/.test(entry.name);
+      },
+    });
   } catch {
     throw Error('无法读取 ZIP，请选择电波手机导出的备份文件');
   }
@@ -127,7 +139,37 @@ async function readBackupFile(file: File): Promise<unknown> {
   } catch {
     throw Error('backup.json 不是有效的 JSON');
   }
-  return raw;
+  const restored = unpackBackupAssets(raw, files, MAX_BACKUP_BYTES);
+  return migrateLegacyBackupNamespace(restored);
+}
+
+/** Old backups used a volatile character-list index. Require both original card name and chat filename. */
+function migrateLegacyBackupNamespace(raw: unknown): unknown {
+  const runtime = getRuntimeContext();
+  const candidate = raw as PhoneBackup;
+  const source = candidate?.context;
+  if (
+    !runtime?.cardKey.startsWith('character-file:') ||
+    !source ||
+    !/^character:/.test(source.cardKey) ||
+    source.chatKey !== runtime.chatKey ||
+    source.cardName !== runtime.cardName
+  )
+    return raw;
+  const backup = klona(raw) as PhoneBackup;
+  const oldKey = source.cardKey;
+  backup.context!.cardKey = runtime.cardKey;
+  if (backup.chat?.cardKey === oldKey) backup.chat.cardKey = runtime.cardKey;
+  if (backup.global) {
+    for (const map of [backup.global.cardRosters, backup.global.characterDefaults]) {
+      if (map?.[oldKey] && !map[runtime.cardKey]) map[runtime.cardKey] = klona(map[oldKey]);
+    }
+    for (const [key, value] of Object.entries(backup.global.characterProfiles || {})) {
+      if (key.startsWith(`${oldKey}::`))
+        backup.global.characterProfiles[`${runtime.cardKey}${key.slice(oldKey.length)}`] = value;
+    }
+  }
+  return backup;
 }
 
 export async function inspectPhoneBackup(file: File): Promise<BackupModule[]> {
@@ -141,36 +183,43 @@ export async function inspectPhoneBackup(file: File): Promise<BackupModule[]> {
 export async function importPhoneBackup(
   file: File,
   selected?: BackupModule[],
+  afterApply?: () => Promise<void>,
 ): Promise<{ chatImported: boolean; message: string }> {
   const raw = await readBackupFile(file);
-  if ((raw as { formatVersion?: number })?.formatVersion === 2) return importModules(raw, selected);
+  if ((raw as { formatVersion?: number })?.formatVersion === 2) {
+    const result = importModules(raw, selected);
+    await afterApply?.();
+    await flushPhoneStorage();
+    return result;
+  }
   const backup = PhoneBackupSchema.parse(raw);
-  if (selected) return importModules(modularize(backup, selected), selected);
+  if (selected) {
+    const result = importModules(modularize(backup, selected), selected);
+    await afterApply?.();
+    await flushPhoneStorage();
+    return result;
+  }
   if (backup.storageVersion > WAVE_PHONE_STORAGE_VERSION) throw Error('备份来自更高版本，请先更新电波手机');
 
-  const globalVariables = getVariables({ type: 'global' }) || {};
-  replaceVariables(
-    {
-      ...globalVariables,
-      [SCRIPT_VARIABLE_KEY]: envelope(backup.global.settings),
-      [PROFILE_VARIABLE_KEY]: envelope(backup.global.characterProfiles),
-      [USER_PROFILE_VARIABLE_KEY]: envelope(backup.global.userProfiles),
-      [CARD_ROSTER_VARIABLE_KEY]: envelope(backup.global.cardRosters),
-      ...(backup.global.characterDefaults
-        ? { [CHARACTER_DEFAULTS_KEY]: envelope(backup.global.characterDefaults) }
-        : {}),
-    },
-    { type: 'global' },
-  );
+  const globalVariables = readPhoneGlobals();
+  writePhoneGlobals({
+    ...globalVariables,
+    [SCRIPT_VARIABLE_KEY]: envelope(backup.global.settings),
+    [PROFILE_VARIABLE_KEY]: envelope(backup.global.characterProfiles),
+    [USER_PROFILE_VARIABLE_KEY]: envelope(backup.global.userProfiles),
+    [CARD_ROSTER_VARIABLE_KEY]: envelope(backup.global.cardRosters),
+    ...(backup.global.characterDefaults ? { [CHARACTER_DEFAULTS_KEY]: envelope(backup.global.characterDefaults) } : {}),
+  });
 
   const runtime = getRuntimeContext();
   const chatImported = Boolean(
     backup.chat && runtime && backup.chat.cardKey === runtime.cardKey && backup.chat.chatKey === runtime.chatKey,
   );
   if (chatImported && backup.chat) {
-    const chatVariables = getVariables({ type: 'chat' }) || {};
-    replaceVariables({ ...chatVariables, [CHAT_VARIABLE_KEY]: klona(backup.chat) }, { type: 'chat' });
+    writePhoneChat(klona(backup.chat));
   }
+  await afterApply?.();
+  await flushPhoneStorage();
   return {
     chatImported,
     message: chatImported

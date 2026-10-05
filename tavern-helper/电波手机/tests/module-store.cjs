@@ -116,7 +116,12 @@ const delta = {
   store.settings.api.maxRetries = 0;
   global.generateRaw = async args => {
     assert(args.ordered_prompts.some(p => typeof p === 'object' && p.content.includes('本轮仅允许更新：memo')));
-    return JSON.stringify({ ...delta, messages: [], app_updates: { memo: '手动结果' } });
+    return JSON.stringify({
+      ...delta,
+      char_id: store.activeIdentity.stableId,
+      messages: [],
+      app_updates: { memo: '手动结果' },
+    });
   };
   global.createChatMessages = async rows => {
     rows.forEach(row => floors.push({ ...row, message_id: floors.length + 1 }));

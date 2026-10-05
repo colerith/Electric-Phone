@@ -1,3 +1,4 @@
+import { preparePhoneStorage } from './services/core/durable-storage';
 import { createPinia } from 'pinia';
 import { createApp, type App as VueApp } from 'vue';
 import { createScriptIdDiv, destroyScriptIdDiv, deteleportStyle, teleportStyle } from '../../script';
@@ -31,6 +32,7 @@ function cleanup(): void {
 }
 
 async function initialize(): Promise<void> {
+  await preparePhoneStorage();
   cleanup();
   const $root = createScriptIdDiv().attr('id', ROOT_ID);
   $('body').append($root);

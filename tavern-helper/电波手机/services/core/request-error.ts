@@ -67,7 +67,7 @@ export function describeRequestError(error: unknown, stage: RequestStage, secret
     hint = '检查模型、Endpoint 和采样参数是否受服务端支持。';
     retryable = false;
   } else if (
-    /failed to fetch|network|fetch failed|load failed|cors|连接|断网|网络/i.test(raw) &&
+    /failed to fetch|network|fetch failed|load failed|cors|socket hang up|ECONNRESET|EPIPE|连接|断网|网络/i.test(raw) &&
     stage === '请求接口'
   ) {
     category = '网络或跨域';
@@ -95,6 +95,11 @@ export function describeRequestError(error: unknown, stage: RequestStage, secret
     category,
     status,
     retryable,
+    summary: `${category}${status ? `（HTTP ${status}）` : ''}。${hint}`,
     detail: `${category}｜阶段：${stage}${status ? `｜HTTP ${status}` : ''}｜${text}\n${hint}`,
   };
+}
+
+export function requestErrorToast(error: unknown): string {
+  return `${describeRequestError(error, '请求接口').summary} 详细信息见调试工具的运行日志。`;
 }

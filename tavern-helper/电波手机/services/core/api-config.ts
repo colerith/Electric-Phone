@@ -3,13 +3,12 @@ export const providerDefaults: Partial<Record<Provider, string>> = {
   siliconflow: 'https://api.siliconflow.cn/v1',
   deepseek: 'https://api.deepseek.com/v1',
 };
-export function normalizeApiBase(value: string, google = false): string {
+export function normalizeApiBase(value: string): string {
   const url = new URL(value);
   if (url.protocol !== 'https:') throw Error('API 地址必须使用 HTTPS。');
   url.hash = '';
   url.search = '';
   url.pathname = url.pathname.replace(/\/+$/, '').replace(/\/(?:chat\/completions|models)$/, '');
-  if (!url.pathname || url.pathname === '/') url.pathname = google ? '/v1beta' : '/v1';
   return url.href.replace(/\/+$/, '');
 }
 export function omitSampling(model: string): boolean {
@@ -59,8 +58,7 @@ export async function fetchApiModels(api: ScriptSettings['api'], signal?: AbortS
     if (api.provider === 'vertex_ai' && !base) throw Error('Vertex 模型列表请填写兼容代理地址，或手动输入模型 ID。');
     if (google && !base) base = 'https://generativelanguage.googleapis.com/v1beta';
     if (!/^https:\/\//i.test(base)) throw Error('请填写有效的 HTTPS API 地址。');
-    base = normalizeApiBase(base, google);
-    if (google && !/\/v1(?:beta)?$/.test(base)) base += '/v1beta';
+    base = normalizeApiBase(base);
     const models = new Set<string>();
     let pageToken = '';
     for (let page = 0; page < 20; page++) {
@@ -74,7 +72,7 @@ export async function fetchApiModels(api: ScriptSettings['api'], signal?: AbortS
       const body = await response.text();
       if (/^\s*</.test(body) || response.headers.get('content-type')?.includes('text/html'))
         throw Error(
-          `模型列表返回了网页（HTML），并非 API JSON。请确认填写的是 API 基础地址（通常以 /v1 结尾），而非站点首页、登录页；也可能被站点验证页拦截。可手动填写模型 ID。`,
+          `模型列表返回了网页（HTML），并非 API JSON。请按服务商文档填写 API 基础地址，是否带 /v1 由服务商决定；也可能被登录页或验证页拦截。可手动填写模型 ID。`,
         );
       let data;
       try {

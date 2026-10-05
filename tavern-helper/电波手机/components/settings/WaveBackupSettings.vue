@@ -1,6 +1,14 @@
 <template>
   <div class="system-settings wave-backup-settings">
     <section class="settings-card system-settings-card">
+      <div class="wave-settings-title">存储状态</div>
+      <p role="status">{{ storageMessage }}</p>
+      <p v-if="phoneStorageStatus.recovery">{{ phoneStorageStatus.recovery }}</p>
+      <button class="system-action backup-action" type="button" :disabled="storageSaving" @click="saveStorage">
+        {{ storageSaving ? '正在保存…' : phoneStorageStatus.error ? '重试保存' : '立即保存到服务器' }}
+      </button>
+    </section>
+    <section class="settings-card system-settings-card">
       <div class="wave-settings-title">导出 ZIP 备份</div>
       <p>全量导出包含所有模块；分批导出时选择所需模块。备份可能包含 API 密钥，请妥善保管。</p>
       <div class="backup-export-actions">
@@ -38,15 +46,11 @@
       </button>
       <div v-else class="backup-confirm">
         <span
-          ><i class="fa-regular fa-file-zipper"></i><b>{{ pendingFile.name }}</b
+          ><i class="fa-solid fa-file-zipper"></i><b :title="pendingFile.name">{{ pendingFile.name }}</b
           ><small>{{ fileSize }}</small></span
         >
-        <p>确认导入勾选的模块吗？未勾选的设置和内容保持不变，完成后自动重新载入。</p>
-        <div class="backup-modules">
-          <label v-for="item in availableModuleOptions" :key="item.id"
-            ><input v-model="importModules" type="checkbox" :value="item.id" :disabled="busy" />{{ item.name }}</label
-          >
-        </div>
+        <WaveBackupModulePicker v-model="importModules" :options="availableModuleOptions" :disabled="busy" />
+        <p class="backup-import-hint">仅覆盖勾选内容，完成后自动重新载入。</p>
         <div class="system-button-row">
           <button class="system-action" type="button" :disabled="busy" @click="cancelImport">取消</button>
           <button
@@ -65,7 +69,7 @@
       <div class="backup-modal" @click.self="batchOpen = false" @keydown.esc.stop="batchOpen = false">
         <section
           ref="batchDialog"
-          class="backup-dialog settings-card system-settings-card"
+          class="backup-dialog wave-backup-dialog"
           role="dialog"
           aria-modal="true"
           aria-label="分批导出备份"
@@ -73,18 +77,8 @@
         >
           <div class="wave-settings-title">分批导出备份</div>
           <p>选择需要的模块。消息设置与角色设定不包含聊天记录。</p>
-          <label class="backup-select-all"
-            ><input
-              type="checkbox"
-              :checked="exportModules.length === BACKUP_MODULES.length"
-              :indeterminate.prop="exportModules.length > 0 && exportModules.length < BACKUP_MODULES.length"
-              @change="toggleAll"
-            />全选模块</label
-          >
-          <div class="backup-modules">
-            <label v-for="item in BACKUP_MODULES" :key="item.id"
-              ><input v-model="exportModules" type="checkbox" :value="item.id" />{{ item.name }}</label
-            >
+          <div class="wave-backup-dialog-body">
+            <WaveBackupModulePicker v-model="exportModules" :options="BACKUP_MODULES" :disabled="busy" />
           </div>
           <p v-if="exportModules.includes('general')" class="backup-warning">
             <i class="fa-solid fa-shield-halved"></i>备份可能包含 API 密钥，请妥善保管。
@@ -107,6 +101,8 @@
 </template>
 
 <script setup lang="ts">
+import WaveBackupModulePicker from './WaveBackupModulePicker.vue';
+import { phoneStorageStatus, flushPhoneStorage } from '../../services/core/durable-storage';
 import { computed, inject, nextTick, ref, watch } from 'vue';
 import { createPhoneBackup, importPhoneBackup, inspectPhoneBackup } from '../../services/core/backup';
 import { BACKUP_MODULES, type BackupModule } from '../../services/core/backup-modules';
@@ -114,6 +110,31 @@ import { usePhoneStore } from '../../stores/phone';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
 
 const phone = usePhoneStore();
+const storageSaving = ref(false);
+const storageMessage = computed(() =>
+  phoneStorageStatus.error
+    ? `服务器保存未完成：${phoneStorageStatus.error}`
+    : phoneStorageStatus.pending
+      ? '更改正在保存到酒馆服务器…'
+      : phoneStorageStatus.savedAt
+        ? `已保存到酒馆服务器 · ${new Date(phoneStorageStatus.savedAt).toLocaleTimeString()}`
+        : '设置与聊天会自动保存到酒馆服务器，并保留上一份存档。',
+);
+async function saveStorage(): Promise<void> {
+  storageSaving.value = true;
+  try {
+    // Retry the queued snapshot verbatim, including a ZIP import whose server write failed.
+    if (!phoneStorageStatus.pending) {
+      phone.saveSettings();
+      phone.saveChat();
+    }
+    await flushPhoneStorage();
+  } catch {
+    /* The shared status displays the error and preserves the pending write. */
+  } finally {
+    storageSaving.value = false;
+  }
+}
 const surface = inject(phoneSurfaceKey, ref(null));
 const exportModules = ref<BackupModule[]>(['messages']);
 const batchOpen = ref(false);
@@ -137,9 +158,6 @@ const fileSize = computed(() => {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 });
 
-function toggleAll(): void {
-  exportModules.value = exportModules.value.length === BACKUP_MODULES.length ? [] : BACKUP_MODULES.map(item => item.id);
-}
 function exportBackup(modules: BackupModule[]): void {
   busy.value = true;
   failed.value = false;
@@ -190,12 +208,12 @@ function cancelImport(): void {
 }
 
 async function confirmImport(): Promise<void> {
-  if (!pendingFile.value || busy.value) return;
+  if (!pendingFile.value || busy.value || !importModules.value.length) return;
   busy.value = true;
   failed.value = false;
   notice.value = '';
   try {
-    const result = await importPhoneBackup(pendingFile.value, importModules.value);
+    const result = await importPhoneBackup(pendingFile.value, importModules.value, phone.reloadPersistentData);
     notice.value = `${result.message}，正在重新载入…`;
     window.setTimeout(() => window.location.reload(), 700);
   } catch (error) {
@@ -207,117 +225,103 @@ async function confirmImport(): Promise<void> {
 </script>
 
 <style lang="scss">
-#wave-phone-script-root .wave-device .backup-modules {
+#wave-phone-script-root .wave-device .wave-backup-settings .backup-export-actions {
   display: grid;
-  gap: 4px;
-  margin: 8px 0 16px;
-  label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 8px;
-    margin: 0;
-    min-width: 0;
-    line-height: 1.5;
-    cursor: pointer;
-    font-size: 14px;
-    border-radius: 10px;
-    &:hover {
-      background: var(--settings-control);
-    }
-  }
-  input[type='checkbox'] {
-    appearance: none !important;
-    width: 20px;
-    height: 20px;
-    min-height: 20px;
-    padding: 0;
-    margin: 0;
-    flex: 0 0 20px;
-    flex-shrink: 0;
-    border: 1.5px solid var(--settings-muted);
-    border-radius: 6px;
-    background: var(--wave-card, #fff);
-    cursor: pointer;
-    &:checked {
-      background: var(--settings-accent);
-      border-color: var(--settings-accent);
-    }
-    &:checked::after {
-      content: '✓';
-      display: block;
-      color: #fff;
-      text-align: center;
-      font: 700 15px/18px sans-serif;
-    }
-  }
+  gap: 10px;
+  padding: 16px 0 18px;
 }
-#wave-phone-script-root .wave-device .wave-backup-settings {
-  .backup-export-actions {
-    display: grid;
-    gap: 10px;
-    padding: 16px 0 18px;
-  }
-}
-#wave-phone-script-root .wave-device {
-  .backup-modal {
-    position: absolute;
-    inset: 0;
-    z-index: 200;
-    display: grid;
-    place-items: center;
-    padding: 16px;
-    background: rgba(20, 33, 57, 0.36);
-  }
-  .backup-modal .backup-dialog {
-    width: min(100%, 380px);
-    max-height: 88%;
-    overflow-y: auto;
-    padding: 18px;
+#wave-phone-script-root .wave-device .backup-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  padding: 16px;
+  box-sizing: border-box;
+  background: rgba(20, 33, 57, 0.36);
+  .wave-backup-dialog {
     box-sizing: border-box;
-  }
-  .backup-select-all {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 12px;
-    padding: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--settings-text);
-  }
-  .backup-select-all input {
-    appearance: none !important;
-    width: 20px;
-    height: 20px;
+    width: min(100%, 380px);
+    max-height: 100%;
+    min-height: 0;
     margin: 0;
-    border: 1.5px solid var(--settings-muted);
-    border-radius: 6px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: hidden;
+    border: 1px solid var(--settings-line);
+    border-radius: 20px;
     background: var(--wave-card, #fff);
-    cursor: pointer;
-    &:checked,
-    &:indeterminate {
-      background: var(--settings-accent);
-      border-color: var(--settings-accent);
-    }
-    &:checked::after {
-      content: '✓';
-      display: block;
-      color: #fff;
-      text-align: center;
-      font: 700 15px/18px sans-serif;
-    }
-    &:indeterminate::after {
-      content: '−';
-      display: block;
-      color: #fff;
-      text-align: center;
-      font: 700 16px/18px sans-serif;
-    }
+    color: var(--settings-text);
+    font: 400 13px/1.5 var(--wave-ui-font);
   }
-  .backup-dialog .system-button-row {
+  .wave-backup-dialog > p {
+    margin: 0;
+    font: 400 11px/1.5 var(--wave-ui-font);
+    color: var(--settings-muted);
+    flex-shrink: 0;
+  }
+  .wave-backup-dialog .wave-settings-title {
+    margin: 0;
+    font: 700 16px/1.5 var(--wave-ui-font);
+    flex-shrink: 0;
+  }
+  .wave-backup-dialog-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  .wave-backup-dialog .system-button-row {
+    display: flex;
     justify-content: flex-end;
-    padding: 8px 0 0;
+    gap: 8px;
+    margin: 0;
+    padding: 10px 0 0;
+    border-top: 1px solid var(--settings-line);
+    flex-shrink: 0;
+  }
+  .wave-backup-dialog .system-action {
+    all: unset;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border: 1px solid var(--settings-line);
+    border-radius: 12px;
+    color: var(--settings-text);
+    background: var(--settings-control);
+    font: 600 13px/1.5 var(--wave-ui-font);
+    cursor: pointer;
+  }
+  .wave-backup-dialog .backup-action {
+    color: #fff;
+    background: var(--settings-accent);
+    border-color: var(--settings-accent);
+  }
+  .wave-backup-dialog .system-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .wave-backup-dialog .system-action:focus-visible {
+    outline: 2px solid var(--settings-accent);
+    outline-offset: 2px;
+  }
+}
+#wave-phone-script-root .wave-device .wave-backup-settings .backup-confirm {
+  gap: 10px;
+  .backup-import-hint {
+    margin: 0;
+    font-size: 11px;
+  }
+  .system-button-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    padding-top: 4px;
   }
 }
 </style>

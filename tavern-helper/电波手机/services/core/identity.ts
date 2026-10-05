@@ -22,17 +22,20 @@ export function getRuntimeContext(): RuntimeContext | null {
   if (!chatKey) return null;
 
   const groupId = String(SillyTavern.groupId || '').trim();
-  const characterId = String(SillyTavern.characterId || '').trim();
+  const characterId = String(SillyTavern.characterId ?? '').trim();
   const card = getCharData('current');
   const avatar = String(getCharAvatarPath('current') || card?.avatar || '').trim();
   const cardName = String(card?.name || '未命名角色').trim();
+  const cardFile = String(card?.avatar || '').trim();
   const cardKey = groupId
     ? `group:${safePart(groupId)}`
-    : characterId
-      ? `character:${safePart(characterId)}`
-      : avatar
-        ? `avatar:${safePart(avatar)}`
-        : '';
+    : cardFile
+      ? `character-file:${encodeURIComponent(cardFile)}`
+      : characterId
+        ? `character:${safePart(characterId)}`
+        : avatar
+          ? `avatar:${safePart(avatar)}`
+          : '';
 
   if (!cardKey) return null;
   return { cardKey, chatKey, cardName, avatar, isGroup: Boolean(groupId) };

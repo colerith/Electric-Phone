@@ -1372,6 +1372,7 @@ export function voiceGenerationRules(input: PhonePromptInput): string {
   if (!voice || voice.provider === 'off' || !input.voiceServices?.[voice.provider].enabled) return '';
   const common =
     '[电波手机·语音消息输出规范] 仅约束本轮目标角色的 messages：每轮必须至少 1 条 type=voice 的语音消息。content 与 payload.transcript 使用同一份口语原文（含引擎标签），不写身体动作或旁白。中文原文至少 10 个中文字符（不计标签）；启用非中文双语时遵守所选原文语言，至少一句完整话且不少于 10 个文字字符，不为凑中文破坏语言设置。其他消息类型不添加语音标签。';
+  if (voice.provider === 'fish') return common + '\nFish 鱼声：输出自然口语原文，不添加其他引擎的拟声标签、SSML 或动作旁白。';
   if (voice.provider === 'minimax')
     return (
       common +
