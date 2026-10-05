@@ -10,7 +10,18 @@
         tabindex="-1"
         @keydown.tab="trap"
       >
-        <div class="gallery-stage" :class="{ zoomed }" :inert="panel ? true : undefined" @dblclick="zoomed = !zoomed">
+        <div
+          ref="stage"
+          class="gallery-stage"
+          :class="{ zoomed, dragging }"
+          :inert="panel ? true : undefined"
+          @dblclick="zoomed = !zoomed"
+          @pointerdown="startPan"
+          @pointermove="movePan"
+          @pointerup="endPan"
+          @pointercancel="endPan"
+          @lostpointercapture="endPan"
+        >
           <div class="gallery-canvas">
             <img v-if="version" :src="version.url" :alt="draft?.description || '图片预览'" draggable="false" />
             <div v-else class="gallery-empty">
@@ -269,6 +280,8 @@ const index = ref(props.initialIndex),
   status = ref(''),
   busy = ref(false),
   zoomed = ref(false),
+  dragging = ref(false),
+  stage = ref<HTMLElement>(),
   panel = ref<'prompt' | 'caption' | 'versions' | 'delete' | 'generate' | null>(null),
   panelDialog = ref<HTMLElement>(),
   dialog = ref<HTMLElement>();
@@ -293,6 +306,50 @@ const panelTitle = computed(
       generate: version.value ? '重新生成图片' : '生成图片',
     })[panel.value || 'prompt'],
 );
+// Pointer capture keeps dragging active outside the image, for mouse, pen and touch.
+let pan: { id: number; x: number; y: number; left: number; top: number; scale: number } | undefined;
+function stopPan() {
+  const id = pan?.id;
+  pan = undefined;
+  dragging.value = false;
+  if (id !== undefined && stage.value?.hasPointerCapture?.(id)) stage.value.releasePointerCapture(id);
+}
+function startPan(event: PointerEvent) {
+  if (!event.isPrimary) {
+    stopPan();
+    return;
+  }
+  if (!zoomed.value || panel.value || event.button !== 0 || !stage.value) return;
+  const el = stage.value;
+  pan = {
+    id: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    left: el.scrollLeft,
+    top: el.scrollTop,
+    scale: el.getBoundingClientRect().width / el.offsetWidth || 1,
+  };
+  dragging.value = true;
+  el.setPointerCapture?.(event.pointerId);
+}
+function movePan(event: PointerEvent) {
+  if (!pan || pan.id !== event.pointerId || !stage.value) return;
+  stage.value.scrollLeft = pan.left - (event.clientX - pan.x) / pan.scale;
+  stage.value.scrollTop = pan.top - (event.clientY - pan.y) / pan.scale;
+}
+function endPan(event: PointerEvent) {
+  if (pan?.id === event.pointerId) stopPan();
+}
+watch([zoomed, panel, version], () => {
+  stopPan();
+  if (!zoomed.value)
+    void nextTick(() => {
+      if (stage.value) {
+        stage.value.scrollLeft = 0;
+        stage.value.scrollTop = 0;
+      }
+    });
+});
 let panelTrigger: HTMLElement | null = null;
 function openPanel(value: NonNullable<typeof panel.value>) {
   panelTrigger = document.activeElement as HTMLElement;
@@ -334,6 +391,7 @@ watch(
 );
 onMounted(() => void nextTick(() => dialog.value?.focus()));
 onBeforeUnmount(() => {
+  stopPan();
   cancel();
   previousFocus?.focus();
 });
@@ -485,6 +543,14 @@ async function run(action: 'generate' | 'caption') {
     overscroll-behavior: contain;
     touch-action: pan-x pan-y pinch-zoom;
     scrollbar-width: none;
+  }
+  .gallery-stage.zoomed {
+    cursor: grab;
+    touch-action: pinch-zoom;
+    user-select: none;
+  }
+  .gallery-stage.dragging {
+    cursor: grabbing;
   }
   .gallery-stage::-webkit-scrollbar {
     display: none;

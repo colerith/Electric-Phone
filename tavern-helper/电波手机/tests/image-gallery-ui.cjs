@@ -114,6 +114,26 @@ const click = text => {
   click('放大查看');
   await vue.nextTick();
   assert(document.querySelector('.gallery-stage.zoomed'));
+  const stage = document.querySelector('.gallery-stage');
+  Object.defineProperty(stage, 'offsetWidth', { value: 200 });
+  stage.getBoundingClientRect = () => ({ width: 400 });
+  const pointer = (type, pointerType, x, y) => {
+    const event = new Event(type, { bubbles: true });
+    Object.assign(event, { pointerId: 1, isPrimary: true, pointerType, button: 0, clientX: x, clientY: y });
+    stage.dispatchEvent(event);
+  };
+  for (const device of ['mouse', 'touch']) {
+    stage.scrollLeft = 100;
+    stage.scrollTop = 100;
+    pointer('pointerdown', device, 100, 100);
+    pointer('pointermove', device, 60, 40);
+    assert.equal(stage.scrollLeft, 120, `${device} horizontal pan respects phone scale`);
+    assert.equal(stage.scrollTop, 130, `${device} vertical pan respects phone scale`);
+    pointer('pointercancel', device, 60, 40);
+    pointer('pointermove', device, 0, 0);
+    assert.equal(stage.scrollLeft, 120, 'cancel releases drag');
+  }
+
   click('适应窗口');
   assert.equal(document.querySelector('textarea'), null, 'immersive view hides forms');
   assert.equal(document.querySelectorAll('.gallery-toolbar button i[class*=fa-]').length, 8);
