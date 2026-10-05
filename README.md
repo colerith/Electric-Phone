@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.1.73`
+当前发布版本：`v1.1.74`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.73/file/index-1.1.73.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.74/file/index-1.1.74.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：私聊生图分块并统一正常字重；角色语音支持多个音色 ID 与备注；私聊刷新改为独立 API 重新生成本轮回复；修复旧、新自动单卡身份重复，并保留迁移前存档。详见[语音与生图指南](./tavern-helper/电波手机/docs/语音与生图.md)。
+本版更新：私聊生图改为单卡分割线布局，移除手动生图入口；Fish 模型采用输入框加拉取按钮；新增语音/生图每轮数量与私聊覆盖、NovelAI/GPT Image 双预设规范，回复可按范围自动生成图片，区分角色、其他人物、场景与物品。详见[语音与生图指南](./tavern-helper/电波手机/docs/语音与生图.md)。
 
 ## 首次配置
 

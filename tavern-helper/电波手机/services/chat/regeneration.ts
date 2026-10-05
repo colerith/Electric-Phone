@@ -10,7 +10,12 @@ export function latestReplyRound(thread: Thread) {
     if (userIndex < 0) break;
     const replies = messages
       .slice(userIndex + 1, end)
-      .filter(message => !message.withdrawn && message.sender === 'char' && !message.payload.generatedImage);
+      .filter(
+        message =>
+          !message.withdrawn &&
+          message.sender === 'char' &&
+          (!message.payload.generatedImage || !!message.payload.imageRequest),
+      );
     if (replies.length) {
       const roundId = replies.at(-1)!.payload.replyGenerationId;
       const selected = roundId

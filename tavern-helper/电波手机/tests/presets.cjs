@@ -47,7 +47,9 @@ const { usePhoneStore } = require(base + '/stores/phone.ts'),
 const { defaultPresetItems, resolvePresetEntries, buildPhonePrompts, buildModulePrompt, presetMomentsRules } = require(
   base + '/prompts/index.ts',
 );
-const { createPreset, movePresetEntry, savePresetEntry, deletePresetEntry } = require(base + '/services/apps/presets.ts');
+const { createPreset, movePresetEntry, savePresetEntry, deletePresetEntry } = require(
+  base + '/services/apps/presets.ts',
+);
 let phone;
 const surface = vue.ref(null);
 const app = vue.createApp({
@@ -142,7 +144,15 @@ const tick = () => vue.nextTick(),
   const fresh = createPreset(phone.settings.presets, '空白系统');
   assert(fresh.entries.some(item => item.systemKey === '电波手机·朋友圈互动'));
   assert(fresh.entries.some(item => item.source === 'user_input'));
-  assert(fresh.entries.every(item => item.systemKey));
+  assert(fresh.entries.every(item => item.systemKey || item.mediaProvider));
+  assert.equal(fresh.entries.filter(item => item.mediaProvider).length, 3);
+  const novelEntry = fresh.entries.find(item => item.mediaProvider === 'novelai');
+  savePresetEntry(phone.settings.presets, fresh.id, { ...novelEntry, content: 'CUSTOM-NOVELAI {{image_max}}' });
+  assert(
+    resolvePresetEntries({ ...phone.settings.presets, activeId: fresh.id }).some(
+      item => item.mediaProvider === 'novelai' && item.content === 'CUSTOM-NOVELAI {{image_max}}',
+    ),
+  );
   assert.equal(JSON.stringify(defaultPresetItems()), original);
   phone.settings.presets.activeId = fresh.id;
   const momentEntry = fresh.entries.find(item => item.scope === 'moments');

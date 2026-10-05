@@ -1,3 +1,4 @@
+import { mediaPresetEntries, mediaEntryApplies, mediaVariables, mediaCountRules } from './media';
 import { postTagsPrompt } from '../services/space/post-tags';
 import { profileBadgePrompt } from '../services/space/profile-badges';
 import { parseZonePage } from '../services/space/zone';
@@ -99,6 +100,7 @@ import {
 import { formatPhoneMessage } from '../services/chat/message-format';
 import type { AppSnapshot, Identity, Thread } from '../schemas';
 export type PhonePromptInput = {
+  media?: import('../services/chat/media-settings').ReplyMedia;
   sharedHistory?: string;
   replyCount?: { minReplies: number; maxReplies: number };
   chatPreferences?: ChatPreferences;
@@ -1048,8 +1050,14 @@ export const BUILTIN_PRESET_ENTRIES: readonly PresetEntry[] = [
     scope: 'all',
   },
 ];
+function insertMediaEntries(entries: PresetItem[], additions: PresetItem[]): PresetItem[] {
+  const tail = entries.findIndex(entry => entry.name === '💡预设思维');
+  const result = [...entries];
+  result.splice(tail < 0 ? result.length : tail, 0, ...additions);
+  return result;
+}
 export function defaultPresetItems(toggles: Record<string, boolean> = {}): PresetItem[] {
-  return BUILTIN_PRESET_ENTRIES.map(entry => ({
+  const entries: PresetItem[] = BUILTIN_PRESET_ENTRIES.map(entry => ({
     ...entry,
     id: `builtin-${entry.order}`,
     enabled: isPhonePresetEntry(entry) ? true : (toggles[`builtin-${entry.order}`] ?? entry.enabled),
@@ -1059,6 +1067,10 @@ export function defaultPresetItems(toggles: Record<string, boolean> = {}): Prese
     divider: isPresetDivider(entry.name),
     systemKey: entry.name.startsWith('电波手机·') ? entry.name : undefined,
   }));
+  return insertMediaEntries(
+    entries,
+    mediaPresetEntries().map(entry => ({ ...entry, enabled: toggles[entry.id] ?? entry.enabled })),
+  );
 }
 export function resolvePresetEntries(library?: PromptLibrary): PresetItem[] {
   const selected =
@@ -1074,7 +1086,10 @@ export function resolvePresetEntries(library?: PromptLibrary): PresetItem[] {
     seen.add(canonical.systemKey!);
     return [{ ...canonical, id: entry.id }];
   });
-  return [...entries, ...required.filter(entry => !seen.has(entry.systemKey!))];
+  return insertMediaEntries(
+    [...entries, ...required.filter(entry => !seen.has(entry.systemKey!))],
+    mediaPresetEntries().filter(entry => !entries.some(item => item.mediaProvider === entry.mediaProvider)),
+  );
 }
 export function presetMomentsRules(library?: PromptLibrary): string {
   return (
@@ -1086,6 +1101,7 @@ export function presetMomentsRules(library?: PromptLibrary): string {
 }
 function runtimeValues(input: PhonePromptInput): Record<string, string> {
   return {
+    ...mediaVariables(input.media, input.replyCount),
     card_key: input.cardKey,
     chat_key: input.chatKey,
     thread_id: input.thread.id,
@@ -1188,6 +1204,7 @@ export function buildPhonePrompts(
 ): (BuiltinPrompt | RolePrompt)[] {
   const values = runtimeValues(input);
   return resolvePresetEntries(input.presets)
+    .filter(entry => mediaEntryApplies(entry, input.media))
     .filter(
       entry =>
         !entry.divider &&
@@ -1230,6 +1247,8 @@ export function buildPhonePrompts(
               '\n' +
               voiceGenerationRules(input) +
               '\n' +
+              mediaCountRules(input.media) +
+              '\n' +
               (input.identity.source === 'local_group' ? '' : chatBilingualRules(input.chatPreferences)) +
               '\n' +
               messageReactionContext(input) +
@@ -1264,8 +1283,15 @@ export function buildModulePrompt(
   modules: import('../schemas').AppId[],
   follow: boolean,
 ): string {
+  if (follow && input.media)
+    input = {
+      ...input,
+      replyCount: { minReplies: 0, maxReplies: 15 },
+      media: { ...input.media, voice: { ...input.media.voice, min: 0 }, image: { ...input.media.image, min: 0 } },
+    };
   const names = new Set(['电波手机·生成边界', '电波手机·生成总则', ...modules.map(id => `电波手机·应用规则·${id}`)]);
   const rules = resolvePresetEntries(input.presets)
+    .filter(entry => mediaEntryApplies(entry, input.media))
     .filter(
       entry =>
         entry.enabled &&
@@ -1283,7 +1309,11 @@ export function buildModulePrompt(
           (entry.systemKey === '电波手机·私聊回复' || entry.name === '电波手机·私聊回复')
         ),
     )
-    .map(entry => entry.content);
+    .map(entry =>
+      entry.kind === 'runtime'
+        ? entry.content.replace(/\{\{([a-z_]+)\}\}/g, (_match, key: string) => runtimeValues(input)[key] ?? '未提供')
+        : entry.content,
+    );
   return [
     follow
       ? '[作用范围] 下列手机规则只约束本轮附加的手机数据块，不约束正文叙事或其他角色。最终按本段末尾的正文+数据块协议输出。'
@@ -1300,6 +1330,16 @@ export function buildModulePrompt(
           : replyCountRules(input)) +
         '\n' +
         (follow ? '' : voiceGenerationRules(input)) +
+        '\n' +
+        mediaCountRules(
+          input.media
+            ? {
+                ...input.media,
+                voice: { ...input.media.voice, min: follow ? 0 : input.media.voice.min },
+                image: { ...input.media.image, min: follow ? 0 : input.media.image.min },
+              }
+            : undefined,
+        ) +
         '\n' +
         (input.identity.source === 'local_group' ? '' : chatBilingualRules(input.chatPreferences)) +
         '\n' +
@@ -1371,8 +1411,9 @@ export function voiceGenerationRules(input: PhonePromptInput): string {
   const voice = input.voice;
   if (!voice || voice.provider === 'off' || !input.voiceServices?.[voice.provider].enabled) return '';
   const common =
-    '[电波手机·语音消息输出规范] 仅约束本轮目标角色的 messages：每轮必须至少 1 条 type=voice 的语音消息。content 与 payload.transcript 使用同一份口语原文（含引擎标签），不写身体动作或旁白。中文原文至少 10 个中文字符（不计标签）；启用非中文双语时遵守所选原文语言，至少一句完整话且不少于 10 个文字字符，不为凑中文破坏语言设置。其他消息类型不添加语音标签。';
-  if (voice.provider === 'fish') return common + '\nFish 鱼声：输出自然口语原文，不添加其他引擎的拟声标签、SSML 或动作旁白。';
+    '[电波手机·语音消息输出规范] 仅约束本轮目标角色的 messages：语音条数遵守本轮媒体协议；若未提供数量设置则每轮至少 1 条 type=voice。content 与 payload.transcript 使用同一份口语原文（含引擎标签），不写身体动作或旁白。中文原文至少 10 个中文字符（不计标签）；启用非中文双语时遵守所选原文语言，至少一句完整话且不少于 10 个文字字符，不为凑中文破坏语言设置。其他消息类型不添加语音标签。';
+  if (voice.provider === 'fish')
+    return common + '\nFish 鱼声：输出自然口语原文，不添加其他引擎的拟声标签、SSML 或动作旁白。';
   if (voice.provider === 'minimax')
     return (
       common +

@@ -1,5 +1,30 @@
 import { unzipSync } from 'fflate';
 import { IMAGE_MODELS, type ImageProfile, type CharacterImage } from './schema';
+import { klona } from 'klona';
+import { ImageRequestSchema } from '../chat/media-settings';
+
+export function imageSubjectRequest(profile: ImageProfile, character: CharacterImage, raw: unknown) {
+  const request = ImageRequestSchema.parse(raw);
+  const api = klona(profile),
+    actor = klona(character);
+  let prompt = request.prompt;
+  if (request.subject !== 'character') {
+    actor.prefix = '';
+    actor.references = [];
+    // Legacy shared prefixes/Vibes may contain a portrait; do not carry them into unrelated subjects.
+    api.prefix = '';
+    api.vibes = [];
+  }
+  if (request.subject === 'scene' || request.subject === 'object') {
+    if (api.provider === 'novelai') {
+      prompt = `no humans, ${request.subject === 'scene' ? 'scenery' : 'still life'}, ${prompt}`;
+      api.negative = [api.negative, 'human, person, face, portrait, hands, human silhouette']
+        .filter(Boolean)
+        .join(', ');
+    } else prompt += '\n严格限制：纯场景或静物画面，不含人物、人脸、手、人体、人形剪影、人物倒影或海报人像。';
+  }
+  return { profile: api, character: actor, prompt };
+}
 
 export function imageApiRoot(profile: ImageProfile): string {
   const raw =

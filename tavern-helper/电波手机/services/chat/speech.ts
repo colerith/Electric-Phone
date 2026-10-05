@@ -1,7 +1,9 @@
 import { z } from 'zod';
+import { MediaRangeSchema } from './media-settings';
 import { safeBrowserUrl } from '../apps/browser';
 export const VoiceServicesSchema = z
   .object({
+    generation: MediaRangeSchema.prefault({ min: 1, max: 3 }),
     minimax: z
       .object({
         enabled: z.boolean().prefault(false),
@@ -32,6 +34,7 @@ export const VoiceServicesSchema = z
   .prefault({});
 export const CharacterVoiceSchema = z
   .object({
+    generation: MediaRangeSchema.nullable().prefault(null),
     provider: z.enum(['off', 'minimax', 'elevenlabs', 'fish']).prefault('off'),
     voiceId: z.string().prefault(''),
     savedVoices: z

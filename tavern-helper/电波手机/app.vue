@@ -643,14 +643,7 @@
                 </button>
               </form>
               <div v-if="extrasOpen && !multiSelectMode && !observingGroup" class="extras-panel">
-                <button
-                  v-for="extra in extras.filter(
-                    item => item.name !== '生图' || store.activeIdentity?.source !== 'local_group',
-                  )"
-                  :key="extra.name"
-                  type="button"
-                  @click="useExtra(extra.name)"
-                >
+                <button v-for="extra in extras" :key="extra.name" type="button" @click="useExtra(extra.name)">
                   <span><i :class="extra.icon"></i></span>{{ extra.name }}
                 </button>
               </div>
@@ -665,25 +658,7 @@
                 @close="closeExtra"
               />
 
-              <div
-                v-if="extraMode === '生图'"
-                class="extra-modal-backdrop"
-                @click.self="closeExtra"
-                @keydown.esc.stop="closeExtra"
-              >
-                <section class="extra-modal wave-image-compose" role="dialog" aria-label="角色生图" aria-modal="true">
-                  <header>
-                    <strong>角色生图</strong
-                    ><button type="button" aria-label="关闭角色生图" @click="closeExtra">×</button>
-                  </header>
-                  <WaveCharacterImage @generated="closeExtra" />
-                </section>
-              </div>
-              <div
-                v-if="extraMode && extraMode !== '表情' && extraMode !== '生图'"
-                class="extra-modal-backdrop"
-                @click.self="closeExtra"
-              >
+              <div v-if="extraMode && extraMode !== '表情'" class="extra-modal-backdrop" @click.self="closeExtra">
                 <form class="extra-modal" @submit.prevent="submitExtra">
                   <header>
                     <div>
@@ -1134,7 +1109,6 @@ const phoneSurface = ref<HTMLElement | null>(null);
 provide(phoneSurfaceKey, phoneSurface);
 
 import WaveImageServices from './components/settings/WaveImageServices.vue';
-import WaveCharacterImage from './components/chat/WaveCharacterImage.vue';
 import WaveVoiceServices from './components/settings/WaveVoiceServices.vue';
 import WaveTranslationServices from './components/settings/WaveTranslationServices.vue';
 import WaveDraftTranslation from './components/chat/WaveDraftTranslation.vue';
@@ -1344,7 +1318,6 @@ const apps: Array<{ id: AppId; name: string; caption: string; eyebrow: string; i
 const extras = [
   { name: '表情', icon: 'fa-regular fa-face-smile' },
   { name: '媒体', icon: 'fa-regular fa-image' },
-  { name: '生图', icon: 'fa-solid fa-wand-magic-sparkles' },
   { name: '语音', icon: 'fa-solid fa-microphone-lines' },
   { name: '红包', icon: 'fa-solid fa-gift' },
   { name: '转账', icon: 'fa-solid fa-yen-sign' },

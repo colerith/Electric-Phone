@@ -162,7 +162,10 @@ function snapshot(name) {
   characterApp.mount('#app');
   await vue.nextTick();
   assert(document.body.textContent.includes('Alice'));
-  assert.equal(document.querySelectorAll('.character-image-settings > .image-section').length, 4);
+  assert.equal(document.querySelectorAll('.character-image-settings.image-section').length, 1);
+  assert.equal(document.querySelectorAll('.character-image-settings > .image-subsection').length, 3);
+  assert(!document.body.textContent.includes('本次生成'));
+  assert(!document.body.textContent.includes('生成并发到私聊'));
   assert.equal(window.getComputedStyle(document.querySelector('.character-image-settings label')).fontWeight, '400');
   assert.equal(window.getComputedStyle(document.querySelector('.character-image-settings textarea')).fontWeight, '400');
   const appearance = document.querySelector('textarea');
@@ -177,6 +180,14 @@ function snapshot(name) {
   document.querySelector('[aria-label="关闭图片编辑"]').click();
   await vue.nextTick();
   assert(!document.querySelector('.wave-upload-dialog'));
+  document.querySelector('[aria-label="单独设置生图数量"]').click();
+  await vue.nextTick();
+  const minImage = document.querySelector('[aria-label="每轮最少生图数量"]');
+  minImage.value = '2';
+  minImage.dispatchEvent(new Event('input', { bubbles: true }));
+  await vue.nextTick();
+  assert.equal(phone.characterImage.generation.min, 2);
+  assert.equal(phone.characterImage.generation.max, 2);
   snapshot('character-image');
   characterApp.unmount();
   const speech = require(base + '/services/chat/speech.ts');
@@ -223,8 +234,12 @@ function snapshot(name) {
   voiceApp.mount('#app');
   await new Promise(r => setImmediate(r));
   await vue.nextTick();
-  const modelButton = [...document.querySelectorAll('button')].find(b => b.textContent.includes('拉取官方模型列表'));
-  assert(modelButton?.classList.contains('wave-service-action'));
+  const modelButton = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === '拉取模型');
+  assert(modelButton?.parentElement.classList.contains('api-model-row'));
+  modelButton.click();
+  await new Promise(r => setImmediate(r));
+  await vue.nextTick();
+  assert(document.querySelector('[aria-label="可用语音模型列表"]'));
   snapshot('voice-services');
   voiceApp.unmount();
   console.log(

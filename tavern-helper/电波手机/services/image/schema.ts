@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MediaRangeSchema } from '../chat/media-settings';
 
 export const IMAGE_MODELS = {
   novelai: ['nai-diffusion-5-curated', 'nai-diffusion-5-full', 'nai-diffusion-4-5-curated', 'nai-diffusion-4-5-full'],
@@ -43,9 +44,16 @@ export const ImageProfileSchema = z.object({
   vibes: z.array(ImageReferenceSchema).max(8).prefault([]),
   quality: z.enum(['auto', 'low', 'medium', 'high', 'xhigh', 'max']).prefault('auto'),
 });
-export const ImageServicesSchema = z.object({ profiles: z.array(ImageProfileSchema).prefault([]) }).prefault({});
+export const ImageServicesSchema = z
+  .object({
+    generation: MediaRangeSchema.prefault({ min: 0, max: 1 }),
+    profiles: z.array(ImageProfileSchema).prefault([]),
+  })
+  .prefault({});
+export type ImageServices = z.infer<typeof ImageServicesSchema>;
 export const CharacterImageSchema = z
   .object({
+    generation: MediaRangeSchema.nullable().prefault(null),
     enabled: z.boolean().prefault(false),
     profileId: z.string().prefault(''),
     prefix: z.string().prefault(''),

@@ -1,6 +1,6 @@
 <template>
-  <section class="wave-image-settings image-settings-manager character-image-settings">
-    <section class="image-section" aria-label="角色生图接口">
+  <section class="wave-image-settings image-section character-image-settings">
+    <section class="image-subsection" aria-label="角色生图接口">
       <div class="image-heading">
         <strong>角色生图</strong
         ><WaveToggle
@@ -10,7 +10,7 @@
         />
       </div>
       <p class="image-help">
-        当前角色：{{ phone.activeIdentity?.name }}。配置自动保存；仅点击「生成并发到私聊」时请求生图。
+        当前角色：{{ phone.activeIdentity?.name }}。配置自动保存；角色回复中的图片会按每轮数量设置请求生图。
       </p>
       <label v-if="config.enabled"
         >使用的生图接口<WaveSelect
@@ -20,15 +20,24 @@
           @update:model-value="value => update({ profileId: value })"
       /></label>
       <p v-if="config.enabled && !selectedProfile" class="image-help">还没有可用配置，请前往「设置 → 图像生成」。</p>
+      <WaveMediaRange
+        v-if="config.enabled"
+        :model-value="config.generation"
+        :fallback="phone.settings.imageServices.generation"
+        noun="生图"
+        unit="张"
+        override
+        @update:model-value="value => update({ generation: value })"
+      />
     </section>
     <template v-if="config.enabled">
-      <section class="image-section" aria-label="角色外貌">
+      <section class="image-subsection" aria-label="角色外貌">
         <div class="image-heading"><strong>角色外貌</strong><span class="image-count">自动保存</span></div>
         <label
           >角色前置提示词<textarea
             :value="config.prefix"
             rows="4"
-            placeholder="发色、瞳色、体型、服装等固定外貌；生成时始终放在画面描述前。"
+            placeholder="发色、瞳色、体型、服装等固定外貌；仅当前角色人像使用，场景和物品不附加。"
             @change="update({ prefix: ($event.target as HTMLTextAreaElement).value })"
           />
         </label>
@@ -47,7 +56,7 @@
           <button type="button" @click="applyCharacter">使用此外貌</button>
         </div>
       </section>
-      <section class="image-section" aria-label="角色参考图">
+      <section class="image-subsection" aria-label="角色参考图">
         <div class="image-heading">
           <strong>参考图</strong><span class="image-count">{{ config.references.length }} / 8</span>
         </div>
@@ -89,7 +98,7 @@
           </button>
         </div>
         <p class="image-help">
-          NovelAI 使用 Vibe 参考强度；GPT Image 使用原图。外貌提示词与参考图用于约束人物特征，不能保证每次完全一致。
+          NovelAI 使用 Vibe 参考强度；GPT Image 使用原图。仅当前角色人像使用这些参考图，场景、物品及其他人物不会套用。
         </p>
         <WaveImageUpload
           v-if="editingReference"
@@ -104,68 +113,38 @@
           @reset="editingReference = ''"
         />
       </section>
-      <section class="image-section" aria-label="本次生成">
-        <div class="image-heading"><strong>本次生成</strong></div>
-        <label
-          >本次画面描述<textarea
-            v-model="prompt"
-            rows="3"
-            :disabled="busy"
-            placeholder="例如：在窗边读书，白衬衫，午后阳光，半身构图"
-          />
-        </label>
-        <div class="image-actions">
-          <button
-            class="image-primary"
-            type="button"
-            :disabled="busy || !selectedProfile || !prompt.trim()"
-            @click="generate"
-          >
-            {{ busy ? '正在生成…' : '生成并发到私聊' }}</button
-          ><button v-if="busy" type="button" @click="cancel">取消生成</button>
-        </div>
-      </section>
     </template>
     <p v-if="status" role="status" class="image-status">{{ status }}</p>
   </section>
 </template>
 <script setup lang="ts">
-import { computed, ref, watch, onBeforeUnmount } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { ImageReferenceSchema, type CharacterImage } from '../../services/image/schema';
 import { baibaiCharacters, baibaiReferences, importBaibaiReference } from '../../services/image/baibai';
 import WaveSelect from '../shared/WaveSelect.vue';
+import WaveMediaRange from '../shared/WaveMediaRange.vue';
 import WaveToggle from '../shared/WaveToggle.vue';
 import WaveImageUpload from '../shared/WaveImageUpload.vue';
-const emit = defineEmits<{ generated: [] }>();
 const phone = usePhoneStore();
 const config = computed(() => phone.characterImage);
 const selectedProfile = computed(() =>
   phone.settings.imageServices.profiles.find(p => p.id === config.value.profileId),
 );
 const status = ref(''),
-  prompt = ref(''),
   editingReference = ref('');
-const busy = ref(false),
-  importing = ref(false);
+const importing = ref(false);
 const characters = ref<ReturnType<typeof baibaiCharacters>>([]),
   vibes = ref<ReturnType<typeof baibaiReferences>>([]);
 const selectedCharacter = ref(''),
   selectedVibe = ref('');
-let controller: AbortController | undefined;
 const contextKey = computed(() => `${phone.context?.cardKey}::${phone.context?.chatKey}::${phone.state.activeCharKey}`);
-function cancel() {
-  controller?.abort();
-}
 watch(contextKey, () => {
-  cancel();
-  prompt.value = '';
   status.value = '';
   editingReference.value = '';
   characters.value = [];
   vibes.value = [];
 });
-onBeforeUnmount(cancel);
 function update(patch: Partial<CharacterImage>) {
   phone.setCharacterImage({ ...config.value, ...patch });
 }
@@ -226,32 +205,25 @@ function addReference(value: { avatar: string }) {
     });
   editingReference.value = '';
 }
-async function generate() {
-  if (busy.value) return;
-  const key = contextKey.value;
-  const request = new AbortController();
-  controller = request;
-  busy.value = true;
-  status.value = '正在请求生图，参考图较多时可能需要几分钟…';
-  const timer = setTimeout(() => request.abort(), 240000);
-  try {
-    await phone.generateCharacterImage(prompt.value, request.signal);
-    if (key === contextKey.value) {
-      status.value = '图片已保存到私聊';
-      emit('generated');
-    }
-  } catch (e) {
-    if (key === contextKey.value)
-      status.value = request.signal.aborted
-        ? '生成已取消或超时，可以重新尝试'
-        : e instanceof Error
-          ? e.message
-          : '生图失败';
-  } finally {
-    clearTimeout(timer);
-    busy.value = false;
-    if (controller === request) controller = undefined;
-  }
-}
 </script>
 <style scoped lang="scss" src="../settings/image-settings.scss"></style>
+
+<style scoped lang="scss">
+#wave-phone-script-root .character-image-settings {
+  gap: 0;
+  padding: 22px 20px;
+  .image-subsection {
+    display: grid;
+    gap: 18px;
+    min-width: 0;
+  }
+  .image-subsection + .image-subsection {
+    margin-top: 22px;
+    padding-top: 22px;
+    border-top: 1px solid #8882;
+  }
+  .image-status {
+    margin-top: 16px;
+  }
+}
+</style>

@@ -1,5 +1,7 @@
 import { CharacterImageSchema, type CharacterImage } from '../services/image/schema';
-import { generateImage } from '../services/image/generate';
+import { generateImage, imageSubjectRequest } from '../services/image/generate';
+import { resolveReplyMedia } from '../services/chat/media-settings';
+import { displaySpeechText } from '../services/chat/speech-tags';
 import {
   readPhoneGlobals,
   writePhoneGlobals,
@@ -695,6 +697,111 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     ),
   );
   const imageRequests = new Set<string>();
+  const replyImageControllers = new Map<string, AbortController>();
+  function mediaForCharacter(charKey: string) {
+    return resolveReplyMedia(
+      settings.value.voiceServices,
+      settings.value.imageServices,
+      state.value.characterVoices[charKey],
+      CharacterImageSchema.parse(characterProfiles.value[`${context.value?.cardKey}::${charKey}`]?.characterImage),
+      Math.max(settings.value.chat.minReplies, settings.value.chat.maxReplies),
+    );
+  }
+  async function processReplyImages(thread: Thread, messages: PhoneMessage[]): Promise<void> {
+    if (!messages.some(message => message.payload.imageRequest && !message.payload.imageGenerationStatus)) return;
+    const runtime = context.value ? { ...context.value } : null;
+    if (!runtime || state.value.identities[thread.charKey]?.source === 'local_group') return;
+    const revision = thread.clearRevision;
+    const imageRuntimeMatches = () => {
+      const current = getRuntimeContext();
+      return (
+        current?.cardKey === runtime.cardKey &&
+        current.chatKey === runtime.chatKey &&
+        context.value?.cardKey === runtime.cardKey &&
+        context.value.chatKey === runtime.chatKey
+      );
+    };
+    const character = klona(
+      CharacterImageSchema.parse(characterProfiles.value[`${runtime.cardKey}::${thread.charKey}`]?.characterImage),
+    );
+    const sourceProfile = klona(
+      settings.value.imageServices.profiles.find(profile => profile.id === character.profileId),
+    );
+    const maximum = mediaForCharacter(thread.charKey).image.max;
+    const counts = new Map<string, number>();
+    // Count all requests in the round, including already completed ones, across repeated synchronization.
+    for (const candidate of thread.messages) {
+      if (!imageRuntimeMatches()) return;
+      if (!candidate.payload.imageRequest || candidate.sender !== 'char' || candidate.type !== 'image') continue;
+      const round = String(
+        candidate.payload.replyGenerationId || `floor:${candidate.payload.sourceMessageId ?? candidate.id}`,
+      );
+      const ordinal = (counts.get(round) || 0) + 1;
+      counts.set(round, ordinal);
+      if (
+        context.value?.cardKey !== runtime.cardKey ||
+        context.value.chatKey !== runtime.chatKey ||
+        state.value.threads[thread.id]?.clearRevision !== revision
+      )
+        return;
+      const message = state.value.threads[thread.id].messages.find(item => item.id === candidate.id);
+      if (!message) continue;
+      if (!messages.some(item => item.id === message.id) || message.payload.imageGenerationStatus) continue;
+      if (!character.enabled || !sourceProfile || ordinal > maximum || message.withdrawn) {
+        message.payload.imageGenerationStatus = 'skipped';
+        message.payload.imageGenerationError = '生图未启用或已达到本轮上限';
+        continue;
+      }
+      const controller = new AbortController();
+      const key = `${runtime.cardKey}::${runtime.chatKey}::${thread.id}::${message.id}`;
+      if (replyImageControllers.has(key)) continue;
+      replyImageControllers.set(key, controller);
+      const currentMessage = () =>
+        imageRuntimeMatches() &&
+        context.value?.cardKey === runtime.cardKey &&
+        context.value.chatKey === runtime.chatKey &&
+        state.value.threads[thread.id]?.clearRevision === revision
+          ? state.value.threads[thread.id].messages.find(item => item.id === message.id && !item.withdrawn)
+          : undefined;
+      message.payload.imageGenerationStatus = 'pending';
+      delete message.payload.url;
+      saveChat();
+      const timer = setTimeout(() => controller.abort(), 240000);
+      try {
+        const request = imageSubjectRequest(sourceProfile, character, message.payload.imageRequest);
+        const url = await generateImage(request.profile, request.character, request.prompt, controller.signal);
+        const current = currentMessage();
+        if (current && !controller.signal.aborted) {
+          current.payload.url = url;
+          current.payload.generatedImage = true;
+          current.payload.imageGenerationStatus = 'complete';
+          current.payload.imageModel = sourceProfile.model;
+          saveChat();
+        }
+      } catch (error) {
+        const current = currentMessage();
+        if (current) {
+          current.payload.imageGenerationStatus = 'failed';
+          current.payload.imageGenerationError = controller.signal.aborted
+            ? '生图已取消或超时'
+            : '生图失败，请检查接口配置；可重新生成本轮回复';
+          saveChat();
+        }
+        logDiagnostic('回复生图失败', redactDiagnostic(stringifyError(error), [sourceProfile.apiKey]));
+      } finally {
+        clearTimeout(timer);
+        replyImageControllers.delete(key);
+      }
+      if (controller.signal.aborted || !imageRuntimeMatches()) return;
+      if (
+        context.value?.cardKey !== runtime.cardKey ||
+        context.value.chatKey !== runtime.chatKey ||
+        state.value.threads[thread.id]?.clearRevision !== revision
+      )
+        return;
+    }
+    if (context.value?.cardKey === runtime.cardKey && context.value.chatKey === runtime.chatKey) saveChat();
+  }
   function setCharacterImage(value: CharacterImage): void {
     const runtime = context.value;
     const charKey = state.value.activeCharKey;
@@ -1559,6 +1666,30 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (token !== syncToken) return;
       context.value = runtime;
       state.value = ChatStateSchema.parse(nextState);
+      for (const thread of Object.values(state.value.threads)) {
+        if (state.value.identities[thread.charKey]?.source === 'local_group') continue;
+        const maximum = mediaForCharacter(thread.charKey).voice.max;
+        const counts = new Map<number, number>();
+        const previousIds = previousThreadMessages.get(thread.charKey) || [];
+        for (const message of thread.messages) {
+          if (message.type !== 'voice' || message.sender !== 'char' || !message.payload.waveFloor) continue;
+          const floor = Number(message.payload.sourceMessageId);
+          const count = (counts.get(floor) || 0) + 1;
+          counts.set(floor, count);
+          if (count > maximum && !previousIds.includes(message.id)) {
+            message.type = 'text';
+            message.content = displaySpeechText(String(message.payload.transcript || message.content));
+          }
+        }
+      }
+      for (const thread of Object.values(state.value.threads))
+        for (const message of thread.messages) {
+          const key = `${runtime.cardKey}::${runtime.chatKey}::${thread.id}::${message.id}`;
+          if (message.payload.imageGenerationStatus === 'pending' && !replyImageControllers.has(key)) {
+            message.payload.imageGenerationStatus = 'failed';
+            message.payload.imageGenerationError = '上次生图已中断，未自动重试；可重新生成本轮回复';
+          }
+        }
       if (!isReady.value) restoreCharacterForApp();
       migrateLegacyWeatherLocation();
       const updatedWalletAccount = updatedWalletAccountByChar.get(state.value.activeCharKey);
@@ -1568,6 +1699,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       isReady.value = true;
       saveChat();
       if (changed) contentToast('手机内容已更新');
+      for (const thread of Object.values(state.value.threads)) {
+        const previousIds = previousThreadMessages.get(thread.charKey) || [];
+        void processReplyImages(
+          thread,
+          thread.messages.filter(message => !previousIds.includes(message.id)),
+        ).catch(error => logDiagnostic('回复生图处理失败', String(error)));
+      }
       for (const message of assistantMessages) {
         const cleaned = stripInlineCards(message.message);
         if (cleaned !== message.message)
@@ -1681,6 +1819,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   }
 
   function cancelLiveSends(): void {
+    replyImageControllers.forEach(controller => controller.abort());
     activeSends.clear();
     syncDeferred = false;
     Object.values(state.value.threads).forEach(thread => {
@@ -1767,7 +1906,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const sharedHistory = thread
       ? sharedChatHistory(identity, thread, state.value.identities, state.value.threads, settings.value.chat)
       : '';
-    if (identity.source !== 'local_group') return { sharedHistory };
+    if (identity.source !== 'local_group') return { sharedHistory, media: mediaForCharacter(identity.charKey) };
     const members = (identity.memberKeys || []).flatMap(key =>
       state.value.identities[key] ? [state.value.identities[key]] : [],
     );
@@ -1891,6 +2030,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
                 ...message.payload,
                 ...(message.created_at ? { storyCreatedAt: message.created_at } : {}),
                 narrativeRelation: 'independent',
+                replyGenerationId: id,
               },
             }),
           ),
@@ -1914,6 +2054,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (changed) markAppsUnread(charKey, [module]);
       saveChat();
       logDiagnostic('手动模块生成', `${module} 已通过副 API 写入当前聊天手机数据`);
+      if (module === 'messages') {
+        const thread = state.value.threads[runtime.input.thread.id];
+        if (thread)
+          void processReplyImages(
+            thread,
+            thread.messages.filter(message => message.payload.replyGenerationId === id),
+          );
+      }
       return changed ? '新内容已写入当前聊天的手机数据' : '本轮没有产生可见变化';
     } finally {
       if (moduleGenerationId === id) {
@@ -3063,6 +3211,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       currentThread.updatedAt = nowIso();
       contentToast(`${identity.name} 的手机内容已更新`);
       saveChat();
+      void processReplyImages(
+        currentThread,
+        currentThread.messages.filter(message => message.payload.replyGenerationId === generationId),
+      );
     } catch (error) {
       const secrets = [settings.value.api.key, settings.value.translation.apiKey];
       const detail = redactDiagnostic(stringifyError(error), secrets);
@@ -3145,6 +3297,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         .filter(Number.isFinite);
       const result = await generatePhoneReply({
         settings: requestSettings,
+        media: mediaForCharacter(identity.charKey),
         cardKey: runtime.cardKey,
         chatKey: runtime.chatKey,
         cardName: runtime.cardName,
@@ -3231,6 +3384,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       thread.updatedAt = nowIso();
       saveChat();
       contentToast('本轮回复已重新生成');
+      void processReplyImages(thread, replacements);
     } catch (error) {
       logDiagnostic(
         '重新生成失败',

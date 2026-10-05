@@ -1,4 +1,5 @@
 import { stopBackendGeneration, withTimeout } from './request-lifecycle';
+import { validateReplyMedia, type ReplyMedia } from '../chat/media-settings';
 import { stickerPrompt } from '../chat/stickers';
 import { resolveModuleSettings, resolveBilingual } from './module-settings';
 import { validateWalletPatch, type WalletAuthorization } from '../wallet/wallet-accounts';
@@ -24,6 +25,7 @@ import { MomentBatchSchema, type MomentPlan, type MomentsState, type MomentPost 
 import { ZoneUpdateSchema, type ZoneUpdate } from '../space/zone';
 
 type GenerationInput = {
+  media?: ReplyMedia;
   historyBeforeFloor?: number;
   sharedHistory?: string;
   replyCount?: PhonePromptInput['replyCount'];
@@ -217,6 +219,7 @@ export async function generatePhoneReply(
     input.latestUserText,
     raw => {
       const response = PhoneChatResponseSchema.parse(extractJson(raw));
+      validateReplyMedia(response.messages, input.media);
       const min = Math.min(input.settings.chat.minReplies, input.settings.chat.maxReplies);
       const max = Math.max(input.settings.chat.minReplies, input.settings.chat.maxReplies);
       if (response.messages.length < min || response.messages.length > max)
@@ -382,6 +385,7 @@ export async function generatePhoneModule(input: GenerationInput, module: import
     `手动生成 ${module} 模块的新内容`,
     raw => {
       const delta = ModuleDeltaSchema.parse(extractJson(raw));
+      if (module === 'messages') validateReplyMedia(delta.messages, input.media);
       if (delta.char_id !== (input.identity.stableId || input.identity.charKey)) throw Error('模块结果角色 ID 不匹配');
       if (
         Object.keys(delta.app_updates).some(key => key !== module) ||

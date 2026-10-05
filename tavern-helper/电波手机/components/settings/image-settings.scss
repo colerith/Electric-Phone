@@ -1,4 +1,6 @@
 #wave-phone-script-root .wave-image-settings {
+  box-sizing: border-box;
+  max-width: 100%;
   display: grid;
   gap: 14px;
   min-width: 0;

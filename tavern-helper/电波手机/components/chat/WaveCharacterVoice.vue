@@ -93,6 +93,14 @@
             aria-label="声音稳定性"
             @update:model-value="value => update({ stability: value })" /></label
       ></template>
+      <WaveMediaRange
+        :model-value="voice.generation"
+        :fallback="phone.settings.voiceServices.generation"
+        noun="语音"
+        unit="条"
+        override
+        @update:model-value="value => update({ generation: value })"
+      />
     </template>
   </section>
 </template>
@@ -100,6 +108,7 @@
 import { computed, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { CharacterVoiceSchema, type CharacterVoice } from '../../services/chat/speech';
+import WaveMediaRange from '../shared/WaveMediaRange.vue';
 import WaveSelect from '../shared/WaveSelect.vue';
 import WaveSlider from '../shared/WaveSlider.vue';
 const phone = usePhoneStore();

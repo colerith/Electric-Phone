@@ -17,6 +17,23 @@
       <p class="image-help">修改自动保存；读取柏宝绘会更新对应来源的接口配置。</p>
       <p v-if="status" class="image-status" role="status">{{ status }}</p>
     </section>
+    <section class="image-section">
+      <div class="image-heading"><strong>每轮生图数量</strong></div>
+      <WaveMediaRange
+        :model-value="phone.settings.imageServices.generation"
+        :fallback="phone.settings.imageServices.generation"
+        noun="生图"
+        unit="张"
+        @update:model-value="
+          value => {
+            if (value) {
+              phone.settings.imageServices.generation = value;
+              phone.saveSettings();
+            }
+          }
+        "
+      />
+    </section>
     <template v-if="profile">
       <section class="image-section">
         <div class="image-heading">
@@ -165,6 +182,7 @@ import { usePhoneStore } from '../../stores/phone';
 import { IMAGE_MODELS, ImageProfileSchema, type ImageProfile } from '../../services/image/schema';
 import { fetchImageModels } from '../../services/image/generate';
 import { baibaiSettings, importBaibaiProfiles } from '../../services/image/baibai';
+import WaveMediaRange from '../shared/WaveMediaRange.vue';
 import WaveSelect from '../shared/WaveSelect.vue';
 import WaveVibeSettings from './WaveVibeSettings.vue';
 const phone = usePhoneStore();

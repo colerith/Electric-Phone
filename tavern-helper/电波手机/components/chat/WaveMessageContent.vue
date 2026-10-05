@@ -89,7 +89,14 @@
       >
         <div class="wave-polaroid-frame">
           <img v-if="safeMediaUrl" :src="safeMediaUrl" :alt="mediaDescription || '聊天照片'" />
-          <div v-else class="wave-photo-placeholder wave-photo-description">{{ photoDescription }}</div>
+          <div v-else class="wave-photo-placeholder wave-photo-description">
+            <span>{{ photoDescription }}</span
+            ><small v-if="message.payload.imageGenerationStatus" role="status">{{
+              message.payload.imageGenerationStatus === 'pending'
+                ? '正在生成图片…'
+                : message.payload.imageGenerationError || ''
+            }}</small>
+          </div>
         </div>
         <figcaption class="wave-polaroid-caption">
           <span v-if="safeMediaUrl && photoDescription" class="wave-photo-caption-text">{{ photoDescription }}</span

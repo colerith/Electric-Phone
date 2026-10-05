@@ -35,20 +35,23 @@
             placeholder="输入 API Key"
         /></label>
         <label
-          ><strong>语音模型</strong
-          ><WaveSelect
+          ><strong>模型</strong>
+          <div class="api-model-row">
+            <input
+              v-model.trim="phone.settings.voiceServices[provider].model"
+              placeholder="输入模型 ID 或从列表选择"
+            /><button v-if="provider === 'fish'" type="button" :disabled="loadingFish" @click="refreshFish">
+              {{ loadingFish ? '拉取中…' : '拉取模型' }}
+            </button>
+          </div>
+          <WaveSelect
+            v-if="provider !== 'fish' || showFishModels"
             v-model="phone.settings.voiceServices[provider].model"
             :options="provider === 'minimax' ? miniModels : provider === 'fish' ? fishModels : elevenModels"
-        /></label>
-        <template v-if="provider === 'fish'">
-          <button class="wave-service-action" type="button" :disabled="loadingFish" @click="refreshFish">
-            {{ loadingFish ? '读取中…' : '拉取官方模型列表' }}
-          </button>
-          <small role="status">{{ fishStatus }}</small>
-          <label
-            ><strong>模型 ID（可手动填写）</strong><input v-model.trim="phone.settings.voiceServices.fish.model"
-          /></label>
-        </template>
+            aria-label="可用语音模型列表"
+          />
+          <small v-if="provider === 'fish' && fishStatus" role="status">{{ fishStatus }}</small>
+        </label>
         <label
           ><strong>自定义 API URL（代理）</strong
           ><input
@@ -59,23 +62,43 @@
         >
       </template>
     </section>
+    <section class="voice-service-card">
+      <div class="wave-settings-title">每轮语音数量</div>
+      <WaveMediaRange
+        :model-value="phone.settings.voiceServices.generation"
+        :fallback="phone.settings.voiceServices.generation"
+        noun="语音"
+        unit="条"
+        @update:model-value="
+          value => {
+            if (value) {
+              phone.settings.voiceServices.generation = value;
+              phone.saveSettings();
+            }
+          }
+        "
+      />
+    </section>
     <p class="voice-help">保存后，在聊天设置中为当前角色选择服务与 Voice ID。点击语音消息时才进行合成。</p>
   </div>
 </template>
 <script setup lang="ts">
 import { usePhoneStore } from '../../stores/phone';
+import WaveMediaRange from '../shared/WaveMediaRange.vue';
 import WaveToggle from '../shared/WaveToggle.vue';
 import WaveSelect from '../shared/WaveSelect.vue';
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { FISH_MODELS, fetchFishModels } from '../../services/chat/speech';
 const phone = usePhoneStore();
 const fishOptions = (ids: string[]) =>
   ids.map(value => ({ value, label: value === 'drama-3-preview' ? 'Drama 3（Preview）' : value }));
 const fishModels = ref(fishOptions(FISH_MODELS));
-const loadingFish = ref(false);
+const loadingFish = ref(false),
+  showFishModels = ref(false);
 const fishStatus = ref('');
 async function refreshFish() {
   loadingFish.value = true;
+  showFishModels.value = true;
   try {
     fishModels.value = fishOptions(await fetchFishModels());
     fishStatus.value = '已读取官方列表，并补齐内置模型';
@@ -85,9 +108,6 @@ async function refreshFish() {
     loadingFish.value = false;
   }
 }
-onMounted(() => {
-  void refreshFish();
-});
 const miniModels = [
   { value: 'speech-2.8-hd', label: 'Speech 2.8 HD' },
   { value: 'speech-2.8-turbo', label: 'Speech 2.8 Turbo' },

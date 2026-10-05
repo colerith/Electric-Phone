@@ -5,11 +5,13 @@ export function createPreset(library: PromptLibrary, name: string, source?: Pres
   const preset = {
     id: uid(),
     name: name.trim() || '新预设',
-    entries: (source || defaultPresetItems().filter(entry => !!entry.systemKey)).map((entry, index) => ({
-      ...entry,
-      id: uid(),
-      order: index,
-    })),
+    entries: (source || defaultPresetItems().filter(entry => !!entry.systemKey || !!entry.mediaProvider)).map(
+      (entry, index) => ({
+        ...entry,
+        id: uid(),
+        order: index,
+      }),
+    ),
   };
   library.items.push(preset);
   return preset;

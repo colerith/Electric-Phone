@@ -4,6 +4,10 @@
       <span class="presets-kicker">PROMPT LIBRARY</span>
       <h2>让对话有自己的风格</h2>
       <p>当前使用：{{ activeName }}。电波手机请求使用这里的预设；朋友圈读取对应分区。</p>
+      <p>
+        生图规范按私聊所选接口自动使用 NovelAI 或 GPT
+        Image，另一套不发送。语音与图片数量读取本轮有效设置；复制预设后可编辑规范。
+      </p>
       <WaveSelect v-model="selectedId" :options="options" aria-label="查看预设" />
       <div class="presets-toolbar">
         <button
@@ -186,6 +190,12 @@
               />
               <label v-else>提示词内容<textarea v-model="editor.content" :readonly="editorReadonly" rows="12" /></label>
               <p v-if="editor.kind === 'runtime'">保留原有双花括号变量，生成时会替换为当前手机数据。</p>
+              <p v-if="editor.mediaProvider">
+                <span v-pre
+                  >数量变量：{{ voice_min }} / {{ voice_max }}、{{ image_min }} / {{ image_max }}、{{ reply_min }} /
+                  {{ reply_max }}；角色外貌：{{ character_image_prefix }}。</span
+                >
+              </p>
             </template>
             <button v-if="!editorReadonly" type="button" class="presets-primary" @click="saveEditor">保存条目</button>
           </template>
