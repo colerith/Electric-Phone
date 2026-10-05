@@ -65,6 +65,19 @@
         maxlength="120"
       /><input v-model="draft.date" type="date" aria-label="日期" required /><button type="submit">保存记录</button>
     </form>
+    <div class="wallet-direction-filter" role="group" aria-label="收支筛选">
+      <button v-if="tab === 'records'" type="button" :aria-pressed="direction === 'all'" @click="direction = 'all'">
+        全部
+      </button>
+      <button type="button" :aria-pressed="direction === 'income'" @click="direction = 'income'">收入</button>
+      <button
+        type="button"
+        :aria-pressed="direction === 'expense' || (tab === 'stats' && direction === 'all')"
+        @click="direction = 'expense'"
+      >
+        支出
+      </button>
+    </div>
     <template v-if="tab === 'records'"
       ><label class="wallet-search"
         ><i class="fa-solid fa-magnifying-glass"></i
@@ -98,9 +111,9 @@
         class="wallet-donut-chart"
         viewBox="0 0 320 240"
         role="img"
-        :aria-label="`总支出 ${money(totals.expense)}，各分类占比见图中标签`"
+        :aria-label="`${statisticsLabel} ${money(statisticsTotal)}，各分类占比见图中标签`"
       >
-        <title>支出分类环形统计</title>
+        <title>{{ statisticsLabel }}分类环形统计</title>
         <circle class="wallet-donut-track" cx="160" cy="116" r="68" pathLength="100" />
         <circle
           v-for="item in chartSegments"
@@ -121,18 +134,26 @@
             {{ item.category }} {{ item.percentage }}%
           </text>
         </g>
-        <text class="wallet-donut-caption" x="160" y="110" text-anchor="middle">总支出</text>
+        <text class="wallet-donut-caption" x="160" y="110" text-anchor="middle">{{ statisticsLabel }}</text>
         <text class="wallet-donut-total" x="160" y="132" text-anchor="middle">{{ chartTotal }}</text>
       </svg>
       <div v-if="visible && statistics.length" class="wallet-pie-legend">
         <div v-for="item in statistics" :key="item.category" class="wallet-pie-legend-row">
           <i :style="{ background: item.color }" aria-hidden="true"></i>
           <span>{{ item.category }}</span
-          ><small>{{ ((item.amount / totals.expense) * 100).toFixed(1) }}%</small><b>{{ money(item.amount) }}</b>
+          ><small>{{ ((item.amount / statisticsTotal) * 100).toFixed(1) }}%</small><b>{{ money(item.amount) }}</b>
         </div>
       </div>
-      <p v-else class="wallet-empty">{{ visible ? '暂无支出，记一笔后查看分类占比' : '金额与分类占比已隐藏' }}</p>
-      <small v-if="visible && statistics.length" class="wallet-stat-note">仅统计已确认支出 · {{ page.currency }}</small>
+      <p v-else class="wallet-empty">
+        {{
+          visible
+            ? `暂无${statisticsDirection === 'income' ? '收入' : '支出'}，记一笔后查看分类占比`
+            : '金额与分类占比已隐藏'
+        }}
+      </p>
+      <small v-if="visible && statistics.length" class="wallet-stat-note"
+        >仅统计已确认{{ statisticsDirection === 'income' ? '收入' : '支出' }} · {{ page.currency }}</small
+      >
     </div>
   </section>
 </template>
@@ -155,6 +176,10 @@ const page = computed(() => parseWallet(props.raw));
 const visible = ref(true);
 const query = ref('');
 const tab = ref('records');
+const direction = ref<'all' | 'income' | 'expense'>('all');
+const statisticsDirection = computed(() => (direction.value === 'income' ? 'income' : 'expense'));
+const statisticsLabel = computed(() => (statisticsDirection.value === 'income' ? '总收入' : '总支出'));
+const statisticsTotal = computed(() => totals.value[statisticsDirection.value]);
 const adding = ref(false);
 const draft = reactive({
   direction: 'expense',
@@ -172,6 +197,11 @@ const cardStyle = computed(() => ({
     : 'linear-gradient(120deg, #dce6f2, #f1e6ec)',
 }));
 const categoryAppearance: Record<(typeof walletCategories)[number], { icon: string; color: string; tint: string }> = {
+  工资: { icon: 'fa-briefcase', color: '#579c85', tint: '#e9f4ee' },
+  奖金: { icon: 'fa-award', color: '#b99a59', tint: '#f8f2e5' },
+  转账: { icon: 'fa-money-bill-transfer', color: '#6688bd', tint: '#e8eef7' },
+  红包: { icon: 'fa-gift', color: '#d97e86', tint: '#f9eaed' },
+  投资: { icon: 'fa-chart-line', color: '#718bb1', tint: '#eaf0f8' },
   餐饮: { icon: 'fa-utensils', color: '#df7fa5', tint: '#faeaf1' },
   购物: { icon: 'fa-bag-shopping', color: '#ca78b0', tint: '#f7eaf4' },
   交通: { icon: 'fa-bus', color: '#6fa4d8', tint: '#e8f1fa' },
@@ -189,6 +219,7 @@ const categoryIconStyle = (category: (typeof walletCategories)[number]) => ({
 });
 const filtered = computed(() =>
   page.value.transactions
+    .filter(row => direction.value === 'all' || row.direction === direction.value)
     .filter(row => `${row.title} ${row.category} ${row.account} ${row.note}`.includes(query.value))
     .slice()
     .reverse(),
@@ -198,20 +229,20 @@ const statistics = computed(() =>
     .map(category => ({
       category,
       color: categoryAppearance[category].color,
-      amount: walletTotals(page.value.transactions.filter(row => row.category === category)).expense,
+      amount: walletTotals(page.value.transactions.filter(row => row.category === category))[statisticsDirection.value],
     }))
     .filter(item => item.amount > 0)
     .sort((a, b) => b.amount - a.amount),
 );
 const chartTotal = computed(() => {
   const symbols: Record<string, string> = { CNY: '¥', USD: '$', EUR: '€', JPY: '¥', GBP: '£' };
-  return `${symbols[page.value.currency] || `${page.value.currency} `}${money(totals.value.expense)}`;
+  return `${symbols[page.value.currency] || `${page.value.currency} `}${money(statisticsTotal.value)}`;
 });
 const chartSegments = computed(() => {
-  if (totals.value.expense <= 0) return [];
+  if (statisticsTotal.value <= 0) return [];
   let start = 0;
   const rows = statistics.value.map(item => {
-    const fraction = item.amount / totals.value.expense;
+    const fraction = item.amount / statisticsTotal.value;
     const angle = (start + fraction / 2) * Math.PI * 2 - Math.PI / 2;
     const row = {
       ...item,
@@ -274,3 +305,29 @@ function submit(): void {
   draft.title = '';
 }
 </script>
+
+<style scoped lang="scss">
+#wave-phone-script-root .wallet-direction-filter {
+  display: flex;
+  gap: 8px;
+  padding: 12px 0;
+  button {
+    appearance: none;
+    margin: 0;
+    width: auto;
+    height: auto;
+    padding: 7px 16px;
+    border: 1px solid #8882;
+    border-radius: 99px;
+    background: #8881;
+    color: inherit;
+    font: inherit;
+    font-size: 12px;
+  }
+  button[aria-pressed='true'] {
+    background: var(--wave-blue, #5e80be);
+    color: white;
+    border-color: transparent;
+  }
+}
+</style>

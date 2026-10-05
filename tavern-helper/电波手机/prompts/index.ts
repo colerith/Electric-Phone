@@ -948,7 +948,7 @@ export const BUILTIN_PRESET_ENTRIES: readonly PresetEntry[] = [
     kind: 'custom',
     scope: 'chat',
     content:
-      '[电波手机·钱包更新] 使用本轮账户授权的 accountId、ownerType、ownerId、currency，返回 wallet={accountId,ownerType,ownerId,currency,balance,transactions:[{id,title,amount,direction,category,date,account,note,state,currency}]}。只要本轮允许生成 wallet 且提供了账户授权，每一轮都必须输出 wallet，并且必须显式包含当前币种的 balance：已知时填写当前余额数字，确实未知时填写 null，严禁省略 balance、使用字符串金额或只返回 transactions。即使本轮没有新流水，也要返回 transactions:[] 和当前 balance。direction=income/expense，amount 非负或未知时 null，state=pending/received/refunded。只有已确认的收支才能使用 received；待收款、退款更新原交易 ID，不另建重复流水。分类为餐饮/购物/交通/娱乐/住房/医疗/通讯/社交/旅行/其他。只提交当前授权剧情账户的变化条目，不覆盖旧账目。User 私有钱包不可生成或更改；银行卡与账户资料属于只读设置，不返回银行卡资料。共享账户只写一次，不同时给 User 和 Char 再记相同账目。所有流水显式携带本轮币种，不自行换汇，不猜金额、日期、卡号，不声称真实支付到账。',
+      '[电波手机·钱包更新] 使用本轮账户授权的 accountId、ownerType、ownerId、currency，返回 wallet={accountId,ownerType,ownerId,currency,balance,transactions:[{id,title,amount,direction,category,date,account,note,state,currency}]}。只要本轮允许生成 wallet 且提供了账户授权，每一轮都必须输出 wallet，并且必须显式包含当前币种的 balance：已知时填写当前余额数字，确实未知时填写 null，严禁省略 balance、使用字符串金额或只返回 transactions。即使本轮没有新流水，也要返回 transactions:[] 和当前 balance。direction=income/expense，amount 非负或未知时 null，state=pending/received/refunded。只有已确认的收支才能使用 received；待收款、退款更新原交易 ID，不另建重复流水。分类为餐饮/购物/交通/娱乐/住房/医疗/通讯/社交/旅行/工资/奖金/转账/红包/投资/其他。工资、奖金、收到转账等已确认收入必须作为独立流水写入 transactions，direction=income，不只把收入加到 balance；每笔新交易使用新的唯一 ID，同一交易的状态变化才复用原 ID。只提交当前授权剧情账户的变化条目，不覆盖旧账目。User 私有钱包不可生成或更改；银行卡与账户资料属于只读设置，不返回银行卡资料。共享账户只写一次，不同时给 User 和 Char 再记相同账目。所有流水显式携带本轮币种，不自行换汇，不猜金额、日期、卡号，不声称真实支付到账。',
   },
   {
     order: 96,

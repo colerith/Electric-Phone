@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { WalletTransactionSchema, walletTotals } from './wallet';
+import { WalletTransactionSchema, WalletMoneySchema, walletTotals } from './wallet';
 
 export const currencies = ['CNY', 'USD', 'EUR', 'JPY', 'KRW', 'GBP', 'HKD', 'TWD'];
 export const AccountRowSchema = WalletTransactionSchema.extend({ currency: z.string().min(1) });
@@ -85,7 +85,7 @@ export function validateWalletPatch(
       ownerType: z.string().optional(),
       ownerId: z.string().optional(),
       currency: z.string().optional(),
-      balance: z.number().nullable().optional(),
+      balance: WalletMoneySchema.optional(),
       transactions: z.array(WalletTransactionSchema.extend({ currency: z.string().optional() })).default([]),
     })
     .parse(value);
@@ -98,7 +98,7 @@ export function validateWalletPatch(
     throw Error('钱包更新的账户归属与本次授权不符');
   if (patch.currency && patch.currency !== grant.currency) throw Error('钱包更新币种与本次授权不符');
   return {
-    balance: legacy ? patch.balance : undefined,
+    balance: patch.balance,
     transactions: patch.transactions.map(row => {
       if (row.currency && row.currency !== grant.currency) throw Error('跨币种流水不能按同币种入账');
       return AccountRowSchema.parse({ ...row, currency: grant.currency });
@@ -133,12 +133,14 @@ export function applyWalletPatch(
     if (previous && previous.currency !== row.currency) throw Error('既有流水不能更改币种');
   }
   book.order[layer] ||= ++book.revision;
-  // Legacy totals seed a previously unknown balance once; user-entered balances always win.
-  if (!Object.hasOwn(account.opening, grant.currency) && patch.balance != null) {
-    const total = walletTotals(patch.transactions);
-    account.opening[grant.currency] = patch.balance - total.income + total.expense;
-  }
   account.layers[layer] = patch.transactions.filter(row => !Object.hasOwn(account.manual, row.id));
+  // A current balance initializes an unknown currency once. Reconcile against the whole
+  // visible ledger (including manual rows and prior layers), not just this delta.
+  // Once known, only ledger changes affect balance; model snapshots cannot overwrite it.
+  if (account.opening[grant.currency] == null && patch.balance != null) {
+    const total = walletTotals(accountRows(book, account).filter(row => row.currency === grant.currency));
+    account.opening[grant.currency] = Math.round((patch.balance - total.income + total.expense) * 100) / 100;
+  }
   return JSON.stringify(accountWallet(book, account)) !== before;
 }
 export function saveAccount(

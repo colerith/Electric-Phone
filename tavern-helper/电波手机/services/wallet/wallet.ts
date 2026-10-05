@@ -9,13 +9,33 @@ export const walletCategories = [
   '通讯',
   '社交',
   '旅行',
+  '工资',
+  '奖金',
+  '转账',
+  '红包',
+  '投资',
   '其他',
 ] as const;
+export const WalletMoneySchema = z.preprocess(value => {
+  if (typeof value !== 'string') return value;
+  const text = value.trim();
+  // Accept numeric strings, including correctly grouped thousands; never turn blanks into zero.
+  if (!/^[+-]?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(text)) return value;
+  return Number(text.replaceAll(',', ''));
+}, z.number().finite().nullable());
 export const WalletTransactionSchema = z.object({
   id: z.string(),
   title: z.string().prefault(''),
-  amount: z.number().nonnegative().nullable().prefault(null),
-  direction: z.enum(['income', 'expense']).prefault('expense'),
+  amount: WalletMoneySchema.refine(value => value === null || value >= 0, '流水金额不能为负数').prefault(null),
+  direction: z
+    .preprocess(
+      value =>
+        typeof value === 'string'
+          ? ({ 收入: 'income', 支出: 'expense' } as Record<string, string>)[value.trim()] || value.trim().toLowerCase()
+          : value,
+      z.enum(['income', 'expense']),
+    )
+    .prefault('expense'),
   category: z.enum(walletCategories).catch('其他'),
   date: z.string().prefault(''),
   account: z.string().prefault('日常账户'),
@@ -24,7 +44,7 @@ export const WalletTransactionSchema = z.object({
 });
 export const WalletSchema = z.object({
   currency: z.string().prefault('CNY'),
-  balance: z.number().nullable().prefault(null),
+  balance: WalletMoneySchema.prefault(null),
   transactions: z.array(WalletTransactionSchema).prefault([]),
 });
 export type WalletTransaction = z.infer<typeof WalletTransactionSchema>;
@@ -65,7 +85,7 @@ export function mergeWallet(current: string, update: unknown): string {
   const patch = z
     .object({
       currency: z.string().optional(),
-      balance: z.number().nullable().optional(),
+      balance: WalletMoneySchema.optional(),
       transactions: z.array(WalletTransactionSchema).optional(),
     })
     .parse(value);
