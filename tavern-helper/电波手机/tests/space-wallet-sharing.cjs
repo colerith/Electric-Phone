@@ -577,6 +577,13 @@ function snapshot(name) {
   await phone.synchronize();
   assert.equal(phone.state.moments.profile.anonymousId, savedAlias);
   assert.equal(phone.state.moments.profile.anonymousAvatarSeed, savedSeed);
+  phone.deleteWalletAccount(sharedId);
+  chatKey = 'chat-A';
+  await phone.synchronize();
+  assert(!phone.state.walletBook.accounts[sharedId], 'deleted shared account must not return in another chat');
+  chatKey = 'never-opened-wallet-chat';
+  await phone.synchronize();
+  assert(!phone.state.walletBook.accounts[sharedId]);
   console.log(
     'PASS: cross-chat complete wallet sharing, account/cover inheritance, idempotent replay, card isolation, legacy social migration, five tabs, profile filters, comments, composer, anonymous topic and messenger migration',
   );

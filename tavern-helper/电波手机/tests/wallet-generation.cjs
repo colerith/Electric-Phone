@@ -24,6 +24,8 @@ const book = a.WalletBookSchema.parse({});
 a.ensureWalletAccounts(book, 'alice', 'Alice');
 const grant = a.walletAuthorization(book, 'alice'),
   account = book.accounts[grant.accountId];
+assert.throws(() => a.validateWalletPatch({ ...grant, balance: null }, grant, true), /首次生成必须补全/);
+assert.equal(a.validateWalletPatch({ ...grant, balance: 0 }, grant, true).balance, 0);
 const row = (id, amount, direction = 'income') => ({
   id,
   title: id,

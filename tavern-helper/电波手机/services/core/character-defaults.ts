@@ -53,6 +53,7 @@ export function captureMissingDefaults(state: ChatState, defaults: CharacterDefa
   const legacy = namespaceWallet(state.walletBook, state.chatKey),
     shared = defaults.walletBook;
   for (const [id, account] of Object.entries(legacy.accounts)) {
+    if (shared.deletedAccountIds.includes(id)) continue;
     const existing = shared.accounts[id];
     if (!existing) {
       shared.accounts[id] = account;

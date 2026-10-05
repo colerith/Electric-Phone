@@ -3,9 +3,11 @@
     <header>
       <div>
         <small>AI AVATAR</small>
-        <h3>生成{{ label }}</h3>
+        <div class="avatar-ai-title">生成{{ label }}</div>
       </div>
-      <button type="button" aria-label="返回头像编辑" @click="emit('close')">×</button>
+      <button class="avatar-ai-close" type="button" aria-label="返回头像编辑" @click="emit('close')">
+        <span aria-hidden="true">×</span>
+      </button>
     </header>
     <label
       >生图接口<WaveSelect
@@ -22,7 +24,7 @@
         :disabled="busy"
         rows="7"
         maxlength="12000"
-        placeholder="描述你想要的头像：主体、外貌、服装、风格、背景……可直接写中文，再使用 AI 润色。"
+        placeholder="选填；留空时读取当前角色的人设与外貌描述。也可补充服装、风格、背景，再使用 AI 润色。"
       />
     </label>
     <p>
@@ -36,10 +38,10 @@
       <i v-if="busy" class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i>{{ status }}
     </div>
     <div class="avatar-ai-actions">
-      <button type="button" :disabled="busy || !profile || !prompt.trim()" @click="polish">
+      <button type="button" :disabled="busy || !profile" @click="polish">
         <i class="fa-solid fa-wand-magic-sparkles"></i> AI 润色
       </button>
-      <button type="button" class="avatar-ai-primary" :disabled="busy || !profile || !prompt.trim()" @click="generate">
+      <button type="button" class="avatar-ai-primary" :disabled="busy || !profile" @click="generate">
         <i class="fa-regular fa-image"></i> 生成头像
       </button>
     </div>
@@ -57,7 +59,11 @@ import WaveSelect from './WaveSelect.vue';
 defineProps<{ label: string }>();
 const emit = defineEmits<{ close: []; generated: [image: string] }>();
 const phone = usePhoneStore();
-const profileId = ref(phone.settings.imageServices.profiles[0]?.id || '');
+const profileId = ref(
+  phone.settings.imageServices.profiles.find(p => p.id === phone.characterImage?.profileId)?.id ||
+    phone.settings.imageServices.profiles[0]?.id ||
+    '',
+);
 const profile = computed(() => phone.settings.imageServices.profiles.find(p => p.id === profileId.value));
 const prompt = ref(''),
   status = ref(''),
@@ -83,10 +89,28 @@ watch(
   },
 );
 async function run(kind: 'polish' | 'generate') {
-  if (busy.value || !profile.value || !prompt.value.trim()) return;
+  if (busy.value || !profile.value) return;
+  const identity = phone.activeIdentity;
+  const card = identity?.source === 'auto_single_card' ? getCharData('current') : undefined;
+  const description = [
+    phone.characterImage?.prefix,
+    identity?.npcProfile,
+    identity?.about,
+    card?.data?.description || card?.description,
+    card?.data?.personality || card?.personality,
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const fallback = [
+    identity?.name,
+    description,
+    identity?.source === 'local_group' ? '群聊主题正方形头像，无文字水印' : '单人正方形头像，清晰主体，无文字水印',
+  ]
+    .filter(Boolean)
+    .join('\n');
   const runToken = ++token;
   const selected = klona(profile.value),
-    text = prompt.value.trim(),
+    text = prompt.value.trim() || fallback,
     settings = klona(phone.settings);
   busy.value = true;
   status.value = kind === 'polish' ? '副 API 正在润色提示词…' : '正在生成头像，请稍候…';
@@ -148,10 +172,24 @@ function generate() {
     letter-spacing: 2px;
     color: var(--wave-blue, #5e80be);
   }
-  h3 {
+  .avatar-ai-title {
+    display: block;
     margin: 3px 0 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font-family: inherit;
     font-size: 18px;
     font-weight: 500;
+    line-height: 1.4;
+    text-indent: 0;
+    box-shadow: none;
+    &::before,
+    &::after {
+      content: none;
+      display: none;
+    }
   }
   label {
     display: grid;
@@ -196,8 +234,16 @@ function generate() {
     font: inherit;
     cursor: pointer;
   }
-  header > button {
+  header > button.avatar-ai-close:not(.wave-select-trigger):not([role='option']) {
     flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    font-size: 18px;
+    color: var(--wave-blue, #5e80be);
   }
   .avatar-ai-actions {
     display: grid;

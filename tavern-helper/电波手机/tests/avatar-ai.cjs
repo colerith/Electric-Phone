@@ -121,7 +121,9 @@ app.mount('#app');
   if (process.env.WAVE_QA_DIR) {
     input.textContent = input.value;
     const style = document.createElement('style');
-    style.textContent = require('sass').compile(path.join(base, 'styles/base/style.scss'), { logger: require('sass').Logger.silent }).css +
+    style.textContent =
+      require('sass').compile(path.join(base, 'styles/base/style.scss'), { logger: require('sass').Logger.silent })
+        .css +
       'body{margin:0;background:#eee;font:14px system-ui}#wave-phone-script-root{display:block;position:relative;inset:auto;width:390px;max-width:100%;--wave-blue:#5e80be;--wave-ink:#374558}.wave-image-preview{display:none}.wave-device{position:relative!important;inset:auto!important;transform:none!important;width:100%!important;height:auto!important;border:0!important;background:none!important;box-shadow:none!important}.wave-image-modal{position:relative!important;inset:auto!important;display:block!important;padding:0!important;background:none!important}.wave-upload-subpage{width:100%}';
     document.head.append(style);
     fs.mkdirSync(process.env.WAVE_QA_DIR, { recursive: true });
@@ -146,11 +148,24 @@ app.mount('#app');
   await vue.nextTick();
   click('AI 生成 描述头像，支持 AI 润色提示词');
   await vue.nextTick();
-  const second = document.querySelector('textarea');
-  second.value = 'a cat';
-  second.dispatchEvent(new Event('input', { bubbles: true }));
+  phone.state.activeCharKey = 'npc:avatar-test';
+  phone.state.identities['npc:avatar-test'] = require(base + '/schemas.ts').IdentitySchema.parse({
+    charKey: 'npc:avatar-test',
+    name: 'Avatar NPC',
+    actorType: 'npc',
+    npcProfile: 'short silver hair, amber eyes',
+    source: 'local_contact',
+    createdAt: '',
+    updatedAt: '',
+  });
+  await vue.nextTick();
+  click('AI 生成 描述头像，支持 AI 润色提示词');
+  await vue.nextTick();
+  const blank = document.querySelector('textarea');
+  assert.equal(blank.value, '');
   await vue.nextTick();
   images.generateImage = async (_p, _c, _t, signal) => {
+    assert(_t.includes('short silver hair, amber eyes'), 'empty prompt reads the current NPC description');
     imageSignal = signal;
     return new Promise(resolve => (resolveImage = resolve));
   };

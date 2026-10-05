@@ -9,6 +9,7 @@ import { validateReplyMedia, type ReplyMedia } from '../chat/media-settings';
 import { stickerPrompt } from '../chat/stickers';
 import { resolveModuleSettings, resolveBilingual } from './module-settings';
 import { validateWalletPatch, type WalletAuthorization } from '../wallet/wallet-accounts';
+import { parseWallet } from '../wallet/wallet';
 import { isLimitedApp, limitModulePatch } from './module-updates';
 import { splitElectric } from './electric';
 import { narrativePrompt } from './narrative-context';
@@ -243,7 +244,11 @@ export async function generatePhoneReply(
         if (!input.walletAuthorization) delete response.app_updates.wallet;
         else
           response.app_updates.wallet = {
-            ...validateWalletPatch(response.app_updates.wallet, input.walletAuthorization),
+            ...validateWalletPatch(
+              response.app_updates.wallet,
+              input.walletAuthorization,
+              parseWallet(input.appSnapshot.wallet).balance === null,
+            ),
             ...input.walletAuthorization,
           };
       }
@@ -391,6 +396,8 @@ export async function generatePhoneModule(input: GenerationInput, module: import
     `手动生成 ${module} 模块的新内容`,
     raw => {
       const delta = ModuleDeltaSchema.parse(extractJson(raw));
+      if (module === 'wallet' && delta.app_updates.wallet === undefined)
+        throw Error('首次钱包生成必须返回 wallet 与数字余额');
       if (module === 'messages') validateReplyMedia(delta.messages, input.media);
       if (delta.char_id !== (input.identity.stableId || input.identity.charKey)) throw Error('模块结果角色 ID 不匹配');
       if (
@@ -408,7 +415,11 @@ export async function generatePhoneModule(input: GenerationInput, module: import
       if (delta.app_updates.wallet !== undefined) {
         if (!input.walletAuthorization) throw Error('请先选择剧情钱包账户');
         delta.app_updates.wallet = {
-          ...validateWalletPatch(delta.app_updates.wallet, input.walletAuthorization),
+          ...validateWalletPatch(
+            delta.app_updates.wallet,
+            input.walletAuthorization,
+            parseWallet(input.appSnapshot.wallet).balance === null,
+          ),
           ...input.walletAuthorization,
         };
       }

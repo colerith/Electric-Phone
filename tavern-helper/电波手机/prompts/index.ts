@@ -948,7 +948,7 @@ export const BUILTIN_PRESET_ENTRIES: readonly PresetEntry[] = [
     kind: 'custom',
     scope: 'chat',
     content:
-      '[电波手机·钱包更新] 使用本轮账户授权的 accountId、ownerType、ownerId、currency，返回 wallet={accountId,ownerType,ownerId,currency,balance,transactions:[{id,title,amount,direction,category,date,account,note,state,currency}]}。只要本轮允许生成 wallet 且提供了账户授权，每一轮都必须输出 wallet，并且必须显式包含当前币种的 balance：已知时填写当前余额数字，确实未知时填写 null，严禁省略 balance、使用字符串金额或只返回 transactions。即使本轮没有新流水，也要返回 transactions:[] 和当前 balance。direction=income/expense，amount 非负或未知时 null，state=pending/received/refunded。只有已确认的收支才能使用 received；待收款、退款更新原交易 ID，不另建重复流水。分类为餐饮/购物/交通/娱乐/住房/医疗/通讯/社交/旅行/工资/奖金/转账/红包/投资/其他。工资、奖金、收到转账等已确认收入必须作为独立流水写入 transactions，direction=income，不只把收入加到 balance；每笔新交易使用新的唯一 ID，同一交易的状态变化才复用原 ID。只提交当前授权剧情账户的变化条目，不覆盖旧账目。User 私有钱包不可生成或更改；银行卡与账户资料属于只读设置，不返回银行卡资料。共享账户只写一次，不同时给 User 和 Char 再记相同账目。所有流水显式携带本轮币种，不自行换汇，不猜金额、日期、卡号，不声称真实支付到账。',
+      '[电波手机·钱包更新] 使用本轮账户授权的 accountId、ownerType、ownerId、currency，返回 wallet={accountId,ownerType,ownerId,currency,balance,transactions:[{id,title,amount,direction,category,date,account,note,state,currency}]}。只要本轮允许生成 wallet 且提供了账户授权，每一轮都必须输出 wallet，并且必须显式包含当前币种的 balance：已知时填写当前余额数字；余额未填充或为 null 时，首次生成必须结合角色身份、职业、生活水平与剧情设定补全合理的虚构初始余额数字，不能继续返回 null，严禁省略 balance、使用字符串金额或只返回 transactions。即使本轮没有新流水，也要返回 transactions:[] 和当前 balance。direction=income/expense，amount 非负或未知时 null，state=pending/received/refunded。只有已确认的收支才能使用 received；待收款、退款更新原交易 ID，不另建重复流水。分类为餐饮/购物/交通/娱乐/住房/医疗/通讯/社交/旅行/工资/奖金/转账/红包/投资/其他。工资、奖金、收到转账等已确认收入必须作为独立流水写入 transactions，direction=income，不只把收入加到 balance；每笔新交易使用新的唯一 ID，同一交易的状态变化才复用原 ID。只提交当前授权剧情账户的变化条目，不覆盖旧账目。User 私有钱包不可生成或更改；银行卡与账户资料属于只读设置，不返回银行卡资料。共享账户只写一次，不同时给 User 和 Char 再记相同账目。所有流水显式携带本轮币种，不自行换汇，不编造交易金额、日期、卡号（未填余额的首次剧情账户初始化除外），不声称真实支付到账。',
   },
   {
     order: 96,
@@ -1372,7 +1372,7 @@ export function buildModulePrompt(
     modules.includes('messages')
       ? 'messages 可含 0–15 条新消息；sender 仅 char 或 system。type 可为 text/image/video/emoji/voice/transfer/red_packet/location/link/system/zone。created_at 可填写剧情时间，但客户端始终按真实接收顺序排列并另存剧情时间，不得借时间戳把回复插到 User 消息之前。转账 payload 使用 amount/currency/note/state，state 为 pending/received/refunded。红包可在符合角色性格和情境时低概率主动发送，但不得每轮发送：私聊 red_packet 使用 amount/currency/note/packetType=private/state，state 为 pending/received/refunded；群聊使用 packetType=group/count/claimedCount/state，state 为 group_available/group_claimed/group_empty/refunded，并携带真实成员 actorKey。位置使用 name/address；拍一拍使用 type=system、payload.interaction=poke、actorName/targetName。禁止伪造真实支付、定位、资源链接，不代替 User 发言。'
       : '本轮 messages 必须为空数组。',
-    '增量规则：status 每次使用包含 fav、fav_delta、soc、mood、hidden_thought、organs 全字段的当前完整状态替换；已选择且已授权的 wallet 每一轮都必须输出，且必须包含数字或 null 类型的当前 balance，无新流水时 transactions 必须为 []；music 只提交新增文本；memo/calendar/browse/zone/wallet 使用对应模块的结构化合并协议，保留已有 ID，不重复已有内容。',
+    '增量规则：status 每次使用包含 fav、fav_delta、soc、mood、hidden_thought、organs 全字段的当前完整状态替换；已选择且已授权的 wallet 每一轮都必须输出，且必须包含数字类型的当前 balance，余额未填充时首次必须按角色设定补全，无新流水时 transactions 必须为 []；music 只提交新增文本；memo/calendar/browse/zone/wallet 使用对应模块的结构化合并协议，保留已有 ID，不重复已有内容。',
     '唯一数据协议（本段优先于上方旧输出格式）：{"version":1,"char_id":"上述角色ID","char_name":"上述角色名","messages":[],"app_updates":{}}。不生成 HTML、脚本或样式；由手机脚本完成展示。JSON 字符串里的 < 与 > 写成 Unicode 转义。',
     follow
       ? '继续完成酒馆本轮正常正文，在相关事件之后插入一个 <wave_phone_delta>上述 JSON</wave_phone_delta>；不要把整楼变为 JSON，不改变原正文格式、角色行为或预设。没有变化可不输出数据块。'
@@ -1404,7 +1404,7 @@ export function moduleGenerationRules(input: PhonePromptInput, apps: readonly st
 
 export function walletAccountRules(input: PhonePromptInput): string {
   return input.walletAuthorization
-    ? `[电波手机·本轮钱包授权] ${JSON.stringify(input.walletAuthorization)}。仅此账户可写入剧情流水。因为本轮已选择并授权 wallet，所以本轮必须输出 wallet；必须回传完全相同的账户 ID、归属与币种，并显式包含已有数据中的当前 balance（数字或 null），不得省略 balance。未发生收支时返回 transactions:[]，不得省略整个 wallet。当前资料只作参考，不接受银行卡资料改写。`
+    ? `[电波手机·本轮钱包授权] ${JSON.stringify(input.walletAuthorization)}。仅此账户可写入剧情流水。因为本轮已选择并授权 wallet，所以本轮必须输出 wallet；必须回传完全相同的账户 ID、归属与币种，并显式包含当前 balance 数字，不得省略 balance。若已有余额为空或 null，首次必须结合角色人设、职业、生活水平与剧情背景补全合理的虚构初始余额，不允许继续返回 null；初始余额不是收入流水，不能为补余额虚构工资或转账；已有余额只按已确认流水增减。未发生收支时返回 transactions:[]，不得省略整个 wallet。当前资料只作参考，不接受银行卡资料改写。`
     : '[电波手机·本轮钱包授权] 未提供可写账户，禁止输出 wallet 更新。';
 }
 

@@ -30,6 +30,7 @@ export const WalletAccountSchema = z.object({
 export const WalletBookSchema = z
   .object({
     accounts: z.record(z.string(), WalletAccountSchema).default({}),
+    deletedAccountIds: z.array(z.string()).default([]),
     selectedShared: z.record(z.string(), z.string()).default({}),
     grants: z.record(z.string(), WalletAuthorizationSchema).default({}),
     order: z.record(z.string(), z.number()).default({}),
@@ -39,14 +40,25 @@ export const WalletBookSchema = z
 export type WalletBook = z.infer<typeof WalletBookSchema>;
 export type WalletAccount = z.infer<typeof WalletAccountSchema>;
 export function ensureWalletAccounts(book: WalletBook, charKey: string, name: string): void {
-  book.accounts.user ||= WalletAccountSchema.parse({
-    id: 'user',
-    name: '我的钱包',
-    ownerType: 'user',
-    ownerId: 'user',
-  });
+  if (!book.deletedAccountIds.includes('user'))
+    book.accounts.user ||= WalletAccountSchema.parse({
+      id: 'user',
+      name: '我的钱包',
+      ownerType: 'user',
+      ownerId: 'user',
+    });
   const id = `char:${charKey}`;
-  book.accounts[id] ||= WalletAccountSchema.parse({ id, name: `${name}的钱包`, ownerType: 'char', ownerId: charKey });
+  if (!book.deletedAccountIds.includes(id))
+    book.accounts[id] ||= WalletAccountSchema.parse({ id, name: `${name}的钱包`, ownerType: 'char', ownerId: charKey });
+}
+export function deleteAccount(book: WalletBook, id: string): void {
+  if (!book.accounts[id]) throw Error('账户不存在');
+  delete book.accounts[id];
+  book.deletedAccountIds = [...new Set([...book.deletedAccountIds, id])];
+  for (const [key, selected] of Object.entries(book.selectedShared))
+    if (selected === id) delete book.selectedShared[key];
+  // Keep historical grants: old floors must never be rerouted to another account.
+  ++book.revision;
 }
 export function walletAuthorization(book: WalletBook, charKey: string): WalletAuthorization | undefined {
   const selected = book.accounts[book.selectedShared[charKey]];
@@ -77,6 +89,7 @@ export function accountWallet(book: WalletBook, account: WalletAccount) {
 export function validateWalletPatch(
   update: unknown,
   grant: WalletAuthorization,
+  requireInitialBalance = false,
 ): { transactions: z.infer<typeof AccountRowSchema>[]; balance?: number | null } {
   const value = typeof update === 'string' ? JSON.parse(update) : update;
   const patch = z
@@ -97,6 +110,8 @@ export function validateWalletPatch(
   )
     throw Error('钱包更新的账户归属与本次授权不符');
   if (patch.currency && patch.currency !== grant.currency) throw Error('钱包更新币种与本次授权不符');
+  if (requireInitialBalance && patch.balance == null)
+    throw Error('钱包余额尚未填充，首次生成必须补全数字余额，不能省略或返回 null');
   return {
     balance: patch.balance,
     transactions: patch.transactions.map(row => {

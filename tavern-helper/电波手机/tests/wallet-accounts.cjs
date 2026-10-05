@@ -328,6 +328,16 @@ global.getChatMessages = id => (typeof id === 'number' ? floors.filter(f => f.me
   assert(migrated.manual['chat:test:manual-old']);
   await phone.synchronize();
   assert.equal(accounts.accountWallet(book(), book().accounts['char:' + char]).balance, 75);
+  const removedShared = phone.createSharedWallet('待删除共享账户');
+  phone.selectSharedWallet(removedShared);
+  phone.deleteWalletAccount(removedShared);
+  assert(!book().accounts[removedShared]);
+  assert(!book().selectedShared[char]);
+  phone.deleteWalletAccount('char:' + char);
+  await phone.synchronize();
+  assert(!book().accounts['char:' + char], 'deleted character wallet must not be recreated on sync');
+  assert(!book().accounts[removedShared], 'deleted shared wallet must remain deleted');
+  assert(book().deletedAccountIds.includes('char:' + char));
   app.unmount();
   console.log(
     'PASS: wallet form/navigation, shared ledger, manual persistence, per-currency balances, payment-state deduplication, protected user/bank data, role authorization, floor replay/removal, and captured manual request scope.',

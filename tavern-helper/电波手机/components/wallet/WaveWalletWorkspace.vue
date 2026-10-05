@@ -4,7 +4,13 @@
       <div class="wave-settings-title">账户管理</div>
       <WaveSelect v-model="selectedId" :options="options" aria-label="选择钱包账户" />
       <p class="chat-settings-note">我的账本、角色账本和共享账户分别保存。共享账户在两个入口显示同一份收支。</p>
-      <button type="button" class="wallet-account-action" @click="createShared">新增共享账户</button>
+      <div class="wallet-account-actions">
+        <button type="button" class="wallet-account-action" @click="createShared">新增共享账户</button>
+        <button type="button" class="wallet-account-action" :disabled="!account" @click="removeAccount">
+          删除账户
+        </button>
+      </div>
+      <p v-if="feedback" class="chat-settings-note" role="status">{{ feedback }}</p>
     </section>
     <template v-if="account">
       <form
@@ -29,11 +35,13 @@
             v-model="draft.balance"
             type="number"
             step="0.01"
-            placeholder="未知可留空"
+            :placeholder="account.ownerType === 'user' ? '可留空，或手动填写' : '留空时首次生成补全'"
             aria-label="账户当前余额"
             @input="balanceTouched = true"
         /></label>
-        <p class="chat-settings-note">每个币种独立记账。切换币种不会换算余额或改写旧流水；新币种余额需单独填写。</p>
+        <p class="chat-settings-note">
+          每个币种独立记账，不自动换汇。角色与共享账户未填余额时，首次生成会按人设补全剧情初始余额；我的私人账户由你填写。
+        </p>
         <label>银行名称<input v-model="draft.bankName" maxlength="80" placeholder="例如：日常储蓄卡" /></label>
         <div class="wallet-account-pair">
           <label>卡片备注<input v-model="draft.cardLabel" maxlength="80" placeholder="工资卡 / 生活卡" /></label>
@@ -111,7 +119,9 @@
         ></WaveWalletPanel
       >
     </template>
-    <p v-else class="chat-settings-note">进入聊天后可设置钱包账户。</p>
+    <p v-else class="chat-settings-note">
+      {{ phone.activeIdentity ? '暂无可用账户，可在钱包设置的账户管理中新增共享账户。' : '进入聊天后可设置钱包账户。' }}
+    </p>
   </section>
 </template>
 <script setup lang="ts">
@@ -151,7 +161,12 @@ const account = computed(() => accounts.value.find(a => a.id === selectedId.valu
 const raw = computed(() => (account.value ? JSON.stringify(accountWallet(phone.state.walletBook, account.value)) : ''));
 const sharedId = computed(() => phone.state.walletBook.selectedShared[phone.activeIdentity?.charKey || ''] || '');
 const sharedOptions = computed(() => [
-  { value: '', label: '角色自己的钱包' },
+  {
+    value: '',
+    label: phone.state.walletBook.accounts[`char:${phone.activeIdentity?.charKey}`]
+      ? '角色自己的钱包'
+      : '未选择剧情账户',
+  },
   ...phone.walletAccounts.filter(a => a.ownerType === 'shared').map(a => ({ value: a.id, label: a.name })),
 ]);
 const currencyOptions = currencies.map(value => ({ value, label: value }));
@@ -165,7 +180,11 @@ watch(
       return;
     }
     if (!accounts.value.some(a => a.id === selectedId.value))
-      selectedId.value = props.mode === 'mine' ? 'user' : `char:${phone.activeIdentity?.charKey}`;
+      selectedId.value =
+        accounts.value.find(a => a.id === (props.mode === 'mine' ? 'user' : `char:${phone.activeIdentity?.charKey}`))
+          ?.id ||
+        accounts.value[0]?.id ||
+        '';
   },
   { immediate: true },
 );
@@ -226,6 +245,11 @@ function createShared(): void {
 }
 function selectShared(id: string): void {
   phone.selectSharedWallet(id);
+}
+function removeAccount(): void {
+  if (!account.value || !window.confirm(`删除“${account.value.name}”及其全部余额、账目？此操作不可撤销。`)) return;
+  phone.deleteWalletAccount(account.value.id);
+  selectedId.value = accounts.value[0]?.id || '';
 }
 </script>
 <style scoped>
@@ -290,6 +314,15 @@ function selectShared(id: string): void {
   background: var(--wave-tint, #f3f3f3);
   font: inherit;
   cursor: pointer;
+}
+#wave-phone-script-root .wallet-account-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+#wave-phone-script-root .wallet-account-actions > button {
+  width: 100%;
+  margin: 0;
 }
 #wave-phone-script-root .wallet-workspace :deep(.wallet-page) {
   padding: 0;

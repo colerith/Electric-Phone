@@ -5,15 +5,17 @@
         <div><strong>接口配置</strong><small>多套配置，按角色选择使用</small></div>
         <span class="image-count">{{ profiles.length }} 套</span>
       </div>
-      <div class="image-actions">
-        <button type="button" @click="add('novelai')">＋ NovelAI</button
-        ><button type="button" @click="add('openai')">＋ GPT Image</button
-        ><button type="button" @click="importProfiles">读取柏宝绘配置</button>
-      </div>
       <label v-if="profiles.length"
         >当前配置<WaveSelect v-model="selected" :options="profiles.map(p => ({ value: p.id, label: p.name }))"
       /></label>
-      <p v-else class="image-empty">添加生图接口，再到私聊「角色生图」中选择它。</p>
+      <label v-if="profile">配置名称<input v-model="profile.name" @change="save" /></label>
+      <div class="image-actions image-profile-actions">
+        <button type="button" @click="add('novelai')">＋ NovelAI</button
+        ><button type="button" @click="add('openai')">＋ GPT Image</button
+        ><button type="button" @click="importProfiles">读取柏宝绘配置</button>
+        <button type="button" :disabled="!profile" @click="remove">删除此配置</button>
+      </div>
+      <p v-if="!profiles.length" class="image-empty">添加生图接口，再到私聊「角色生图」中选择它。</p>
       <p class="image-help">修改自动保存；读取柏宝绘会更新对应来源的接口配置。</p>
       <p v-if="status" class="image-status" role="status">{{ status }}</p>
     </section>
@@ -40,7 +42,6 @@
           <strong>连接设置</strong
           ><span class="image-count">{{ profile.provider === 'novelai' ? 'NovelAI' : 'GPT Image' }}</span>
         </div>
-        <label>配置名称<input v-model="profile.name" @change="save" /></label>
         <label
           >接口地址<input
             v-model.trim="profile.baseUrl"
@@ -169,9 +170,6 @@
           }
         "
       />
-      <div class="image-actions image-remove-row">
-        <button type="button" class="image-danger" @click="remove">删除当前配置</button>
-      </div>
     </template>
   </section>
   <button class="settings-save-wide" type="button" @click="saveAll">

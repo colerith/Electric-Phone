@@ -10,6 +10,17 @@
   * {
     box-sizing: border-box;
   }
+  .image-actions.image-profile-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+    padding-top: 16px;
+    border-top: 1px solid #8882;
+    > button {
+      width: 100%;
+      margin: 0;
+    }
+  }
   label {
     display: grid;
     gap: 8px;

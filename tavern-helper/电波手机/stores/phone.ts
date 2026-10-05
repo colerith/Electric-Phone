@@ -46,6 +46,7 @@ import {
 import { npcAvatarUrl } from '../services/space/npc-avatar';
 import {
   ensureWalletAccounts,
+  deleteAccount,
   walletAuthorization,
   accountWallet,
   accountRows,
@@ -612,6 +613,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     ++syncToken;
     saveChat();
     return id;
+  }
+  function deleteWalletAccount(id: string): void {
+    if (!walletAccounts.value.some(account => account.id === id)) throw Error('只能删除当前角色可见的账户');
+    deleteAccount(state.value.walletBook, id);
+    if (walletSelectedAccountId.value === id) walletSelectedAccountId.value = '';
+    ++syncToken;
+    saveChat();
   }
   function selectSharedWallet(id: string): void {
     const key = activeIdentity.value?.charKey;
@@ -3577,6 +3585,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const now = nowIso();
     if (decision === 'received') {
       ensureWalletAccounts(state.value.walletBook, thread.charKey, activeIdentity.value?.name || '角色');
+      // Explicitly receiving money can open a fresh private wallet, without restoring deleted history.
+      state.value.walletBook.accounts.user ||= WalletAccountSchema.parse({
+        id: 'user',
+        name: '我的钱包',
+        ownerType: 'user',
+        ownerId: 'user',
+      });
       const account = state.value.walletBook.accounts.user;
       account.manual[receiptId] ||= AccountRowSchema.parse({
         id: receiptId,
@@ -4023,6 +4038,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     walletRaw,
     saveWalletAccount,
     createSharedWallet,
+    deleteWalletAccount,
     selectSharedWallet,
     addWalletTransaction,
     deleteWalletTransaction,
