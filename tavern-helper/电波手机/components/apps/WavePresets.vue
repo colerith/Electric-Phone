@@ -5,8 +5,8 @@
       <h2>让对话有自己的风格</h2>
       <p>当前使用：{{ activeName }}。电波手机请求使用这里的预设；朋友圈读取对应分区。</p>
       <p>
-        生图规范按私聊所选接口自动使用 NovelAI 或 GPT
-        Image，另一套不发送。语音与图片数量读取本轮有效设置；复制预设后可编辑规范。
+        生图规范按私聊所选接口自动使用 NovelAI 或 GPT Image，另一套不发送。Fish
+        语音规范随角色服务自动启用，并适配当前模型。语音与图片数量读取本轮有效设置；复制预设后可编辑规范。
       </p>
       <WaveSelect v-model="selectedId" :options="options" aria-label="查看预设" />
       <div class="presets-toolbar">
@@ -193,7 +193,9 @@
               <p v-if="editor.mediaProvider">
                 <span v-pre
                   >数量变量：{{ voice_min }} / {{ voice_max }}、{{ image_min }} / {{ image_max }}、{{ reply_min }} /
-                  {{ reply_max }}；角色外貌：{{ character_image_prefix }}。</span
+                  {{ reply_max }}；角色外貌：{{ character_image_prefix }}；Fish 模型：{{ fish_model }}，模型语法：{{
+                    fish_model_rules
+                  }}。</span
                 >
               </p>
             </template>

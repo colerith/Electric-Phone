@@ -8,6 +8,8 @@ export const MediaRangeSchema = z.object({
 export type MediaRange = z.infer<typeof MediaRangeSchema>;
 export type ReplyMedia = {
   voice: MediaRange;
+  voiceProvider?: Exclude<CharacterVoice['provider'], 'off'>;
+  voiceModel?: string;
   image: MediaRange;
   imageProvider?: 'novelai' | 'openai';
   characterPrefix: string;
@@ -56,6 +58,8 @@ export function resolveReplyMedia(
   imageRange.max = Math.min(imageRange.max, cap - voiceRange.min);
   return {
     voice: voiceRange,
+    voiceProvider: voice && voice.provider !== 'off' ? voice.provider : undefined,
+    voiceModel: voice && voice.provider !== 'off' ? services[voice.provider].model : undefined,
     image: imageRange,
     imageProvider: profile?.provider,
     characterPrefix: character?.prefix || '',

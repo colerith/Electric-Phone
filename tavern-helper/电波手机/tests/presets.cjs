@@ -145,7 +145,7 @@ const tick = () => vue.nextTick(),
   assert(fresh.entries.some(item => item.systemKey === '电波手机·朋友圈互动'));
   assert(fresh.entries.some(item => item.source === 'user_input'));
   assert(fresh.entries.every(item => item.systemKey || item.mediaProvider));
-  assert.equal(fresh.entries.filter(item => item.mediaProvider).length, 3);
+  assert.equal(fresh.entries.filter(item => item.mediaProvider).length, 4);
   const novelEntry = fresh.entries.find(item => item.mediaProvider === 'novelai');
   savePresetEntry(phone.settings.presets, fresh.id, { ...novelEntry, content: 'CUSTOM-NOVELAI {{image_max}}' });
   assert(

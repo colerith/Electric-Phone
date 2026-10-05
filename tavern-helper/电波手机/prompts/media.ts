@@ -1,3 +1,4 @@
+import { fishModelRules, fishPresetContent } from './fish';
 import type { ReplyMedia } from '../services/chat/media-settings';
 import type { PresetItem } from '../services/apps/preset-schema';
 
@@ -54,6 +55,7 @@ GPT Image 专用：最终 prompt 用清晰连贯的自然语言，可用中文�
 voice 的 content 与 payload.transcript 使用同一份原文。双语译文只写 payload.translation，不额外生成一条译文语音。时长由客户端计算，不编造音频 URL、服务名或 Voice ID。
 引擎允许的标签由运行时规范决定，不跨服务混用 MiniMax、ElevenLabs、Fish 标签。不支持的情绪通过口语措辞与标点表达，避免密集标签、长停顿、重复拟声。只输出最终消息，不输出规划过程。`,
     },
+    { id: 'media-fish', order: 113, name: '语音规范 · Fish', mediaProvider: 'fish', content: fishPresetContent },
   ].map(
     entry =>
       ({
@@ -69,6 +71,8 @@ voice 的 content 与 payload.transcript 使用同一份原文。双语译文只
 }
 export function mediaVariables(media: ReplyMedia | undefined, count?: { minReplies: number; maxReplies: number }) {
   return {
+    fish_model: media?.voiceModel || '未指定',
+    fish_model_rules: fishModelRules(media?.voiceModel),
     voice_min: String(media?.voice.min ?? 0),
     voice_max: String(media?.voice.max ?? 0),
     image_min: String(media?.image.min ?? 0),
@@ -81,9 +85,11 @@ export function mediaVariables(media: ReplyMedia | undefined, count?: { minRepli
 export function mediaEntryApplies(entry: PresetItem, media?: ReplyMedia) {
   return (
     !entry.mediaProvider ||
-    (entry.mediaProvider === 'voice'
-      ? !!media?.voice.max
-      : !!media?.image.max && entry.mediaProvider === media.imageProvider)
+    (entry.mediaProvider === 'fish'
+      ? !!media?.voice.max && media.voiceProvider === 'fish'
+      : entry.mediaProvider === 'voice'
+        ? !!media?.voice.max
+        : !!media?.image.max && entry.mediaProvider === media.imageProvider)
   );
 }
 export function mediaCountRules(media?: ReplyMedia) {

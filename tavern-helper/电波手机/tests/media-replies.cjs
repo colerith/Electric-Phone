@@ -122,7 +122,7 @@ const gen = require(base + '/services/generation/generation.ts');
     items: [{ id: 'legacy', name: 'old', entries: [] }],
     defaultToggles: {},
   });
-  assert.equal(entries.filter(e => e.mediaProvider).length, 3);
+  assert.equal(entries.filter(e => e.mediaProvider).length, 4);
   assert.throws(
     () =>
       media.validateReplyMedia([{ sender: 'char', type: 'voice', payload: {} }], {

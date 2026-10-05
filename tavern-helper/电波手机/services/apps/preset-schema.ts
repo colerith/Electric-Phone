@@ -1,6 +1,6 @@
 import { z } from 'zod';
 export const PresetItemSchema = z.object({
-  mediaProvider: z.enum(['novelai', 'openai', 'voice']).optional(),
+  mediaProvider: z.enum(['novelai', 'openai', 'voice', 'fish']).optional(),
   id: z.string(),
   order: z.number(),
   name: z.string().min(1).max(160),

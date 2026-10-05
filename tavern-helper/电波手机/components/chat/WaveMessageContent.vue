@@ -165,7 +165,7 @@
         </button>
         <div v-if="transcriptOpen" class="wave-voice-transcript">
           <span>原文</span>
-          <p>{{ displaySpeechText(voiceTranscript) }}</p>
+          <p>{{ displaySpeechText(voiceTranscript, payloadString('speechText')) }}</p>
           <template v-if="preferences.autoTranslate && translation">
             <span>译文</span>
             <p>{{ displaySpeechText(translation) }}</p>
