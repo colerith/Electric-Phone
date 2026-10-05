@@ -287,6 +287,18 @@
                   <div v-if="shouldShowTimeDivider(messageIndex)" class="chat-time-divider">
                     <time :datetime="message.createdAt">{{ formatMessageDividerTime(message.createdAt) }}</time>
                   </div>
+                  <details
+                    v-if="groupElectric[message.id] && !store.settings.appearance.hideElectric"
+                    class="wave-electric group-round-electric"
+                    @click.stop
+                  >
+                    <summary>
+                      <i class="fa-regular fa-clock" aria-hidden="true"></i
+                      ><span>{{ groupElectric[message.id].title }}</span
+                      ><i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                    </summary>
+                    <pre>{{ groupElectric[message.id].text }}</pre>
+                  </details>
                   <div v-if="activeMessage?.id === message.id" class="message-actions-popover" @click.stop>
                     <template v-if="messageMenuView === 'actions'">
                       <WaveReactionPicker
@@ -441,6 +453,7 @@
                     </div>
                     <div v-else class="message-stack">
                       <WaveMessageContent
+                        :show-electric="store.activeIdentity?.source !== 'local_group'"
                         :message="message"
                         :quoted-text="quotedMessageText(message)"
                         :payment-interactive="!multiSelectMode"
@@ -1068,6 +1081,7 @@
 </template>
 
 <script setup lang="ts">
+import { groupRoundElectric } from './services/generation/electric';
 import { requestErrorToast } from './services/core/request-error';
 import WaveReactionPicker from './components/chat/WaveReactionPicker.vue';
 import WaveFloatingEntry from './components/shared/WaveFloatingEntry.vue';
@@ -1600,6 +1614,9 @@ const visibleMessages = computed<PhoneMessage[]>(() => {
     message => !hiddenMessageIds.value.has(message.id),
   );
 });
+const groupElectric = computed(() =>
+  store.activeIdentity?.source === 'local_group' ? groupRoundElectric(visibleMessages.value) : {},
+);
 const showTypingBubble = computed(
   () =>
     Boolean(store.activeThread?.id && replyMessageVisibleThreadId.value !== store.activeThread.id) &&

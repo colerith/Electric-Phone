@@ -83,3 +83,28 @@ assert(!prompt.includes('钱包更新'));
 console.log(
   'PASS: electric extraction remains phone-local, Tavern floor rendering is untouched, preset tail order and app-specific prompt activation.',
 );
+
+const { groupRoundElectric } = require(base + '/services/generation/electric.ts');
+const m = (id, round, electric = '', sender = 'char') => ({
+  id,
+  sender,
+  content: 'reply',
+  payload: { replyGenerationId: round, electric, electricTitle: electric ? '本轮计划' : '' },
+});
+const headers = groupRoundElectric([
+  m('u', '', '', 'user'),
+  m('a', 'r1'),
+  m('b', 'r1', 'plan'),
+  m('c', 'r1', 'plan'),
+  m('d', 'r2', 'next'),
+]);
+assert.deepEqual(Object.keys(headers), ['a', 'd']);
+assert.equal(headers.a.text, 'plan');
+assert.equal(headers.a.title, '本轮计划');
+assert.deepEqual(Object.keys(groupRoundElectric([{ ...m('a', 'r1'), withdrawn: true }, m('b', 'r1', 'plan')])), ['b']);
+const appSource = fs.readFileSync(base + '/app.vue', 'utf8');
+assert(
+  appSource.indexOf('class="wave-electric group-round-electric"') < appSource.indexOf('class="group-sender-name"'),
+);
+assert(appSource.includes(':show-electric="store.activeIdentity?.source !== \'local_group\'"'));
+console.log('PASS group Ecot is deduplicated at the first visible reply of each round, before member nicknames');

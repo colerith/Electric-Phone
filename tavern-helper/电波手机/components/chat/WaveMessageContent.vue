@@ -11,7 +11,7 @@
     </div>
 
     <template v-else>
-      <details v-if="electricText && !phone.settings.appearance.hideElectric" class="wave-electric">
+      <details v-if="showElectric && electricText && !phone.settings.appearance.hideElectric" class="wave-electric">
         <summary>
           <i class="fa-regular fa-clock"></i><span>{{ electricTitle }}</span
           ><i class="fa-solid fa-chevron-right"></i>
@@ -371,8 +371,8 @@ async function playVideo(): Promise<void> {
 }
 
 const props = withDefaults(
-  defineProps<{ message: PhoneMessage; quotedText?: string; paymentInteractive?: boolean }>(),
-  { quotedText: '', paymentInteractive: true },
+  defineProps<{ message: PhoneMessage; quotedText?: string; paymentInteractive?: boolean; showElectric?: boolean }>(),
+  { quotedText: '', paymentInteractive: true, showElectric: true },
 );
 const albumExpanded = ref(false);
 const album = computed(() =>
