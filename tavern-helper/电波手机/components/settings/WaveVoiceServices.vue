@@ -41,7 +41,7 @@
             :options="provider === 'minimax' ? miniModels : provider === 'fish' ? fishModels : elevenModels"
         /></label>
         <template v-if="provider === 'fish'">
-          <button type="button" :disabled="loadingFish" @click="refreshFish">
+          <button class="wave-service-action" type="button" :disabled="loadingFish" @click="refreshFish">
             {{ loadingFish ? '读取中…' : '拉取官方模型列表' }}
           </button>
           <small role="status">{{ fishStatus }}</small>

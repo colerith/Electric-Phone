@@ -79,7 +79,11 @@ const json = data => new Response(JSON.stringify(data), { headers: { 'Content-Ty
   };
   const before = JSON.stringify(original);
   const imported = importBaibaiProfiles(original, [openai]);
+  imported.profiles[1].vibes = [
+    require(base + '/services/image/schema.ts').ImageReferenceSchema.parse({ id: 'keep-style' }),
+  ];
   const again = importBaibaiProfiles(original, imported.profiles);
+  assert.equal(again.profiles[1].vibes[0].id, 'keep-style');
   assert.equal(again.profiles.length, 2);
   assert.equal(again.profiles[1].prefix, 'artist, quality');
   assert.equal(again.profiles[1].negative, 'negative');

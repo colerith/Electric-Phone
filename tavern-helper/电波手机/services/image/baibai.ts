@@ -23,6 +23,7 @@ export function importBaibaiProfiles(
     if (typeof endpoint.key !== 'string' || !endpoint.key.trim()) continue;
     const profile = ImageProfileSchema.parse({
       id: `baibai-nai-${endpoint.id || 'legacy'}`,
+      vibes: existing.find(p => p.id === `baibai-nai-${endpoint.id || 'legacy'}`)?.vibes || [],
       name: `柏宝绘 · ${endpoint.name || 'NovelAI'}`,
       provider: 'novelai',
       width: size ? Number(size[1]) : undefined,

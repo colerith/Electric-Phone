@@ -1,3 +1,4 @@
+import { readWorldbookEntries } from './worldbook-reader';
 import { readChatFloors } from '../chat/chat-reader';
 import { stripInlineCards } from './module-protocol';
 import type { ScriptSettings } from '../../schemas';
@@ -38,9 +39,16 @@ export function managedEntryKey(book: string, uid: number) {
 }
 export function boundWorldbooks(): string[] {
   const char = getCharWorldbookNames('current');
-  return [...new Set([char.primary, ...char.additional].filter((name): name is string => Boolean(name)))];
+  return [
+    ...new Set(
+      [char.primary, ...(Array.isArray(char.additional) ? char.additional : [])].filter(
+        (name): name is string => typeof name === 'string' && Boolean(name.trim()),
+      ),
+    ),
+  ];
 }
 export function matchesWorldbookKey(key: unknown, text: string): boolean {
+  if (typeof text !== 'string') return false;
   if (typeof key === 'string') return Boolean(key) && text.toLocaleLowerCase().includes(key.toLocaleLowerCase());
   // Worldbook regexes may originate in the host window, so instanceof is not reliable.
   if (Object.prototype.toString.call(key) === '[object RegExp]') {
@@ -58,7 +66,7 @@ export async function collectManagedWorldbooks(settings: ScriptSettings, text: s
   const content: string[] = [];
   for (const name of names) {
     if (settings.worldbooks.books[name] === 'exclude') continue;
-    const entries = await getWorldbook(name);
+    const entries = await readWorldbookEntries(name);
     for (const entry of entries) {
       const mode = settings.worldbooks.entries[managedEntryKey(name, entry.uid)];
       if (mode === 'exclude') continue;

@@ -1,4 +1,4 @@
-.wave-image-settings {
+#wave-phone-script-root .wave-image-settings {
   display: grid;
   gap: 14px;
   min-width: 0;
@@ -131,5 +131,106 @@
   }
   .image-reference input {
     padding: 6px;
+  }
+}
+
+#wave-phone-script-root .wave-image-settings {
+  &.image-settings-manager {
+    padding: 0;
+    gap: 16px;
+  }
+  .image-section,
+  &.image-section {
+    display: grid;
+    gap: 18px;
+    padding: 22px 20px;
+    background: var(--settings-card, #fff);
+    border: 1px solid rgba(128, 128, 128, 0.08);
+    border-radius: 22px;
+    min-width: 0;
+  }
+  .image-heading > div {
+    display: grid;
+    gap: 6px;
+  }
+  .image-heading strong {
+    font-size: 15px;
+    font-weight: 650;
+  }
+  .image-count {
+    padding: 4px 9px;
+    border-radius: 8px;
+    background: rgba(92, 128, 180, 0.09);
+    color: #6482ac;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .image-status {
+    background: rgba(92, 128, 180, 0.07);
+    padding: 10px 12px;
+    border-radius: 10px;
+  }
+  .image-import-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+  .vibe-card {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+    border: 1px solid #8882;
+    border-radius: 15px;
+    padding: 14px;
+    background: rgba(128, 128, 128, 0.03);
+  }
+  .vibe-card-heading {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .vibe-card-heading > label {
+    flex: 1;
+    min-width: 0;
+  }
+  .vibe-card-heading img,
+  .vibe-placeholder {
+    width: 44px;
+    height: 52px;
+    flex: 0 0 44px;
+    border-radius: 9px;
+    object-fit: cover;
+  }
+  .vibe-placeholder {
+    display: grid;
+    place-items: center;
+    background: #8882;
+  }
+  .vibe-card-heading input {
+    padding: 7px 9px;
+    font-weight: 500;
+  }
+  .vibe-file-input {
+    display: none;
+  }
+  button.image-danger {
+    color: #ad5d70;
+  }
+  .image-remove-row {
+    justify-content: center;
+    padding: 4px 0 12px;
+  }
+  details > .image-grid {
+    margin-top: 12px;
+  }
+  input:disabled {
+    opacity: 0.5;
+  }
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid #6589bd;
+    outline-offset: 3px;
   }
 }

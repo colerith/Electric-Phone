@@ -16,10 +16,10 @@
         >使用的生图接口<WaveSelect
           :model-value="config.profileId"
           :options="phone.settings.imageServices.profiles.map(p => ({ value: p.id, label: p.name }))"
-          placeholder="请先在设置中添加生图 API"
+          placeholder="请先在「图像生成」中添加接口"
           @update:model-value="value => update({ profileId: value })"
       /></label>
-      <p v-if="!selectedProfile" class="image-help">还没有可用配置，请前往「设置 → 生图 API」。</p>
+      <p v-if="!selectedProfile" class="image-help">还没有可用配置，请前往「设置 → 图像生成」。</p>
       <label
         >角色前置提示词<textarea
           :value="config.prefix"

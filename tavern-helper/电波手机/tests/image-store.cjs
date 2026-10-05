@@ -47,6 +47,7 @@ const profiles = require(base + '/schemas.ts');
       provider: 'openai',
       model: 'gpt-image-2.5-sunburst',
       apiKey: 'test-only',
+      vibes: [{ id: 'style', image: 'data:image/png;base64,AQID', strength: 0.4, informationExtracted: 0.8 }],
     }),
   ];
   store.saveSettings();
@@ -64,6 +65,10 @@ const profiles = require(base + '/schemas.ts');
   const savedProfiles = vars.global[profiles.PROFILE_VARIABLE_KEY].data;
   assert(Object.values(savedProfiles).some(p => p.characterImage?.prefix === 'red hair'));
   assert.equal(vars.global[profiles.SCRIPT_VARIABLE_KEY].data.imageServices.profiles[0].id, 'image-api');
+  assert.equal(
+    vars.global[profiles.SCRIPT_VARIABLE_KEY].data.imageServices.profiles[0].vibes[0].informationExtracted,
+    0.8,
+  );
   store.setCharacterImage(CharacterImageSchema.parse({ enabled: true, profileId: 'image-api', prefix: 'red hair' }));
   let resolve;
   global.fetch = () =>

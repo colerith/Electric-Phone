@@ -12,7 +12,9 @@
       </section>
       <section class="settings-card system-settings-card">
         <div class="wave-settings-title">自动隐藏</div>
-        <p>独立 API 请求保留的历史 AI 楼层数。留空保留全部；0 仅保留最新 AI 回合及用户消息，不修改酒馆楼层。</p>
+        <p>
+          独立 API 请求保留的历史 AI 楼层数，默认 20。留空保留全部；0 仅保留最新 AI 回合及用户消息，不修改酒馆楼层。
+        </p>
         <label
           >保留历史楼层数<input
             :value="phone.settings.basic.historyDepth ?? ''"
@@ -197,6 +199,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { cacheStats, clearParseCache } from '../../services/core/local-cache';
 import { diagnostics } from '../../services/core/diagnostics';
+import { readWorldbookEntries, type ReadableWorldbookEntry } from '../../services/generation/worldbook-reader';
 import { boundWorldbooks, managedEntryKey } from '../../services/generation/context-controls';
 import { previewPhoneRequest } from '../../services/generation/generation';
 import WaveToggle from '../shared/WaveToggle.vue';
@@ -213,7 +216,7 @@ const busy = ref(false),
   bookNames = ref<string[]>([]),
   selectedBook = ref(''),
   entrySearch = ref(''),
-  entries = ref<WorldbookEntry[]>([]);
+  entries = ref<ReadableWorldbookEntry[]>([]);
 const modeOptions = [
   { value: 'native', label: '跟随默认' },
   { value: 'include', label: '纳入' },
@@ -351,7 +354,7 @@ async function readBook(name: string) {
   const token = ++bookToken;
   entries.value = [];
   try {
-    const result = name ? await getWorldbook(name) : [];
+    const result = name ? await readWorldbookEntries(name) : [];
     if (token === bookToken) entries.value = result;
   } catch (error) {
     if (token === bookToken) notice.value = String(error);

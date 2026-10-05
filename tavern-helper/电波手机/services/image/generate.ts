@@ -32,6 +32,13 @@ export async function fetchImageModels(profile: ImageProfile): Promise<string[]>
 export function vibeModelKey(model: string): string {
   return model.replace('nai-diffusion-', 'v').replace('-curated', 'curated').replace('-full', 'full');
 }
+export function activeNovelAiReferences(profile: ImageProfile, character: CharacterImage) {
+  const references = [
+    ...new Map([...(profile.vibes || []), ...character.references].map(r => [r.id, r])).values(),
+  ].filter(r => r.enabled !== false && r.strength > 0);
+  if (references.length > 8) throw Error('接口 Vibe 与角色参考图合计最多启用 8 张，请关闭部分参考图');
+  return references;
+}
 export function imagePrompt(profile: ImageProfile, character: CharacterImage, prompt: string): string {
   if (!prompt.trim()) throw Error('请填写本次画面描述');
   return [profile.prefix.trim(), character.prefix.trim(), prompt.trim()].filter(Boolean).join(', ');
@@ -102,14 +109,17 @@ export async function generateImage(
   signal: AbortSignal,
 ): Promise<string> {
   if (!character.enabled) throw Error('请先启用当前角色的生图');
-  if (!profile.apiKey.trim()) throw Error('请在生图 API 配置中填写密钥');
+  if (!profile.apiKey.trim()) throw Error('请在图像生成配置中填写密钥');
   if (!profile.model.trim()) throw Error('请填写生图模型');
   const root = imageApiRoot(profile);
   const headers = { Authorization: `Bearer ${profile.apiKey.trim()}` };
   if (profile.provider === 'novelai') {
     const body = novelAiBody(profile, character, prompt);
-    for (const reference of character.references) {
-      let encoding = reference.encodings[vibeModelKey(profile.model)]?.encoding;
+    const references = activeNovelAiReferences(profile, character);
+    for (const reference of references) {
+      const cached = reference.encodings[vibeModelKey(profile.model)];
+      const extraction = reference.informationExtracted ?? 1;
+      let encoding = cached && (!reference.image || cached.infoExtracted === extraction) ? cached.encoding : undefined;
       if (!encoding) {
         const blob = await imageBlob(reference.image, signal);
         const encoded = await checked(
@@ -119,7 +129,7 @@ export async function generateImage(
             signal,
             body: JSON.stringify({
               image: bytesBase64(new Uint8Array(await blob.arrayBuffer())),
-              information_extracted: 1,
+              information_extracted: extraction,
               model: profile.model,
             }),
           }),
@@ -132,6 +142,11 @@ export async function generateImage(
       body.parameters.reference_image_multiple_cached.push({ cache_secret_key: crypto.randomUUID(), data: encoding });
       body.parameters.reference_strength_multiple.push(reference.strength);
     }
+    const totalStrength = body.parameters.reference_strength_multiple.reduce((sum, value) => sum + value, 0);
+    if (profile.normalizeRefStrength && totalStrength > 1)
+      body.parameters.reference_strength_multiple = body.parameters.reference_strength_multiple.map(
+        value => value / totalStrength,
+      );
     const response = await checked(
       await fetch(`${root}/ai/generate-image`, {
         method: 'POST',

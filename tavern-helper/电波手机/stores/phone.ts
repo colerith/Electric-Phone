@@ -712,7 +712,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!runtime || !identity || !thread || identity.source === 'local_group') throw Error('生图仅适用于私聊');
     const character = klona(characterImage.value);
     const profile = settings.value.imageServices.profiles.find(p => p.id === character.profileId);
-    if (!profile) throw Error('请先选择可用的生图 API 配置');
+    if (!profile) throw Error('请先选择可用的图像生成配置');
     const key = `${runtime.cardKey}::${runtime.chatKey}::${thread.id}`;
     if (imageRequests.has(key)) throw Error('这个会话正在生图，请等待或取消');
     const revision = thread.clearRevision;

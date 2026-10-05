@@ -14,6 +14,8 @@ export const IMAGE_MODELS = {
 export const ImageReferenceSchema = z.object({
   id: z.string(),
   name: z.string().prefault('参考图'),
+  enabled: z.boolean().prefault(true),
+  informationExtracted: z.number().min(0).max(1).prefault(1),
   image: z.string().prefault(''),
   strength: z.number().min(0).max(1).prefault(0.6),
   encodings: z
@@ -38,6 +40,7 @@ export const ImageProfileSchema = z.object({
   cfgRescale: z.number().min(0).max(1).prefault(0),
   seed: z.number().int().min(0).max(4294967295).prefault(0),
   normalizeRefStrength: z.boolean().prefault(true),
+  vibes: z.array(ImageReferenceSchema).max(8).prefault([]),
   quality: z.enum(['auto', 'low', 'medium', 'high', 'xhigh', 'max']).prefault('auto'),
 });
 export const ImageServicesSchema = z.object({ profiles: z.array(ImageProfileSchema).prefault([]) }).prefault({});

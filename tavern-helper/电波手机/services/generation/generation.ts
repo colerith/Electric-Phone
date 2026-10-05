@@ -74,9 +74,16 @@ async function requestConfigured<T>(
   let attempt = 0;
   let attemptStarted = Date.now();
   let failureLogged = false;
+  let contextStep = '';
   const secrets = [settings.api.key, settings.api.key.trim()];
   const reportFailure = (error: unknown) => {
-    const failure = describeRequestError(error, stage, secrets);
+    const failure = describeRequestError(
+      contextStep && stage === '准备上下文'
+        ? `${contextStep}：${error instanceof Error ? error.message : String(error)}`
+        : error,
+      stage,
+      secrets,
+    );
     logDiagnostic(
       '请求失败',
       `${generationId}｜第 ${attempt + 1}/${settings.api.retryCount + 1} 次｜耗时 ${Date.now() - attemptStarted} ms｜${failure.detail}`,
@@ -98,16 +105,20 @@ async function requestConfigured<T>(
     if (namespace && runtime && isCardExcluded(settings, runtime.cardName))
       throw Error('当前角色卡已排除，已暂停手机生成。');
     stage = '准备上下文';
+    contextStep = '读取历史楼层与世界书';
     const overrides = namespace
       ? await prepareContext(settings, namespace.thread?.historyFloorCutoff ?? -1)
       : undefined;
+    contextStep = '清理手机提示词';
     const filtered = prompts.map(prompt =>
       typeof prompt === 'string'
         ? prompt
         : { ...prompt, content: stripExcludedTags(prompt.content, settings.basic.excludedTags) },
     );
     userInput = stripExcludedTags(userInput, settings.basic.excludedTags);
+    contextStep = '计算上下文预算';
     const ordered = fitContext(filtered, userInput, settings.api);
+    contextStep = '';
     if (settings.debugEnabled) {
       diagnostics.prompt = JSON.stringify({ ordered_prompts: ordered, overrides, user_input: userInput }, null, 2);
       diagnostics.response = '';

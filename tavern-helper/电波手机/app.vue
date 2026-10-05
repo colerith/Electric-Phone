@@ -932,7 +932,7 @@
                   </button>
                 </div>
 
-                <div v-else-if="settingsSection === 'image'" class="settings-card"><WaveImageServices /></div>
+                <div v-else-if="settingsSection === 'image'" class="image-settings-page"><WaveImageServices /></div>
                 <div v-else-if="settingsSection === 'appearance'" class="appearance-settings-page">
                   <WaveHomeAppearance :apps="apps" />
                   <section class="settings-card appearance-settings-card appearance-group">
@@ -1430,7 +1430,7 @@ const settingsSections: Array<{
   },
   {
     id: 'image',
-    name: '生图 API',
+    name: '图像生成',
     caption: 'NovelAI、GPT Image 与柏宝绘',
     description: '管理生图接口，角色外貌与参考图在私聊设置中配置。',
     eyebrow: 'IMAGE GENERATION',

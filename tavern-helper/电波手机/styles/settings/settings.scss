@@ -1474,3 +1474,35 @@
   white-space: pre-wrap;
   line-height: 1.7;
 }
+
+#wave-phone-script-root .wave-device .wave-service-action {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 38px;
+  height: auto;
+  margin: 0;
+  padding: 9px 15px;
+  border: 1px solid #dce3ed;
+  border-radius: 12px;
+  background: #f1f5fa;
+  color: #5073a6;
+  box-shadow: none;
+  text-shadow: none;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+#wave-phone-script-root .wave-device .wave-service-action:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+#wave-phone-script-root .wave-device .wave-service-action:focus-visible {
+  outline: 2px solid #6589bd;
+  outline-offset: 3px;
+}

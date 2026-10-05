@@ -1,55 +1,85 @@
 <template>
-  <section class="wave-image-settings">
-    <div class="image-actions">
-      <button type="button" @click="add('novelai')">＋ NovelAI</button>
-      <button type="button" @click="add('openai')">＋ GPT Image</button>
-      <button type="button" @click="importProfiles">读取柏宝绘配置</button>
-    </div>
-    <p class="image-help">配置自动保存。导入会更新同名来源的柏宝绘接口，保留手动添加的配置。</p>
-    <p v-if="status" role="status" class="image-status">{{ status }}</p>
-    <p v-if="!profiles.length" class="image-empty">添加一个生图接口，再到私聊「角色生图」中选择它。</p>
-    <template v-else>
-      <label
+  <section class="wave-image-settings image-settings-manager">
+    <section class="image-section">
+      <div class="image-heading">
+        <div><strong>接口配置</strong><small>多套配置，按角色选择使用</small></div>
+        <span class="image-count">{{ profiles.length }} 套</span>
+      </div>
+      <div class="image-actions">
+        <button type="button" @click="add('novelai')">＋ NovelAI</button
+        ><button type="button" @click="add('openai')">＋ GPT Image</button
+        ><button type="button" @click="importProfiles">读取柏宝绘配置</button>
+      </div>
+      <label v-if="profiles.length"
         >当前配置<WaveSelect v-model="selected" :options="profiles.map(p => ({ value: p.id, label: p.name }))"
       /></label>
-      <div v-if="profile" :key="profile.id" class="image-profile">
+      <p v-else class="image-empty">添加生图接口，再到私聊「角色生图」中选择它。</p>
+      <p class="image-help">修改自动保存；读取柏宝绘会更新对应来源的接口配置。</p>
+      <p v-if="status" class="image-status" role="status">{{ status }}</p>
+    </section>
+    <template v-if="profile">
+      <section class="image-section">
         <div class="image-heading">
-          <strong>{{ profile.provider === 'novelai' ? 'NovelAI' : 'GPT Image' }}</strong
-          ><button type="button" @click="remove">删除配置</button>
+          <strong>连接设置</strong
+          ><span class="image-count">{{ profile.provider === 'novelai' ? 'NovelAI' : 'GPT Image' }}</span>
         </div>
         <label>配置名称<input v-model="profile.name" @change="save" /></label>
         <label
-          >API 地址<input
+          >接口地址<input
             v-model.trim="profile.baseUrl"
             type="url"
             :placeholder="profile.provider === 'novelai' ? 'https://image.novelai.net' : 'https://api.openai.com'"
             @change="save"
-        /></label>
+          /><small>留空使用官方服务，也可填写兼容代理地址。</small></label
+        >
         <label
-          >API 密钥<input v-model.trim="profile.apiKey" type="password" autocomplete="new-password" @change="save"
+          >API 密钥<input
+            v-model.trim="profile.apiKey"
+            type="password"
+            autocomplete="new-password"
+            placeholder="输入密钥"
+            @change="save"
         /></label>
-        <label
-          >模型<WaveSelect
-            :model-value="profile.model"
-            :options="models.map(value => ({ value, label: value }))"
-            @update:model-value="value => changeModel(value)"
-        /></label>
-        <div class="image-actions">
-          <button type="button" :disabled="loading" @click="refreshModels">
+      </section>
+      <section class="image-section">
+        <div class="image-heading">
+          <strong>模型选择</strong
+          ><button type="button" :disabled="loading" @click="refreshModels">
             {{ loading ? '读取中…' : '拉取模型列表' }}
           </button>
         </div>
-        <label>模型 ID（可手动填写）<input v-model.trim="profile.model" @change="save" /></label>
         <label
-          >通用前置提示词<textarea
+          >生成模型<WaveSelect
+            :model-value="profile.model"
+            :options="models.map(value => ({ value, label: value }))"
+            @update:model-value="changeModel"
+        /></label>
+        <details>
+          <summary>手动填写模型 ID</summary>
+          <label
+            ><span class="wave-visually-hidden">模型 ID</span
+            ><input v-model.trim="profile.model" aria-label="模型 ID" @change="save"
+          /></label>
+        </details>
+      </section>
+      <section class="image-section">
+        <div class="image-heading"><strong>画面提示</strong></div>
+        <label
+          >前置提示词<textarea
             v-model="profile.prefix"
             rows="3"
-            placeholder="画风、画师串、质量词…"
+            placeholder="这套配置共用的画风、画师串、质量词…"
             @change="save"
           />
         </label>
+        <label v-if="profile.provider === 'novelai'"
+          >负面提示词<textarea v-model="profile.negative" rows="3" placeholder="不希望出现的画面特征" @change="save" />
+        </label>
+        <p class="image-help">角色专属外貌在私聊内配置，生成时会与这里的提示词合并。</p>
+      </section>
+      <section class="image-section">
+        <div class="image-heading"><strong>生成参数</strong></div>
         <template v-if="profile.provider === 'novelai'">
-          <label>负面提示词<textarea v-model="profile.negative" rows="3" @change="save" /></label>
           <div class="image-grid">
             <label
               >宽度<input v-model.number="profile.width" type="number" min="256" max="2048" step="64" @change="save"
@@ -57,52 +87,73 @@
             <label
               >高度<input v-model.number="profile.height" type="number" min="256" max="2048" step="64" @change="save"
             /></label>
-            <label>步数<input v-model.number="profile.steps" type="number" min="1" max="50" @change="save" /></label>
             <label
-              >引导强度<input v-model.number="profile.scale" type="number" min="0" max="10" step="0.1" @change="save"
+              >生成步数<input v-model.number="profile.steps" type="number" min="1" max="50" @change="save"
+            /></label>
+            <label
+              >提示词引导<input v-model.number="profile.scale" type="number" min="0" max="10" step="0.1" @change="save"
             /></label>
           </div>
+          <small>宽高需为 64 的倍数。</small>
           <details>
-            <summary>更多参数</summary>
-            <label>采样器<input v-model.trim="profile.sampler" @change="save" /></label>
-            <label>噪声调度<input v-model.trim="profile.noiseSchedule" @change="save" /></label>
+            <summary>高级采样参数</summary>
+            <label>采样器<WaveSelect v-model="profile.sampler" :options="samplers" @update:model-value="save" /></label>
             <label
-              >CFG Rescale<input
-                v-model.number="profile.cfgRescale"
-                type="number"
-                min="0"
-                max="1"
-                step="0.01"
-                @change="save"
+              >噪声调度<WaveSelect v-model="profile.noiseSchedule" :options="schedules" @update:model-value="save"
             /></label>
-            <label
-              >种子（0 为随机）<input
-                v-model.number="profile.seed"
-                type="number"
-                min="0"
-                max="4294967295"
-                @change="save"
-            /></label>
-            <div class="image-heading">
-              <span>参考强度归一化</span
-              ><WaveToggle
-                v-model="profile.normalizeRefStrength"
-                aria-label="参考强度归一化"
-                @update:model-value="save"
-              />
+            <div class="image-grid">
+              <label
+                >CFG Rescale<input
+                  v-model.number="profile.cfgRescale"
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  @change="save" /></label
+              ><label
+                >种子（0 为随机）<input
+                  v-model.number="profile.seed"
+                  type="number"
+                  min="0"
+                  max="4294967295"
+                  @change="save"
+              /></label>
             </div>
           </details>
         </template>
-        <template v-else>
-          <label
+        <template v-else
+          ><label
             >画幅<WaveSelect
               :model-value="`${profile.width}x${profile.height}`"
               :options="sizes"
-              @update:model-value="changeSize"
-          /></label>
-          <label>质量<WaveSelect v-model="profile.quality" :options="qualities" @update:model-value="save" /></label>
-          <small>xhigh / max 仅供支持它们的新模型使用；兼容接口以其实际支持为准。</small>
-        </template>
+              @update:model-value="changeSize" /></label
+          ><label
+            >生成质量<WaveSelect v-model="profile.quality" :options="qualities" @update:model-value="save" /></label
+          ><small>xhigh / max 仅适用于支持它们的模型。</small></template
+        >
+      </section>
+      <WaveVibeSettings
+        v-if="profile.provider === 'novelai'"
+        :key="profile.id"
+        :profile-id="profile.id"
+        :model="profile.model"
+        :model-value="profile.vibes"
+        :normalize="profile.normalizeRefStrength"
+        @update:model-value="
+          value => {
+            profile!.vibes = value;
+            save();
+          }
+        "
+        @update:normalize="
+          value => {
+            profile!.normalizeRefStrength = value;
+            save();
+          }
+        "
+      />
+      <div class="image-actions image-remove-row">
+        <button type="button" class="image-danger" @click="remove">删除当前配置</button>
       </div>
     </template>
   </section>
@@ -115,7 +166,7 @@ import { IMAGE_MODELS, ImageProfileSchema, type ImageProfile } from '../../servi
 import { fetchImageModels } from '../../services/image/generate';
 import { baibaiSettings, importBaibaiProfiles } from '../../services/image/baibai';
 import WaveSelect from '../shared/WaveSelect.vue';
-import WaveToggle from '../shared/WaveToggle.vue';
+import WaveVibeSettings from './WaveVibeSettings.vue';
 const phone = usePhoneStore();
 const profiles = ref(klona(phone.settings.imageServices.profiles));
 const selected = ref(profiles.value[0]?.id || '');
@@ -134,6 +185,15 @@ const models = computed(() =>
 const loading = ref(false),
   status = ref('');
 const sizes = ['1024x1024', '1536x1024', '1024x1536'].map(value => ({ value, label: value.replace('x', ' × ') }));
+const samplers = [
+  'k_euler_ancestral',
+  'k_euler',
+  'k_dpmpp_2s_ancestral',
+  'k_dpmpp_2m',
+  'k_dpmpp_sde',
+  'k_dpmpp_2m_sde',
+].map(value => ({ value, label: value }));
+const schedules = ['karras', 'native', 'exponential', 'polyexponential'].map(value => ({ value, label: value }));
 const qualities = ['auto', 'low', 'medium', 'high', 'xhigh', 'max'].map(value => ({ value, label: value }));
 function save() {
   const result = ImageProfileSchema.safeParse(profile.value);
