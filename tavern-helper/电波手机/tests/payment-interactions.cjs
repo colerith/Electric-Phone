@@ -143,13 +143,64 @@ function click(text) {
   });
   phone.respondToPayment(phone.activeThread.id, 'group', 'received');
   const group = phone.activeThread.messages.find(m => m.id === 'group');
-  assert.equal(group.payload.userReceivedAmount, 40);
+  assert(group.payload.userReceivedAmount > 0 && group.payload.userReceivedAmount < 80);
   assert.equal(group.payload.claimedCount, 2);
-  assert.equal(group.payload.claimedAmount, 60);
+  assert.equal(group.payload.claimedAmount, Math.round((20 + group.payload.userReceivedAmount) * 100) / 100);
   assert.throws(() => phone.respondToPayment(phone.activeThread.id, 'group', 'received'), /已处理/);
   add('group-refuse', 'red_packet', { packetType: 'group', count: 3, state: 'group_available' });
   phone.respondToPayment(phone.activeThread.id, 'group-refuse', 'refunded');
   assert.equal(phone.activeThread.messages.find(m => m.id === 'group-refuse').payload.state, 'group_available');
+  const { applyPaymentActions, paymentClaims } = require(base + '/services/chat/payment.ts');
+  add('ai-private', 'red_packet', { amount: 20 }, 'user');
+  const privatePacket = phone.activeThread.messages.find(m => m.id === 'ai-private');
+  applyPaymentActions(
+    phone.activeThread.messages,
+    [{ message_id: 'ai-private', actor_key: 'alice', action: 'receive' }],
+    ['alice'],
+  );
+  assert.equal(privatePacket.payload.state, 'received');
+  assert.equal(paymentClaims(privatePacket)[0].amount, 20);
+  applyPaymentActions(
+    phone.activeThread.messages,
+    [{ message_id: 'ai-private', actor_key: 'alice', action: 'receive' }],
+    ['alice'],
+  );
+  assert.equal(paymentClaims(privatePacket).length, 1);
+  add(
+    'ai-group',
+    'red_packet',
+    { amount: 1, packetType: 'group', count: 3, claimedCount: 0, state: 'group_available' },
+    'user',
+  );
+  const aiGroup = phone.activeThread.messages.find(m => m.id === 'ai-group');
+  const actions = ['alice', 'bob', 'carl', 'outsider', 'user'].map(actor_key => ({
+    message_id: 'ai-group',
+    actor_key,
+    action: 'receive',
+  }));
+  applyPaymentActions(phone.activeThread.messages, actions, ['alice', 'bob', 'carl'], true);
+  assert.equal(aiGroup.payload.state, 'group_empty');
+  assert.equal(aiGroup.payload.claimedAmount, 1);
+  assert.equal(paymentClaims(aiGroup).length, 3);
+  assert(paymentClaims(aiGroup).every(c => c.amount >= 0.01));
+  applyPaymentActions(phone.activeThread.messages, actions, ['alice', 'bob', 'carl'], true);
+  assert.equal(paymentClaims(aiGroup).length, 3);
+  await tick();
+  const ownCards = [...document.querySelectorAll('.wave-message-red-packet')];
+  ownCards.at(-1).click();
+  await tick();
+  assert(document.querySelector('[role=dialog]'), 'own group packets open details');
+  assert.equal(document.querySelectorAll('.payment-claim').length, 3);
+  assert(document.querySelector('.payment-best').textContent.includes('手气之王'));
+  document.querySelector('[aria-label="关闭收款详情"]').click();
+  await tick();
+  phone.setDraft('保存领取记录');
+  await phone.synchronize();
+  assert.equal(
+    paymentClaims(phone.activeThread.messages.find(m => m.id === 'ai-group')).length,
+    3,
+    'claims survive synchronization',
+  );
   add('switch', 'transfer');
   await tick();
   document.querySelector('.wave-message-transfer').click();

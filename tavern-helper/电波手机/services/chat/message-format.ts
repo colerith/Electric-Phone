@@ -135,6 +135,9 @@ export function formatPhoneMessage(
     default:
       result = `[系统消息] ${content}`;
   }
+  if (message.type === 'red_packet' || message.type === 'transfer') {
+    if (Array.isArray(message.payload.claims)) result += `；已确认领取记录：${JSON.stringify(message.payload.claims)}`;
+  }
   if (message.payload.forwarded) result = `[转发消息]\n${result}`;
   if (includeQuote && message.quotedMessageId) {
     const quoted = history.find(item => item.id === message.quotedMessageId);

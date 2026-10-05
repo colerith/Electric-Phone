@@ -202,8 +202,8 @@
         v-else-if="message.type === 'transfer'"
         class="wave-message-transfer"
         :class="`transfer-${transferState}`"
-        :role="message.sender === 'char' && paymentInteractive ? 'button' : undefined"
-        :tabindex="message.sender === 'char' && paymentInteractive ? 0 : undefined"
+        :role="paymentInteractive ? 'button' : undefined"
+        :tabindex="paymentInteractive ? 0 : undefined"
         aria-label="查看转账详情"
         @click="openPayment"
         @keydown.enter.stop.prevent="openPayment"
@@ -225,8 +225,8 @@
         v-else-if="message.type === 'red_packet'"
         class="wave-message-red-packet"
         :class="[`red-packet-${redPacketState}`, { 'red-packet-group': redPacketIsGroup }]"
-        :role="message.sender === 'char' && paymentInteractive ? 'button' : undefined"
-        :tabindex="message.sender === 'char' && paymentInteractive ? 0 : undefined"
+        :role="paymentInteractive ? 'button' : undefined"
+        :tabindex="paymentInteractive ? 0 : undefined"
         aria-label="查看红包详情"
         @click="openPayment"
         @keydown.enter.stop.prevent="openPayment"
@@ -415,7 +415,7 @@ function albumImage(index: number, fallback: { url: string; description: string 
 const paymentOpen = ref(false);
 const paymentThreadId = ref('');
 function openPayment(event?: Event) {
-  if (!props.paymentInteractive || props.message.sender !== 'char' || props.message.withdrawn) return;
+  if (!props.paymentInteractive || props.message.withdrawn) return;
   event?.stopPropagation();
   paymentThreadId.value = phone.activeThread?.id || '';
   paymentOpen.value = true;
@@ -617,7 +617,7 @@ const redPacketClaimedCount = computed(() =>
   ),
 );
 const redPacketStateLabel = computed(() => {
-  if (props.message.payload.userPaymentDecision) return paymentDetails(props.message).label;
+  if (!redPacketIsGroup.value && props.message.payload.userPaymentDecision) return paymentDetails(props.message).label;
   if (!redPacketIsGroup.value)
     return ({ pending: '未收款', received: '已收款', refunded: '已退回' } as Record<string, string>)[
       redPacketState.value

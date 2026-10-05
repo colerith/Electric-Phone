@@ -67,7 +67,7 @@
         />
         <p class="chat-settings-note">
           {{ phone.walletIdentity?.name || '角色' }}
-          的手动与自动生成使用此账户。我的私人账本只接受手工记账，银行卡资料不会发给模型。
+          的手动与自动生成使用此账户。我的私人账本记录手工账目及本人实际收发的红包、转账，模型不能直接改写；银行卡资料不会发给模型。
         </p>
       </section>
       <WaveWalletPanel

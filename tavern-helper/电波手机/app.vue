@@ -719,10 +719,7 @@
                       <span>币种</span>
                       <WaveSelect v-model="extraDraft.currency" aria-label="币种" :options="currencyOptions" />
                     </label>
-                    <label v-if="extraMode === '转账'">
-                      <span>收款状态</span>
-                      <WaveSelect v-model="extraDraft.state" aria-label="收款状态" :options="transferStateOptions" />
-                    </label>
+
                     <label v-if="extraMode === '红包'">
                       <span>红包类型</span>
                       <WaveSelect v-model="extraDraft.kind" aria-label="红包类型" :options="redPacketKindOptions" />
@@ -1350,15 +1347,10 @@ const redPacketKindOptions = computed<WaveSelectOption[]>(() =>
     ? [{ value: 'group', label: '群聊红包', description: '群成员一起抢红包' }]
     : [{ value: 'private', label: '私聊红包', description: '发送给当前联系人' }],
 );
-const currencyOptions: WaveSelectOption[] = ['CNY', 'JPY', 'USD', 'EUR', 'GBP', 'KRW'].map(value => ({
+const currencyOptions: WaveSelectOption[] = ['CNY', 'JPY', 'USD', 'EUR', 'GBP', 'KRW', 'HKD', 'TWD'].map(value => ({
   value,
   label: value,
 }));
-const transferStateOptions: WaveSelectOption[] = [
-  { value: 'pending', label: '未收款', description: '等待对方确认接收' },
-  { value: 'received', label: '已收款', description: '剧情内已确认收款' },
-  { value: 'refunded', label: '已退款', description: '款项已在剧情内退回' },
-];
 const sendModeOptions: WaveSelectOption[] = [
   { value: 'secondary_api', label: '独立副 API', description: '不占用酒馆主生成' },
   { value: 'main_api', label: '同步酒馆正文', description: '发送后触发主生成' },
@@ -2107,7 +2099,7 @@ function useExtra(name: string): void {
     kind: name === '红包' ? (groupPacket ? 'group' : 'private') : 'image',
     url: '',
     amount: '',
-    currency: 'CNY',
+    currency: store.selectedWalletAccount?.currency || store.state.walletBook.accounts.user?.currency || 'CNY',
     count: String(groupMemberCount),
     distance: '',
     state: groupPacket ? 'group_available' : 'pending',

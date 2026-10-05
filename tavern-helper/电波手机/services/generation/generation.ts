@@ -32,6 +32,7 @@ import { MomentBatchSchema, type MomentPlan, type MomentsState, type MomentPost 
 import { ZoneUpdateSchema, type ZoneUpdate } from '../space/zone';
 
 type GenerationInput = {
+  paymentCurrencies?: PhonePromptInput['paymentCurrencies'];
   groupImagePrefixes?: PhonePromptInput['groupImagePrefixes'];
   spaceImages?: PhonePromptInput['spaceImages'];
   media?: ReplyMedia;

@@ -16,21 +16,39 @@
       >
         <header>
           <strong>{{ title }}</strong
-          ><button type="button" aria-label="关闭收款详情" @click="$emit('close')">×</button>
+          ><button type="button" aria-label="关闭收款详情" @click="$emit('close')">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
         </header>
         <i
           class="payment-symbol"
           :class="message.type === 'red_packet' ? 'fa-solid fa-gift' : 'fa-solid fa-money-bill-transfer'"
           aria-hidden="true"
         ></i>
-        <p>{{ senderName }}发来的{{ message.type === 'red_packet' ? '红包' : '转账' }}</p>
+        <p>{{ senderName }}发出的{{ message.type === 'red_packet' ? '红包' : '转账' }}</p>
+        <small>{{ message.payload.userReceivedAmount != null ? '你领取了' : '总金额' }}</small>
         <strong class="payment-amount">{{ currency }} {{ amountLabel }}</strong>
         <p>{{ message.payload.note || message.content }}</p>
         <small v-if="details.group"
-          >群红包 · 已领 {{ details.claimed }}/{{ details.count }} 份<span v-if="details.canReceive">
-            · 本次可领 {{ details.share.toFixed(2) }}</span
-          ></small
+          >群红包 · 已领 {{ details.claimed }}/{{ details.count }} 份 · 共 {{ currency }} {{ totalAmount }}</small
         >
+        <section v-if="claims.length" class="payment-claims" aria-label="红包领取记录">
+          <div v-for="claim in claims" :key="claim.actorKey" class="payment-claim">
+            <span
+              ><strong>{{ recipientName(claim.actorKey) }}</strong
+              ><small>{{ claim.at ? new Date(claim.at).toLocaleString() : '' }}</small></span
+            >
+            <span
+              >{{ currency }} {{ claim.amount.toFixed(2)
+              }}<small
+                v-if="details.group && details.claimed >= details.count && claim.amount === bestAmount"
+                class="payment-best"
+                ><i class="fa-solid fa-crown" aria-hidden="true"></i> 手气之王</small
+              ></span
+            >
+          </div>
+        </section>
+        <small v-if="details.claimed > claims.length">部分历史领取记录未保存，不能显示具体领取人。</small>
         <p class="payment-status" role="status">{{ details.label }}</p>
         <div v-if="details.canRespond" class="payment-actions">
           <button type="button" :disabled="!details.canReceive" @click="respond('received')">
@@ -51,7 +69,7 @@ import { computed, inject, nextTick, onMounted, onUnmounted, ref, watch } from '
 import type { PhoneMessage } from '../../schemas';
 import { usePhoneStore } from '../../stores/phone';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
-import { paymentDetails } from '../../services/chat/payment';
+import { paymentDetails, paymentClaims } from '../../services/chat/payment';
 import { displayIdentityName } from '../../services/core/identity';
 const props = defineProps<{ message: PhoneMessage; threadId: string }>();
 const emit = defineEmits<{ close: [] }>();
@@ -61,9 +79,22 @@ const dialog = ref<HTMLElement | null>(null);
 const error = ref('');
 const details = computed(() => paymentDetails(props.message));
 const title = computed(() => (props.message.type === 'red_packet' ? '红包详情' : '转账详情'));
+function recipientName(key: string): string {
+  return (
+    phone.activeIdentity?.groupMembers?.[key]?.nickname ||
+    (key === 'user' ? String(SillyTavern.name1 || '我') : displayIdentityName(phone.state.identities[key]) || key)
+  );
+}
 const senderName = computed(() =>
-  displayIdentityName(phone.state.identities[String(props.message.payload.actorKey || '')] || phone.activeIdentity),
+  props.message.sender === 'user'
+    ? recipientName('user')
+    : recipientName(String(props.message.payload.actorKey || phone.activeIdentity?.charKey || '')),
 );
+const claims = computed(() => paymentClaims(props.message));
+const bestAmount = computed(() =>
+  claims.value.length === details.value.count ? Math.max(...claims.value.map(c => c.amount)) : -1,
+);
+const totalAmount = computed(() => Number(props.message.payload.amount || 0).toFixed(2));
 const currency = computed(() => String(props.message.payload.currency || 'CNY'));
 const amountLabel = computed(() => {
   const amount = Number(props.message.payload.userReceivedAmount ?? props.message.payload.amount);
@@ -138,6 +169,32 @@ watch(
     padding: 10px 14px;
     font: inherit;
     cursor: pointer;
+  }
+  .payment-claims {
+    margin: 18px 0;
+    text-align: left;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .payment-claim {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0;
+    border-top: 1px solid #8882;
+    font-size: 13px;
+  }
+  .payment-claim > span:last-child {
+    text-align: right;
+  }
+  .payment-claim small {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--settings-muted);
+  }
+  .payment-claim .payment-best {
+    color: #bf913d;
   }
   button:focus-visible {
     outline: 2px solid var(--wave-blue, #5e80be);

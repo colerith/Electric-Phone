@@ -17,7 +17,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.1.88';
+export const WAVE_PHONE_RELEASE_VERSION = '1.1.89';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -502,6 +502,27 @@ export const ModelMessageSchema = z
       ...(actor_key ? { actor_key } : {}),
       ...(actorName ? { actorName } : {}),
       ...message.payload,
+      ...(['red_packet', 'transfer'].includes(message.type) ? { paymentLedgerVersion: 1 } : {}),
+      ...(message.type === 'transfer'
+        ? {
+            state: 'pending',
+            claims: [],
+            claimedCount: 0,
+            claimedAmount: 0,
+            userPaymentDecision: '',
+            userReceivedAmount: undefined,
+          }
+        : {}),
+      ...(message.type === 'red_packet'
+        ? {
+            state: message.payload.packetType === 'group' ? 'group_available' : 'pending',
+            claimedCount: 0,
+            claimedAmount: 0,
+            claims: [],
+            userPaymentDecision: '',
+            userReceivedAmount: undefined,
+          }
+        : {}),
     } as Record<string, unknown>,
   }));
 
@@ -510,7 +531,13 @@ export const ModelReactionsSchema = z
   .max(1)
   .catch([])
   .optional();
+export const PaymentActionsSchema = z
+  .array(z.object({ message_id: z.string(), actor_key: z.string().optional(), action: z.enum(['receive', 'refund']) }))
+  .max(30)
+  .catch([])
+  .optional();
 export const PhoneChatResponseSchema = z.object({
+  payment_actions: PaymentActionsSchema,
   reactions: ModelReactionsSchema,
   context_relation: z.enum(['linked', 'independent']).optional(),
   version: z.literal(1).prefault(1),

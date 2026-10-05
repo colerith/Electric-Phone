@@ -1,3 +1,4 @@
+import { syncPaymentLedger } from '../services/chat/payment-ledger';
 import {
   ImageAssetSchema,
   imageTargetKey,
@@ -31,7 +32,7 @@ import { sharedChatHistory } from '../services/chat/shared-history';
 import { updateGroupActivity } from '../services/chat/group-activity';
 import { resolveStickerMessage, stickerPrompt } from '../services/chat/stickers';
 import { resolveGroupActor } from '../services/chat/group-replies';
-import { paymentDetails } from '../services/chat/payment';
+import { paymentDetails, claimPayment, applyPaymentActions } from '../services/chat/payment';
 import {
   randomAnonymousId,
   randomAnonymousAvatarSeed,
@@ -1144,6 +1145,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
 
   function saveChat(): void {
     if (!context.value || !state.value.chatKey) return;
+    syncPaymentLedger(
+      state.value.walletBook,
+      Object.values(state.value.threads),
+      state.value.identities,
+      walletChatPrefix(state.value.chatKey),
+      selectedWalletAccount.value?.currency,
+    );
     for (const group of Object.values(state.value.identities).filter(item => item.source === 'local_group')) {
       const thread = Object.values(state.value.threads).find(item => item.charKey === group.charKey);
       if (!thread) continue;
@@ -1585,6 +1593,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         if (block.delta) {
           const thread = ensureThread(nextState, runtime, identity);
           if (block.messageId <= thread.displayFloorCutoff) return;
+          applyPaymentActions(
+            thread.messages,
+            block.delta.payment_actions,
+            identity.source === 'local_group'
+              ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
+              : [identity.charKey],
+            identity.source === 'local_group',
+          );
           applyCharacterReactions(
             thread.messages,
             block.delta.reactions,
@@ -2043,6 +2059,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         replyCount: settings.value.chat,
         voiceServices: settings.value.voiceServices,
         presets: settings.value.presets,
+        paymentCurrencies: Object.fromEntries(
+          walletAccounts.value.filter(a => a.ownerType !== 'shared').map(a => [a.ownerId, a.currency]),
+        ),
         walletAuthorization: currentWalletGrant(),
         moduleSettings: settings.value.moduleSettings,
         identity: activeIdentity.value,
@@ -2104,6 +2123,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         const thread = state.value.threads[runtime.input.thread.id];
         if (!identity || !thread) throw Error('消息会话已变更，主动消息未写入');
         delta.messages = normalizeGroupReplies(identity, delta.messages);
+        applyPaymentActions(
+          thread.messages,
+          delta.payment_actions,
+          identity.source === 'local_group'
+            ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
+            : [identity.charKey],
+          identity.source === 'local_group',
+        );
         applyCharacterReactions(
           thread.messages,
           delta.reactions,
@@ -3262,7 +3289,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       content: input.content,
       createdAt: nextReceivedAt(thread),
       status: 'sending',
-      payload: input.payload || {},
+      payload: {
+        ...input.payload,
+        ...(['red_packet', 'transfer'].includes(input.type || '')
+          ? { paymentLedgerVersion: 1, state: input.payload?.packetType === 'group' ? 'group_available' : 'pending' }
+          : {}),
+      },
       quotedMessageId: input.quotedMessageId || '',
       favorite: false,
       withdrawn: false,
@@ -3413,6 +3445,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
               replyCount: settings.value.chat,
               voiceServices: settings.value.voiceServices,
               presets: settings.value.presets,
+              paymentCurrencies: Object.fromEntries(
+                walletAccounts.value.filter(a => a.ownerType !== 'shared').map(a => [a.ownerId, a.currency]),
+              ),
               walletAuthorization: requestWalletGrant,
               moduleSettings: settings.value.moduleSettings,
               cardKey: runtime.cardKey,
@@ -3459,6 +3494,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       saveChat();
       sendStage = '请求接口';
       const result = await generatePhoneReply({
+        paymentCurrencies: Object.fromEntries(
+          walletAccounts.value.filter(a => a.ownerType !== 'shared').map(a => [a.ownerId, a.currency]),
+        ),
         walletAuthorization: requestWalletGrant,
         settings: klona({
           ...settings.value,
@@ -3541,6 +3579,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       pending.forEach(message => {
         message.payload.narrativeRelation = narrativeRelation;
       });
+      applyPaymentActions(
+        currentThread.messages,
+        result.data.payment_actions,
+        identity.source === 'local_group'
+          ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
+          : [identity.charKey],
+        identity.source === 'local_group',
+      );
       applyCharacterReactions(
         currentThread.messages,
         result.data.reactions,
@@ -3907,9 +3953,11 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!payment.canRespond) throw Error('这笔红包或转账已处理，或不能由你领取。');
     if (decision === 'received' && !payment.canReceive) throw Error('金额无效或红包已领完，无法收款。');
     const currency = String(message.payload.currency || 'CNY');
-    const receiptId = `${walletChatPrefix(context.value.chatKey)}payment:${thread.charKey}:${message.id}:user`;
     const now = nowIso();
     if (decision === 'received') {
+      const claimed = claimPayment(message, 'user', now);
+      if (claimed === null) throw Error('红包已领取或已抢完，请刷新详情。');
+      payment.share = claimed;
       if (isWalletCharacter(state.value.identities[thread.charKey]))
         ensureWalletAccounts(state.value.walletBook, thread.charKey, state.value.identities[thread.charKey].name);
       // Explicitly receiving money can open a fresh private wallet, without restoring deleted history.
@@ -3919,27 +3967,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         ownerType: 'user',
         ownerId: 'user',
       });
-      const account = state.value.walletBook.accounts.user;
-      account.manual[receiptId] ||= AccountRowSchema.parse({
-        id: receiptId,
-        title: message.type === 'red_packet' ? '收到红包' : '收到转账',
-        amount: payment.share,
-        currency,
-        direction: 'income',
-        category: '社交',
-        date: now.slice(0, 10),
-        note: String(message.payload.note || message.content),
-        state: 'received',
-      });
       message.payload.userReceivedAmount = payment.share;
-      if (payment.group) {
-        message.payload.claimedCount = payment.claimed + 1;
-        message.payload.claimedAmount =
-          Math.round(((Number(message.payload.claimedAmount) || 0) + payment.share) * 100) / 100;
-        message.payload.state = payment.claimed + 1 >= payment.count ? 'group_empty' : 'group_claimed';
-      }
     }
     if (!payment.group) message.payload.state = decision;
+    message.payload.paymentLedgerVersion = 1;
     message.payload.userPaymentDecision = decision;
     message.payload.userPaymentAt = now;
     const title = message.type === 'red_packet' ? '红包' : '转账';

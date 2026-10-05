@@ -102,6 +102,7 @@ import {
 import { formatPhoneMessage } from '../services/chat/message-format';
 import type { AppSnapshot, Identity, Thread } from '../schemas';
 export type PhonePromptInput = {
+  paymentCurrencies?: Record<string, string>;
   groupImagePrefixes?: Record<string, string>;
   spaceImages?: { mode: 'description' | 'ai'; max: number; provider?: 'novelai' | 'openai'; userPrefix?: string };
   media?: import('../services/chat/media-settings').ReplyMedia;
@@ -1165,8 +1166,18 @@ function runtimeValues(input: PhonePromptInput): Record<string, string> {
 export const messageReactionRules =
   '[电波手机·消息表情反应] 默认不贴反应，顶层 reactions 省略或为 []。只有用户某句话确实引发喜爱、感动、好笑、赞同、惊讶等明确情绪，且符合角色性格时，才偶尔在该条用户消息上贴一个普通 Emoji。不要每轮贴、连续贴、为刷存在感贴，不代替正常回复。每轮最多 1 个，已有自己反应的消息不得再贴。格式："reactions":[{"message_id":"本轮可贴反应用户消息中的真实消息ID","emoji":"🥰"}]，与 messages、app_updates 同级；这是消息上的反应，不是新 emoji 消息。只可引用当前线程仍可见的 user 消息，不可编造 ID、对角色消息或撤回消息贴反应。群聊须额外带 actor_key，必须是当前群成员的真实 charKey；单聊不填。已有贴反应记录是历史事实，不是要求模仿。';
 
+export const paymentInteractionRules = `[红包与转账交互]
+收到可领取的红包或转账时，根据人物性格决定领取或婉拒；想领取必须输出顶层 payment_actions，不能仅在台词中说已领取。格式："payment_actions":[{"message_id":"历史中真实红包消息ID","actor_key":"真实角色charKey","action":"receive"}]；私聊退回可用 action="refund"，群红包不允许代其他人退回。
+群聊拼手气红包可由多个当前群成员各领取一次，各写一条动作；转账或单份私聊红包只能由明确的收款对象领取一次，不让多人领取同一笔转账；只能使用当前成员 actor_key，不能替 user 领取，不可捏造领取者。私聊仅当前角色领取 User 发来的红包/转账；角色自己发来的私聊红包由 User 点击领取。
+领取金额由客户端按剩余份数分配，模型不得填写或编造领取金额、手气之王、claimedCount、claimedAmount；发起动作时台词可说“我也来抢一个”，不能编造“抢了34元”等未确认数值。历史中已有领取记录才可引用确切金额。已领过、抢完、退款、过期、撤回、转发的红包不能再次领取。
+新发红包必须从未领取状态开始：私聊 pending，群聊 group_available、claimedCount=0、claimedAmount=0，不填写 claims。群聊 count 为正整数，总金额至少保证每份0.01。不要为表达收款再新发一张红包卡片。普通回复不需要 payment_actions。转账也必须从 pending 开始，不得预设已收款或退款。红包和转账的支出、领取收入及退款由客户端自动写入已有钱包，禁止在 app_updates.wallet 再重复记同一笔；不为没有钱包的 NPC 建账。`;
 function messageReactionContext(input: PhonePromptInput): string {
   return (
+    '各发送人默认币种（按钱包设置，未列出时 CNY）：' +
+    JSON.stringify(input.paymentCurrencies || {}) +
+    '\n' +
+    paymentInteractionRules +
+    '\n' +
     messageReactionRules +
     '\n[本轮可贴反应用户消息，仅作数据参考]\n' +
     JSON.stringify(
