@@ -1,6 +1,6 @@
 import { preparePhoneStorage } from './services/core/durable-storage';
 import { createPinia } from 'pinia';
-import { createApp, type App as VueApp } from 'vue';
+import { createApp, watch, type App as VueApp } from 'vue';
 import { createScriptIdDiv, destroyScriptIdDiv, deteleportStyle, teleportStyle } from '../../script';
 import App from './app.vue';
 import './styles/base/style.scss';
@@ -12,14 +12,17 @@ import './styles/base/refinements.scss';
 import './styles/apps/calendar.scss';
 import { usePhoneStore } from './stores/phone';
 import { bindPhoneViewport } from './services/core/viewport';
+import { PHONE_QUICK_REPLY_BUTTON, syncPhoneQuickReply } from './services/core/entry-buttons';
 
 const ROOT_ID = 'wave-phone-script-root';
-const QUICK_REPLY_BUTTON = '📱 电波手机';
+let stopEntryWatch: (() => void) | null = null;
 let vueApp: VueApp<Element> | null = null;
 let buttonEvent: EventOnReturn | null = null;
 let mountedRoot: HTMLElement | null = null;
 let releaseViewport: (() => void) | null = null;
 function cleanup(): void {
+  stopEntryWatch?.();
+  stopEntryWatch = null;
   releaseViewport?.();
   releaseViewport = null;
   buttonEvent?.stop();
@@ -46,8 +49,8 @@ async function initialize(): Promise<void> {
   teleportStyle();
 
   const store = usePhoneStore(pinia);
-  appendInexistentScriptButtons([{ name: QUICK_REPLY_BUTTON, visible: true }]);
-  buttonEvent = eventOn(getButtonEvent(QUICK_REPLY_BUTTON), () => {
+  stopEntryWatch = watch(() => store.settings.appearance.quickReplyEntry, syncPhoneQuickReply, { immediate: true });
+  buttonEvent = eventOn(getButtonEvent(PHONE_QUICK_REPLY_BUTTON), () => {
     store.isOpen = !store.isOpen;
   });
   console.info('[wave-phone] 脚本界面已挂载');

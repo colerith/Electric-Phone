@@ -60,7 +60,12 @@ onBeforeUnmount(() => dispose?.());
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
-  transition: opacity 0.18s ease;
+  transform: translateX(var(--wave-float-offset, 0px));
+  transition:
+    opacity 0.18s ease,
+    transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    left 0.2s ease,
+    top 0.2s ease;
 }
 #wave-phone-script-root .wave-floating-entry::before,
 #wave-phone-script-root .wave-floating-entry::after {
@@ -92,8 +97,23 @@ onBeforeUnmount(() => dispose?.());
 #wave-phone-script-root .wave-floating-entry.is-dragging {
   cursor: grabbing;
 }
+#wave-phone-script-root .wave-floating-viewport > .wave-floating-entry:focus-visible {
+  transform: translateX(0);
+}
+@media (hover: hover) and (pointer: fine) {
+  #wave-phone-script-root .wave-floating-viewport > .wave-floating-entry:hover {
+    transform: translateX(0) scale(1.05);
+  }
+}
+#wave-phone-script-root .wave-floating-viewport > .wave-floating-entry:active {
+  transform: translateX(0) scale(0.92);
+}
+#wave-phone-script-root .wave-floating-viewport > .wave-floating-entry.is-dragging {
+  transform: translateX(0) scale(0.96);
+  transition: none;
+}
 @media (prefers-reduced-motion: reduce) {
-  #wave-phone-script-root .wave-floating-entry {
+  #wave-phone-script-root .wave-floating-viewport > .wave-floating-entry {
     transition: none;
   }
 }

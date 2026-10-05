@@ -1,16 +1,27 @@
 <template>
   <div class="home-appearance-editor">
     <section class="settings-card appearance-group">
-      <div class="wave-settings-title">悬浮球入口</div>
+      <div class="wave-settings-title">打开入口方式</div>
+      <p>可同时开启多个入口；默认只显示快速回复栏按钮。</p>
       <div class="system-toggle-row">
-        <span><strong>显示电波手机悬浮球</strong><small>点击打开手机，拖动调整位置，靠近边缘自动吸附</small></span>
+        <span><strong>悬浮球</strong><small>可拖动，贴边隐藏三分之一，保留三分之二可见</small></span>
         <WaveToggle
           v-model="appearance.floatingEntry"
           aria-label="显示电波手机悬浮球"
+          :disabled="appearance.floatingEntry && !appearance.quickReplyEntry"
           @update:model-value="phone.saveSettings()"
         />
       </div>
-      <p>使用内置图标，位置自动记忆；打开手机时暂时隐藏。也可继续使用酒馆的电波手机按钮。</p>
+      <div class="system-toggle-row">
+        <span><strong>注入快速回复栏</strong><small>显示酒馆助手的「📱 电波手机」脚本按钮</small></span>
+        <WaveToggle
+          v-model="appearance.quickReplyEntry"
+          aria-label="注入快速回复栏"
+          :disabled="appearance.quickReplyEntry && !appearance.floatingEntry"
+          @update:model-value="phone.saveSettings()"
+        />
+      </div>
+      <p>修改立即生效并自动保存。至少保留一个入口；悬浮球使用内置图标，打开手机时暂时隐藏。</p>
     </section>
     <section class="settings-card appearance-group">
       <div class="wave-settings-title">顶部状态栏</div>

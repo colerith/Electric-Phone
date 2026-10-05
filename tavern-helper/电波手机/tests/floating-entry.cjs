@@ -41,11 +41,17 @@ for (const pointerSupport of [true, false]) {
   send(w.document, pointerSupport ? 'pointermove' : 'mousemove', -500, 9999);
   send(w.document, pointerSupport ? 'pointerup' : 'mouseup', -500, 9999);
   assert.equal(saved.edge, 'left');
+  assert(Math.abs(parseFloat(button.style.getPropertyValue('--wave-float-offset')) + 56 / 3) < 0.001);
   inside();
   button.dispatchEvent(new w.MouseEvent('click', { bubbles: true, detail: 1 }));
   assert.equal(clicks, 0, 'drag must not open phone');
   button.dispatchEvent(new w.MouseEvent('click', { bubbles: true, detail: 0 }));
   assert.equal(clicks, 1, 'keyboard remains accessible');
+  send(button, pointerSupport ? 'pointerdown' : 'mousedown', 20, 300);
+  send(w.document, pointerSupport ? 'pointermove' : 'mousemove', 32, 300);
+  send(w.document, pointerSupport ? 'pointerup' : 'mouseup', 32, 300);
+  assert.equal(saved.edge, 'none', 'dragging out of a dock uses the smaller redock threshold');
+  assert.equal(button.style.getPropertyValue('--wave-float-offset'), '0px');
   if (!pointerSupport) {
     const touch = (target, type, x, y) => {
       const event = new w.Event(type, { bubbles: true, cancelable: true });
@@ -78,7 +84,7 @@ if (process.env.WAVE_QA_DIR) {
   }).code;
   const icon = require(base + '/assets/icons/floating-icon.ts').floatingIcon;
   const controller = compile(fs.readFileSync(base + '/services/core/floating-entry.ts', 'utf8'));
-  const html = `<!doctype html><meta charset="utf-8"><style>html,body{margin:0;width:100%;height:100%}button{min-width:999px;padding:100px}#wave-phone-script-root{position:fixed;inset:0;pointer-events:none}.wave-phone-host{position:fixed;inset:0}${css}</style><div id="wave-phone-script-root"><div class="wave-phone-host"><div class="wave-floating-viewport"><button class="wave-floating-entry" aria-label="打开电波手机"><img src="${icon}"></button></div></div></div><output id="result"></output><script>const exports={};${controller}\nconst button=document.querySelector('button');const stop=exports.bindFloatingEntry(button,{x:1,y:.56,edge:'right'},()=>{});let passed=true;for(const [x,y] of [[-500,-500],[9999,9999]]){button.dispatchEvent(new PointerEvent('pointerdown',{clientX:10,clientY:10,pointerId:1,isPrimary:true}));document.dispatchEvent(new PointerEvent('pointermove',{clientX:x,clientY:y,pointerId:1,cancelable:true}));document.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));passed=passed&&document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight;}document.querySelector('#result').textContent=passed?'PASS_NO_OVERFLOW':'FAIL_OVERFLOW';</script>`;
+  const html = `<!doctype html><meta charset="utf-8"><style>html,body{margin:0;width:100%;height:100%}button{min-width:999px;padding:100px}#wave-phone-script-root{position:fixed;inset:0;pointer-events:none}.wave-phone-host{position:fixed;inset:0}${css}</style><div id="wave-phone-script-root"><div class="wave-phone-host"><div class="wave-floating-viewport"><button class="wave-floating-entry" aria-label="打开电波手机"><img src="${icon}"></button></div></div></div><output id="result"></output><script>const exports={};${controller}\nconst button=document.querySelector('button');button.style.transition='none';const stop=exports.bindFloatingEntry(button,{x:1,y:.56,edge:'right'},()=>{});let passed=true;for(const [x,y] of [[-500,-500],[9999,9999]]){button.dispatchEvent(new PointerEvent('pointerdown',{clientX:10,clientY:10,pointerId:1,isPrimary:true}));document.dispatchEvent(new PointerEvent('pointermove',{clientX:x,clientY:y,pointerId:1,cancelable:true}));document.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));passed=passed&&document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight;}setTimeout(()=>{const r=button.getBoundingClientRect();const visible=Math.max(0,Math.min(r.right,document.documentElement.clientWidth)-Math.max(0,r.left))/r.width;passed=passed&&Math.abs(visible-2/3)<.03;document.querySelector('#result').textContent=passed?'PASS_NO_OVERFLOW_TWO_THIRDS':'FAIL_GEOMETRY_'+visible;},350);</script>`;
   fs.mkdirSync(process.env.WAVE_QA_DIR, { recursive: true });
   fs.writeFileSync(path.join(process.env.WAVE_QA_DIR, 'floating.html'), html);
 }

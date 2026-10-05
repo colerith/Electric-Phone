@@ -38,6 +38,11 @@ export function bindFloatingEntry(
           : b.left + clamp(position.x, 0, 1) * (b.maxX - b.left);
     y = b.top + clamp(position.y, 0, 1) * (b.maxY - b.top);
     Object.assign(button.style, { left: `${x}px`, top: `${y}px`, width: `${b.size}px`, height: `${b.size}px` });
+    // Keep layout coordinates inside the viewport; only paint one third past the clipped edge.
+    button.style.setProperty(
+      '--wave-float-offset',
+      `${position.edge === 'left' ? -b.size / 3 : position.edge === 'right' ? b.size / 3 : 0}px`,
+    );
     button.classList.toggle('is-docked', position.edge !== 'none');
   };
   const start = (
@@ -48,6 +53,7 @@ export function bindFloatingEntry(
     stopDrag?.();
     const bx = x,
       by = y;
+    const startingEdge = position.edge;
     dragged = false;
     const end = () => {
       stopDrag?.();
@@ -55,7 +61,12 @@ export function bindFloatingEntry(
       button.classList.remove('is-dragging');
       if (dragged) {
         const b = floatingBounds(view);
-        position.edge = Math.min(x - b.left, b.maxX - x) < 24 ? (x - b.left < b.maxX - x ? 'left' : 'right') : 'none';
+        position.edge =
+          Math.min(x - b.left, b.maxX - x) < (startingEdge === 'none' ? 24 : 8)
+            ? x - b.left < b.maxX - x
+              ? 'left'
+              : 'right'
+            : 'none';
         suppressUntil = Date.now() + 450;
         save({ ...position });
       }
