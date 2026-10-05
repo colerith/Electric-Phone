@@ -66,7 +66,7 @@
           @update:model-value="selectShared"
         />
         <p class="chat-settings-note">
-          {{ phone.activeIdentity?.name || '角色' }}
+          {{ phone.walletIdentity?.name || '角色' }}
           的手动与自动生成使用此账户。我的私人账本只接受手工记账，银行卡资料不会发给模型。
         </p>
       </section>
@@ -159,15 +159,17 @@ const options = computed(() =>
 );
 const account = computed(() => accounts.value.find(a => a.id === selectedId.value));
 const raw = computed(() => (account.value ? JSON.stringify(accountWallet(phone.state.walletBook, account.value)) : ''));
-const sharedId = computed(() => phone.state.walletBook.selectedShared[phone.activeIdentity?.charKey || ''] || '');
+const sharedId = computed(() => phone.state.walletBook.selectedShared[phone.walletIdentity?.charKey || ''] || '');
 const sharedOptions = computed(() => [
   {
     value: '',
-    label: phone.state.walletBook.accounts[`char:${phone.activeIdentity?.charKey}`]
+    label: phone.state.walletBook.accounts[`char:${phone.walletIdentity?.charKey}`]
       ? '角色自己的钱包'
       : '未选择剧情账户',
   },
-  ...phone.walletAccounts.filter(a => a.ownerType === 'shared').map(a => ({ value: a.id, label: a.name })),
+  ...phone.walletAccounts
+    .filter(a => a.ownerType === 'shared' && a.ownerId === phone.walletIdentity?.charKey)
+    .map(a => ({ value: a.id, label: a.name })),
 ]);
 const currencyOptions = currencies.map(value => ({ value, label: value }));
 const draft = reactive({ name: '', currency: 'CNY', balance: '', bankName: '', cardLabel: '', cardLastFour: '' });
@@ -181,7 +183,7 @@ watch(
     }
     if (!accounts.value.some(a => a.id === selectedId.value))
       selectedId.value =
-        accounts.value.find(a => a.id === (props.mode === 'mine' ? 'user' : `char:${phone.activeIdentity?.charKey}`))
+        accounts.value.find(a => a.id === (props.mode === 'mine' ? 'user' : `char:${phone.walletIdentity?.charKey}`))
           ?.id ||
         accounts.value[0]?.id ||
         '';
@@ -191,7 +193,7 @@ watch(
 watch(
   selectedId,
   value => {
-    if (props.mode === 'app') phone.walletSelectedAccountId = value;
+    if (props.mode !== 'mine') phone.walletSelectedAccountId = value;
   },
   { immediate: true },
 );

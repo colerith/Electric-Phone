@@ -89,7 +89,7 @@
         ></span>
         <div>
           <strong>{{ row.title || row.category }}</strong
-          ><small>{{ row.date || '日期未记录' }} · {{ row.category }} · {{ row.account }}</small
+          ><small>{{ row.date || '日期未记录' }} · {{ row.category }}</small
           ><small v-if="row.state !== 'received'">{{
             row.state === 'pending' ? '待确认 · 未计入收支' : '已退款 · 未计入收支'
           }}</small>

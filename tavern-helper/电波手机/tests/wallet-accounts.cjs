@@ -221,10 +221,36 @@ global.getChatMessages = id => (typeof id === 'number' ? floors.filter(f => f.me
   floors = [];
   await phone.synchronize();
   assert.equal(accounts.accountWallet(book(), book().accounts[shared]).balance, 190);
-  // A second character has no access to the first character's shared account.
+  // Opening an NPC chat must not change the selected main-character wallet.
   const bob = phone.addContact('Bob', '朋友');
   phone.startConversation(bob);
-  assert.throws(() => phone.selectSharedWallet(shared));
+  phone.setContactDetails({ actorType: 'npc' });
+  assert.equal(phone.state.identities[bob].actorType, 'npc');
+  assert.equal(phone.walletSelectedAccountId, shared);
+  assert(
+    phone.walletAccounts.some(a => a.id === 'user'),
+    'User remains visible',
+  );
+  assert(
+    phone.walletAccounts.some(a => a.ownerId === char),
+    'main wallets remain visible from NPC chat',
+  );
+  assert(!phone.walletAccounts.some(a => a.ownerId === bob), 'NPC wallets are excluded');
+  assert(!book().accounts[`char:${bob}`], 'NPC registration does not create a wallet');
+  accounts.ensureWalletAccounts(book(), bob, 'Bob');
+  assert(!phone.walletAccounts.some(a => a.ownerId === bob), 'legacy NPC wallets remain stored but hidden');
+  assert(book().accounts[`char:${bob}`], 'legacy NPC data is not deleted');
+  assert.equal(phone.walletIdentity.charKey, char);
+  phone.selectSharedWallet(shared);
+  assert.equal(book().selectedShared[char], shared);
+  assert.equal(book().selectedShared[bob], undefined);
+  phone.setContactDetails({ actorType: 'main' });
+  assert(
+    phone.walletAccounts.some(a => a.ownerId === bob),
+    'promoted main character is visible',
+  );
+  phone.setContactDetails({ actorType: 'npc' });
+  assert(!phone.walletAccounts.some(a => a.ownerId === bob));
   phone.startConversation(char);
   phone.selectSharedWallet(shared);
   const context = {

@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.1.87`
+当前发布版本：`v1.1.88`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.87/file/index-1.1.87.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.88/file/index-1.1.88.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：大图放大后支持鼠标、触屏与触控笔拖动，兼容界面缩放；包含 Ecot 上方间距调整。
+本版更新：钱包保留 User、主要角色及其共享账户，过滤 NPC；切换私聊不再误切钱包，隐藏账目内部账户标识。
 
 ## 首次配置
 

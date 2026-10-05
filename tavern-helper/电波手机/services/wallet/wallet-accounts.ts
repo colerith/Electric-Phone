@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { WalletTransactionSchema, WalletMoneySchema, walletTotals } from './wallet';
 
+export function isWalletCharacter(identity?: { actorType?: string; source: string } | null): boolean {
+  return identity?.actorType === 'main' && !['local_group', 'temporary'].includes(identity.source);
+}
+
 export const currencies = ['CNY', 'USD', 'EUR', 'JPY', 'KRW', 'GBP', 'HKD', 'TWD'];
 export const AccountRowSchema = WalletTransactionSchema.extend({ currency: z.string().min(1) });
 export const WalletAuthorizationSchema = z.object({

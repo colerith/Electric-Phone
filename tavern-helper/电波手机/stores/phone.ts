@@ -53,6 +53,7 @@ import {
 import { npcAvatarUrl } from '../services/space/npc-avatar';
 import {
   ensureWalletAccounts,
+  isWalletCharacter,
   deleteAccount,
   walletAuthorization,
   accountWallet,
@@ -300,6 +301,7 @@ function readChatState(context: RuntimeContext): ChatState {
   });
   if (!Object.hasOwn(saved, 'walletBook')) {
     for (const [key, snapshot] of Object.entries(parsed.snapshots)) {
+      if (!isWalletCharacter(parsed.identities[key])) continue;
       ensureWalletAccounts(parsed.walletBook, key, parsed.identities[key]?.name || '角色');
       if (!snapshot.wallet.trim()) continue;
       const old = parseWallet(snapshot.wallet),
@@ -499,20 +501,33 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   const walletSelectedAccountId = ref('');
   const walletAccounts = computed(() =>
     Object.values(state.value.walletBook.accounts).filter(
-      account => account.ownerType === 'user' || account.ownerId === activeIdentity.value?.charKey,
+      account => account.ownerType === 'user' || isWalletCharacter(state.value.identities[account.ownerId]),
     ),
   );
   const selectedWalletAccount = computed(() => {
     const key = activeIdentity.value?.charKey || '';
     const explicit = state.value.walletBook.accounts[walletSelectedAccountId.value];
-    if (explicit && (explicit.ownerType === 'user' || explicit.ownerId === key)) return explicit;
+    if (explicit && walletAccounts.value.some(account => account.id === explicit.id)) return explicit;
     const id =
       walletView.value === 'user'
         ? 'user'
         : walletView.value === 'shared'
           ? state.value.walletBook.selectedShared[key]
           : `char:${key}`;
-    return state.value.walletBook.accounts[id] || null;
+    return (
+      walletAccounts.value.find(account => account.id === id) ||
+      walletAccounts.value.find(account => account.id === 'user') ||
+      walletAccounts.value[0] ||
+      null
+    );
+  });
+  const walletIdentity = computed(() => {
+    const owner = state.value.identities[selectedWalletAccount.value?.ownerId || ''];
+    return isWalletCharacter(owner)
+      ? owner
+      : isWalletCharacter(activeIdentity.value)
+        ? activeIdentity.value
+        : panelCharacters.value[0] || null;
   });
   const walletRaw = computed(() =>
     selectedWalletAccount.value
@@ -520,7 +535,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       : '',
   );
   function currentWalletGrant(): WalletAuthorization | undefined {
-    return activeIdentity.value ? walletAuthorization(state.value.walletBook, activeIdentity.value.charKey) : undefined;
+    return isWalletCharacter(activeIdentity.value)
+      ? walletAuthorization(state.value.walletBook, activeIdentity.value!.charKey)
+      : undefined;
   }
   function generationSnapshot(snapshot = activeSnapshot.value, grant = currentWalletGrant()) {
     const account = grant && state.value.walletBook.accounts[grant.accountId];
@@ -529,7 +546,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           ...snapshot,
           wallet: JSON.stringify(accountWallet(state.value.walletBook, { ...account, currency: grant.currency })),
         }
-      : snapshot;
+      : { ...snapshot, wallet: '' };
   }
   function applyIndependentAppUpdate(
     snapshot: AppSnapshot,
@@ -609,7 +626,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
   }
   function createSharedWallet(name: string): string {
-    const key = activeIdentity.value?.charKey;
+    const key = walletIdentity.value?.charKey;
     if (!key) throw Error('请先选择联系人');
     const id = makeId('shared');
     state.value.walletBook.accounts[id] = WalletAccountSchema.parse({
@@ -630,7 +647,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
   }
   function selectSharedWallet(id: string): void {
-    const key = activeIdentity.value?.charKey;
+    const key = walletIdentity.value?.charKey;
     if (!key) return;
     const account = state.value.walletBook.accounts[id];
     if (id && (!account || account.ownerType !== 'shared' || account.ownerId !== key))
@@ -1237,7 +1254,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       })[profileKey];
       persistCharacterProfiles(characterProfiles.value);
     }
-    ensureWalletAccounts(nextState.walletBook, mergedIdentity.charKey, mergedIdentity.name);
+    if (isWalletCharacter(mergedIdentity))
+      ensureWalletAccounts(nextState.walletBook, mergedIdentity.charKey, mergedIdentity.name);
     if (!nextState.snapshots[mergedIdentity.charKey]) {
       nextState.snapshots[mergedIdentity.charKey] = AppSnapshotSchema.parse({});
     }
@@ -1532,7 +1550,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           block.messageId <= (floorCutoffs.wallet ?? -1)
             ? undefined
             : (block.delta?.app_updates.wallet ?? block.apps.wallet);
-        if (walletUpdate !== undefined) {
+        if (walletUpdate !== undefined && isWalletCharacter(identity)) {
           const grant = (nextState.walletBook.grants[walletGrantKey] ||= walletAuthorization(
             nextState.walletBook,
             identity.charKey,
@@ -1752,7 +1770,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (!isReady.value) restoreCharacterForApp();
       migrateLegacyWeatherLocation();
       const updatedWalletAccount = updatedWalletAccountByChar.get(state.value.activeCharKey);
-      if (updatedWalletAccount) walletSelectedAccountId.value = updatedWalletAccount;
+      if (updatedWalletAccount && !walletSelectedAccountId.value) walletSelectedAccountId.value = updatedWalletAccount;
       updatedByChar.forEach((apps, charKey) => markAppsUnread(charKey, apps));
       syncError.value = '';
       isReady.value = true;
@@ -2121,7 +2139,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           runtime.input.walletAuthorization,
           `${walletChatPrefix(state.value.chatKey)}manual:${id}`,
         );
-        if (changed) walletSelectedAccountId.value = runtime.input.walletAuthorization.accountId;
+        if (changed && !walletSelectedAccountId.value)
+          walletSelectedAccountId.value = runtime.input.walletAuthorization.accountId;
       } else if (value !== undefined) {
         changed = rememberIndependentAppUpdate(charKey, module, value, requestModuleSettings, id) || changed;
       }
@@ -3570,7 +3589,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
                 )
               ) {
                 updatedApps.add('wallet');
-                walletSelectedAccountId.value = requestWalletGrant.accountId;
+                if (!walletSelectedAccountId.value) walletSelectedAccountId.value = requestWalletGrant.accountId;
               }
             }
             return;
@@ -3829,6 +3848,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const updated = IdentitySchema.parse({ ...identity, ...details, updatedAt: nowIso() });
     syncToken += 1;
     state.value.identities[identity.charKey] = updated;
+    if (isWalletCharacter(updated)) ensureWalletAccounts(state.value.walletBook, updated.charKey, updated.name);
     persistRosterIdentity(updated);
     if (state.value.moments.npcs[identity.charKey] && details.npcProfile !== undefined)
       state.value.moments.npcs[identity.charKey].profile = details.npcProfile;
@@ -3890,7 +3910,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const receiptId = `${walletChatPrefix(context.value.chatKey)}payment:${thread.charKey}:${message.id}:user`;
     const now = nowIso();
     if (decision === 'received') {
-      ensureWalletAccounts(state.value.walletBook, thread.charKey, activeIdentity.value?.name || '角色');
+      if (isWalletCharacter(state.value.identities[thread.charKey]))
+        ensureWalletAccounts(state.value.walletBook, thread.charKey, state.value.identities[thread.charKey].name);
       // Explicitly receiving money can open a fresh private wallet, without restoring deleted history.
       state.value.walletBook.accounts.user ||= WalletAccountSchema.parse({
         id: 'user',
@@ -4423,6 +4444,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     walletView,
     walletSelectedAccountId,
     walletAccounts,
+    walletIdentity,
     selectedWalletAccount,
     walletRaw,
     saveWalletAccount,
