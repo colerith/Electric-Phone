@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.1.85`
+当前发布版本：`v1.1.86`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.85/file/index-1.1.85.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.86/file/index-1.1.86.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：修复群聊 Ecot 宽度、昵称间距与引用来源；缩小外貌导入按钮；语音支持酒馆同源代理并记录错误；大图工具栏预留顶部安全边距。
+本版更新：增大群聊 Ecot 与上一条消息的间距，保留现有宽度与对齐。
 
 ## 首次配置
 
