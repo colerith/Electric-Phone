@@ -517,11 +517,12 @@ async function run(action: 'generate' | 'caption') {
   }
   .gallery-toolbar {
     position: absolute;
-    top: max(12px, env(safe-area-inset-top));
+    top: calc(48px + env(safe-area-inset-top, 0px));
     right: 10px;
     left: 10px;
     display: flex;
     justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 4px;
     pointer-events: none;
     z-index: 2;

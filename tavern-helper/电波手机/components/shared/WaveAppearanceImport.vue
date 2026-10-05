@@ -88,12 +88,13 @@ function apply() {
     width: auto;
     justify-self: start;
     margin: 0;
-    padding: 11px 14px;
+    padding: 8px 12px;
     border: 1px solid #8883;
     border-radius: 14px;
     background: #8881;
     color: inherit;
-    font: inherit;
+    font: 400 12px/1.5 var(--wave-ui-font);
+    min-height: 34px;
     cursor: pointer;
   }
   .appearance-selection {

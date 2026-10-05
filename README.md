@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.1.84`
+当前发布版本：`v1.1.85`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.84/file/index-1.1.84.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.85/file/index-1.1.85.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：群聊 Ecot 改为显示在本轮 AI 回复最前面，位于成员昵称和消息气泡之前；同轮内容去重，私聊保持原位置。
+本版更新：修复群聊 Ecot 宽度、昵称间距与引用来源；缩小外貌导入按钮；语音支持酒馆同源代理并记录错误；大图工具栏预留顶部安全边距。
 
 ## 首次配置
 

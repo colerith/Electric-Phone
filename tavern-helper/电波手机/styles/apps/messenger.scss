@@ -574,7 +574,7 @@
   }
 }
 
-#wave-phone-script-root .wave-device .group-sender-name + .message-row {
+#wave-phone-script-root .wave-device .chat-thread .message-unit:not(.system) .group-sender-name + .message-row {
   margin-top: 0;
   margin-bottom: 8px;
 }

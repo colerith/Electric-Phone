@@ -1142,7 +1142,17 @@ function runtimeValues(input: PhonePromptInput): Record<string, string> {
             ' #' +
             message.id +
             ': ' +
-            formatPhoneMessage(message, phoneHistory(input.thread)) +
+            formatPhoneMessage(message, phoneHistory(input.thread), true, quoted => {
+              const key = quoted.sender === 'user' ? 'user' : String(quoted.payload.actorKey || '');
+              return (
+                input.identity.groupMembers?.[key]?.nickname ||
+                (key === 'user'
+                  ? String(SillyTavern.name1 || 'User')
+                  : input.groupMembers?.find(member => member.charKey === key)?.name) ||
+                key ||
+                quoted.sender
+              );
+            }) +
             (message.characterReactions?.length
               ? ' [角色已贴反应：' + JSON.stringify(message.characterReactions) + ']'
               : '') +

@@ -452,9 +452,10 @@
 }
 
 #wave-phone-script-root .wave-device .group-round-electric {
-  align-self: stretch;
-  width: 100%;
+  align-self: flex-start;
+  width: fit-content;
+  max-width: min(76%, 300px);
   min-width: 0;
   box-sizing: border-box;
-  margin: 0 0 12px;
+  margin: 0 0 12px 38px;
 }

@@ -72,7 +72,12 @@ export function formatMessagePreview(message: MessageInput, charSenderName = '')
   return `${prefix}${status}${summary || '[消息]'}`;
 }
 
-export function formatPhoneMessage(message: MessageInput, history: PhoneMessage[] = [], includeQuote = true): string {
+export function formatPhoneMessage(
+  message: MessageInput,
+  history: PhoneMessage[] = [],
+  includeQuote = true,
+  senderName?: (message: PhoneMessage) => string,
+): string {
   if (message.withdrawn) return '[已撤回消息]';
   const p = (key: string) => printable(message.payload[key]);
   if (message.payload.interaction === 'poke')
@@ -135,7 +140,7 @@ export function formatPhoneMessage(message: MessageInput, history: PhoneMessage[
     const quoted = history.find(item => item.id === message.quotedMessageId);
     const snapshot = message.payload.quote as { text?: string; sender?: string } | undefined;
     const quoteText = quoted ? formatPhoneMessage(quoted, [], false) : snapshot?.text || '原消息已不可用';
-    result = `[引用 ${quoted?.sender || snapshot?.sender || '消息'} #${message.quotedMessageId}]\n${quoteText}\n[/引用]\n${result}`;
+    result = `[引用 ${quoted && senderName ? senderName(quoted) : snapshot?.sender && !['char', 'user'].includes(snapshot.sender) ? snapshot.sender : quoted?.payload.actorKey || quoted?.sender || snapshot?.sender || '消息'} #${message.quotedMessageId}]\n${quoteText}\n[/引用]\n${result}`;
   }
   return result;
 }

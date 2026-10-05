@@ -1,3 +1,5 @@
+import { logDiagnostic } from '../core/diagnostics';
+import { redactDiagnostic } from '../core/request-error';
 import { z } from 'zod';
 import { MediaRangeSchema } from './media-settings';
 import { safeBrowserUrl } from '../apps/browser';
@@ -131,26 +133,67 @@ export async function synthesizeSpeech(
   voice: CharacterVoice,
   signal?: AbortSignal,
 ): Promise<Blob> {
-  const request = speechRequest(text, services, voice);
+  const started = Date.now();
+  let stage = '配置检查';
+  const secret = voice.provider === 'off' ? '' : services[voice.provider].apiKey;
+  const model = voice.provider === 'off' ? '' : services[voice.provider].model;
+  const context = () => `服务：${voice.provider} | 模型：${model} | 阶段：${stage} | 耗时：${Date.now() - started} ms`;
+  let timedOut = false;
   const controller = new AbortController();
   const abort = () => controller.abort();
   if (signal?.aborted) abort();
   signal?.addEventListener('abort', abort, { once: true });
-  const timer = setTimeout(abort, 60000);
+  const timer = setTimeout(() => {
+    timedOut = true;
+    abort();
+  }, 60000);
   try {
-    const response = await fetch(request.url, { ...request.init, signal: controller.signal });
-    if (!response.ok) throw new Error(`语音服务返回 ${response.status}，请检查配置或额度`);
+    const request = speechRequest(text, services, voice);
+    stage = '请求接口';
+    logDiagnostic('语音请求', context());
+    let response: Response;
+    // The host proxy avoids browser CORS restrictions without exposing keys to a third-party relay.
+    if (typeof SillyTavern !== 'undefined' && typeof SillyTavern.getRequestHeaders === 'function') {
+      response = await fetch(`/proxy/${request.url}`, {
+        ...request.init,
+        headers: { ...SillyTavern.getRequestHeaders(), ...request.init.headers },
+        signal: controller.signal,
+      });
+      if (response.status === 404 && (await response.clone().text()).includes('CORS proxy is disabled')) {
+        logDiagnostic('语音连接', '酒馆跨域代理未启用，使用浏览器直连');
+        response = await fetch(request.url, { ...request.init, signal: controller.signal });
+      }
+    } else response = await fetch(request.url, { ...request.init, signal: controller.signal });
+    stage = '读取音频';
+    if (!response.ok) {
+      const detail = (await response.text()).slice(0, 600);
+      throw new Error(`语音服务 HTTP ${response.status}：${detail}`);
+    }
     if (voice.provider === 'elevenlabs' || voice.provider === 'fish') {
       const blob = await response.blob();
       if (!blob.size || blob.type.includes('json')) throw new Error('语音服务未返回音频');
       return blob;
     }
     const data = await response.json();
-    if (data.base_resp?.status_code !== 0) throw new Error('MiniMax 合成失败，请检查音色、模型和账户配置');
+    if (data.base_resp?.status_code !== 0)
+      throw new Error(
+        `MiniMax 合成失败 (${data.base_resp?.status_code})：${String(data.base_resp?.status_msg || '请检查音色、模型和账户配置')}`,
+      );
     const hex = data.data?.audio;
     if (typeof hex !== 'string' || !hex.length || hex.length % 2 || !/^[0-9a-f]+$/i.test(hex))
       throw new Error('MiniMax 返回的音频无效');
     return new Blob([Uint8Array.from(hex.match(/../g)!, byte => parseInt(byte, 16))], { type: 'audio/mpeg' });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    const raw = error instanceof Error ? error.message : String(error);
+    const detail = timedOut
+      ? '语音请求超时（60 秒）'
+      : /failed to fetch|load failed|networkerror/i.test(raw)
+        ? '语音连接失败：浏览器跨域限制或网络不可达。可在酒馆 config.yaml 启用 enableCorsProxy 并重启酒馆，或配置支持跨域的语音 API 地址。'
+        : raw;
+    const safe = redactDiagnostic(detail, [secret]);
+    logDiagnostic('语音合成失败', `${context()} | ${safe} | ${redactDiagnostic(raw, [secret])}`);
+    throw new Error(safe);
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', abort);

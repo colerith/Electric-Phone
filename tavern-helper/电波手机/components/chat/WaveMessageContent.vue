@@ -345,6 +345,7 @@ import { ChatPreferencesSchema } from '../../services/chat/chat-preferences';
 import { klona } from 'klona';
 import { splitElectric } from '../../services/generation/electric';
 import { usePhoneStore } from '../../stores/phone';
+import { logDiagnostic } from '../../services/core/diagnostics';
 import { CharacterVoiceSchema, synthesizeSpeech } from '../../services/chat/speech';
 import { distanceLabel, locationDistance } from '../../services/core/location';
 import { displaySpeechText } from '../../services/chat/speech-tags';
@@ -681,11 +682,18 @@ async function toggleVoice(): Promise<void> {
       voiceAudio.onerror = () => {
         voicePlaying.value = false;
         voiceError.value = '音频加载失败，请重试';
+        logDiagnostic(
+          '语音播放失败',
+          `消息：${props.message.id} | 服务：${voice.provider} | 音频错误码：${voiceAudio?.error?.code || '未知'}`,
+        );
       };
     }
     if (!controller.signal.aborted) await voiceAudio.play();
   } catch (error) {
-    if (!controller.signal.aborted) voiceError.value = error instanceof Error ? error.message : '语音播放失败';
+    if (!controller.signal.aborted) {
+      voiceError.value = error instanceof Error ? error.message : '语音播放失败';
+      logDiagnostic('语音播放失败', `消息：${props.message.id} | 服务：${voice.provider} | ${voiceError.value}`);
+    }
   } finally {
     if (voiceRequest === controller) voiceBusy.value = false;
   }

@@ -2047,7 +2047,10 @@ async function send(activateReply = true): Promise<void> {
           ...translatedPayload,
           ...(quotedMessage.value
             ? {
-                quote: { sender: quotedMessage.value.sender, text: formatPhoneMessage(quotedMessage.value, [], false) },
+                quote: {
+                  sender: groupMemberName(quotedMessage.value),
+                  text: formatPhoneMessage(quotedMessage.value, [], false),
+                },
               }
             : {}),
         },
@@ -2143,7 +2146,10 @@ async function sendTyped(input: SendMessageInput): Promise<void> {
           ...input.payload,
           ...(quotedMessage.value
             ? {
-                quote: { sender: quotedMessage.value.sender, text: formatPhoneMessage(quotedMessage.value, [], false) },
+                quote: {
+                  sender: groupMemberName(quotedMessage.value),
+                  text: formatPhoneMessage(quotedMessage.value, [], false),
+                },
               }
             : {}),
         },
@@ -2349,7 +2355,7 @@ function quotedMessageText(message: PhoneMessage): string {
   if (!message.quotedMessageId) return '';
   const quoted = visibleMessages.value.find(item => item.id === message.quotedMessageId);
   return quoted
-    ? `${quoted.sender === 'user' ? userName.value : displayIdentityName(store.activeIdentity)} · ${formatPhoneMessage(quoted, [], false)}`
+    ? `${groupMemberName(quoted)} · ${formatPhoneMessage(quoted, [], false)}`
     : String((message.payload.quote as { text?: string } | undefined)?.text || '原消息已不可用');
 }
 function openMessageMenu(message: PhoneMessage): void {
