@@ -2552,6 +2552,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const config = NpcGenerationOptionsSchema.parse(options);
     const parsed = GeneratedNpcSchema.array().length(config.count).parse(rows);
     const names = new Set(identities.value.map(c => c.name.trim().toLocaleLowerCase()));
+    if (config.relatedUser) names.add((SillyTavern.name1 || 'User').trim().toLocaleLowerCase());
     const related = config.relatedKeys.map(key => state.value.identities[key]);
     if (related.some(c => !c || c.source === 'local_group')) throw Error('关联人物已被移除，请重新选择');
     const additions = parsed.map(row => {
@@ -2559,7 +2560,11 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (names.has(name)) throw Error(`已有同名联系人「${row.name}」，未添加本批人物`);
       names.add(name);
       const id = makeId('npc');
-      const about = [related.length ? `关联人物：${related.map(c => c.name).join('、')}` : '', row.profile]
+      const about = [
+        related.length ? `关联人物：${related.map(c => c.name).join('、')}` : '',
+        config.relatedUser ? `关联用户：${SillyTavern.name1 || 'User'}（{{user}}）` : '',
+        row.profile,
+      ]
         .filter(Boolean)
         .join('\n');
       return IdentitySchema.parse({

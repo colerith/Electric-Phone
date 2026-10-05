@@ -115,13 +115,18 @@ global.toastr = { success: () => {} };
   const slider = document.querySelector('input[type=range]');
   slider.value = '2';
   slider.dispatchEvent(new Event('input', { bubbles: true }));
-  document.querySelector('[role=checkbox]').click();
+  document.querySelector('[aria-label="关联用户"]').click();
+  click('Alice');
   document.querySelector('[aria-label="NPC 双语配置"]').click();
   await vue.nextTick();
   click('生成并添加 NPC');
   await wait();
   assert(document.body.textContent.includes('副 API 正在生成 2'));
   assert.equal(captured.custom_api.model, 'dummy');
+  assert(captured.ordered_prompts.includes('persona_description'));
+  assert(captured.ordered_prompts[0].content.includes('已选择关联真实用户 User'));
+  assert.equal(document.querySelector('[role=progressbar]').getAttribute('aria-valuenow'), null);
+  const progressBody = document.body.innerHTML;
   assert(captured.ordered_prompts[0].content.includes('主要人物资料'));
   assert(captured.ordered_prompts[0].content.includes('简体中文'));
   const row = name => ({
@@ -137,14 +142,22 @@ global.toastr = { success: () => {} };
   assert(first);
   assert.equal(first.actorType, 'npc');
   assert(first.about.includes('关联人物：Alice'));
+  assert(first.about.includes('关联用户：User'));
+  assert(!phone.identities.some(c => c.name === 'User'));
   assert.equal(first.avatar, '');
   assert.equal(phone.state.chatPreferences[first.charKey].autoTranslate, true);
   assert.equal(vars.global[schemas.CARD_ROSTER_VARIABLE_KEY].data['test-card'][first.charKey].actorType, 'npc');
-  assert.equal(vars.global[schemas.PROFILE_VARIABLE_KEY].data['test-card::' + first.charKey].chatPreferences.autoTranslate, true);
+  assert.equal(
+    vars.global[schemas.PROFILE_VARIABLE_KEY].data['test-card::' + first.charKey].chatPreferences.autoTranslate,
+    true,
+  );
   assert(document.body.textContent.includes('已添加 2 位 NPC'));
   const before = phone.identities.length;
+  document.querySelector('[aria-label="关联用户"]').click();
+  await vue.nextTick();
   click('再生成一批 NPC');
   await wait();
+  assert(!captured.ordered_prompts.includes('persona_description'));
   click('取消生成');
   resolveRequest(JSON.stringify({ npcs: [row('Late One'), row('Late Two')] }));
   await wait();
@@ -211,6 +224,11 @@ global.toastr = { success: () => {} };
       '<!doctype html>' + document.documentElement.outerHTML,
     );
   }
+  if (process.env.WAVE_QA_DIR)
+    fs.writeFileSync(
+      path.join(process.env.WAVE_QA_DIR, 'npc-progress.html'),
+      '<!doctype html><html>' + document.head.outerHTML + '<body>' + progressBody + '</body></html>',
+    );
   app.unmount();
   console.log(
     'PASS NPC defaults/bounds/secondary API/relations/bilingual/batch integrity/cancel/switch/avatar failure',

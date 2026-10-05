@@ -465,13 +465,16 @@ export async function generateNpcContacts(
   return requestConfigured(
     settings,
     generationId,
-    [{ role: 'system', content: npcGenerationPrompt(parsed, contacts, provider) }],
+    [
+      { role: 'system', content: npcGenerationPrompt(parsed, contacts, provider, SillyTavern.name1 || 'User') },
+      ...(parsed.relatedUser ? ['persona_description' as BuiltinPrompt] : []),
+    ],
     '',
     raw =>
       parseGeneratedNpcs(
         extractJson(raw),
         parsed.count,
-        contacts.map(c => c.name),
+        [...contacts.map(c => c.name), ...(parsed.relatedUser ? [SillyTavern.name1 || 'User'] : [])],
       ),
   );
 }

@@ -2,8 +2,19 @@
   <div class="wave-npc-generator">
     <fieldset :disabled="busy">
       <section>
-        <label>关联的主要 NPC / 角色</label>
+        <label>关联人物</label>
         <div class="npc-related" role="group" aria-label="关联人物">
+          <button
+            type="button"
+            role="checkbox"
+            :aria-checked="options.relatedUser"
+            aria-label="关联用户"
+            @click="options.relatedUser = !options.relatedUser"
+          >
+            <i :class="options.relatedUser ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>我（{{
+              userName
+            }}）
+          </button>
           <button
             v-for="contact in contacts"
             :key="contact.charKey"
@@ -63,12 +74,42 @@
       </section>
     </fieldset>
     <div v-if="busy || status" class="npc-progress" role="status" aria-live="polite">
-      <progress
+      <div class="npc-progress-heading">
+        <span
+          ><i
+            :class="
+              busy
+                ? 'fa-solid fa-wand-magic-sparkles'
+                : succeeded
+                  ? 'fa-solid fa-circle-check'
+                  : 'fa-solid fa-circle-info'
+            "
+            aria-hidden="true"
+          ></i
+          >{{
+            busy ? (stage === 'profiles' ? '正在构思人物' : '正在绘制头像') : succeeded ? '生成完成' : '生成状态'
+          }}</span
+        >
+        <span v-if="busy" class="npc-progress-count">{{
+          stage === 'profiles' ? '准备资料' : `${completed} / ${options.count}`
+        }}</span>
+      </div>
+      <div
         v-if="busy"
-        :value="stage === 'profiles' ? undefined : completed"
-        :max="options.count"
+        class="npc-progress-track"
+        :class="{ 'is-indeterminate': stage === 'profiles' }"
+        role="progressbar"
         aria-label="NPC 生成进度"
-      />
+        :aria-valuenow="stage === 'profiles' ? undefined : completed"
+        :aria-valuemin="0"
+        :aria-valuemax="options.count"
+        :aria-valuetext="status"
+      >
+        <span
+          class="npc-progress-fill"
+          :style="stage === 'profiles' ? undefined : { width: `${(completed / options.count) * 100}%` }"
+        ></span>
+      </div>
       <p>{{ status }}</p>
       <p v-for="warning in warnings" :key="warning">{{ warning }}</p>
     </div>
@@ -97,6 +138,10 @@ import WaveSelect from '../shared/WaveSelect.vue';
 import WaveSlider from '../shared/WaveSlider.vue';
 import WaveToggle from '../shared/WaveToggle.vue';
 const phone = usePhoneStore();
+const userName = computed(() => {
+  void phone.context;
+  return SillyTavern.name1 || 'User';
+});
 const options = ref(NpcGenerationOptionsSchema.parse({}));
 const contacts = computed(() => phone.identities.filter(c => !['local_group', 'temporary'].includes(c.source)));
 const busy = ref(false),
@@ -275,11 +320,62 @@ async function generate() {
   }
   .npc-progress {
     display: grid;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid rgba(94, 128, 190, 0.12);
+    border-radius: 16px;
+    background: rgba(94, 128, 190, 0.055);
+  }
+  .npc-progress-heading,
+  .npc-progress-heading > span:first-child {
+    display: flex;
+    align-items: center;
     gap: 8px;
   }
-  progress {
-    width: 100%;
-    accent-color: var(--wave-blue, #5e80be);
+  .npc-progress-heading {
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .npc-progress-heading i {
+    color: var(--wave-blue, #5e80be);
+  }
+  .npc-progress-count {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--wave-blue, #5e80be);
+    white-space: nowrap;
+  }
+  .npc-progress-track {
+    height: 7px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: rgba(94, 128, 190, 0.13);
+  }
+  .npc-progress-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--wave-blue, #5e80be), #92acd7);
+    transition: width 0.3s ease;
+  }
+  .is-indeterminate .npc-progress-fill {
+    width: 38%;
+    animation: npc-progress-drift 1.7s ease-in-out infinite alternate;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .npc-progress-fill {
+      animation: none;
+      transition: none;
+    }
+  }
+}
+@keyframes npc-progress-drift {
+  from {
+    transform: translateX(-35%);
+  }
+  to {
+    transform: translateX(195%);
   }
 }
 </style>
