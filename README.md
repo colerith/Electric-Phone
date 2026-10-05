@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.1.77`
+当前发布版本：`v1.1.78`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.77/file/index-1.1.77.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.78/file/index-1.1.78.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：美化 NPC 生成进度，新增阶段标题、圆角状态卡和渐变进度条；关联人物支持「我（{{user}}）」，可与其他角色一起选择，并读取用户人设、保存关联背景。
+本版更新：修改头像新增 AI 生成入口，可补充提示词、选择生图配置，左侧 AI 润色调用副 API 按 NovelAI/GPT Image 适配英文描述，右侧生成头像。结果先预览裁切再保存；同时修正音色备注与分割线间距。
 
 ## 首次配置
 

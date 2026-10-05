@@ -19,7 +19,7 @@
         v-if="opened"
         class="wave-image-modal"
         @click.self="closeEditor"
-        @keydown.esc.stop.prevent="closeEditor"
+        @keydown.esc.stop.prevent="aiOpened ? closeAi() : closeEditor()"
         @keydown.tab="trapFocus"
       >
         <div
@@ -27,10 +27,11 @@
           class="wave-upload-subpage"
           role="dialog"
           aria-modal="true"
-          :aria-label="`修改${label}`"
+          :aria-label="aiOpened ? `AI 生成${label}` : `修改${label}`"
           tabindex="-1"
         >
-          <div class="wave-upload-dialog" :aria-label="`修改${label}`">
+          <WaveAvatarGenerator v-if="aiOpened" :label="label" @close="closeAi" @generated="acceptGenerated" />
+          <div v-else class="wave-upload-dialog" :aria-label="`修改${label}`">
             <div class="wave-dialog-bar">
               <button class="wave-modal-close" type="button" aria-label="关闭图片编辑" @click="closeEditor">
                 <span aria-hidden="true">×</span>
@@ -112,6 +113,11 @@
               >
             </button>
 
+            <button v-if="purpose === 'avatar'" class="wave-upload-file" type="button" @click="aiOpened = true">
+              <i class="fa-solid fa-wand-magic-sparkles"></i
+              ><span><strong>AI 生成</strong><small>描述头像，支持 AI 润色提示词</small></span>
+            </button>
+
             <label class="wave-field-label" :for="`wave-image-url-${purpose}`">图片地址</label>
             <input
               :id="`wave-image-url-${purpose}`"
@@ -149,6 +155,7 @@
 import { avatarCropStyle } from '../../services/core/avatar';
 import { computed, ref, watch, nextTick, onBeforeUnmount, inject } from 'vue';
 import WaveSlider from './WaveSlider.vue';
+import WaveAvatarGenerator from './WaveAvatarGenerator.vue';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
 
 const props = withDefaults(
@@ -184,15 +191,28 @@ const emit = defineEmits<{
 
 const surface = inject(phoneSurfaceKey, ref(null));
 const opened = ref(false);
+const aiOpened = ref(false);
+function closeAi() {
+  aiOpened.value = false;
+  void nextTick(() => dialog.value?.focus());
+}
+function acceptGenerated(image: string) {
+  draftValue.value = image;
+  resetCrop();
+  errorText.value = '';
+  closeAi();
+}
 const dialog = ref<HTMLElement | null>(null);
 let previousFocus: HTMLElement | null = null;
 function openEditor() {
   previousFocus = surface.value?.ownerDocument.activeElement as HTMLElement | null;
+  aiOpened.value = false;
   loadDraft();
   opened.value = true;
   void nextTick(() => dialog.value?.focus());
 }
 function closeEditor() {
+  aiOpened.value = false;
   opened.value = false;
   emit('cancel');
   previousFocus?.focus();
@@ -200,7 +220,7 @@ function closeEditor() {
 function trapFocus(event: KeyboardEvent) {
   const items = Array.from(
     dialog.value?.querySelectorAll<HTMLElement>(
-      'button:not(:disabled), input:not(:disabled):not([type="file"]), [tabindex="0"]',
+      'button:not(:disabled), input:not(:disabled):not([type="file"]), textarea:not(:disabled), [tabindex="0"]',
     ) || [],
   );
   const first = items[0],
@@ -357,6 +377,7 @@ function confirm(): void {
     errorText.value = '请输入酒馆内部头像地址、http/https 图片地址，或从本地选择图片。';
     return;
   }
+  aiOpened.value = false;
   opened.value = false;
   previousFocus?.focus();
   emit('confirm', {
@@ -368,6 +389,7 @@ function confirm(): void {
 }
 
 function resetToCard(): void {
+  aiOpened.value = false;
   opened.value = false;
   previousFocus?.focus();
   emit('reset');

@@ -159,6 +159,9 @@ function update(patch: Partial<CharacterVoice>) {
   padding: 18px 0 22px;
 }
 
+#wave-phone-script-root .character-voice-settings > label + .character-voice-library {
+  padding-top: 18px;
+}
 #wave-phone-script-root .character-voice-library {
   display: grid;
   gap: 12px;
