@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ImageSubjectSchema } from '../image/library';
 import type { VoiceServices, CharacterVoice } from './speech';
 import type { CharacterImage, ImageServices } from '../image/schema';
 export const MediaRangeSchema = z.object({
@@ -13,9 +14,10 @@ export type ReplyMedia = {
   image: MediaRange;
   imageProvider?: 'novelai' | 'openai';
   characterPrefix: string;
+  userPrefix?: string;
 };
 export const ImageRequestSchema = z.object({
-  subject: z.enum(['character', 'other_character', 'scene', 'object']),
+  subject: ImageSubjectSchema,
   prompt: z.string().trim().min(1).max(12000),
 });
 export function validateReplyMedia(

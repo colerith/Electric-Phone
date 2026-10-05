@@ -9,6 +9,7 @@ import { VoiceServicesSchema, CharacterVoiceSchema } from './services/chat/speec
 import { BrowserStateSchema, SearchEngineSchema } from './services/apps/browser';
 import { WeatherLocationSchema } from './services/core/weather';
 import { z } from 'zod';
+import { ImageAssetSchema } from './services/image/library';
 import { ChatPreferencesSchema } from './services/chat/chat-preferences';
 import { ZoneInteractionsSchema } from './services/space/zone';
 import { SystemClockSettingsSchema } from './services/core/system-clock';
@@ -16,7 +17,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.1.82';
+export const WAVE_PHONE_RELEASE_VERSION = '1.1.83';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -462,6 +463,7 @@ export const ChatStateSchema = z
     mode: z.enum(['unknown', 'single', 'multi']).prefault('unknown'),
     identities: z.record(z.string(), IdentitySchema).prefault({}),
     threads: z.record(z.string(), ThreadSchema).prefault({}),
+    messageImages: z.record(z.string(), ImageAssetSchema).prefault({}),
     snapshots: z.record(z.string(), AppSnapshotSchema).prefault({}),
     independentAppUpdates: z.array(IndependentAppUpdateSchema).prefault([]),
     restoredAppSnapshots: z.record(z.string(), z.partialRecord(z.enum(APP_IDS), z.string())).prefault({}),

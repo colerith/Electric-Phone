@@ -58,7 +58,8 @@
         </button>
       </div>
       <button class="function-setting-row" type="button" @click="uploadOpen = !uploadOpen">
-        <i class="fa-regular fa-image"></i><span><strong>自定义图片</strong><small>粘贴图链或上传本地图片</small></span
+        <i class="fa-regular fa-image"></i
+        ><span><strong>自定义图片</strong><small>本地图片、图片地址或 AI 生成</small></span
         ><i class="fa-solid fa-chevron-right"></i>
       </button>
       <WaveImageUpload
@@ -66,6 +67,7 @@
         :key="artwork"
         inline
         purpose="artwork"
+        allow-ai
         :model-value="artworkUrl(artwork)"
         :label="app === 'zone' ? '空间封面' : '银行卡面'"
         @cancel="uploadOpen = false"

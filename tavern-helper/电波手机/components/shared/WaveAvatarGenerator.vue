@@ -2,10 +2,10 @@
   <div class="wave-avatar-generator">
     <header>
       <div>
-        <small>AI AVATAR</small>
+        <small>{{ purpose === 'avatar' ? 'AI AVATAR' : 'AI ARTWORK' }}</small>
         <div class="avatar-ai-title">生成{{ label }}</div>
       </div>
-      <button class="avatar-ai-close" type="button" aria-label="返回头像编辑" @click="emit('close')">
+      <button class="avatar-ai-close" type="button" :aria-label="`返回${label}编辑`" @click="emit('close')">
         <span aria-hidden="true">×</span>
       </button>
     </header>
@@ -24,7 +24,11 @@
         :disabled="busy"
         rows="7"
         maxlength="12000"
-        placeholder="选填；留空时读取当前角色的人设与外貌描述。也可补充服装、风格、背景，再使用 AI 润色。"
+        :placeholder="
+          purpose === 'avatar'
+            ? '选填；留空时读取角色描述。可补充服装、风格、背景。'
+            : '选填；描述封面的场景、物品、色彩与风格。默认横向无人物封面。'
+        "
       />
     </label>
     <p>
@@ -42,10 +46,10 @@
         <i class="fa-solid fa-wand-magic-sparkles"></i> AI 润色
       </button>
       <button type="button" class="avatar-ai-primary" :disabled="busy || !profile" @click="generate">
-        <i class="fa-regular fa-image"></i> 生成头像
+        <i class="fa-regular fa-image"></i> 生成{{ purpose === 'avatar' ? '头像' : label }}
       </button>
     </div>
-    <p>生成后可预览、调整选区，再点击保存应用头像。</p>
+    <p>{{ purpose === 'avatar' ? '生成后可预览、调整选区' : '生成后可预览' }}，再点击保存应用{{ label }}。</p>
   </div>
 </template>
 <script setup lang="ts">
@@ -56,7 +60,10 @@ import { createPhoneGenerationId, polishAvatarPrompt, stopPhoneGeneration } from
 import { generateImage } from '../../services/image/generate';
 import { CharacterImageSchema } from '../../services/image/schema';
 import WaveSelect from './WaveSelect.vue';
-defineProps<{ label: string }>();
+const props = withDefaults(defineProps<{ label: string; purpose?: 'avatar' | 'artwork'; seed?: string }>(), {
+  purpose: 'avatar',
+  seed: '',
+});
 const emit = defineEmits<{ close: []; generated: [image: string] }>();
 const phone = usePhoneStore();
 const profileId = ref(
@@ -101,30 +108,39 @@ async function run(kind: 'polish' | 'generate') {
   ]
     .filter(Boolean)
     .join('\n');
-  const fallback = [
+  const avatarFallback = [
     identity?.name,
     description,
     identity?.source === 'local_group' ? '群聊主题正方形头像，无文字水印' : '单人正方形头像，清晰主体，无文字水印',
   ]
     .filter(Boolean)
     .join('\n');
+  const fallback =
+    props.seed ||
+    (props.purpose === 'artwork' ? `${props.label}，横向风景或抽象图案，干净留白，无文字水印，无人物` : avatarFallback);
   const runToken = ++token;
   const selected = klona(profile.value),
     text = prompt.value.trim() || fallback,
     settings = klona(phone.settings);
   busy.value = true;
-  status.value = kind === 'polish' ? '副 API 正在润色提示词…' : '正在生成头像，请稍候…';
+  status.value = kind === 'polish' ? '副 API 正在润色提示词…' : `正在生成${props.label}，请稍候…`;
   try {
     if (kind === 'polish') {
       requestId = createPhoneGenerationId();
-      const result = await polishAvatarPrompt(settings, text, selected.provider, requestId);
+      const result = await polishAvatarPrompt(settings, text, selected.provider, requestId, props.purpose);
       if (runToken !== token) return;
       prompt.value = result;
-      status.value = '已润色，可继续修改或生成头像。';
+      status.value = `已润色，可继续修改或生成${props.label}。`;
     } else {
       controller = new AbortController();
       const image = await generateImage(
-        { ...selected, width: 1024, height: 1024, vibes: [] },
+        {
+          ...selected,
+          width: props.purpose === 'avatar' ? 1024 : 1536,
+          height: 1024,
+          vibes: [],
+          prefix: props.purpose === 'artwork' ? '' : selected.prefix,
+        },
         CharacterImageSchema.parse({ enabled: true }),
         text,
         controller.signal,

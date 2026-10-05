@@ -52,13 +52,32 @@ export function importBaibaiProfiles(
 export function baibaiCharacters(): { name: string; tag: string; nl: string; scope: string }[] {
   const host = window.parent as unknown as { STBaiBaiImage?: { getCharacters(): { characters: any[] } } };
   const api = host.STBaiBaiImage;
-  if (!api?.getCharacters) throw Error('请启用支持公开角色库接口的新版柏宝绘');
-  return api.getCharacters().characters.map(c => ({
-    name: String(c.name),
-    tag: String(c.tag || ''),
-    nl: String(c.nl || ''),
-    scope: String(c.scope || ''),
-  }));
+  const fields = ['fandom', 'sex', 'hair', 'eyes', 'skin', 'body', 'extra', 'outfit'];
+  const st = SillyTavern as unknown as BaiRecord;
+  const globals = st.extensionSettings?.baibai_image_char_global?.entries || [];
+  const locals = (st.chatMetadata || st.getContext?.()?.chatMetadata)?.baibai_image_char_tags?.entries || [];
+  const entries = api?.getCharacters
+    ? api.getCharacters().characters
+    : [
+        ...globals.map((c: BaiRecord) => ({ ...c, scope: 'global' })),
+        ...locals.map((c: BaiRecord) => ({ ...c, scope: 'chat' })),
+      ];
+  return entries
+    .filter((c: BaiRecord) => typeof c.name === 'string')
+    .map((c: BaiRecord) => ({
+      name: c.name,
+      tag: String(
+        c.tag ||
+          fields
+            .map(key => c.fields?.[key])
+            .filter(Boolean)
+            .join(', ') ||
+          c.raw ||
+          '',
+      ),
+      nl: String(c.nl || ''),
+      scope: String(c.scope || 'chat'),
+    }));
 }
 export function baibaiReferences(): { id: string; name: string }[] {
   const vibes = baibaiSettings().nai?.vibes;

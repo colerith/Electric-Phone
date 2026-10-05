@@ -1,5 +1,11 @@
 <template>
   <div class="wave-message-content" :class="[`message-kind-${message.type}`, { withdrawn: message.withdrawn }]">
+    <WaveImageViewer
+      v-if="galleryIndex >= 0 && galleryTargets.length"
+      :targets="galleryTargets"
+      :initial-index="galleryIndex"
+      @close="galleryIndex = -1"
+    />
     <div v-if="message.withdrawn" class="wave-message-withdrawn">
       <i class="fa-solid fa-arrow-rotate-left"></i><span>这条讯号已撤回</span>
     </div>
@@ -77,9 +83,19 @@
           :key="index"
           class="album-photo"
           :style="{ '--photo-index': index }"
+          role="button"
+          tabindex="0"
+          aria-label="查看照片与生成记录"
+          @click.stop="galleryIndex = index"
+          @keydown.enter.stop.prevent="galleryIndex = index"
+          @keydown.space.stop.prevent="galleryIndex = index"
         >
-          <img :src="photo.url" :alt="photo.description || '照片'" />
-          <figcaption v-if="photo.description">{{ photo.description }}</figcaption>
+          <img
+            v-if="albumImage(index, photo).url"
+            :src="albumImage(index, photo).url"
+            :alt="albumImage(index, photo).description || '照片'"
+          />
+          <figcaption>{{ albumImage(index, photo).description }}</figcaption>
         </figure>
       </div>
       <figure
@@ -87,7 +103,15 @@
         class="wave-message-media image-card"
         :class="{ empty: !safeMediaUrl }"
       >
-        <div class="wave-polaroid-frame">
+        <div
+          class="wave-polaroid-frame"
+          role="button"
+          tabindex="0"
+          aria-label="查看图片与生成记录"
+          @click.stop="galleryIndex = 0"
+          @keydown.enter.stop.prevent="galleryIndex = 0"
+          @keydown.space.stop.prevent="galleryIndex = 0"
+        >
           <img v-if="safeMediaUrl" :src="safeMediaUrl" :alt="mediaDescription || '聊天照片'" />
           <div v-else class="wave-photo-placeholder wave-photo-description">
             <span>{{ photoDescription }}</span
@@ -311,6 +335,8 @@
 </template>
 
 <script setup lang="ts">
+import WaveImageViewer from '../shared/WaveImageViewer.vue';
+import { selectedImage, type ImageTarget } from '../../services/image/library';
 import WavePaymentDialog from './WavePaymentDialog.vue';
 import { paymentDetails } from '../../services/chat/payment';
 import { inlineStickerParts } from '../../services/chat/stickers';
@@ -365,6 +391,26 @@ const transcriptOpen = ref(false);
 const voicePlaying = ref(false);
 const phone = usePhoneStore();
 const surface = inject(phoneSurfaceKey, ref(null));
+const galleryIndex = ref(-1);
+const galleryTargets = computed<ImageTarget[]>(() => {
+  const thread = Object.values(phone.state.threads).find(t => t.messages.some(m => m.id === props.message.id));
+  return thread
+    ? Array.from({ length: Math.max(1, album.value.length) }, (_, index) => ({
+        kind: 'message' as const,
+        threadId: thread.id,
+        messageId: props.message.id,
+        index,
+      }))
+    : [];
+});
+const displayedImage = computed(() =>
+  galleryTargets.value[0] ? phone.getImageAsset(galleryTargets.value[0]) : undefined,
+);
+function albumImage(index: number, fallback: { url: string; description: string }) {
+  const asset = galleryTargets.value[index] && phone.getImageAsset(galleryTargets.value[index]);
+  return asset ? { url: selectedImage(asset)?.url || '', description: asset.description } : fallback;
+}
+
 const paymentOpen = ref(false);
 const paymentThreadId = ref('');
 function openPayment(event?: Event) {
@@ -485,6 +531,7 @@ function hashText(text: string): number {
 
 const mediaDescription = computed(() => payloadString('description') || props.message.content);
 const photoDescription = computed(() => {
+  if (displayedImage.value) return displayedImage.value.description;
   const explicit = payloadString('description').trim();
   if (explicit) return explicit;
   const fallback = props.message.content.trim();
@@ -496,7 +543,10 @@ const voiceDuration = computed(
 );
 const amountText = computed(() => payloadNumber('amount').toFixed(2));
 const safeMediaUrl = computed(() => {
-  const value = payloadString('url');
+  const value =
+    props.message.type === 'image' && displayedImage.value
+      ? selectedImage(displayedImage.value)?.url || ''
+      : payloadString('url');
   return /^https?:\/\//i.test(value) || /^data:(?:image|video)\//i.test(value) || value.startsWith('/') ? value : '';
 });
 const stickerUrl = computed(() => {

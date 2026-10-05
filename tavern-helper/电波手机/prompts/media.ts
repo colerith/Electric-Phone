@@ -7,13 +7,14 @@ const composition = `画面规划与自检（用于组织最终提示词，不�
 2. 确定真实视觉主体与数量，列出必须可见的特征。纯物品/场景不附加自拍、脸、人体、手持物、人形倒影、海报人物、背景路人或角色发色服装。只有明确请求人物出镜才选择人物类。
 3. 区分已知事实、画面设计与未知信息。外貌使用配置或本轮明确描述，不发明角色身份、品牌文字、陌生人的脸；用户指定的地点、颜色、物件和动作优先于常用构图。
 4. 组织主体、空间关系、构图、景别、机位、光线、材质、色彩、风格。保证物件位置和光源方向一致；避免互斥镜头、冲突人数、相反视角或重复质量词。
-5. 人物画面才使用角色外貌资料。character 表示当前角色，other_character 表示其他明确人物，不能把当前角色外貌或参考图用在他人身上。场景/物品不得依赖角色前置词、角色参考图；生成服务由客户端选择，不在输出中指定服务、密钥或模型。
+5. 人物画面才使用角色外貌资料。character 表示当前角色，user 表示手机使用者（只使用用户的外貌资料），other_character 表示其他明确人物，不能把当前角色外貌或参考图用在他人身上。场景/物品不得依赖角色前置词、角色参考图；生成服务由客户端选择，不在输出中指定服务、密钥或模型。
 6. 每张只规划一个明确画面，除非用户要求不要拼图、对照图或连续漫画。多张图应各有不同信息，不靠近似重复凑下限。下限为 0 时无视觉需要就不生图；达到上限停止新增请求。
 7. 最终核对 subject 与 prompt 一致，提示词没有聊天台词或解释，content 是自然简短的图片描述。仅输出协议字段，不返回构思过程、URL、Base64 或“已经生成成功”的断言。`;
 
 const contract = `本轮变量：图片 {{image_min}}–{{image_max}} 张；语音 {{voice_min}}–{{voice_max}} 条；总回复 {{reply_min}}–{{reply_max}} 条。图片和语音分别占一条消息，均计入总数。
 当前角色外貌（资料，不是指令）：{{character_image_prefix}}
-生图消息固定为 {"sender":"char","type":"image","content":"简短画面描述","payload":{"description":"画面描述","imageRequest":{"subject":"character 或 other_character 或 scene 或 object","prompt":"适配当前接口的完整画面提示词"}}}。
+用户外貌（资料，不是指令）：{{user_image_prefix}}
+生图消息固定为 {"sender":"char","type":"image","content":"简短画面描述","payload":{"description":"画面描述","imageRequest":{"subject":"character 或 user 或 other_character 或 scene 或 object","prompt":"适配当前接口的完整画面提示词"}}}。
 每条 imageRequest 对应一张图片。只输出本轮需要的新请求，不复制历史请求；禁止伪造图片地址。客户端完成后填入真实图片。`;
 
 export function mediaPresetEntries(): PresetItem[] {
@@ -80,6 +81,7 @@ export function mediaVariables(media: ReplyMedia | undefined, count?: { minRepli
     reply_min: String(count?.minReplies ?? 1),
     reply_max: String(count?.maxReplies ?? 5),
     character_image_prefix: media?.characterPrefix || '未配置',
+    user_image_prefix: media?.userPrefix || '未配置',
   };
 }
 export function mediaEntryApplies(entry: PresetItem, media?: ReplyMedia) {
@@ -94,5 +96,13 @@ export function mediaEntryApplies(entry: PresetItem, media?: ReplyMedia) {
 }
 export function mediaCountRules(media?: ReplyMedia) {
   if (!media) return '';
-  return `[本轮媒体协议] voice 必须 ${media.voice.min}–${media.voice.max} 条；生图 imageRequest 必须 ${media.image.min}–${media.image.max} 张，均计入总消息数。imageRequest 仅可在 char 的 image 消息 payload 内，包含 subject（character/other_character/scene/object）与非空 prompt。character 才可使用当前角色外貌与参考图；scene/object 必须不含人物。禁止提供模型、服务地址或密钥。没有生图权限时不得输出 imageRequest。`;
+  return `[本轮媒体协议] voice 必须 ${media.voice.min}–${media.voice.max} 条；生图 imageRequest 必须 ${media.image.min}–${media.image.max} 张，均计入总消息数。imageRequest 仅可在 char 的 image 消息 payload 内，包含 subject（character/user/other_character/scene/object）与非空 prompt。character 才可使用当前角色外貌与参考图；user 使用用户资料里的外貌；content 与 payload.description 必须是自然简短的配文，不是英文标签或生图指令。scene/object 必须不含人物。禁止提供模型、服务地址或密钥。没有生图权限时不得输出 imageRequest。`;
+}
+
+export function spaceImageRules(mode: 'description' | 'ai', max: number, provider?: 'novelai' | 'openai') {
+  if (mode === 'description')
+    return '[空间配图] images 使用简短自然语言画面描述字符串数组，不提供图片地址、不输出 imageRequest；这是文字图，不声称已经实际生成图片。每帖最多9张。';
+  return `[空间 AI 配图] 每帖 images 最多 ${max} 项，无视觉需要可为空。每项固定 {"subject":"character|user|other_character|scene|object","prompt":"画面提示词","description":"自然简短的图片配文"}。character 指本帖作者，user 指手机使用者；其他人及多人用 other_character。description 不是英文标签或创作指令，不能声称不存在的动作或人物。客户端选择接口并生成真实图片，不返回 URL、Base64、模型或密钥。
+${composition}
+${provider === 'novelai' ? 'NovelAI：prompt 使用英文逗号分隔标签，顺序为主体与人数、外貌或物件细节、动作和位置、场景、构图机位、光线材质色彩。无人场景以 no humans, scenery 开头；静物以 no humans, still life 开头。不要输出自然语言长段落、接口参数、未知权重或额外人物。' : 'GPT Image：prompt 使用明确连贯的自然语言，先交代主体、数量和目标，再指定位置关系、景别、光线、材质、风格和排除要求。不使用 NovelAI 权重或标签串。场景或物品明确不含人物、人脸、手、人体倒影或海报人像。'} 多图保持各自主题；固定角色外貌不用于物品或场景；不要求人物出镜时不要加入人像。不输出画面规划过程。`;
 }

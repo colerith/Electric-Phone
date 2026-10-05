@@ -45,6 +45,8 @@ export function registerMomentsFollow(
                   input.posts,
                   presetMomentsRules(input.settings.presets),
                   input.chatPreferences,
+                  input.settings.imageServices.profiles.find(p => p.id === input.state.settings.imageProfileId)
+                    ?.provider,
                 ),
                 input.settings.basic.excludedTags,
               ),

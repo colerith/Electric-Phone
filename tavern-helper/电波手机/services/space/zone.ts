@@ -1,3 +1,4 @@
+import { ImageRequestSchema } from '../chat/media-settings';
 import { PostTagsSchema } from './post-tags';
 import { profileDecorationFields, ProfileBadgesSchema, ProfileTitleColorSchema } from './profile-badges';
 import { TranslationSchema } from '../generation/module-settings';
@@ -15,6 +16,12 @@ export const ZoneCommentSchema = z.object({
   replyToAuthorKey: z.string().optional(),
 });
 export const ZonePostSchema = z.object({
+  images: z
+    .array(
+      z.union([z.string().min(1).max(1000), ImageRequestSchema.extend({ description: z.string().min(1).max(1000) })]),
+    )
+    .max(9)
+    .default([]),
   tags: PostTagsSchema,
   translation: TranslationSchema.optional(),
   id: z.string(),

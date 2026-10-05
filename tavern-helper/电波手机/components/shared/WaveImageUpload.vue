@@ -30,7 +30,14 @@
           :aria-label="aiOpened ? `AI 生成${label}` : `修改${label}`"
           tabindex="-1"
         >
-          <WaveAvatarGenerator v-if="aiOpened" :label="label" @close="closeAi" @generated="acceptGenerated" />
+          <WaveAvatarGenerator
+            v-if="aiOpened"
+            :label="label"
+            :purpose="purpose"
+            :seed="aiSeed"
+            @close="closeAi"
+            @generated="acceptGenerated"
+          />
           <div v-else class="wave-upload-dialog" :aria-label="`修改${label}`">
             <div class="wave-dialog-bar">
               <button class="wave-modal-close" type="button" aria-label="关闭图片编辑" @click="closeEditor">
@@ -113,9 +120,19 @@
               >
             </button>
 
-            <button v-if="purpose === 'avatar'" class="wave-upload-file" type="button" @click="aiOpened = true">
+            <button
+              v-if="purpose === 'avatar' || allowAi"
+              class="wave-upload-file"
+              type="button"
+              @click="aiOpened = true"
+            >
               <i class="fa-solid fa-wand-magic-sparkles"></i
-              ><span><strong>AI 生成</strong><small>描述头像，支持 AI 润色提示词</small></span>
+              ><span
+                ><strong>AI 生成</strong
+                ><small>{{
+                  purpose === 'avatar' ? '描述头像，支持 AI 润色提示词' : '描述图片，支持 AI 润色提示词'
+                }}</small></span
+              >
             </button>
 
             <label class="wave-field-label" :for="`wave-image-url-${purpose}`">图片地址</label>
@@ -170,6 +187,8 @@ const props = withDefaults(
     quality?: number;
     inline?: boolean;
     purpose?: 'avatar' | 'artwork';
+    allowAi?: boolean;
+    aiSeed?: string;
   }>(),
   {
     fallback: '',
@@ -181,6 +200,8 @@ const props = withDefaults(
     quality: 0.82,
     inline: false,
     purpose: 'avatar',
+    aiSeed: '',
+    allowAi: false,
   },
 );
 const emit = defineEmits<{

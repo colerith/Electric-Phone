@@ -4,12 +4,15 @@ import { bilingual, TranslationSchema } from '../generation/module-settings';
 import { npcAvatarSeed } from './npc-avatar';
 import { splitElectric } from '../generation/electric';
 import { z } from 'zod';
+import { ImageAssetSchema } from '../image/library';
+import { ImageRequestSchema } from '../chat/media-settings';
 import type { Identity } from '../../schemas';
 export const MomentMediaSchema = z
   .object({
     kind: z.enum(['image', 'description']),
     url: z.string().default(''),
     description: z.string().max(1000).default(''),
+    imageRequest: ImageRequestSchema.optional(),
   })
   .superRefine((value, ctx) => {
     if (value.kind === 'image' && !/^(https?:\/\/|data:image\/(?:png|jpeg|webp|gif);base64,)/i.test(value.url))
@@ -97,7 +100,15 @@ export const MomentBatchSchema = z.object({
         tags: PostTagsSchema,
         content: z.string().min(1).max(3000),
         translation: TranslationSchema.optional(),
-        images: z.array(z.string().min(1).max(600)).max(9).default([]),
+        images: z
+          .array(
+            z.union([
+              z.string().min(1).max(600),
+              ImageRequestSchema.extend({ description: z.string().min(1).max(1000) }),
+            ]),
+          )
+          .max(9)
+          .default([]),
         location: z.string().max(200).default(''),
         delaySeconds: z.number().min(0).max(86400).default(0),
       }),
@@ -129,6 +140,7 @@ export const MomentUserProfileSchema = z
     avatar: z.string().default(''),
     signature: z.string().max(240).default(''),
     cover: z.string().default(''),
+    imageAppearance: z.string().max(12000).default(''),
   })
   .prefault({});
 export const MomentUserProfileMapSchema = z.record(z.string(), MomentUserProfileSchema).prefault({});
@@ -137,11 +149,17 @@ export type MomentUserProfile = z.infer<typeof MomentUserProfileSchema>;
 export const MomentsStateSchema = z
   .object({
     npcs: z.record(z.string(), MomentNpcSchema).default({}),
+    autoInteractionPostIds: z.array(z.string()).default([]),
+    imageEdits: z.record(z.string(), ImageAssetSchema).default({}),
     profile: MomentUserProfileSchema,
     settings: z
       .object({
         ...bilingual,
         followEnabled: z.boolean().default(false),
+        imageMode: z.enum(['description', 'ai']).default('description'),
+        imageProfileId: z.string().default(''),
+        maxImages: z.number().int().min(0).max(9).default(1),
+        autoUserInteractions: z.boolean().default(false),
         postingCharKeys: z.array(z.string()).default([]),
         npcEnabled: z.boolean().default(false),
         strangerEnabled: z.boolean().default(false),
@@ -199,7 +217,7 @@ export function planMoments(
   posts: MomentPost[],
   now = Date.now(),
   random = Math.random,
-  options: { force?: boolean } = {},
+  options: { force?: boolean; targetPostId?: string } = {},
 ): MomentPlan | null {
   const settings = state.settings;
   if (!options.force && (!settings.followEnabled || now - state.lastRequestAt < settings.cooldownMinutes * 60000))
@@ -249,11 +267,13 @@ export function planMoments(
   }
   if (!actors.length) return null;
   const pick = <T>(list: T[]) => list[Math.min(list.length - 1, Math.floor(random() * list.length))]!;
-  const postActor = options.force
-    ? pick(actors).key
-    : random() * 100 < settings.postProbability
+  const postActor = options.targetPostId
+    ? null
+    : options.force
       ? pick(actors).key
-      : null;
+      : random() * 100 < settings.postProbability
+        ? pick(actors).key
+        : null;
   const comments: MomentPlan['comments'] = [],
     likes: MomentPlan['likes'] = [];
   const low = Math.min(settings.minInteractions, settings.maxInteractions),
@@ -261,7 +281,7 @@ export function planMoments(
   const interactionLimit = low + Math.min(high - low, Math.floor(random() * (high - low + 1)));
   const existingLikes = momentTimeline(state).likes;
   const targets = posts
-    .filter(post => post.availableAt <= now)
+    .filter(post => post.availableAt <= now && (!options.targetPostId || post.id === options.targetPostId))
     .slice(0, 20)
     .flatMap(post =>
       actors
@@ -269,7 +289,9 @@ export function planMoments(
         .map(actor => ({ actorKey: actor.key, postId: post.id })),
     );
   const candidates = targets.flatMap(target => [
-    ...(random() * 100 < settings.commentProbability ? [{ ...target, kind: 'comment' as const }] : []),
+    ...(options.targetPostId || random() * 100 < settings.commentProbability
+      ? [{ ...target, kind: 'comment' as const }]
+      : []),
     ...(random() * 100 < settings.likeProbability &&
     !existingLikes.some(like => like.postId === target.postId && like.authorKey === target.actorKey)
       ? [{ ...target, kind: 'like' as const }]
@@ -504,7 +526,16 @@ export function momentTimeline(state: MomentsState, legacy: MomentPost[] = []) {
         tags: post.tags,
         content: post.content,
         translation: post.translation,
-        images: post.images.map(description => ({ kind: 'description', url: '', description })),
+        images: post.images.map(image =>
+          typeof image === 'string'
+            ? { kind: 'description' as const, url: '', description: image }
+            : {
+                kind: 'description' as const,
+                url: '',
+                description: image.description,
+                imageRequest: { subject: image.subject, prompt: image.prompt },
+              },
+        ),
         location: post.location,
         mentions: [],
         visibility: 'all',

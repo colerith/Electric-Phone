@@ -196,7 +196,17 @@ function snapshot(name) {
   await vue.nextTick();
   assert.equal(phone.characterImage.generation.min, 2);
   assert.equal(phone.characterImage.generation.max, 2);
+  SillyTavern.extensionSettings = {
+    baibai_image: { nai: { vibes: [{ id: 'ref', name: '毛绒小熊' }] } },
+    baibai_image_char_global: { entries: [{ name: 'Alice', fields: { hair: 'blue hair', eyes: 'green eyes' } }] },
+  };
+  click('读取柏宝绘参考图');
+  click('读取柏宝绘角色库');
+  await vue.nextTick();
+  assert(document.body.textContent.includes('测试 Vibe'));
+  assert(document.body.textContent.includes('Alice · 全局'));
   snapshot('character-image');
+  delete SillyTavern.extensionSettings;
   characterApp.unmount();
   const speech = require(base + '/services/chat/speech.ts');
   phone.setCharacterVoice(speech.CharacterVoiceSchema.parse({ provider: 'fish', voiceId: 'first' }));

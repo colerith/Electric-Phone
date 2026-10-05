@@ -1,4 +1,11 @@
 import {
+  ImageAssetSchema,
+  imageTargetKey,
+  selectedImage,
+  type ImageAsset,
+  type ImageTarget,
+} from '../services/image/library';
+import {
   NpcGenerationOptionsSchema,
   GeneratedNpcSchema,
   type GeneratedNpc,
@@ -152,6 +159,7 @@ import {
 import {
   createPhoneGenerationId,
   generateMomentsBatch,
+  generateImageCaption,
   generatePhoneReply,
   generatePhoneModule,
   generateZonePage,
@@ -713,18 +721,39 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   const imageRequests = new Set<string>();
   const replyImageControllers = new Map<string, AbortController>();
   function mediaForCharacter(charKey: string) {
-    return resolveReplyMedia(
-      settings.value.voiceServices,
-      settings.value.imageServices,
-      state.value.characterVoices[charKey],
-      CharacterImageSchema.parse(characterProfiles.value[`${context.value?.cardKey}::${charKey}`]?.characterImage),
-      Math.max(settings.value.chat.minReplies, settings.value.chat.maxReplies),
-    );
+    const result = {
+      userPrefix: state.value.moments.profile.imageAppearance,
+      ...resolveReplyMedia(
+        settings.value.voiceServices,
+        settings.value.imageServices,
+        state.value.characterVoices[charKey],
+        CharacterImageSchema.parse(characterProfiles.value[`${context.value?.cardKey}::${charKey}`]?.characterImage),
+        Math.max(settings.value.chat.minReplies, settings.value.chat.maxReplies),
+      ),
+    };
+    const identity = state.value.identities[charKey];
+    if (identity?.source === 'local_group') {
+      // Group speech still follows each speaker; the image quota is shared by the whole round.
+      result.voice = {
+        min: 0,
+        max: identity.groupVoiceFollowPrivate
+          ? Math.max(0, Math.max(settings.value.chat.minReplies, settings.value.chat.maxReplies) - result.image.min)
+          : 0,
+      };
+      result.voiceProvider = undefined;
+      result.voiceModel = undefined;
+      result.characterPrefix = '按群成员外貌表匹配每条消息的 payload.actorKey，不使用群名作为人物';
+    }
+    return result;
   }
   async function processReplyImages(thread: Thread, messages: PhoneMessage[]): Promise<void> {
     if (!messages.some(message => message.payload.imageRequest && !message.payload.imageGenerationStatus)) return;
     const runtime = context.value ? { ...context.value } : null;
-    if (!runtime || state.value.identities[thread.charKey]?.source === 'local_group') return;
+    if (!runtime) return;
+    const group =
+      state.value.identities[thread.charKey]?.source === 'local_group'
+        ? state.value.identities[thread.charKey]
+        : undefined;
     const revision = thread.clearRevision;
     const imageRuntimeMatches = () => {
       const current = getRuntimeContext();
@@ -761,7 +790,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const message = state.value.threads[thread.id].messages.find(item => item.id === candidate.id);
       if (!message) continue;
       if (!messages.some(item => item.id === message.id) || message.payload.imageGenerationStatus) continue;
-      if (!character.enabled || !sourceProfile || ordinal > maximum || message.withdrawn) {
+      const actorKey = group ? String(message.payload.actorKey || '') : thread.charKey;
+      const actorAllowed = !group || (group.memberKeys?.includes(actorKey) && !group.groupMembers?.[actorKey]?.muted);
+      if (!character.enabled || !sourceProfile || ordinal > maximum || message.withdrawn || !actorAllowed) {
         message.payload.imageGenerationStatus = 'skipped';
         message.payload.imageGenerationError = '生图未启用或已达到本轮上限';
         continue;
@@ -782,7 +813,20 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       saveChat();
       const timer = setTimeout(() => controller.abort(), 240000);
       try {
-        const request = imageSubjectRequest(sourceProfile, character, message.payload.imageRequest);
+        const request = imageSubjectRequest(
+          sourceProfile,
+          (message.payload.imageRequest as { subject?: string }).subject === 'user'
+            ? CharacterImageSchema.parse({ enabled: true, prefix: state.value.moments.profile.imageAppearance })
+            : group
+              ? {
+                  ...CharacterImageSchema.parse(
+                    characterProfiles.value[`${runtime.cardKey}::${actorKey}`]?.characterImage,
+                  ),
+                  enabled: true,
+                }
+              : character,
+          message.payload.imageRequest,
+        );
         const url = await generateImage(request.profile, request.character, request.prompt, controller.signal);
         const current = currentMessage();
         if (current && !controller.signal.aborted) {
@@ -790,6 +834,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           current.payload.generatedImage = true;
           current.payload.imageGenerationStatus = 'complete';
           current.payload.imageModel = sourceProfile.model;
+          current.payload.imageProfileId = sourceProfile.id;
           saveChat();
         }
       } catch (error) {
@@ -819,7 +864,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   function setCharacterImage(value: CharacterImage): void {
     const runtime = context.value;
     const charKey = state.value.activeCharKey;
-    if (!runtime || !charKey || activeIdentity.value?.source === 'local_group') return;
+    if (!runtime || !charKey) return;
     const profileKey = `${runtime.cardKey}::${charKey}`;
     characterProfiles.value[profileKey] = {
       ...characterProfiles.value[profileKey],
@@ -1916,16 +1961,34 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     });
   }
   function groupPromptSettings(identity: Identity) {
+    const spaceImages = {
+      mode: state.value.moments.settings.imageMode,
+      max: state.value.moments.settings.maxImages,
+      provider: settings.value.imageServices.profiles.find(p => p.id === state.value.moments.settings.imageProfileId)
+        ?.provider,
+      userPrefix: state.value.moments.profile.imageAppearance,
+    };
     const thread = Object.values(state.value.threads).find(item => item.charKey === identity.charKey);
     const sharedHistory = thread
       ? sharedChatHistory(identity, thread, state.value.identities, state.value.threads, settings.value.chat)
       : '';
-    if (identity.source !== 'local_group') return { sharedHistory, media: mediaForCharacter(identity.charKey) };
+    if (identity.source !== 'local_group')
+      return { sharedHistory, spaceImages, media: mediaForCharacter(identity.charKey) };
     const members = (identity.memberKeys || []).flatMap(key =>
       state.value.identities[key] ? [state.value.identities[key]] : [],
     );
     return {
       sharedHistory,
+      spaceImages,
+      media: mediaForCharacter(identity.charKey),
+      groupImagePrefixes: Object.fromEntries(
+        members.map(member => [
+          member.charKey,
+          CharacterImageSchema.parse(
+            characterProfiles.value[`${context.value?.cardKey}::${member.charKey}`]?.characterImage,
+          ).prefix,
+        ]),
+      ),
       groupMembers: members,
       groupPreferences: Object.fromEntries(
         members.map(member => [
@@ -2086,7 +2149,28 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     }
   }
 
-  async function generateMoments(): Promise<string> {
+  const momentInteractionFeedback = ref<Record<string, string>>({});
+  watch(
+    () => `${context.value?.cardKey}::${context.value?.chatKey}`,
+    () => {
+      momentInteractionFeedback.value = {};
+    },
+  );
+  async function generateMomentInteractions(postId: string): Promise<string> {
+    const key = `${context.value?.cardKey}::${context.value?.chatKey}`;
+    momentInteractionFeedback.value[postId] = '正在生成点赞与评论…';
+    try {
+      const result = await generateMoments(postId);
+      if (key === `${context.value?.cardKey}::${context.value?.chatKey}`)
+        momentInteractionFeedback.value[postId] = result;
+      return result;
+    } catch (e) {
+      if (key === `${context.value?.cardKey}::${context.value?.chatKey}`)
+        momentInteractionFeedback.value[postId] = e instanceof Error ? e.message : '互动生成失败';
+      throw e;
+    }
+  }
+  async function generateMoments(targetPostId?: string): Promise<string> {
     const runtime = moduleInput();
     if (!runtime) throw Error('请先选择有角色的聊天');
     if (
@@ -2097,8 +2181,11 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       throw Error('请等待当前手机生成结束');
     const plan = planMoments(state.value.moments, identities.value, momentsFeed.value.posts, Date.now(), Math.random, {
       force: true,
+      targetPostId,
     });
-    if (!plan) throw Error('请先在朋友圈设置中选择允许发动态的联系人');
+    if (!plan) throw Error('没有可参与的角色或互动名额，请检查空间参与者、可见范围和互动数量');
+    if (targetPostId && !momentsFeed.value.posts.some(p => p.id === targetPostId && p.authorKey === 'user'))
+      throw Error('目标动态不存在');
     const id = createPhoneGenerationId();
     const previousRequestAt = state.value.moments.lastRequestAt;
     moduleGenerating.value = true;
@@ -2126,6 +2213,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         current?.chatKey !== runtime.input.chatKey
       )
         throw Error('生成已停止，旧结果未写入');
+      if (targetPostId && !momentsFeed.value.posts.some(p => p.id === targetPostId))
+        throw Error('动态已删除，互动结果未写入');
       const encoded = JSON.stringify(batch).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e');
       syncMomentEvents(state.value.moments, [`<wave_moments>${encoded}</wave_moments>`]);
       const event = state.value.moments.events.find(item => item.requestId === plan.id);
@@ -2135,7 +2224,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (charKey) markAppsUnread(charKey, ['messages']);
       saveMoments();
       logDiagnostic('手动朋友圈生成', `${plan.id} 已通过副 API 写入当前聊天`);
-      return '朋友圈动态已写入当前聊天';
+      return targetPostId ? '点赞与评论已生成' : '朋友圈动态已写入当前聊天';
     } catch (error) {
       const current = getRuntimeContext();
       if (current?.cardKey === runtime.input.cardKey && current.chatKey === runtime.input.chatKey) {
@@ -2186,7 +2275,16 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         tags: post.tags,
         content: [post.title, post.content].filter(Boolean).join('\n'),
         translation: post.translation,
-        images: [],
+        images: post.images.map(image =>
+          typeof image === 'string'
+            ? { kind: 'description' as const, url: '', description: image }
+            : {
+                kind: 'description' as const,
+                url: '',
+                description: image.description,
+                imageRequest: { subject: image.subject, prompt: image.prompt },
+              },
+        ),
         location: '',
         mentions: [],
         visibility: 'all' as const,
@@ -2195,7 +2293,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         availableAt: 0,
       })),
     );
-    const timeline = momentTimeline(state.value.moments, legacy);
+    const timeline = klona(momentTimeline(state.value.moments, legacy));
     for (const identity of identities.value) {
       for (const post of zonePages.get(identity.charKey)!.posts) {
         const postId = `zone:${identity.charKey}:${post.id}`;
@@ -2238,8 +2336,198 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     }
     const deletedComments = new Set(state.value.moments.deletedCommentIds);
     timeline.comments = timeline.comments.filter(comment => !deletedComments.has(comment.id));
+    for (const post of timeline.posts)
+      post.images = post.images.map((media, index) => {
+        const asset = state.value.moments.imageEdits[imageTargetKey({ kind: 'moment', postId: post.id, index })];
+        if (!asset) return media;
+        const version = selectedImage(asset);
+        return {
+          ...media,
+          kind: version ? ('image' as const) : ('description' as const),
+          url: version?.url || '',
+          description: asset.description,
+        };
+      });
     return timeline;
   });
+  function imageSource(target: ImageTarget) {
+    if (target.kind === 'message') {
+      const thread = state.value.threads[target.threadId];
+      const message = thread?.messages.find(m => m.id === target.messageId && !m.withdrawn && m.type === 'image');
+      if (!message) return;
+      const list = Array.isArray(message.payload.images) ? message.payload.images : [];
+      const item = (list.length ? list[target.index] : target.index === 0 ? message.payload : undefined) as
+        | { url?: string; description?: string; imageRequest?: { subject?: string; prompt?: string } }
+        | undefined;
+      if (!item) return;
+      return {
+        url: typeof item.url === 'string' ? item.url : '',
+        description: String(item.description || message.content || ''),
+        request:
+          item.imageRequest || (message.payload.imageRequest as { subject?: string; prompt?: string } | undefined),
+        charKey:
+          state.value.identities[thread.charKey]?.source === 'local_group'
+            ? message.sender === 'user'
+              ? 'user'
+              : String(message.payload.actorKey || '')
+            : thread.charKey,
+        profileId: String(
+          message.payload.imageProfileId ||
+            (state.value.identities[thread.charKey]?.source === 'local_group'
+              ? characterProfiles.value[`${context.value?.cardKey}::${thread.charKey}`]?.characterImage?.profileId
+              : '') ||
+            '',
+        ),
+      };
+    }
+    const post = momentsFeed.value.posts.find(p => p.id === target.postId);
+    const item = post?.images[target.index];
+    if (!post || !item) return;
+    return {
+      url: item.url,
+      description: item.description,
+      request: item.imageRequest,
+      charKey: post.authorKey,
+      profileId: state.value.moments.settings.imageProfileId,
+    };
+  }
+  function imageMap(target: ImageTarget) {
+    return target.kind === 'message' ? state.value.messageImages : state.value.moments.imageEdits;
+  }
+  function getImageAsset(target: ImageTarget): ImageAsset | undefined {
+    const source = imageSource(target);
+    if (!source) return;
+    const saved = imageMap(target)[imageTargetKey(target)];
+    if (saved) return saved;
+    const character = CharacterImageSchema.parse(
+      characterProfiles.value[`${context.value?.cardKey}::${source.charKey}`]?.characterImage,
+    );
+    return ImageAssetSchema.parse({
+      prompt: source.request?.prompt || source.description,
+      description: source.description,
+      subject: source.request?.subject || (source.charKey === 'user' ? 'user' : 'other_character'),
+      profileId: source.profileId || character.profileId || settings.value.imageServices.profiles[0]?.id || '',
+      versions: source.url
+        ? [
+            {
+              id: 'original',
+              url: source.url,
+              prompt: source.request?.prompt || source.description,
+              description: source.description,
+            },
+          ]
+        : [],
+      selected: source.url ? 'original' : '',
+    });
+  }
+  function updateImageAsset(target: ImageTarget, asset: ImageAsset) {
+    if (!imageSource(target)) return;
+    imageMap(target)[imageTargetKey(target)] = ImageAssetSchema.parse(asset);
+    if (target.kind === 'message') {
+      const message = state.value.threads[target.threadId]?.messages.find(m => m.id === target.messageId);
+      if (message) {
+        if (Array.isArray(message.payload.images) && message.payload.images.length) {
+          const item = message.payload.images[target.index];
+          if (item && typeof item === 'object') Object.assign(item, { description: asset.description });
+        } else {
+          message.payload.description = asset.description;
+          message.content = asset.description;
+        }
+      }
+    }
+    saveChat();
+  }
+  async function runImageAction(
+    target: ImageTarget,
+    draft: ImageAsset,
+    action: 'generate' | 'caption',
+    signal: AbortSignal,
+  ) {
+    const source = imageSource(target),
+      runtime = context.value ? { ...context.value } : null;
+    if (!source || !runtime) throw Error('图片已不存在');
+    const previous = klona(getImageAsset(target)!);
+    const asset = ImageAssetSchema.parse(draft),
+      key = `${runtime.cardKey}::${runtime.chatKey}::${imageTargetKey(target)}`;
+    if (signal.aborted) throw Error('请求已取消');
+    if (imageJobs.has(key)) throw Error('此图片正在生成，请稍候');
+    if (
+      target.kind === 'message' &&
+      replyImageControllers.has(`${runtime.cardKey}::${runtime.chatKey}::${target.threadId}::${target.messageId}`)
+    )
+      throw Error('原图正在生成，请完成后再编辑');
+    const revision = target.kind === 'message' ? state.value.threads[target.threadId]?.clearRevision : undefined;
+    const stamp = makeId('image-job');
+    imageJobs.set(key, stamp);
+    const matches = () =>
+      !signal.aborted &&
+      imageJobs.get(key) === stamp &&
+      context.value?.cardKey === runtime.cardKey &&
+      context.value.chatKey === runtime.chatKey &&
+      getRuntimeContext()?.chatKey === runtime.chatKey &&
+      getRuntimeContext()?.cardKey === runtime.cardKey &&
+      Boolean(imageSource(target)) &&
+      (target.kind !== 'message' || state.value.threads[target.threadId]?.clearRevision === revision);
+    asset.status = 'pending';
+    asset.error = '';
+    updateImageAsset(target, asset);
+    const id = createPhoneGenerationId();
+    const abort = () => void stopPhoneGeneration(id).catch(() => {});
+    signal.addEventListener('abort', abort, { once: true });
+    try {
+      if (action === 'caption') {
+        asset.description = await generateImageCaption(klona(settings.value), asset.prompt, asset.description, id);
+        const version = selectedImage(asset);
+        if (version) version.description = asset.description;
+      } else {
+        const profile = settings.value.imageServices.profiles.find(p => p.id === asset.profileId);
+        if (!profile) throw Error('请先选择有效的生图接口');
+        if (!asset.prompt.trim()) throw Error('请填写画面提示词或描述');
+        const character =
+          asset.subject === 'user'
+            ? CharacterImageSchema.parse({ enabled: true, prefix: state.value.moments.profile.imageAppearance })
+            : CharacterImageSchema.parse(
+                characterProfiles.value[`${runtime.cardKey}::${source.charKey}`]?.characterImage,
+              );
+        const request = imageSubjectRequest(
+          klona(profile),
+          { ...klona(character), enabled: true },
+          {
+            subject: asset.subject,
+            prompt: asset.prompt,
+          },
+        );
+        const url = await generateImage(request.profile, request.character, request.prompt, signal);
+        const version = { id: makeId('image-version'), url, prompt: asset.prompt, description: asset.description };
+        asset.versions.push(version);
+        asset.selected = version.id;
+      }
+      if (matches()) {
+        asset.status = 'complete';
+        updateImageAsset(target, asset);
+      }
+    } catch (error) {
+      if (matches()) {
+        asset.status = 'failed';
+        asset.error = error instanceof Error ? error.message : '请求失败';
+        updateImageAsset(target, asset);
+      }
+      throw error;
+    } finally {
+      signal.removeEventListener('abort', abort);
+      if (
+        signal.aborted &&
+        imageJobs.get(key) === stamp &&
+        context.value?.cardKey === runtime.cardKey &&
+        context.value.chatKey === runtime.chatKey &&
+        imageSource(target) &&
+        (target.kind !== 'message' || state.value.threads[target.threadId]?.clearRevision === revision)
+      )
+        updateImageAsset(target, previous);
+      if (imageJobs.get(key) === stamp) imageJobs.delete(key);
+    }
+  }
+  const imageJobs = new Map<string, string>();
   function saveMoments(): void {
     state.value.moments = MomentsStateSchema.parse(state.value.moments);
     momentUserProfiles.value[activeUserKey.value] = MomentUserProfileSchema.parse(state.value.moments.profile);
@@ -2276,7 +2564,15 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           (post.visibility === 'include' && post.audience.includes(key)) ||
           (post.visibility === 'exclude' && !post.audience.includes(key))),
     );
+    if (state.value.moments.settings.imageMode === 'ai')
+      post.images = post.images.map((media, index) =>
+        media.kind === 'description' && index < state.value.moments.settings.maxImages
+          ? { ...media, imageRequest: { subject: 'other_character', prompt: media.description } }
+          : media,
+      );
     state.value.moments.posts.unshift(post);
+    if (state.value.moments.settings.autoUserInteractions && post.visibility !== 'self')
+      state.value.moments.autoInteractionPostIds.push(post.id);
     saveMoments();
   }
   async function commentMoment(postId: string, content: string, parent?: MomentComment): Promise<void> {
@@ -2363,6 +2659,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (snapshot) filterDeletedSnapshotContent(snapshot, source.charKey);
       delete state.value.zoneInteractions[source.charKey]?.[sourceId];
     }
+    for (const key of Object.keys(state.value.moments.imageEdits)) {
+      try {
+        if (JSON.parse(key)[0] === postId) delete state.value.moments.imageEdits[key];
+      } catch {
+        /* Ignore invalid legacy keys. */
+      }
+    }
+    state.value.moments.autoInteractionPostIds = state.value.moments.autoInteractionPostIds.filter(id => id !== postId);
     state.value.moments.deletedPostIds = [...new Set([...state.value.moments.deletedPostIds, postId])];
     state.value.moments.posts = state.value.moments.posts.filter(post => post.id !== postId);
     state.value.moments.comments = state.value.moments.comments.filter(comment => comment.postId !== postId);
@@ -2392,6 +2696,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     state.value.moments.deletedPostIds = [...new Set([...state.value.moments.deletedPostIds, ...ids])];
     state.value.moments.posts = [];
     state.value.moments.comments = [];
+    state.value.moments.imageEdits = {};
+    state.value.moments.autoInteractionPostIds = [];
     state.value.moments.likes = [];
     state.value.moments.events = state.value.moments.events.filter(event => !event.independent);
     saveMoments();
@@ -3951,7 +4257,88 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     }
   }
 
+  // Only structured requests belonging to new posts are eligible; existing uploads remain untouched.
+  let momentImagesBusy = false,
+    momentImagesQueued = false;
+  const imageQueueTick = ref(0);
+  watch(
+    () =>
+      JSON.stringify([
+        imageQueueTick.value,
+        isReady.value,
+        context.value?.cardKey,
+        context.value?.chatKey,
+        state.value.moments.settings.imageMode,
+        state.value.moments.settings.imageProfileId,
+        state.value.moments.posts.map(p => p.id),
+        state.value.moments.events.map(e => e.requestId),
+        Object.entries(state.value.snapshots).map(([key, snapshot]) => [key, snapshot.zone]),
+      ]),
+    async () => {
+      if (momentImagesBusy) {
+        momentImagesQueued = true;
+        return;
+      }
+      if (!context.value || !isReady.value || state.value.moments.settings.imageMode !== 'ai') return;
+      const profileId = state.value.moments.settings.imageProfileId;
+      if (!settings.value.imageServices.profiles.some(p => p.id === profileId)) return;
+      momentImagesBusy = true;
+      const runtime = { ...context.value };
+      try {
+        for (const post of momentsFeed.value.posts) {
+          for (let index = 0; index < Math.min(post.images.length, state.value.moments.settings.maxImages); index++) {
+            if (context.value?.cardKey !== runtime.cardKey || context.value.chatKey !== runtime.chatKey) return;
+            const media = post.images[index],
+              target: ImageTarget = { kind: 'moment', postId: post.id, index };
+            if (!media.imageRequest || media.url || state.value.moments.imageEdits[imageTargetKey(target)]) continue;
+            const asset = getImageAsset(target);
+            if (!asset) continue;
+            asset.profileId = profileId;
+            const controller = new AbortController(),
+              timer = setTimeout(() => controller.abort(), 240000);
+            try {
+              await runImageAction(target, asset, 'generate', controller.signal);
+            } catch (e) {
+              logDiagnostic('空间生图', String(e));
+            } finally {
+              clearTimeout(timer);
+            }
+          }
+        }
+      } finally {
+        momentImagesBusy = false;
+        if (momentImagesQueued) {
+          momentImagesQueued = false;
+          imageQueueTick.value++;
+        }
+      }
+    },
+    { flush: 'post' },
+  );
+  watch(
+    () =>
+      JSON.stringify([
+        state.value.moments.autoInteractionPostIds,
+        moduleGenerating.value,
+        zoneGenerating.value,
+        Object.values(state.value.threads).some(t => t.generating),
+      ]),
+    () => {
+      if (moduleGenerating.value || zoneGenerating.value || Object.values(state.value.threads).some(t => t.generating))
+        return;
+      const postId = state.value.moments.autoInteractionPostIds.shift();
+      if (!postId) return;
+      saveMoments();
+      if (!state.value.moments.settings.autoUserInteractions || !momentsFeed.value.posts.some(p => p.id === postId))
+        return;
+      void generateMomentInteractions(postId).catch(e => logDiagnostic('动态自动互动', String(e)));
+    },
+    { flush: 'post' },
+  );
   return {
+    getImageAsset,
+    updateImageAsset,
+    runImageAction,
     momentsFeed,
     saveMoments,
     selectUserScope,
@@ -3977,6 +4364,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     manualGeneratingApp,
     generateModule,
     generateMoments,
+    generateMomentInteractions,
+    momentInteractionFeedback,
     stopManualGeneration,
     settings,
     state,

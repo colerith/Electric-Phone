@@ -127,10 +127,37 @@
           <small>随机遇见一个美食昵称和专属头像，仅在匿名树洞使用。</small>
         </fieldset>
         <WaveProfileBadgePicker v-model="profileDraft.badges" />
+        <WaveAppearanceImport v-model="profileDraft.imageAppearance" :name="profileDraft.nickname || userName" />
         <button class="settings-save-wide" type="button" @click="saveProfile">保存资料</button>
       </section>
     </template>
     <template v-else-if="panel === 'settings'">
+      <section class="settings-card system-settings-card moments-form space-settings-card">
+        <div class="wave-settings-title">空间配图与互动</div>
+        <label
+          >配图方式<WaveSelect
+            v-model="settings.imageMode"
+            :options="[
+              { value: 'description', label: '文字图（画面描述）' },
+              { value: 'ai', label: 'AI 生图' },
+            ]"
+        /></label>
+        <template v-if="settings.imageMode === 'ai'">
+          <label
+            >生图接口<WaveSelect
+              v-model="settings.imageProfileId"
+              :options="phone.settings.imageServices.profiles.map(p => ({ value: p.id, label: p.name }))"
+          /></label>
+          <label
+            >每条动态最多生成 {{ settings.maxImages }} 张<WaveSlider v-model="settings.maxImages" :min="0" :max="9"
+          /></label>
+          <p>新动态的配图会调用所选接口。已有图片不重复生成，可点开图片单独修改和重生成。</p>
+        </template>
+        <div class="system-toggle-row">
+          <span>发布后自动点赞 / 评论</span><WaveToggle v-model="settings.autoUserInteractions" />
+        </div>
+        <p>调用副 API，使用下方选择的角色与互动数量；遵守动态可见范围。也可在我的动态下点击「触发互动」。</p>
+      </section>
       <WaveBilingualSettings :prefs="settings" @update="Object.assign(settings, $event)" @save="saveSettings" />
       <section class="settings-card system-settings-card moments-form space-settings-card">
         <div class="wave-settings-title">世界动态 · 参与者</div>
@@ -292,7 +319,7 @@
             <span v-for="tag in post.tags" :key="tag">#{{ tag }}</span>
           </div>
           <div v-if="post.images.length" class="moment-media-grid" :class="{ single: post.images.length === 1 }">
-            <button v-for="(media, index) in post.images" :key="index" type="button" @click="preview = media">
+            <button v-for="(media, index) in post.images" :key="index" type="button" @click="openGallery(post, index)">
               <img v-if="media.kind === 'image'" :src="media.url" :alt="media.description || '空间动态图片'" /><span
                 v-else
                 ><i class="fa-regular fa-image"></i>{{ media.description }}</span
@@ -337,10 +364,21 @@
             >
               <i class="fa-solid fa-arrow-up-from-bracket"></i>转发
             </button>
+            <button
+              v-if="post.authorKey === 'user'"
+              type="button"
+              :disabled="!!interacting || phone.moduleGenerating"
+              @click="interact(post.id)"
+            >
+              {{ interacting === post.id ? '互动生成中…' : '触发互动' }}
+            </button>
             <button type="button" class="wave-content-delete" aria-label="删除空间动态" @click="deleting = post.id">
               <i class="fa-regular fa-trash-can"></i>删除
             </button>
           </div>
+          <p v-if="phone.momentInteractionFeedback[post.id]" class="moment-generation-feedback" role="status">
+            {{ phone.momentInteractionFeedback[post.id] }}
+          </p>
           <div v-if="likesFor(post.id).length || commentsFor(post.id).length" class="moment-interactions">
             <div v-if="likesFor(post.id).length" class="moment-likes">
               <i class="fa-regular fa-heart" aria-hidden="true"></i>
@@ -595,11 +633,20 @@
         </section>
       </div></Teleport
     >
+    <WaveImageViewer v-if="gallery" :targets="gallery.targets" :initial-index="gallery.index" @close="gallery = null" />
     <WaveImageUpload
       v-if="imageTarget"
       :key="imageTarget"
       inline
-      purpose="artwork"
+      :purpose="imageTarget === 'avatar' || imageTarget === 'draftAvatar' ? 'avatar' : 'artwork'"
+      :allow-ai="imageTarget === 'cover'"
+      :ai-seed="
+        imageTarget === 'avatar' || imageTarget === 'draftAvatar'
+          ? [profileDraft.nickname || userName, profileDraft.imageAppearance, '单人正方形头像，无水印']
+              .filter(Boolean)
+              .join('，')
+          : ''
+      "
       :model-value="imageValue"
       :label="imageTarget === 'cover' ? '空间动态封面' : imageTarget === 'post' ? '空间动态图片' : '我的头像'"
       @cancel="imageTarget = ''"
@@ -609,6 +656,9 @@
   </div>
 </template>
 <script setup lang="ts">
+import WaveAppearanceImport from '../shared/WaveAppearanceImport.vue';
+import WaveImageViewer from '../shared/WaveImageViewer.vue';
+import type { ImageTarget } from '../../services/image/library';
 import { identityAvatarStyle } from '../../services/core/avatar';
 import WaveAnonymousAvatar from './WaveAnonymousAvatar.vue';
 import { randomAnonymousId, randomAnonymousAvatarSeed } from '../../services/space/tree-hole';
@@ -656,6 +706,21 @@ const props = withDefaults(
 defineEmits<{ share: [post: MomentPost, author: string] }>();
 const phone = usePhoneStore(),
   surface = inject(phoneSurfaceKey, ref(null));
+const gallery = ref<{ targets: ImageTarget[]; index: number } | null>(null);
+function openGallery(post: MomentPost, index: number) {
+  gallery.value = { targets: post.images.map((_, index) => ({ kind: 'moment', postId: post.id, index })), index };
+}
+const interacting = ref('');
+async function interact(postId: string) {
+  interacting.value = postId;
+  try {
+    notice.value = await phone.generateMomentInteractions(postId);
+  } catch (e) {
+    notice.value = e instanceof Error ? e.message : '互动失败';
+  } finally {
+    interacting.value = '';
+  }
+}
 const viewingPerson = ref<{ key: string; name: string } | null>(null);
 function openPerson(key: string, name: string): void {
   viewingPerson.value = { key, name };
@@ -1021,6 +1086,13 @@ defineExpose({ openComposer, openProfile, back, isSubpage, subpageTitle, canPubl
 </script>
 
 <style scoped>
+.moment-generation-feedback {
+  margin: 8px 0;
+  padding: 0;
+  text-indent: 0;
+  font-size: 12px;
+  opacity: 0.65;
+}
 .moment-person-link {
   appearance: none;
   padding: 0;

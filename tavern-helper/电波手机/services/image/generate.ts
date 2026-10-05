@@ -8,7 +8,7 @@ export function imageSubjectRequest(profile: ImageProfile, character: CharacterI
   const api = klona(profile),
     actor = klona(character);
   let prompt = request.prompt;
-  if (request.subject !== 'character') {
+  if (request.subject !== 'character' && request.subject !== 'user') {
     actor.prefix = '';
     actor.references = [];
     // Legacy shared prefixes/Vibes may contain a portrait; do not carry them into unrelated subjects.

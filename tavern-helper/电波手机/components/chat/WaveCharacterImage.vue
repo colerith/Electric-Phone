@@ -2,15 +2,21 @@
   <section class="wave-image-settings image-section character-image-settings">
     <section class="image-subsection" aria-label="角色生图接口">
       <div class="image-heading">
-        <strong>角色生图</strong
+        <strong>{{ groupMode ? '群聊生图' : '角色生图' }}</strong
         ><WaveToggle
           :model-value="config.enabled"
-          aria-label="启用角色生图"
+          :aria-label="groupMode ? '启用群聊生图' : '启用角色生图'"
           @update:model-value="value => update({ enabled: value })"
         />
       </div>
       <p class="image-help">
-        当前角色：{{ phone.activeIdentity?.name }}。配置自动保存；角色回复中的图片会按每轮数量设置请求生图。
+        <template v-if="groupMode"
+          >群内共用所选生图接口与每轮数量。每张图按发言成员读取其私聊外貌和参考图；用户人像读取「我的」资料，场景和物品不套用人物外貌。</template
+        ><template v-else
+          >当前角色：{{
+            phone.activeIdentity?.name
+          }}。配置自动保存；角色回复中的图片会按每轮数量设置请求生图。</template
+        >
       </p>
       <label v-if="config.enabled"
         >使用的生图接口<WaveSelect
@@ -30,36 +36,21 @@
         @update:model-value="value => update({ generation: value })"
       />
     </section>
-    <template v-if="config.enabled">
+    <template v-if="config.enabled && !groupMode">
       <section class="image-subsection" aria-label="角色外貌">
         <div class="image-heading"><strong>角色外貌</strong><span class="image-count">自动保存</span></div>
-        <label
-          >角色前置提示词<textarea
-            :value="config.prefix"
-            rows="4"
-            placeholder="发色、瞳色、体型、服装等固定外貌；仅当前角色人像使用，场景和物品不附加。"
-            @change="update({ prefix: ($event.target as HTMLTextAreaElement).value })"
-          />
-        </label>
-        <div class="image-actions"><button type="button" @click="loadBaibai">读取柏宝绘角色 / 参考图</button></div>
-        <div v-if="characters.length" class="image-grid">
-          <label
-            >柏宝绘角色档案<WaveSelect
-              v-model="selectedCharacter"
-              :options="
-                characters.map((c, i) => ({
-                  value: String(i),
-                  label: `${c.name} · ${c.scope === 'global' ? '全局' : '当前聊天'}`,
-                }))
-              "
-          /></label>
-          <button type="button" @click="applyCharacter">使用此外貌</button>
-        </div>
+        <WaveAppearanceImport
+          :model-value="config.prefix"
+          :provider="selectedProfile?.provider"
+          :name="phone.activeIdentity?.name"
+          @update:model-value="value => update({ prefix: value })"
+        />
       </section>
       <section class="image-subsection" aria-label="角色参考图">
         <div class="image-heading">
           <strong>参考图</strong><span class="image-count">{{ config.references.length }} / 8</span>
         </div>
+        <div class="image-actions"><button type="button" @click="loadBaibai">读取柏宝绘参考图</button></div>
         <div v-if="vibes.length" class="image-import-row">
           <label
             >柏宝绘参考图<WaveSelect v-model="selectedVibe" :options="vibes.map(v => ({ value: v.id, label: v.name }))"
@@ -121,12 +112,14 @@
 import { computed, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { ImageReferenceSchema, type CharacterImage } from '../../services/image/schema';
-import { baibaiCharacters, baibaiReferences, importBaibaiReference } from '../../services/image/baibai';
+import { baibaiReferences, importBaibaiReference } from '../../services/image/baibai';
+import WaveAppearanceImport from '../shared/WaveAppearanceImport.vue';
 import WaveSelect from '../shared/WaveSelect.vue';
 import WaveMediaRange from '../shared/WaveMediaRange.vue';
 import WaveToggle from '../shared/WaveToggle.vue';
 import WaveImageUpload from '../shared/WaveImageUpload.vue';
 const phone = usePhoneStore();
+const groupMode = computed(() => phone.activeIdentity?.source === 'local_group');
 const config = computed(() => phone.characterImage);
 const selectedProfile = computed(() =>
   phone.settings.imageServices.profiles.find(p => p.id === config.value.profileId),
@@ -134,15 +127,12 @@ const selectedProfile = computed(() =>
 const status = ref(''),
   editingReference = ref('');
 const importing = ref(false);
-const characters = ref<ReturnType<typeof baibaiCharacters>>([]),
-  vibes = ref<ReturnType<typeof baibaiReferences>>([]);
-const selectedCharacter = ref(''),
-  selectedVibe = ref('');
+const vibes = ref<ReturnType<typeof baibaiReferences>>([]);
+const selectedVibe = ref('');
 const contextKey = computed(() => `${phone.context?.cardKey}::${phone.context?.chatKey}::${phone.state.activeCharKey}`);
 watch(contextKey, () => {
   status.value = '';
   editingReference.value = '';
-  characters.value = [];
   vibes.value = [];
 });
 function update(patch: Partial<CharacterImage>) {
@@ -159,20 +149,7 @@ function strength(id: string, value: number) {
 function loadBaibai() {
   vibes.value = baibaiReferences();
   selectedVibe.value = vibes.value[0]?.id || '';
-  try {
-    characters.value = baibaiCharacters();
-    const index = characters.value.findIndex(c => c.name === phone.activeIdentity?.name);
-    selectedCharacter.value = String(index >= 0 ? index : 0);
-    status.value = `读取到 ${characters.value.length} 个角色、${vibes.value.length} 张参考图，请选择后导入`;
-  } catch (e) {
-    status.value = `${e instanceof Error ? e.message : '角色库读取失败'}；读取到 ${vibes.value.length} 张参考图`;
-  }
-}
-function applyCharacter() {
-  const item = characters.value[Number(selectedCharacter.value)];
-  if (!item) return;
-  update({ prefix: [item.tag, item.nl].filter(Boolean).join(', ') });
-  status.value = `已同步 ${item.name} 的外貌，可继续手动调整`;
+  status.value = `读取到 ${vibes.value.length} 张参考图，请选择后添加`;
 }
 async function importReference() {
   if (!selectedVibe.value || importing.value) return;
@@ -221,6 +198,15 @@ function addReference(value: { avatar: string }) {
     margin-top: 22px;
     padding-top: 22px;
     border-top: 1px solid #8882;
+  }
+  .image-import-row {
+    align-items: end;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .image-import-row > button {
+    margin: 0;
+    align-self: end;
+    min-height: 42px;
   }
   .image-status {
     margin-top: 16px;

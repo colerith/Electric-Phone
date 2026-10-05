@@ -171,7 +171,7 @@ app.mount('#app');
   };
   click('生成头像');
   await wait();
-  document.querySelector('[aria-label="返回头像编辑"]').click();
+  document.querySelector('[aria-label="返回角色头像编辑"]').click();
   await vue.nextTick();
   assert(imageSignal.aborted);
   resolveImage('data:image/png;base64,late');

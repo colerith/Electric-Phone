@@ -60,6 +60,7 @@
           @update:model-value="value => phone.updateGroupDetails({ voiceFollowPrivate: value })"
       /></label>
     </section>
+    <WaveCharacterImage />
     <section class="chat-settings-group wave-group-settings">
       <div class="wave-settings-title">群成员 · {{ members.length }}</div>
       <div v-for="member in members" :key="member.key" class="group-member-row">
@@ -147,6 +148,7 @@ import { identityAvatarStyle } from '../../services/core/avatar';
 import WaveImageUpload from '../shared/WaveImageUpload.vue';
 import WaveGroupAvatar from '../shared/WaveGroupAvatar.vue';
 import WaveToggle from '../shared/WaveToggle.vue';
+import WaveCharacterImage from './WaveCharacterImage.vue';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
 const props = defineProps<{ userAvatar?: string }>();
 const phone = usePhoneStore();
