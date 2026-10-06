@@ -1078,6 +1078,8 @@
 </template>
 
 <script setup lang="ts">
+import { paymentClaims, paymentDetails } from './services/chat/payment';
+import { latestReplyRound } from './services/chat/regeneration';
 import { groupRoundElectric } from './services/generation/electric';
 import { requestErrorToast } from './services/core/request-error';
 import WaveReactionPicker from './components/chat/WaveReactionPicker.vue';
@@ -1584,6 +1586,7 @@ const extraHint = computed(
       链接: '仅允许 http/https URL。',
     })[extraMode.value] || '',
 );
+const regeneratingReplyIds = ref(new Set<string>());
 const visibleMessages = computed<PhoneMessage[]>(() => {
   const legacy = parseLegacyMessages(store.activeSnapshot.messages).map(
     (message, index): PhoneMessage => ({
@@ -1602,9 +1605,40 @@ const visibleMessages = computed<PhoneMessage[]>(() => {
       error: '',
     }),
   );
-  return [...legacy, ...(store.activeThread?.messages || [])].filter(
-    message => !hiddenMessageIds.value.has(message.id),
+  const messages = [...legacy, ...(store.activeThread?.messages || [])].filter(
+    message => !hiddenMessageIds.value.has(message.id) && !regeneratingReplyIds.value.has(message.id),
   );
+  if (store.activeIdentity?.source !== 'local_group') return messages;
+  const name = (key: string) =>
+    store.activeIdentity?.groupMembers?.[key]?.nickname ||
+    (key === 'user' ? userName.value : displayIdentityName(store.state.identities[key]) || key);
+  const packets = messages.filter(
+    message => !message.withdrawn && !message.payload.forwarded && paymentDetails(message).group,
+  );
+  const packetIds = new Set(packets.map(message => message.id));
+  const notices = packets.flatMap(message =>
+    paymentClaims(message).map(claim => ({
+      ...message,
+      id: `payment-notice-${message.id}-${claim.actorKey}`,
+      sender: 'system' as const,
+      type: 'text' as const,
+      content: `${name(claim.actorKey)}领取了${name(message.sender === 'user' ? 'user' : String(message.payload.actorKey || ''))}的红包 · ${message.payload.currency || 'CNY'} ${claim.amount.toFixed(2)}`,
+      createdAt: claim.at || message.createdAt,
+      quotedMessageId: '',
+      payload: { interaction: 'group_management' },
+    })),
+  );
+  return [
+    ...messages.filter(
+      message =>
+        !(
+          message.payload.interaction === 'payment_receipt' &&
+          message.payload.paymentDecision === 'received' &&
+          packetIds.has(String(message.payload.paymentMessageId))
+        ),
+    ),
+    ...notices,
+  ].sort((a, b) => (Date.parse(a.createdAt) || 0) - (Date.parse(b.createdAt) || 0));
 });
 const groupElectric = computed(() =>
   store.activeIdentity?.source === 'local_group' ? groupRoundElectric(visibleMessages.value) : {},
@@ -2115,10 +2149,13 @@ async function regenerateReply(): Promise<void> {
   replyVisualThreadId.value = threadId;
   replyMessageVisibleThreadId.value = '';
   try {
+    if (store.activeThread) regeneratingReplyIds.value = latestReplyRound(store.activeThread).ids;
+    extrasOpen.value = false;
     await store.regenerateLatestReply();
   } catch (error) {
     toastr.error(String(error), '重新生成失败，原回复已保留');
   } finally {
+    regeneratingReplyIds.value = new Set();
     if (replyVisualThreadId.value === threadId) replyVisualThreadId.value = '';
   }
 }

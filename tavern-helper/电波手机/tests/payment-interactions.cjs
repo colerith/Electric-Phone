@@ -108,6 +108,7 @@ function click(text) {
   assert.equal(phone.activeThread.messages.filter(m => m.payload.interaction === 'payment_receipt').length, 1);
   document.querySelector('[aria-label="关闭收款详情"]').click();
   await tick();
+  assert.equal(document.querySelector('[role=dialog]'), null, 'close button must not reopen the payment dialog');
   await phone.synchronize();
   assert.equal(phone.activeThread.messages.find(m => m.id === 'packet').payload.userPaymentDecision, 'received');
   assert.equal(Object.values(phone.state.walletBook.accounts.user.manual).length, 1);

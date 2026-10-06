@@ -2,6 +2,10 @@
   <Teleport v-if="surface" :to="surface">
     <div
       class="wave-payment-backdrop"
+      @click.stop
+      @pointerdown.stop
+      @pointerup.stop
+      @contextmenu.stop
       @click.self="$emit('close')"
       @keydown.esc.stop.prevent="$emit('close')"
       @keydown.tab="trapFocus"
@@ -16,7 +20,7 @@
       >
         <header>
           <strong>{{ title }}</strong
-          ><button type="button" aria-label="关闭收款详情" @click="$emit('close')">
+          ><button type="button" class="payment-close" aria-label="关闭收款详情" @click.stop="$emit('close')">
             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
         </header>
@@ -204,10 +208,41 @@ watch(
     opacity: 0.45;
     cursor: default;
   }
-  header button {
-    padding: 4px 10px;
-    font-size: 24px;
+  header .payment-close {
+    display: grid;
+    place-items: center;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: #eaf0fa;
+    color: #234578;
+    font-size: 20px;
   }
+  .payment-status {
+    margin: 18px 0 0;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: var(--wave-tint, #f3f6fb);
+    color: var(--wave-muted, #6e7682);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  > small {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .payment-actions button {
+    min-height: 42px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .payment-actions button:last-child {
+    background: transparent;
+  }
+
   .payment-symbol {
     display: block;
     margin: 24px auto 16px;
@@ -228,8 +263,9 @@ watch(
   }
   .payment-actions {
     display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
-    margin-top: 20px;
+    margin-top: 14px;
   }
   .payment-actions button:first-child {
     background: var(--wave-blue, #5e80be);
