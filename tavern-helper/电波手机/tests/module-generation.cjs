@@ -18,6 +18,36 @@ const schema = require(base + '/schemas.ts'),
   parser = require(base + '/services/generation/parser.ts'),
   follow = require(base + '/services/generation/follow-generation.ts');
 (async () => {
+  const scoped = protocol.parseRequestedModule(
+    {
+      version: 1,
+      char_id: 'alice',
+      char_name: 'Alice',
+      messages: [{ invalid: true }],
+      payment_actions: [{ invalid: true }],
+      app_updates: { status: { fav: 50, soc: 20 }, wallet: { invalid: true }, memo: '' },
+    },
+    'status',
+  );
+  assert.deepEqual(Object.keys(scoped.app_updates), ['status']);
+  assert.equal(scoped.messages.length, 0);
+  assert.equal(scoped.payment_actions.length, 0);
+  assert.throws(
+    () =>
+      protocol.parseRequestedModule(
+        { version: 1, char_id: 'alice', char_name: 'Alice', app_updates: { wallet: { balance: 0 } } },
+        'status',
+      ),
+    /缺少/,
+  );
+  assert.throws(
+    () =>
+      protocol.parseRequestedModule(
+        { version: 1, char_id: 'alice', char_name: 'Alice', app_updates: { status: {} } },
+        'status',
+      ),
+    /为空/,
+  );
   const settings = schema.ScriptSettingsSchema.parse({});
   assert.equal(schema.MessageTypeSchema.safeParse('call').success, false);
   assert.equal(

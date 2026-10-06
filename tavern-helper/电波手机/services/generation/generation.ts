@@ -381,7 +381,7 @@ export async function previewPhoneRequest(input: GenerationInput) {
 
 export async function generatePhoneModule(input: GenerationInput, module: import('../../schemas').AppId) {
   const { buildModulePrompt } = await import('../../prompts');
-  const { ModuleDeltaSchema } = await import('./module-protocol');
+  const { parseRequestedModule } = await import('./module-protocol');
   const prompts: (BuiltinPrompt | RolePrompt)[] = [
     'char_description',
     'char_personality',
@@ -399,7 +399,7 @@ export async function generatePhoneModule(input: GenerationInput, module: import
     prompts,
     `手动生成 ${module} 模块的新内容`,
     raw => {
-      const delta = ModuleDeltaSchema.parse(extractJson(raw));
+      const delta = parseRequestedModule(extractJson(raw), module);
       if (module === 'wallet' && delta.app_updates.wallet === undefined)
         throw Error('首次钱包生成必须返回 wallet 与数字余额');
       if (module === 'messages') validateReplyMedia(delta.messages, input.media);

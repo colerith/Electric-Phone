@@ -57,3 +57,23 @@ export function serializeDelta(delta: ModuleDelta): string {
 export function stripInlineCards(text: string): string {
   return text.replace(HTML_PATTERN, '');
 }
+
+/** A manual app request never applies model-provided changes to other apps. */
+export function parseRequestedModule(raw: unknown, module: string): ModuleDelta {
+  if (module === 'messages') return ModuleDeltaSchema.parse(raw);
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return ModuleDeltaSchema.parse(raw);
+  const record = raw as Record<string, unknown>;
+  const updates = record.app_updates;
+  if (!updates || typeof updates !== 'object' || Array.isArray(updates) || !(module in updates))
+    throw Error(`模块结果缺少请求的 ${module} 更新`);
+  const selected = (updates as Record<string, unknown>)[module];
+  if (selected === '' || selected === null || (typeof selected === 'object' && !Object.keys(selected).length))
+    throw Error(`模块结果中的 ${module} 为空，请返回完整内容`);
+  return ModuleDeltaSchema.parse({
+    ...record,
+    app_updates: { [module]: selected },
+    messages: [],
+    reactions: [],
+    payment_actions: [],
+  });
+}
