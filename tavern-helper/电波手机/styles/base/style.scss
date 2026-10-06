@@ -4920,7 +4920,43 @@
 }
 
 #wave-phone-script-root .wave-device .chat-avatar-thought .thought-paperclip {
-  top: 2px;
-  left: 6px;
-  font-size: 19px;
+  top: -9px;
+  left: 10px;
+  font-size: 23px;
+}
+
+#wave-phone-script-root .wave-device .chat-avatar-thought {
+  --wave-close-bg: #eeefeb;
+  --wave-close-color: #8a908b;
+  isolation: isolate;
+  clip-path: none;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: #faf9f6;
+    border-radius: 16px 16px 0 16px;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 21px), calc(100% - 21px) 100%, 0 100%);
+    pointer-events: none;
+  }
+  &::after {
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+    pointer-events: none;
+  }
+  .thought-paperclip {
+    top: -9px;
+    left: 10px;
+    font-size: 23px;
+  }
+}
+#wave-phone-script-root .wave-device .composer-text-wrap.has-expand > textarea {
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
 }

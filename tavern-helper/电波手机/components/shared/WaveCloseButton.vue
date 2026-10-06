@@ -27,8 +27,8 @@ const emit = defineEmits<{ close: [] }>();
   padding: 0 !important;
   border: 0 !important;
   border-radius: 50% !important;
-  background: #eaf0f8 !important;
-  color: #6582ab !important;
+  background: var(--wave-close-bg, #eaf0f8) !important;
+  color: var(--wave-close-color, #6582ab) !important;
   cursor: pointer;
   touch-action: manipulation;
   pointer-events: auto;
@@ -53,7 +53,7 @@ const emit = defineEmits<{ close: [] }>();
     stroke-linecap: round;
   }
   &:focus-visible {
-    outline: 2px solid #6582ab;
+    outline: 2px solid var(--wave-close-color, #6582ab);
     outline-offset: 2px;
   }
 }
