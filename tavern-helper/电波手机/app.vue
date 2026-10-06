@@ -276,26 +276,51 @@
             />
 
             <section v-else-if="store.currentPage === 'conversation'" class="chat-page">
-              <aside
-                v-if="avatarThoughtKey"
-                class="chat-avatar-thought"
-                :style="avatarThoughtPosition"
-                role="dialog"
-                aria-label="隐秘心声"
-                @click.stop
-                @keydown.esc.stop="avatarThoughtKey = ''"
+              <div
+                v-if="editingMessageId || composerExpanded"
+                class="chat-editor-overlay"
+                @click.self="closeChatEditor"
+                @keydown.esc.stop.prevent="closeChatEditor"
               >
-                <header>
-                  <span>隐秘心声 · {{ displayIdentityName(store.state.identities[avatarThoughtKey]) }}</span
-                  ><button type="button" aria-label="关闭隐秘心声" @click="avatarThoughtKey = ''">
-                    <i class="fa-solid fa-xmark"></i>
-                  </button>
-                </header>
-                <p>{{ avatarThought || '暂时还没有隐秘心声，前往状态查看或更新。' }}</p>
-                <button type="button" class="chat-thought-link" @click="openThoughtStatus">
-                  查看状态 <i class="fa-solid fa-arrow-right"></i>
-                </button>
-              </aside>
+                <section
+                  class="chat-editor-dialog"
+                  :class="{ expanded: composerExpanded && !editingMessageId }"
+                  role="dialog"
+                  aria-modal="true"
+                  :aria-label="editingMessageId ? '编辑消息' : '展开输入'"
+                >
+                  <header>
+                    <strong>{{ editingMessageId ? '编辑消息' : '输入消息' }}</strong
+                    ><button type="button" aria-label="关闭编辑窗口" @click="closeChatEditor">
+                      <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                  </header>
+                  <textarea
+                    v-if="editingMessageId"
+                    v-model="editMessageDraft"
+                    aria-label="编辑消息内容"
+                    rows="8"
+                  ></textarea>
+                  <textarea
+                    v-else
+                    :value="store.activeThread?.draft || ''"
+                    aria-label="展开输入内容"
+                    @input="onDraft"
+                  ></textarea>
+                  <footer>
+                    <button type="button" @click="closeChatEditor">{{ editingMessageId ? '取消' : '收起' }}</button
+                    ><button
+                      v-if="editingMessageId"
+                      type="button"
+                      :disabled="!editMessageDraft.trim()"
+                      @click="saveMessageEdit"
+                    >
+                      保存修改
+                    </button>
+                  </footer>
+                </section>
+              </div>
+
               <button
                 v-if="unreadReplyIds.length"
                 type="button"
@@ -566,6 +591,25 @@
                       </div>
                     </div>
                   </article>
+                  <aside
+                    v-if="avatarThoughtKey && avatarThoughtMessageId === message.id"
+                    class="chat-avatar-thought"
+                    role="dialog"
+                    aria-label="隐秘心声"
+                    @click.stop
+                    @keydown.esc.stop="avatarThoughtKey = ''"
+                  >
+                    <header>
+                      <span>♥ 心声便签 · {{ displayIdentityName(store.state.identities[avatarThoughtKey]) }}</span
+                      ><button type="button" aria-label="关闭隐秘心声" @click="avatarThoughtKey = ''">
+                        <i class="fa-solid fa-xmark"></i>
+                      </button>
+                    </header>
+                    <p>{{ avatarThought || '暂时还没有隐秘心声，前往状态查看或更新。' }}</p>
+                    <button type="button" class="chat-thought-link" @click="openThoughtStatus">
+                      查看状态 <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                  </aside>
                 </div>
                 <div v-if="showTypingBubble" class="message-row char typing-row" aria-live="polite">
                   <span class="chat-avatar typing-avatar" aria-hidden="true">
@@ -622,7 +666,7 @@
                 <button type="button" @click="leaveMultiSelect">完成</button>
               </div>
 
-              <div v-if="editingMessageId || quotedMessage" class="composer-context">
+              <div v-if="quotedMessage" class="composer-context">
                 <i :class="editingMessageId ? 'fa-solid fa-pen' : 'fa-solid fa-quote-left'"></i>
                 <span
                   ><strong>{{ editingMessageId ? '编辑消息' : '引用消息' }}</strong
@@ -675,17 +719,27 @@
                 <button type="button" aria-label="扩展功能" @click="toggleExtras">
                   <i class="fa-solid fa-plus"></i>
                 </button>
-                <textarea
-                  ref="composerInput"
-                  :value="store.activeThread?.draft || ''"
-                  rows="1"
-                  :placeholder="editingMessageId ? '修改这条讯号…' : '输入一条讯号…'"
-                  @compositionstart="composerComposing = true"
-                  @compositionend="composerComposing = false"
-                  @input="onDraft"
-                  @keydown.enter.exact="onComposerEnter"
-                  @beforeinput="onComposerBeforeInput"
-                ></textarea>
+                <div class="composer-text-wrap">
+                  <textarea
+                    ref="composerInput"
+                    :value="store.activeThread?.draft || ''"
+                    rows="1"
+                    placeholder="输入一条讯号…"
+                    @compositionstart="composerComposing = true"
+                    @compositionend="composerComposing = false"
+                    @input="onDraft"
+                    @keydown.enter.exact="onComposerEnter"
+                    @beforeinput="onComposerBeforeInput"
+                  ></textarea
+                  ><button
+                    type="button"
+                    class="composer-expand"
+                    aria-label="展开输入框"
+                    @click="composerExpanded = true"
+                  >
+                    <i class="fa-solid fa-angles-up"></i>
+                  </button>
+                </div>
                 <button
                   class="mobile-return"
                   type="button"
@@ -1260,6 +1314,19 @@ const settingsSection = ref<SettingsSectionId>('root');
 const activeMessageId = ref('');
 const messageMenuView = ref<'actions' | 'forward'>('actions');
 const editingMessageId = ref('');
+const editMessageDraft = ref('');
+const composerExpanded = ref(false);
+function closeChatEditor(): void {
+  editingMessageId.value = '';
+  composerExpanded.value = false;
+}
+function saveMessageEdit(): void {
+  if (!editMessageDraft.value.trim() || !editingMessageId.value) return;
+  const draft = store.activeThread?.draft || '';
+  store.editMessage(editingMessageId.value, editMessageDraft.value);
+  store.setDraft(draft);
+  closeChatEditor();
+}
 const appSettingsOpen = ref(false);
 const appSettings = ref<InstanceType<typeof WaveAppSettings> | null>(null);
 const showMusicDock = computed(
@@ -2048,6 +2115,18 @@ function onDraft(event: Event): void {
   store.setDraft((event.target as HTMLTextAreaElement).value);
 }
 const composerInput = ref<HTMLTextAreaElement | null>(null);
+function resizeComposer(): void {
+  const input = composerInput.value;
+  if (!input) return;
+  input.style.height = 'auto';
+  input.style.height = `${Math.min(150, Math.max(36, input.scrollHeight))}px`;
+}
+watch(
+  () => [store.activeThread?.draft, composerExpanded.value, composerInput.value],
+  () => nextTick(resizeComposer),
+);
+useResizeObserver(composerInput, resizeComposer);
+
 let enterHandledAt = 0;
 function onComposerEnter(event: KeyboardEvent): void {
   if (event.isComposing || composerComposing.value || event.keyCode === 229) return;
@@ -2118,7 +2197,7 @@ function cancelAvatarHome(): void {
   clearTimeout(avatarHomeTimer);
 }
 const avatarThoughtKey = ref('');
-const avatarThoughtPosition = ref<Record<string, string>>({});
+const avatarThoughtMessageId = ref('');
 const avatarThought = computed(
   () => parseStatusProfile(store.state.snapshots[avatarThoughtKey.value]?.status || '').thought,
 );
@@ -2127,6 +2206,7 @@ watch(
   () => {
     cancelAvatarHome();
     avatarThoughtKey.value = '';
+    closeChatEditor();
   },
 );
 function openAvatarHome(sender: string, identity: Identity | null, event?: Event): void {
@@ -2137,15 +2217,7 @@ function openAvatarHome(sender: string, identity: Identity | null, event?: Event
     return;
   }
   const target = event?.currentTarget as HTMLElement | null;
-  const page = threadElement.value?.closest('.chat-page') as HTMLElement | null;
-  if (page && target) {
-    const frame = page.getBoundingClientRect(),
-      anchor = target.getBoundingClientRect();
-    const scale = frame.height / page.offsetHeight || 1;
-    avatarThoughtPosition.value = {
-      top: `${Math.max(8, Math.min(page.clientHeight - 190, (anchor.top - frame.top) / scale))}px`,
-    };
-  }
+  avatarThoughtMessageId.value = target?.closest<HTMLElement>('[data-message-id]')?.dataset.messageId || '';
   avatarThoughtKey.value = identity.charKey;
 }
 function openThoughtStatus(): void {
@@ -2192,16 +2264,6 @@ async function send(activateReply = true): Promise<void> {
   extrasOpen.value = false;
   extraMode.value = '';
   try {
-    if (editingMessageId.value) {
-      const content = store.activeThread?.draft || '';
-      if (!content.trim()) {
-        toastr.error('编辑后的消息不能为空', '电波手机');
-        return;
-      }
-      store.editMessage(editingMessageId.value, content);
-      editingMessageId.value = '';
-      return;
-    }
     const previousMessageCount = store.activeThread?.messages.length || 0;
     const content = store.activeThread?.draft || '';
     const previewTranslation = draftTranslation.value?.currentResult();
@@ -2611,7 +2673,7 @@ function beginEditMessage(): void {
   if (!message || !canEditActiveMessage.value) return;
   editingMessageId.value = message.id;
   quotedMessageId.value = '';
-  store.setDraft(message.content);
+  editMessageDraft.value = message.content;
   closeMessageMenu();
 }
 async function copyActiveMessage(): Promise<void> {

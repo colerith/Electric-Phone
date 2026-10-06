@@ -4760,3 +4760,88 @@
     font-size: 10px;
   }
 }
+
+#wave-phone-script-root .wave-device .chat-avatar-thought {
+  position: relative;
+  left: auto;
+  top: auto;
+  width: auto;
+  margin: 12px 18px 14px;
+  border-radius: 16px;
+  background: #fbfaf8;
+  box-shadow: 0 4px 14px rgba(40, 58, 88, 0.08);
+}
+#wave-phone-script-root .wave-device .composer-text-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+#wave-phone-script-root .wave-device .composer-text-wrap textarea {
+  display: block;
+  max-height: 150px;
+  padding-right: 27px;
+  line-height: 1.6;
+}
+#wave-phone-script-root .wave-device .composer-text-wrap .composer-expand {
+  position: absolute;
+  right: 4px;
+  bottom: 5px;
+  width: 23px;
+  height: 23px;
+  padding: 0;
+  font-size: 10px;
+  background: transparent;
+  color: #7b8da5;
+}
+#wave-phone-script-root .wave-device .chat-editor-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(35, 45, 65, 0.25);
+}
+#wave-phone-script-root .wave-device .chat-editor-dialog {
+  width: 100%;
+  max-height: 95%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 20px;
+  background: #f8fafc;
+}
+#wave-phone-script-root .wave-device .chat-editor-dialog.expanded {
+  height: 95%;
+}
+#wave-phone-script-root .wave-device .chat-editor-dialog header,
+#wave-phone-script-root .wave-device .chat-editor-dialog footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+#wave-phone-script-root .wave-device .chat-editor-dialog textarea {
+  flex: 1;
+  min-height: 160px;
+  width: 100%;
+  resize: none;
+  padding: 12px;
+  border: 1px solid #dce3ed;
+  border-radius: 12px;
+  background: white;
+  color: #374558;
+  font-size: 13px;
+  line-height: 1.7;
+}
+#wave-phone-script-root .wave-device .chat-editor-dialog button {
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: #e8eef8;
+  color: #5c80be;
+  font-size: 12px;
+}
