@@ -229,6 +229,46 @@ const { nextTick } = require('vue');
   assert.equal(imageCalls, 1);
   await nextTick();
   assert.equal(imageCalls, 1);
+  // Explicit user generation works even when automatic space images are disabled.
+  const { manualImageMedia } = require(base + '/services/image/manual.ts');
+  assert.throws(() => manualImageMedia({ description: ' ', count: 1, profileId: 'gpt' }));
+  assert.throws(() => manualImageMedia({ description: '海边', count: 10, profileId: 'gpt' }));
+  store.state.moments.settings.imageMode = 'description';
+  const manual = manualImageMedia({ description: '海边散步', count: 9, profileId: 'gpt', kind: 'video' });
+  assert.equal(manual.length, 9);
+  assert.match(manual[8].imageRequest.prompt, /9\/9/);
+  store.publishMoment({
+    content: '分镜',
+    images: manual,
+    location: '',
+    mentions: [],
+    visibility: 'self',
+    audience: [],
+  });
+  await nextTick();
+  await new Promise(r => setTimeout(r, 120));
+  assert.equal(imageCalls, 10);
+  const manualPost = store.state.moments.posts[0];
+  assert.equal(store.getImageAsset({ kind: 'moment', postId: manualPost.id, index: 8 }).status, 'complete');
+  let cleared = false;
+  const commentTask = store.commentMoment(manualPost.id, '立即清空', undefined, () => {
+    cleared = true;
+  });
+  assert.equal(cleared, true);
+  assert(store.state.moments.comments.some(c => c.content === '立即清空'));
+  await commentTask;
+  await store.sendMessage({
+    type: 'video',
+    content: '海边散步',
+    payload: { images: manual.slice(0, 2), manualImageGeneration: true, imageProfileId: 'gpt' },
+  });
+  await new Promise(r => setTimeout(r, 100));
+  assert.equal(imageCalls, 12);
+  const sentMedia = store.activeThread.messages.findLast(m => m.payload.manualImageGeneration);
+  assert.equal(
+    store.getImageAsset({ kind: 'message', threadId: store.activeThread.id, messageId: sentMedia.id, index: 1 }).status,
+    'complete',
+  );
   global.window = { parent: {} };
   SillyTavern.extensionSettings = {
     baibai_image_char_global: {

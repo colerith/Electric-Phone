@@ -322,7 +322,10 @@
             <button v-for="(media, index) in post.images" :key="index" type="button" @click="openGallery(post, index)">
               <img v-if="media.kind === 'image'" :src="media.url" :alt="media.description || '空间动态图片'" /><span
                 v-else
-                ><i class="fa-regular fa-image"></i>{{ media.description }}</span
+                ><i class="fa-regular fa-image"></i>{{ media.description
+                }}<small v-if="postImageStatus(post, index)" role="status">{{
+                  postImageStatus(post, index)
+                }}</small></span
               >
             </button>
           </div>
@@ -530,7 +533,7 @@
             <button type="button" :disabled="draft.images.length >= 9" @click="editImage('post')">
               <i class="fa-regular fa-image"></i> 上传真实图片</button
             ><button type="button" :disabled="draft.images.length >= 9" @click="describing = true">
-              添加文字描述图</button
+              描述图片 / AI 生图</button
             ><small>{{ draft.images.length }}/9</small>
           </div>
           <div class="space-tag-editor">
@@ -603,7 +606,7 @@
           tabindex="-1"
           role="dialog"
           aria-modal="true"
-          :aria-label="describing ? '添加文字描述图' : '图片预览'"
+          :aria-label="describing ? '添加画面图片' : '图片预览'"
           @keydown.tab="trapFocus"
         >
           <button
@@ -617,7 +620,7 @@
           >
             ×</button
           ><template v-if="describing"
-            ><div class="wave-settings-title">文字描述图</div>
+            ><div class="wave-settings-title">画面图片</div>
             <textarea
               v-model="description"
               maxlength="1000"
@@ -625,7 +628,21 @@
               placeholder="描述照片里的画面…"
               aria-label="图片画面描述"
             ></textarea
-            ><button type="button" class="settings-save-wide" @click="addDescription">添加图片</button></template
+            ><WaveManualImageOptions
+              v-model:enabled="descriptionAi"
+              v-model:count="descriptionCount"
+              v-model:profile-id="descriptionProfile"
+              :max="Math.max(1, 9 - draft.images.length)"
+            />
+            <p v-if="descriptionError" role="alert">{{ descriptionError }}</p>
+            <button
+              type="button"
+              class="settings-save-wide"
+              :disabled="!description.trim() || (descriptionAi && !descriptionProfile)"
+              @click="addDescription"
+            >
+              {{ descriptionAi ? `添加 ${descriptionCount} 张 AI 图片` : '添加图片' }}
+            </button></template
           ><template v-else-if="preview"
             ><img v-if="preview.kind === 'image'" :src="preview.url" :alt="preview.description || '图片预览'" />
             <p v-else>{{ preview.description }}</p></template
@@ -657,6 +674,9 @@
 </template>
 <script setup lang="ts">
 import WaveAppearanceImport from '../shared/WaveAppearanceImport.vue';
+import WaveManualImageOptions from '../shared/WaveManualImageOptions.vue';
+import { manualImageMedia } from '../../services/image/manual';
+import { imageTargetKey } from '../../services/image/library';
 import WaveImageViewer from '../shared/WaveImageViewer.vue';
 import type { ImageTarget } from '../../services/image/library';
 import { identityAvatarStyle } from '../../services/core/avatar';
@@ -978,14 +998,37 @@ function applyImage(value: { avatar: string }) {
   }
   imageTarget.value = '';
 }
+const descriptionAi = ref(false),
+  descriptionCount = ref(1),
+  descriptionProfile = ref(phone.state.moments.settings.imageProfileId),
+  descriptionError = ref('');
 const describing = ref(false),
   description = ref(''),
   preview = ref<MomentMedia | null>(null);
 function addDescription() {
+  descriptionError.value = '';
   if (!description.value.trim() || draft.images.length >= 9) return;
-  draft.images.push({ kind: 'description', url: '', description: description.value.trim() });
-  description.value = '';
-  describing.value = false;
+  try {
+    const media = descriptionAi.value
+      ? manualImageMedia({
+          description: description.value,
+          count: descriptionCount.value,
+          profileId: descriptionProfile.value,
+        })
+      : [{ kind: 'description' as const, url: '', description: description.value.trim() }];
+    if (draft.images.length + media.length > 9) throw Error('每条动态最多添加 9 张图片');
+    draft.images.push(...media);
+    description.value = '';
+    describing.value = false;
+  } catch (error) {
+    descriptionError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+function postImageStatus(post: MomentPost, index: number): string {
+  const asset = phone.state.moments.imageEdits[imageTargetKey({ kind: 'moment', postId: post.id, index })];
+  if (asset?.status === 'pending') return '正在生成…';
+  if (asset?.status === 'failed') return '生图失败，点开重试';
+  return post.images[index]?.manualGeneration && !post.images[index].url && !asset?.versions.length ? '等待生成…' : '';
 }
 const commenting = ref(''),
   commentText = ref('');
@@ -996,11 +1039,12 @@ function startReply(postId: string, comment: MomentComment) {
 }
 async function sendComment(id: string) {
   try {
-    await phone.commentMoment(id, commentText.value, replyingComment.value || undefined);
-    commentText.value = '';
-    replyingComment.value = null;
-    commenting.value = '';
-    now.value = Date.now();
+    await phone.commentMoment(id, commentText.value, replyingComment.value || undefined, () => {
+      commentText.value = '';
+      replyingComment.value = null;
+      commenting.value = '';
+      now.value = Date.now();
+    });
   } catch (error) {
     notice.value = `评论已保存，但后续回复生成失败：${String(error)}`;
   }

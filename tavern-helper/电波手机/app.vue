@@ -277,7 +277,13 @@
 
             <section v-else-if="store.currentPage === 'conversation'" class="chat-page">
               <WaveTogether :user-avatar="userAvatar" :character-avatar-style="avatarStyle(store.activeIdentity)" />
-              <div ref="threadElement" class="chat-thread" @click="closeMessageMenu">
+              <div
+                ref="threadElement"
+                class="chat-thread"
+                @click="closeMessageMenu"
+                @scroll.passive="updateThreadScroll"
+                @load.capture="updateThreadScroll"
+              >
                 <div
                   v-for="(message, messageIndex) in visibleMessages"
                   :key="message.id"
@@ -549,6 +555,18 @@
                 <div v-if="!visibleMessages.length" class="empty-state">发送第一条只属于这个聊天的手机消息。</div>
               </div>
 
+              <div class="chat-bottom-jump-anchor">
+                <button
+                  v-if="isAwayFromBottom"
+                  type="button"
+                  class="chat-bottom-jump"
+                  aria-label="回到最新消息"
+                  title="回到底部"
+                  @click.stop="scrollToThreadEnd"
+                >
+                  <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
+                </button>
+              </div>
               <div v-if="multiSelectMode" class="message-multi-toolbar">
                 <span
                   ><strong>已选择 {{ selectedMessageIds.size }} 条</strong
@@ -688,7 +706,14 @@
                       <span>媒体类型</span>
                       <WaveSelect v-model="extraDraft.kind" aria-label="媒体类型" :options="mediaKindOptions" />
                     </label>
-                    <label v-if="extraMode === '媒体' || extraMode === '链接'"
+                    <WaveManualImageOptions
+                      v-if="extraMode === '媒体'"
+                      v-model:enabled="mediaAi"
+                      v-model:count="mediaAiCount"
+                      v-model:profile-id="mediaAiProfile"
+                      :video="extraDraft.kind === 'video'"
+                    />
+                    <label v-if="(extraMode === '媒体' && !mediaAi) || extraMode === '链接'"
                       ><span>{{ extraMode === '媒体' ? '资源 URL（可留空）' : '链接 URL' }}</span
                       ><input v-model.trim="extraDraft.url" type="url" placeholder="https://…"
                     /></label>
@@ -701,7 +726,7 @@
                       @change="selectPhotos"
                     />
                     <div
-                      v-if="extraMode === '媒体' && extraDraft.kind === 'image' && selectedPhotos.length"
+                      v-if="extraMode === '媒体' && !mediaAi && extraDraft.kind === 'image' && selectedPhotos.length"
                       class="photo-selection"
                     >
                       <div v-for="(photo, index) in selectedPhotos" :key="photo.url">
@@ -741,10 +766,12 @@
                         step="0.01"
                         placeholder="留空随机，或输入自定义距离"
                     /></label>
-                    <p class="extra-hint">{{ extraHint }}</p>
+                    <p class="extra-hint">
+                      {{ extraMode === '媒体' && mediaAi ? '请描述画面主体、动作和环境，发送后开始生图。' : extraHint }}
+                    </p>
                     <div class="media-send-actions">
                       <button
-                        v-if="extraMode === '媒体' && extraDraft.kind === 'image'"
+                        v-if="extraMode === '媒体' && !mediaAi && extraDraft.kind === 'image'"
                         class="media-choose-photos"
                         type="button"
                         @click="photoFileInput?.click()"
@@ -1078,6 +1105,8 @@
 </template>
 
 <script setup lang="ts">
+import WaveManualImageOptions from './components/shared/WaveManualImageOptions.vue';
+import { manualImageMedia } from './services/image/manual';
 import { paymentClaims, paymentDetails } from './services/chat/payment';
 import { latestReplyRound } from './services/chat/regeneration';
 import { groupRoundElectric } from './services/generation/electric';
@@ -1097,6 +1126,7 @@ import WaveMusicIsland from './components/music/WaveMusicIsland.vue';
 import WaveGenerationIsland from './components/shell/WaveGenerationIsland.vue';
 import WaveDeviceStatus from './components/shell/WaveDeviceStatus.vue';
 import WavePokeNotice from './components/chat/WavePokeNotice.vue';
+import { useMutationObserver, useResizeObserver } from '@vueuse/core';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, provide } from 'vue';
 import WaveImageUpload from './components/shared/WaveImageUpload.vue';
 import WaveGroupAvatar from './components/shared/WaveGroupAvatar.vue';
@@ -1181,6 +1211,9 @@ watch(
 );
 const extrasOpen = ref(false);
 const extraMode = ref('');
+const mediaAi = ref(false),
+  mediaAiCount = ref(1),
+  mediaAiProfile = ref('');
 const manualGenerationApps: AppId[] = ['status', 'memo', 'zone', 'wallet', 'calendar', 'browse'];
 const canManualGeneratePage = computed(
   () =>
@@ -1291,6 +1324,18 @@ const extraDraft = ref({
   content: '',
 });
 const threadElement = ref<HTMLElement | null>(null);
+const isAwayFromBottom = ref(false);
+function updateThreadScroll(): void {
+  const element = threadElement.value;
+  isAwayFromBottom.value = !!element && element.scrollHeight - element.clientHeight - element.scrollTop > 48;
+}
+useResizeObserver(threadElement, updateThreadScroll);
+useMutationObserver(threadElement, () => nextTick(updateThreadScroll), {
+  childList: true,
+  subtree: true,
+  characterData: true,
+});
+watch(threadElement, () => nextTick(updateThreadScroll));
 const hiddenMessageIds = ref(new Set<string>());
 const revealQueue: string[] = [];
 const revealTypingThreadId = ref('');
@@ -2291,6 +2336,31 @@ function submitExtra(): void {
   const draft = extraDraft.value;
   let input: SendMessageInput;
   if (extraMode.value === '媒体') {
+    if (mediaAi.value) {
+      try {
+        const images = manualImageMedia({
+          description: draft.content,
+          count: mediaAiCount.value,
+          profileId: mediaAiProfile.value,
+          kind: draft.kind === 'video' ? 'video' : 'image',
+        });
+        if (!store.settings.imageServices.profiles.some(profile => profile.id === mediaAiProfile.value))
+          throw Error('请先选择有效的生图接口');
+        void sendTyped({
+          type: draft.kind === 'video' ? 'video' : 'image',
+          content: draft.content,
+          payload: {
+            description: draft.content,
+            images,
+            manualImageGeneration: true,
+            imageProfileId: mediaAiProfile.value,
+          },
+        });
+      } catch (error) {
+        toastr.error(error instanceof Error ? error.message : String(error));
+      }
+      return;
+    }
     if (draft.url && !/^https?:\/\//i.test(draft.url)) {
       toastr.error('媒体 URL 仅允许 http/https');
       return;

@@ -2440,7 +2440,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   function imageSource(target: ImageTarget) {
     if (target.kind === 'message') {
       const thread = state.value.threads[target.threadId];
-      const message = thread?.messages.find(m => m.id === target.messageId && !m.withdrawn && m.type === 'image');
+      const message = thread?.messages.find(
+        m =>
+          m.id === target.messageId &&
+          !m.withdrawn &&
+          (m.type === 'image' || (m.type === 'video' && m.payload.manualImageGeneration)),
+      );
       if (!message) return;
       const list = Array.isArray(message.payload.images) ? message.payload.images : [];
       const item = (list.length ? list[target.index] : target.index === 0 ? message.payload : undefined) as
@@ -2475,7 +2480,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       description: item.description,
       request: item.imageRequest,
       charKey: post.authorKey,
-      profileId: state.value.moments.settings.imageProfileId,
+      profileId: item.imageProfileId || state.value.moments.settings.imageProfileId,
     };
   }
   function imageMap(target: ImageTarget) {
@@ -2614,6 +2619,43 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (imageJobs.get(key) === stamp) imageJobs.delete(key);
     }
   }
+  async function processUserMediaImages(thread: Thread, message: PhoneMessage): Promise<void> {
+    const runtime = context.value ? { ...context.value } : null;
+    if (!runtime) return;
+    const revision = thread.clearRevision;
+    const images = Array.isArray(message.payload.images) ? message.payload.images.slice(0, 9) : [];
+    for (let index = 0; index < images.length; index++) {
+      if (
+        context.value?.cardKey !== runtime.cardKey ||
+        context.value.chatKey !== runtime.chatKey ||
+        state.value.threads[thread.id]?.clearRevision !== revision
+      )
+        return;
+      const target: ImageTarget = { kind: 'message', threadId: thread.id, messageId: message.id, index };
+      if (!imageSource(target)) return;
+      if (state.value.messageImages[imageTargetKey(target)]) continue;
+      const asset = getImageAsset(target);
+      if (!asset) continue;
+      const controller = new AbortController(),
+        timer = setTimeout(() => controller.abort(), 240000);
+      try {
+        await runImageAction(target, asset, 'generate', controller.signal);
+      } catch (error) {
+        logDiagnostic('用户媒体生图', String(error));
+        if (
+          controller.signal.aborted &&
+          context.value?.cardKey === runtime.cardKey &&
+          context.value.chatKey === runtime.chatKey &&
+          state.value.threads[thread.id]?.clearRevision === revision &&
+          imageSource(target)
+        ) {
+          updateImageAsset(target, { ...asset, status: 'failed', error: '生图超时，请点开图片重试' });
+        }
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+  }
   const imageJobs = new Map<string, string>();
   function saveMoments(): void {
     state.value.moments = MomentsStateSchema.parse(state.value.moments);
@@ -2634,6 +2676,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!context.value) throw Error('请先选择聊天');
     if (!draft.content.trim() && !draft.images.length) throw Error('写点内容或添加图片后再发布');
     if (draft.visibility === 'include' && !draft.audience.length) throw Error('请选择可见的联系人');
+    for (const media of draft.images)
+      if (
+        media.manualGeneration &&
+        !settings.value.imageServices.profiles.some(profile => profile.id === media.imageProfileId)
+      )
+        throw Error('请为 AI 图片选择有效的生图接口');
     const now = Date.now();
     const post = MomentPostSchema.parse({
       ...draft,
@@ -2653,7 +2701,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     );
     if (state.value.moments.settings.imageMode === 'ai')
       post.images = post.images.map((media, index) =>
-        media.kind === 'description' && index < state.value.moments.settings.maxImages
+        media.kind === 'description' && !media.manualGeneration && index < state.value.moments.settings.maxImages
           ? { ...media, imageRequest: { subject: 'other_character', prompt: media.description } }
           : media,
       );
@@ -2662,7 +2710,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       state.value.moments.autoInteractionPostIds.push(post.id);
     saveMoments();
   }
-  async function commentMoment(postId: string, content: string, parent?: MomentComment): Promise<void> {
+  async function commentMoment(
+    postId: string,
+    content: string,
+    parent?: MomentComment,
+    onSaved?: () => void,
+  ): Promise<void> {
     if (!content.trim() || !momentsFeed.value.posts.some(post => post.id === postId && post.availableAt <= Date.now()))
       return;
     const now = Date.now();
@@ -2680,6 +2733,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     });
     state.value.moments.comments.push(comment);
     saveMoments();
+    onSaved?.();
     if (!settings.value.api.enabled) return;
     const runtime = moduleInput();
     if (!runtime || moduleGenerating.value || zoneGenerating.value) return;
@@ -3436,11 +3490,17 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!hasInput && (!activateReply || !queued)) return;
     if (thread.generating) throw Error('这个会话正在生成，请稍候或先停止。');
 
+    if (
+      draftInput.payload?.manualImageGeneration &&
+      !settings.value.imageServices.profiles.some(profile => profile.id === draftInput.payload?.imageProfileId)
+    )
+      throw Error('请先选择有效的生图接口');
     const namespace = `${runtime.cardKey}::${runtime.chatKey}::${thread.id}`;
     const clearRevision = thread.clearRevision;
     const userMessage = hasInput ? addUserMessage(thread, draftInput) : queued!;
     userMessage.payload.awaitingReply = true;
     saveChat();
+    if (hasInput && userMessage.payload.manualImageGeneration) void processUserMediaImages(thread, userMessage);
     const listeningContext =
       listening.value?.charKey === identity.charKey
         ? `\n[一起听：${listening.value.title} — ${listening.value.artist}；${listening.value.playing ? '正在播放' : '已暂停'}。这是用户与你的听歌情境，可自然回应。]`
@@ -4418,27 +4478,39 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         momentImagesQueued = true;
         return;
       }
-      if (!context.value || !isReady.value || state.value.moments.settings.imageMode !== 'ai') return;
+      if (!context.value || !isReady.value) return;
       const profileId = state.value.moments.settings.imageProfileId;
-      if (!settings.value.imageServices.profiles.some(p => p.id === profileId)) return;
       momentImagesBusy = true;
       const runtime = { ...context.value };
       try {
         for (const post of momentsFeed.value.posts) {
-          for (let index = 0; index < Math.min(post.images.length, state.value.moments.settings.maxImages); index++) {
+          for (let index = 0; index < post.images.length; index++) {
             if (context.value?.cardKey !== runtime.cardKey || context.value.chatKey !== runtime.chatKey) return;
             const media = post.images[index],
               target: ImageTarget = { kind: 'moment', postId: post.id, index };
+            if (
+              !media.manualGeneration &&
+              (state.value.moments.settings.imageMode !== 'ai' || index >= state.value.moments.settings.maxImages)
+            )
+              continue;
             if (!media.imageRequest || media.url || state.value.moments.imageEdits[imageTargetKey(target)]) continue;
             const asset = getImageAsset(target);
             if (!asset) continue;
-            asset.profileId = profileId;
+            asset.profileId = media.imageProfileId || profileId;
             const controller = new AbortController(),
               timer = setTimeout(() => controller.abort(), 240000);
             try {
               await runImageAction(target, asset, 'generate', controller.signal);
             } catch (e) {
               logDiagnostic('空间生图', String(e));
+              if (
+                controller.signal.aborted &&
+                context.value?.cardKey === runtime.cardKey &&
+                context.value.chatKey === runtime.chatKey &&
+                imageSource(target)
+              ) {
+                updateImageAsset(target, { ...asset, status: 'failed', error: '生图超时，请点开图片重试' });
+              }
             } finally {
               clearTimeout(timer);
             }

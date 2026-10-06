@@ -4633,3 +4633,30 @@
 #wave-phone-script-root .wave-device .wave-image-settings label {
   display: grid;
 }
+
+#wave-phone-script-root .chat-bottom-jump-anchor {
+  position: relative;
+  height: 0;
+  flex: 0 0 0;
+  z-index: 12;
+}
+#wave-phone-script-root .chat-bottom-jump {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgba(128, 151, 190, 0.24);
+  border-radius: 50%;
+  background: rgba(247, 250, 255, 0.78);
+  color: var(--wave-primary, #5c80be);
+  box-shadow: 0 3px 14px rgba(34, 54, 85, 0.14);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+}
+#wave-phone-script-root .chat-bottom-jump:hover {
+  background: rgba(247, 250, 255, 0.95);
+}

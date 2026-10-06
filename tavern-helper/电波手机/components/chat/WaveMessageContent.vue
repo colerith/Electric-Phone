@@ -70,12 +70,15 @@
       </div>
 
       <div
-        v-else-if="message.type === 'image' && album.length > 1"
+        v-else-if="
+          (message.type === 'image' && album.length > 1) ||
+          (message.type === 'video' && message.payload.manualImageGeneration && album.length > 0)
+        "
         class="wave-photo-album"
         :class="{ expanded: albumExpanded }"
       >
         <button type="button" class="album-toggle" @click.stop="albumExpanded = !albumExpanded">
-          {{ albumExpanded ? '收起' : '展开' }} {{ album.length }}
+          {{ message.type === 'video' ? '视频画面 · ' : '' }}{{ albumExpanded ? '收起' : '展开' }} {{ album.length }} 张
         </button>
         <figure
           v-for="(photo, index) in album"
@@ -95,7 +98,10 @@
             :src="albumImage(index, photo).url"
             :alt="albumImage(index, photo).description || '照片'"
           />
-          <figcaption>{{ albumImage(index, photo).description }}</figcaption>
+          <figcaption>
+            {{ albumImage(index, photo).description
+            }}<small v-if="manualImageStatus(index)" role="status">{{ manualImageStatus(index) }}</small>
+          </figcaption>
         </figure>
       </div>
       <figure
@@ -115,7 +121,8 @@
           <img v-if="safeMediaUrl" :src="safeMediaUrl" :alt="mediaDescription || '聊天照片'" />
           <div v-else class="wave-photo-placeholder wave-photo-description">
             <span>{{ photoDescription }}</span
-            ><small v-if="message.payload.imageGenerationStatus" role="status">{{
+            ><small v-if="manualImageStatus(0)" role="status">{{ manualImageStatus(0) }}</small
+            ><small v-else-if="message.payload.imageGenerationStatus" role="status">{{
               message.payload.imageGenerationStatus === 'pending'
                 ? '正在生成图片…'
                 : message.payload.imageGenerationError || ''
@@ -383,7 +390,8 @@ const album = computed(() =>
           item &&
           typeof item === 'object' &&
           typeof (item as { url?: unknown }).url === 'string' &&
-          /^(https?:\/\/|data:image\/)/i.test((item as { url: string }).url),
+          (/^(https?:\/\/|data:image\/)/i.test((item as { url: string }).url) ||
+            (props.message.payload.manualImageGeneration && (item as { url: string }).url === '')),
         ),
       )
     : [],
@@ -410,6 +418,14 @@ const displayedImage = computed(() =>
 function albumImage(index: number, fallback: { url: string; description: string }) {
   const asset = galleryTargets.value[index] && phone.getImageAsset(galleryTargets.value[index]);
   return asset ? { url: selectedImage(asset)?.url || '', description: asset.description } : fallback;
+}
+
+function manualImageStatus(index: number): string {
+  if (!props.message.payload.manualImageGeneration) return '';
+  const asset = galleryTargets.value[index] && phone.getImageAsset(galleryTargets.value[index]);
+  if (asset?.status === 'pending') return '正在生成图片…';
+  if (asset?.status === 'failed') return '生图失败，点开重试';
+  return !asset?.versions.length ? '等待生成…' : '';
 }
 
 const paymentOpen = ref(false);

@@ -13,6 +13,8 @@ export const MomentMediaSchema = z
     url: z.string().default(''),
     description: z.string().max(1000).default(''),
     imageRequest: ImageRequestSchema.optional(),
+    manualGeneration: z.boolean().optional(),
+    imageProfileId: z.string().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.kind === 'image' && !/^(https?:\/\/|data:image\/(?:png|jpeg|webp|gif);base64,)/i.test(value.url))

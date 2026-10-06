@@ -104,14 +104,16 @@ const input = (el, text) => {
   await tick();
   assert(surface.value.contains(document.querySelector('.moment-composer')));
   input(document.querySelector('.moment-composer textarea'), '今天的照片');
-  clickText('.moment-composer button', '文字描述');
+  clickText('.moment-composer button', '描述图片');
   await tick();
   input(document.querySelector('.moments-media-modal textarea'), '窗边的一束花');
+  await tick();
   clickText('.moments-media-modal button', '添加图片');
   await tick();
-  clickText('.moment-composer button', '文字描述');
+  clickText('.moment-composer button', '描述图片');
   await tick();
   input(document.querySelector('.moments-media-modal textarea'), '雨后的街道');
+  await tick();
   clickText('.moments-media-modal button', '添加图片');
   await tick();
   clickText('.moment-composer button', '发表');
