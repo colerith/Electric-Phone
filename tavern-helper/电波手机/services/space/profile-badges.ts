@@ -47,3 +47,13 @@ export const profileDecorationFields = {
   badges: ProfileBadgesSchema.default([]),
 };
 export const profileBadgePrompt = `称号 title 是符合本人气质的短称号；titleColor 从这些通透色块选一个：${titleColors.map(item => item.color).join('、')}，称号文字固定白色。badges 最多 4 个不同 ID，只能从以下彩色徽章库选择：${profileBadges.map(badge => `${badge.id}（${badge.label}）`).join('、')}。称号和徽章表达性格与兴趣，不代替签名，不凭空赋予真实认证身份。`;
+
+/** The full visual catalog belongs in the picker, not every generation request. */
+export function compactProfileBadgePrompt(profile: { title?: string; badges?: string[] }): string {
+  if (profile.title || profile.badges?.length)
+    return '已有称号、颜色和徽章保持不变；无明确修改要求时省略这些字段，禁止重复返回整份资料。';
+  const choices = badgeCategories.flatMap(category =>
+    profileBadges.filter(badge => badge.category === category.id).slice(0, 3),
+  );
+  return `首次补全资料：title 为简短称号，titleColor 为 #RRGGBB 颜色，badges 选 0–4 个 ID：${choices.map(badge => `${badge.id}=${badge.label}`).join('、')}。不虚构认证身份；以后保留，不重复生成。`;
+}

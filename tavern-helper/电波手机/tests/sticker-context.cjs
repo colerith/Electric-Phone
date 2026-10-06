@@ -40,9 +40,39 @@ assert.equal(stickers[0].url, image, '生成提示词不能修改上传资源');
 assert.equal(stickerPrompt({ charKey: 'a' }, []), '');
 console.log('sticker context regression passed');
 
-const recentPrompt = stickerPrompt({ charKey: 'a' }, stickers, { messages: [{
-  ...restored, id: 'recent', sender: 'char', status: 'sent', createdAt: '2026-01-01',
-}], historyArchive: [] });
+const recentPrompt = stickerPrompt({ charKey: 'a' }, stickers, {
+  messages: [
+    {
+      ...restored,
+      id: 'recent',
+      sender: 'char',
+      status: 'sent',
+      createdAt: '2026-01-01',
+    },
+  ],
+  historyArchive: [],
+});
 assert(recentPrompt.includes('近期表情包') && recentPrompt.includes('每轮最多一张'));
 assert(recentPrompt.includes('"reference":"sticker://local"'));
 assert(!recentPrompt.includes('AAAA'));
+
+const byName = name => ({ type: 'emoji', payload: { emojiType: 'sticker', name } });
+assert.equal(resolveStickerMessage(byName('开心'), 'b', stickers).payload.url, image);
+assert.equal(resolveStickerMessage(byName('专属'), 'b', stickers).payload.url, undefined);
+assert.equal(
+  resolveStickerMessage({ type: 'emoji', payload: { stickerId: 'private' } }, 'a', stickers).payload.url,
+  image,
+);
+const duplicates = [...stickers, { id: 'other', name: '开心', url: 'https://example.com/other.png', scope: 'global' }];
+assert(stickerPrompt({ charKey: 'a' }, duplicates).includes('"stickerId":"local"'));
+assert.equal(resolveStickerMessage(byName('开心'), 'a', duplicates).payload.url, undefined);
+const changed = stickers.map(item => ({ ...item }));
+stickerPrompt({ charKey: 'a' }, changed);
+changed[0].name = '新名称';
+assert(stickerPrompt({ charKey: 'a' }, changed).includes('新名称'));
+assert(!stickerPrompt({ charKey: 'b' }, changed).includes('专属'));
+changed[0].url = 'https://example.com/replaced.png';
+assert.equal(resolveStickerMessage(byName('新名称'), 'a', changed).payload.url, changed[0].url);
+changed.shift();
+assert(!stickerPrompt({ charKey: 'a' }, changed).includes('新名称'));
+console.log('PASS sticker name/ID lookup, collision rejection, scope and cache invalidation');

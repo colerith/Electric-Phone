@@ -4,23 +4,35 @@ import type { Identity, ScriptSettings, Thread } from '../../schemas';
 function stickerReference(id: string): string {
   return `sticker://${encodeURIComponent(id)}`;
 }
+// Bounded local serialization cache. Stateless model calls still receive the small name catalog.
+const catalogCache = new Map<string, string>();
+function cachedCatalog(identity: Identity, stickers: ScriptSettings['stickers']['stickers']): string {
+  const allowed = identity.source === 'local_group' ? identity.memberKeys || [] : [identity.charKey];
+  const items = stickers
+    .filter(item => item.scope === 'global' || !item.charKey || allowed.includes(item.charKey))
+    .slice(0, 80);
+  if (!items.length) return '';
+  const key = JSON.stringify(items.map(item => [item.id, item.name, item.scope, item.charKey]));
+  const cached = catalogCache.get(key);
+  if (cached) return cached;
+  const names = new Map<string, number>();
+  items.forEach(item => names.set(item.name, (names.get(item.name) || 0) + 1));
+  const groups: Record<string, unknown[]> = {};
+  for (const item of items) {
+    const owner = item.scope === 'char' && item.charKey ? item.charKey : '任意成员';
+    (groups[owner] ||= []).push(names.get(item.name) === 1 ? item.name : { name: item.name, stickerId: item.id });
+  }
+  const catalog = JSON.stringify(groups);
+  if (catalogCache.size >= 8) catalogCache.delete(catalogCache.keys().next().value!);
+  catalogCache.set(key, catalog);
+  return catalog;
+}
 export function stickerPrompt(
   identity: Identity,
   stickers: ScriptSettings['stickers']['stickers'],
   thread?: Thread,
 ): string {
-  const allowed = identity.source === 'local_group' ? identity.memberKeys || [] : [identity.charKey];
-  const catalog = stickers
-    .filter(item => item.scope === 'global' || !item.charKey || allowed.includes(item.charKey))
-    .slice(0, 80)
-    .map(item =>
-      JSON.stringify({
-        name: item.name.slice(0, 120),
-        url: stickerReference(item.id),
-        actorKey: item.scope === 'char' ? item.charKey : '任意成员',
-      }),
-    )
-    .join('\n');
+  const catalog = cachedCatalog(identity, stickers);
   const recent = thread
     ? phoneHistory(thread)
         .slice(-20)
@@ -42,7 +54,7 @@ export function stickerPrompt(
     '\n';
   return catalog
     ? variety +
-        '以下 url 是本地表情包引用，不是图片网址。发送 type="emoji"、payload.emojiType="sticker"，将引用原样填入 payload.url，客户端自动还原图片，勿展开图片数据。\n' +
+        '本地表情包名称目录（按使用者分组）：发送 type="emoji"、payload={emojiType:"sticker",name:"目录原名"}；重名时改用目录 stickerId。客户端查表还原图片，不返回 URL 或图片数据，名称不可改写。\n' +
         catalog
     : '';
 }
@@ -53,15 +65,21 @@ export function resolveStickerMessage<T extends { type: string; payload: Record<
 ): T {
   if (message.type !== 'emoji') return message;
   const reference = message.payload.stickerUrl || message.payload.url;
-  if (typeof reference !== 'string' || !reference.startsWith('sticker://')) return message;
-  const sticker = stickers.find(
-    item =>
-      stickerReference(item.id) === reference &&
-      (item.scope === 'global' || !item.charKey || item.charKey === actorKey),
+  const localReference = typeof reference === 'string' && reference.startsWith('sticker://');
+  const id = typeof message.payload.stickerId === 'string' ? message.payload.stickerId : '';
+  const name = typeof message.payload.name === 'string' ? message.payload.name : '';
+  if (!localReference && !id && !name) return message;
+  // Explicit legacy HTTP resources remain valid; never fall back from a bad ID to another person's name.
+  if (typeof reference === 'string' && !localReference && !id) return message;
+  const eligible = stickers.filter(item => item.scope === 'global' || !item.charKey || item.charKey === actorKey);
+  const matches = eligible.filter(item =>
+    localReference ? stickerReference(item.id) === reference : id ? item.id === id : item.name === name,
   );
+  const sticker = matches.length === 1 ? matches[0] : undefined;
   const payload = { ...message.payload };
   delete payload.stickerUrl;
   delete payload.url;
+  delete payload.stickerId;
   if (sticker)
     Object.assign(payload, { emojiType: 'sticker', stickerId: sticker.id, name: sticker.name, url: sticker.url });
   return { ...message, payload };
