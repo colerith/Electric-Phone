@@ -43,9 +43,10 @@ export function parseStatusProfile(raw: string): StatusProfile {
         return value === null || value === undefined ? '' : String(value).trim();
       };
       const pick = (...keys: string[]) => text(keys.map(key => data[key]).find(value => value !== undefined));
-      const metric = (value: string, delta = ''): StatusMetric => {
+      const metric = (value: string, delta = '', reason = ''): StatusMetric => {
         const parsedMetric = parseStatusMetric(value);
-        return delta ? { ...parsedMetric, description: delta } : parsedMetric;
+        const description = [delta || parsedMetric.description, reason].filter(Boolean).join(' · ');
+        return { ...parsedMetric, description };
       };
       const organValue = data['器官状态'] ?? data.organs;
       const organs =
@@ -65,8 +66,16 @@ export function parseStatusProfile(raw: string): StatusProfile {
               });
       return {
         name: pick('角色名称', '角色名', '姓名'),
-        favor: metric(pick('好感指数', 'fav'), pick('好感变化', 'fav_delta')),
-        desire: metric(pick('性欲指数', 'soc')),
+        favor: metric(
+          pick('好感指数', 'fav'),
+          pick('好感变化', 'fav_delta'),
+          pick('好感原因', '好感理由', 'fav_reason'),
+        ),
+        desire: metric(
+          pick('性欲指数', 'soc'),
+          pick('性欲变化', 'soc_delta'),
+          pick('性欲原因', '性欲理由', 'soc_reason'),
+        ),
         moods: [
           ...new Set(
             pick('情绪气泡', 'mood')
@@ -87,7 +96,7 @@ export function parseStatusProfile(raw: string): StatusProfile {
   for (const sourceLine of source.split(/\r?\n/)) {
     const line = sourceLine.trim().replace(/^[-*]\s*/, '');
     const heading = line.match(
-      /^(角色名称|角色名|姓名|角色ID|好感指数|性欲指数|情绪气泡|隐秘心声|器官状态)\s*[：:]\s*(.*)$/,
+      /^(角色名称|角色名|姓名|角色ID|好感指数|好感变化|好感原因|好感理由|性欲指数|性欲变化|性欲原因|性欲理由|情绪气泡|隐秘心声|器官状态)\s*[：:]\s*(.*)$/,
     );
     if (heading) {
       current = heading[1];
@@ -107,8 +116,24 @@ export function parseStatusProfile(raw: string): StatusProfile {
   }
   return {
     name: field('角色名称') || field('角色名') || field('姓名'),
-    favor: parseStatusMetric(field('好感指数')),
-    desire: parseStatusMetric(field('性欲指数')),
+    favor: {
+      ...parseStatusMetric(field('好感指数')),
+      description: [
+        field('好感变化') || parseStatusMetric(field('好感指数')).description,
+        field('好感原因') || field('好感理由'),
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    },
+    desire: {
+      ...parseStatusMetric(field('性欲指数')),
+      description: [
+        field('性欲变化') || parseStatusMetric(field('性欲指数')).description,
+        field('性欲原因') || field('性欲理由'),
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    },
     moods: [
       ...new Set(
         field('情绪气泡')

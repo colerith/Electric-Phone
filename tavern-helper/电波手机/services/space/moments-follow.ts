@@ -6,6 +6,7 @@ import type { Identity, ScriptSettings } from '../../schemas';
 import { logDiagnostic } from '../core/diagnostics';
 export function registerMomentsFollow(
   getInput: () => {
+    actorLanguagePreferences?: Record<string, ChatPreferences>;
     chatPreferences?: ChatPreferences;
     state: MomentsState;
     identities: Identity[];
@@ -47,6 +48,7 @@ export function registerMomentsFollow(
                   input.chatPreferences,
                   input.settings.imageServices.profiles.find(p => p.id === input.state.settings.imageProfileId)
                     ?.provider,
+                  input.actorLanguagePreferences,
                 ),
                 input.settings.basic.excludedTags,
               ),

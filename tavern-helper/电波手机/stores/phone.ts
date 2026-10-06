@@ -1932,6 +1932,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         const runtime = moduleInput();
         if (!runtime) return null;
         return {
+          actorLanguagePreferences: klona(state.value.chatPreferences),
           chatPreferences: ChatPreferencesSchema.parse(state.value.chatPreferences[state.value.activeCharKey]),
           state: state.value.moments,
           identities: identities.value,
@@ -2097,6 +2098,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       chatReference: buildChatReference(state.value),
       input: {
         ...context.value,
+        actorLanguagePreferences: klona(state.value.chatPreferences),
         chatPreferences: ChatPreferencesSchema.parse(state.value.chatPreferences[state.value.activeCharKey]),
         voice: state.value.characterVoices[state.value.activeCharKey],
         replyCount: settings.value.chat,
@@ -3593,6 +3595,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         settings.value.sendMode === 'secondary_api'
           ? ''
           : buildPhoneBridgePrompt({
+              actorLanguagePreferences: klona(state.value.chatPreferences),
               chatPreferences: ChatPreferencesSchema.parse(state.value.chatPreferences[state.value.activeCharKey]),
               voice: state.value.characterVoices[state.value.activeCharKey],
               replyCount: settings.value.chat,
@@ -3659,6 +3662,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         cardKey: runtime.cardKey,
         chatKey: runtime.chatKey,
         cardName: runtime.cardName,
+        actorLanguagePreferences: klona(state.value.chatPreferences),
         chatPreferences: ChatPreferencesSchema.parse(state.value.chatPreferences[identity.charKey]),
         voice: klona(state.value.characterVoices[identity.charKey]),
         identity: klona(identity),
@@ -4383,6 +4387,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         cardKey: runtime.cardKey,
         chatKey: runtime.chatKey,
         cardName: runtime.cardName,
+        actorLanguagePreferences: klona(state.value.chatPreferences),
         chatPreferences: ChatPreferencesSchema.parse(state.value.chatPreferences[identity.charKey]),
         voice: klona(state.value.characterVoices[identity.charKey]),
         identity: klona(identity),

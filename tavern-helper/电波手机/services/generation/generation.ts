@@ -1,3 +1,4 @@
+import { validateCommentLanguages } from '../space/comment-language';
 import {
   NpcGenerationOptionsSchema,
   npcGenerationPrompt,
@@ -456,6 +457,7 @@ export async function generateMomentsBatch(
           presetMomentsRules(input.settings.presets),
           input.chatPreferences,
           input.settings.imageServices.profiles.find(p => p.id === state.settings.imageProfileId)?.provider,
+          input.actorLanguagePreferences,
         ) + '\n这是独立朋友圈生成请求，只输出最终 <wave_moments> 数据块，不续写酒馆正文。',
     },
     'user_input',
@@ -468,6 +470,7 @@ export async function generateMomentsBatch(
     raw => {
       const batch = MomentBatchSchema.parse(extractJson(raw));
       if (batch.request_id !== plan.id) throw Error('朋友圈结果 request_id 不匹配');
+      validateCommentLanguages(batch, posts, input.actorLanguagePreferences);
       return batch;
     },
     input,
