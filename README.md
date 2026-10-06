@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.2.6`
+当前发布版本：`v1.2.7`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.6/file/index-1.2.6.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.7/file/index-1.2.7.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：JSON 返回增加安全尾逗号与控制字符修复；无法安全解析时携带格式要求额外重试一次，不猜测截断或有歧义的数据。
+本版更新：定向修复 JSON 闭合括号之间混入单个中文杂字造成的解析失败，保留字符串正文和字段值，不补造截断内容。
 
 ## 首次配置
 

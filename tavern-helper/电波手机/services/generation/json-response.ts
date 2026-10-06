@@ -27,6 +27,9 @@ export function parseJsonResponse(source: string): unknown {
       } else {
         if (char === '"') inString = true;
         if (char === ',' && /^[\s]*[}\]]/.test(source.slice(i + 1))) continue;
+        // A single stray CJK character between completed containers cannot be
+        // a JSON key/value. Never touch prose inside strings or fill truncation.
+        if (/\p{Script=Han}/u.test(char) && /[}\]]\s*$/.test(result) && /^\s*[}\]]/.test(source.slice(i + 1))) continue;
       }
       result += char;
     }
