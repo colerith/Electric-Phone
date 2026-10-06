@@ -402,7 +402,8 @@ const phone = usePhoneStore();
 const surface = inject(phoneSurfaceKey, ref(null));
 const galleryIndex = ref(-1);
 const galleryTargets = computed<ImageTarget[]>(() => {
-  const thread = Object.values(phone.state.threads).find(t => t.messages.some(m => m.id === props.message.id));
+  const threadId = phone.messageThreadIndex.get(props.message.id);
+  const thread = threadId ? phone.state.threads[threadId] : undefined;
   return thread
     ? Array.from({ length: Math.max(1, album.value.length) }, (_, index) => ({
         kind: 'message' as const,

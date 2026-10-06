@@ -51,6 +51,22 @@ const { nextTick } = require('vue');
     ImageProfileSchema.parse({ id: 'gpt', provider: 'openai', apiKey: 'fake', model: 'gpt-image-1' }),
   ];
   const thread = store.activeThread;
+  const indexBeforeDraft = store.messageThreadIndex;
+  const originalReplace = global.replaceVariables;
+  let chatWrites = 0,
+    unrelatedWrites = 0;
+  global.replaceVariables = (value, options) => {
+    if (options.type === 'chat') chatWrites++;
+    else unrelatedWrites++;
+    return originalReplace(value, options);
+  };
+  store.setDraft('性能回归草稿');
+  store.setDraft('性能回归草稿');
+  assert.equal(chatWrites, 1, 'changed draft is saved immediately; identical input does not write again');
+  assert.equal(unrelatedWrites, 0, 'typing must not rewrite global wallet or roster stores');
+  assert.equal(store.messageThreadIndex, indexBeforeDraft, 'typing must not rebuild message index');
+  global.replaceVariables = originalReplace;
+
   thread.messages.push({
     id: 'photo',
     sender: 'char',

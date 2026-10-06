@@ -754,7 +754,9 @@ const contacts = computed(() => phone.identities.filter(identity => identity.sou
 const now = ref(Date.now());
 let timer: ReturnType<typeof setInterval> | undefined;
 onMounted(() => {
-  timer = setInterval(() => (now.value = Date.now()), 1000);
+  timer = setInterval(() => {
+    if (!document.hidden) now.value = Date.now();
+  }, 30000);
 });
 onUnmounted(() => clearInterval(timer));
 const profileTabs = [

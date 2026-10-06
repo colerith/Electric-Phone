@@ -466,6 +466,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       ? (profile.weatherLocation ?? null)
       : settings.value.weatherLocation;
   });
+  const messageThreadIndex = computed(() => {
+    const index = new Map<string, string>();
+    for (const thread of Object.values(state.value.threads)) {
+      for (const message of thread.messages) if (!index.has(message.id)) index.set(message.id, thread.id);
+    }
+    return index;
+  });
   const activeThread = computed(() => {
     if (!context.value || !activeIdentity.value) return null;
     return state.value.threads[makeThreadId(context.value, activeIdentity.value.charKey)] || null;
@@ -1154,8 +1161,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       walletChatPrefix(state.value.chatKey),
       selectedWalletAccount.value?.currency,
     );
+    const threadsByCharacter = new Map(Object.values(state.value.threads).map(thread => [thread.charKey, thread]));
     for (const group of Object.values(state.value.identities).filter(item => item.source === 'local_group')) {
-      const thread = Object.values(state.value.threads).find(item => item.charKey === group.charKey);
+      const thread = threadsByCharacter.get(group.charKey);
       if (!thread) continue;
       updateGroupActivity(group, thread);
     }
@@ -3410,11 +3418,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
 
   function setDraft(value: string): void {
     const thread = activeThread.value;
-    if (!thread) return;
+    if (!thread || thread.draft === value) return;
     thread.draft = value;
     thread.updatedAt = nowIso();
     ++syncToken;
-    saveChat();
+    // Draft typing changes no payment, roster or activity data. Keep immediate
+    // chat persistence without reconciling and rewriting unrelated global stores.
+    persistChatState(state.value);
   }
 
   function addUserMessage(thread: Thread, input: SendMessageInput): PhoneMessage {
@@ -4547,6 +4557,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     { flush: 'post' },
   );
   return {
+    messageThreadIndex,
     getImageAsset,
     updateImageAsset,
     runImageAction,

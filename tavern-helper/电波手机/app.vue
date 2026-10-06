@@ -732,8 +732,8 @@
                     @beforeinput="onComposerBeforeInput"
                   ></textarea
                   ><button
-                    type="button"
                     v-if="composerHasLongText"
+                    type="button"
                     class="composer-expand"
                     aria-label="展开输入框"
                     @click="composerExpanded = true"
@@ -1442,7 +1442,15 @@ function updateThreadScroll(): void {
   isAwayFromBottom.value = !!element && element.scrollHeight - element.clientHeight - element.scrollTop > 48;
 }
 useResizeObserver(threadElement, updateThreadScroll);
-useMutationObserver(threadElement, () => nextTick(updateThreadScroll), {
+let threadMeasureFrame = 0;
+function scheduleThreadMeasurement(): void {
+  if (threadMeasureFrame) return;
+  threadMeasureFrame = requestAnimationFrame(() => {
+    threadMeasureFrame = 0;
+    updateThreadScroll();
+  });
+}
+useMutationObserver(threadElement, scheduleThreadMeasurement, {
   childList: true,
   subtree: true,
   characterData: true,
@@ -2913,6 +2921,7 @@ onMounted(async () => {
   );
 });
 onUnmounted(() => {
+  cancelAnimationFrame(threadMeasureFrame);
   cancelAvatarHome();
   cancelAvatarHome();
   cancelReturnPress();
