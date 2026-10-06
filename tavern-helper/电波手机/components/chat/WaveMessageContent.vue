@@ -604,21 +604,30 @@ function jumpToZone(): void {
     if (target && surface.value?.contains(target)) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 }
-const transferState = computed<'pending' | 'received' | 'refunded'>(() => {
+const transferState = computed<'pending' | 'received' | 'refunded' | 'expired'>(() => {
   const state = (payloadString('userPaymentDecision') || payloadString('state')).toLowerCase();
   if (['received', 'paid', 'accepted'].includes(state)) return 'received';
-  if (['refunded', 'refund', 'returned'].includes(state)) return 'refunded';
+  if (['refunded', 'refund', 'returned', 'rejected'].includes(state)) return 'refunded';
+  if (state === 'expired') return 'expired';
   return 'pending';
 });
 const transferStateLabel = computed(() => paymentDetails(props.message).label);
-type RedPacketState = 'pending' | 'received' | 'refunded' | 'group_available' | 'group_claimed' | 'group_empty';
+type RedPacketState =
+  | 'pending'
+  | 'received'
+  | 'refunded'
+  | 'expired'
+  | 'group_available'
+  | 'group_claimed'
+  | 'group_empty';
 const redPacketState = computed<RedPacketState>(() => {
   const details = paymentDetails(props.message);
   if (details.group && (details.claimed >= details.count || payloadString('state') === 'group_empty'))
     return 'group_empty';
   const state = (payloadString('userPaymentDecision') || payloadString('state')).toLowerCase();
   if (['received', 'paid', 'accepted'].includes(state)) return 'received';
-  if (['refunded', 'refund', 'returned'].includes(state)) return 'refunded';
+  if (['refunded', 'refund', 'returned', 'rejected'].includes(state)) return 'refunded';
+  if (state === 'expired') return 'expired';
   if (state === 'group_claimed') return 'group_claimed';
   if (state === 'group_empty') return 'group_empty';
   if (state === 'group_available') return 'group_available';
@@ -636,10 +645,11 @@ const redPacketClaimedCount = computed(() =>
 const redPacketStateLabel = computed(() => {
   if (!redPacketIsGroup.value && props.message.payload.userPaymentDecision) return paymentDetails(props.message).label;
   if (!redPacketIsGroup.value)
-    return ({ pending: '未收款', received: '已收款', refunded: '已退回' } as Record<string, string>)[
+    return ({ pending: '未收款', received: '已收款', refunded: '已退回', expired: '已过期' } as Record<string, string>)[
       redPacketState.value
     ];
   if (redPacketState.value === 'refunded') return '已退回';
+  if (redPacketState.value === 'expired') return '已过期';
   if (redPacketState.value === 'group_empty') return `已抢完 ${redPacketCount.value}/${redPacketCount.value}`;
   if (redPacketState.value === 'group_claimed') return `已抢 ${redPacketClaimedCount.value}/${redPacketCount.value}`;
   return `待抢 ${redPacketClaimedCount.value}/${redPacketCount.value}`;

@@ -3323,7 +3323,7 @@
   background: var(--wave-tint, #fff0f5);
 }
 
-#wave-phone-script-root .wave-message-transfer.transfer-refunded {
+#wave-phone-script-root .wave-message-transfer:is(.transfer-refunded, .transfer-expired) {
   opacity: 0.78;
 }
 
@@ -3389,7 +3389,7 @@
   color: #a9657d;
 }
 
-#wave-phone-script-root .wave-message-transfer.transfer-refunded .wave-transfer-state > b {
+#wave-phone-script-root .wave-message-transfer:is(.transfer-refunded, .transfer-expired) .wave-transfer-state > b {
   background: #e3e5e8;
   color: #6e7682;
 }
@@ -3491,7 +3491,9 @@
   --red-packet-deep: #a96558;
 }
 
-#wave-phone-script-root .wave-device .wave-message-red-packet:is(.red-packet-refunded, .red-packet-group_empty) {
+#wave-phone-script-root
+  .wave-device
+  .wave-message-red-packet:is(.red-packet-refunded, .red-packet-group_empty, .red-packet-expired) {
   --red-packet-color: #b7aaa2;
   --red-packet-deep: #7f746e;
   box-shadow: 0 7px 16px rgba(68, 57, 52, 0.1);
@@ -4668,24 +4670,49 @@
 #wave-phone-script-root .chat-bottom-jump:focus-visible {
   opacity: 0.92;
 }
-#wave-phone-script-root .chat-unread-jump {
+#wave-phone-script-root .wave-device .chat-page > .chat-unread-jump {
   position: absolute;
-  right: 16px;
-  bottom: 12px;
-  display: flex;
+  z-index: 12;
+  right: 0;
+  top: 28%;
+  display: inline-flex;
   align-items: center;
-  gap: 9px;
-  padding: 10px 15px;
+  gap: 5px;
+  min-height: 28px;
+  padding: 6px 10px 6px 11px;
   border: 1px solid rgba(128, 151, 190, 0.16);
-  border-radius: 22px;
-  background: rgba(247, 250, 255, 0.9);
+  border-right: 0;
+  border-radius: 18px 0 0 18px;
+  background: rgba(250, 252, 255, 0.92);
   color: #5c80be;
-  box-shadow: 0 3px 14px rgba(34, 54, 85, 0.1);
-  backdrop-filter: blur(10px);
-  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(34, 54, 85, 0.07);
+  backdrop-filter: blur(8px);
+  font-size: 10px;
+  line-height: 1.2;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
 }
-#wave-phone-script-root .chat-unread-jump.above-bottom {
-  bottom: 62px;
+#wave-phone-script-root .wave-device .chat-page > .chat-unread-jump > i {
+  font-size: 10px;
+}
+
+#wave-phone-script-root .wave-device .wave-message-transfer.transfer-received {
+  background: #edf4ef;
+  border-color: #cadbd0;
+}
+#wave-phone-script-root .wave-device .wave-message-transfer.transfer-received .wave-transfer-state > b {
+  background: #dbeadf;
+  color: #547662;
+}
+#wave-phone-script-root .wave-device .wave-message-transfer:is(.transfer-refunded, .transfer-expired) {
+  background: #eeecea;
+  border-color: #d8d3cf;
+}
+#wave-phone-script-root
+  .wave-device
+  .wave-message-transfer:is(.transfer-refunded, .transfer-expired)
+  .wave-transfer-amount
+  > strong {
+  color: #81776f;
 }

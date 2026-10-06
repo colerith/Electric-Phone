@@ -276,6 +276,15 @@
             />
 
             <section v-else-if="store.currentPage === 'conversation'" class="chat-page">
+              <button
+                v-if="unreadReplyIds.length"
+                type="button"
+                class="chat-unread-jump"
+                @click.stop="scrollToUnreadReply"
+              >
+                <i class="fa-solid fa-angles-up" aria-hidden="true"></i>
+                <span>{{ unreadReplyIds.length }} 条新消息</span>
+              </button>
               <WaveTogether :user-avatar="userAvatar" :character-avatar-style="avatarStyle(store.activeIdentity)" />
               <div
                 ref="threadElement"
@@ -556,16 +565,6 @@
               </div>
 
               <div class="chat-bottom-jump-anchor">
-                <button
-                  v-if="unreadReplyIds.length"
-                  type="button"
-                  class="chat-unread-jump"
-                  :class="{ 'above-bottom': isAwayFromBottom }"
-                  @click.stop="scrollToUnreadReply"
-                >
-                  <i class="fa-solid fa-angles-up" aria-hidden="true"></i>
-                  <span>{{ unreadReplyIds.length }} 条新消息</span>
-                </button>
                 <button
                   v-if="isAwayFromBottom"
                   type="button"

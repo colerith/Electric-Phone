@@ -217,6 +217,23 @@ function click(text) {
     3,
     'claims survive synchronization',
   );
+  for (const type of ['transfer', 'red_packet']) {
+    for (const [state, visual, label] of [
+      ['pending', 'pending', type === 'transfer' ? '待领取' : '未收款'],
+      ['accepted', 'received', '已收款'],
+      ['refund', 'refunded', '已退回'],
+      ['returned', 'refunded', '已退回'],
+      ['rejected', 'refunded', '已退回'],
+      ['expired', 'expired', '已过期'],
+    ]) {
+      add(`visual-${type}-${state}`, type, { state }, 'user');
+      await tick();
+      const prefix = type === 'transfer' ? 'transfer' : 'red-packet';
+      const card = [...document.querySelectorAll(`.wave-message-${prefix}`)].at(-1);
+      assert(card.classList.contains(`${prefix}-${visual}`), `${type} ${state} class`);
+      assert(card.textContent.includes(label), `${type} ${state} label`);
+    }
+  }
   add('switch', 'transfer');
   await tick();
   document.querySelector('.wave-message-transfer').click();
