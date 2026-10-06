@@ -1282,7 +1282,6 @@ export const usePhoneStore = defineStore('wave-phone', () => {
 
   function isRosterIdentity(identity: Identity): boolean {
     return (
-      identity.source !== 'local_group' &&
       identity.source !== 'temporary' &&
       (identity.source !== 'auto_single_card' || identity.actorType === 'main') &&
       (identity.actorType !== 'npc' || identity.source === 'local_contact')
@@ -1294,18 +1293,27 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const roster = cardRosters.value[runtime.cardKey] || {};
     Object.values(roster)
       .filter(identity => isRosterIdentity(identity) && !nextState.deletedCharKeys.includes(identity.charKey))
-      .forEach(identity =>
+      .forEach(identity => {
+        const saved = klona(identity);
+        if (saved.source === 'local_group' && !nextState.identities[saved.charKey]) {
+          saved.groupActivityIds = [];
+          for (const member of Object.values(saved.groupMembers || {})) {
+            member.messageCount = 0;
+            member.experience = 0;
+            member.level = 1;
+          }
+        }
         upsertIdentity(
           nextState,
-          IdentitySchema.parse({ ...identity, ...nextState.identities[identity.charKey], updatedAt: nowIso() }),
+          IdentitySchema.parse({ ...saved, ...nextState.identities[saved.charKey], updatedAt: nowIso() }),
           runtime,
-        ),
-      );
+        );
+      });
   }
 
   function persistRosterIdentity(identity: Identity): void {
     const runtime = context.value;
-    if (!runtime || identity.source === 'local_group') return;
+    if (!runtime) return;
     const roster = (cardRosters.value[runtime.cardKey] ||= {});
     if (isRosterIdentity(identity)) roster[identity.charKey] = IdentitySchema.parse(klona(identity));
     else delete roster[identity.charKey];
@@ -1343,6 +1351,15 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (settings.value.notifications.toastEnabled && typeof toastr !== 'undefined') toastr.info(text, '电波手机');
   }
   async function synchronize(): Promise<void> {
+    if (context.value && state.value.cardKey === context.value.cardKey) {
+      const groups = Object.values(state.value.identities).filter(identity => identity.source === 'local_group');
+      if (groups.length) {
+        cardRosters.value = readCardRosters();
+        const roster = (cardRosters.value[context.value.cardKey] ||= {});
+        for (const group of groups) roster[group.charKey] = IdentitySchema.parse(klona(group));
+        persistCardRosters(cardRosters.value);
+      }
+    }
     const token = ++syncToken;
     let stage = '读取当前角色卡';
     try {

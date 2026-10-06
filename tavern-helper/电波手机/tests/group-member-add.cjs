@@ -124,6 +124,23 @@ const tick = async () => {
   phone.selectIdentity(alice);
   await tick();
   assert(!document.querySelector('[aria-label="添加群成员"]'));
+  const oldState = JSON.parse(JSON.stringify(vars.chat));
+  chatId = 'fresh-chat';
+  vars.chat = {};
+  await phone.synchronize();
+  assert(phone.state.identities[group], 'group is inherited into new chat');
+  assert(phone.state.identities[group].memberKeys.includes(clara));
+  assert(phone.state.identities[group].groupObserver);
+  phone.selectIdentity(group);
+  assert.equal(phone.activeThread.messages.length, 0, 'new chat does not inherit messages');
+  assert.equal(phone.activeThread.historyArchive.length, 0);
+  await phone.synchronize();
+  assert.equal(Object.values(phone.state.identities).filter(i => i.charKey === group).length, 1);
+  chatId = 'test';
+  vars.chat = oldState;
+  await phone.synchronize();
+  phone.selectIdentity(group);
+  assert(phone.activeThread.messages.length > 0, 'original chat retains its messages');
   console.log(
     'PASS observer member picker, multi-select, roles, no user join, notifications, duplicate protection, persistence and AI roster',
   );
