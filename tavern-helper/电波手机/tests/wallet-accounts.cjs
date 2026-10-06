@@ -360,7 +360,12 @@ global.getChatMessages = id => (typeof id === 'number' ? floors.filter(f => f.me
   assert(!book().accounts[removedShared]);
   assert(!book().selectedShared[char]);
   phone.deleteWalletAccount('char:' + char);
+  floors = [{ message_id: 79, role: 'assistant', message: serializeDelta(delta) }];
   await phone.synchronize();
+  assert.equal(phone.syncError, '', 'deleted wallet plus old floor must not break synchronization');
+  accounts.WalletBookSchema.parse(book());
+  await phone.synchronize();
+  assert.equal(phone.syncError, '', 'repeated replay stays valid');
   assert(!book().accounts['char:' + char], 'deleted character wallet must not be recreated on sync');
   assert(!book().accounts[removedShared], 'deleted shared wallet must remain deleted');
   assert(book().deletedAccountIds.includes('char:' + char));

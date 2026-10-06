@@ -1,6 +1,6 @@
 import { klona } from 'klona';
 import { CHAT_VARIABLE_KEY, CARD_ROSTER_VARIABLE_KEY, PROFILE_VARIABLE_KEY, ChatStateSchema } from '../../schemas';
-import { CHARACTER_DEFAULTS_KEY } from './character-defaults';
+import { CHARACTER_DEFAULTS_KEY, CharacterDefaultsSchema, namespaceWallet } from './character-defaults';
 import { readPhoneGlobals, writePhoneGlobals, writePhoneChat } from './durable-storage';
 import type { RuntimeContext } from './identity';
 
@@ -21,6 +21,14 @@ export function migratePhoneCardNamespace(runtime: RuntimeContext): boolean {
         if (profileKey.startsWith(`${oldKey}::`))
           data[`${runtime.cardKey}${profileKey.slice(oldKey.length)}`] ??= profile;
       }
+    } else if (key === CHARACTER_DEFAULTS_KEY && !data[runtime.cardKey]) {
+      // A legacy array index can belong to another card now. Only this chat proves wallet ownership.
+      const defaults = CharacterDefaultsSchema.parse({
+        ...data[oldKey],
+        walletBook: namespaceWallet(state.walletBook, state.chatKey),
+        migratedChats: [state.chatKey],
+      });
+      data[runtime.cardKey] = defaults;
     } else if (data[oldKey]) data[runtime.cardKey] ??= klona(data[oldKey]);
     // Retain old keys as migration backups until users explicitly remove them.
     globals[key] = { ...envelope, data };

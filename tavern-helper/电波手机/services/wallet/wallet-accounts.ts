@@ -36,7 +36,13 @@ export const WalletBookSchema = z
     accounts: z.record(z.string(), WalletAccountSchema).default({}),
     deletedAccountIds: z.array(z.string()).default([]),
     selectedShared: z.record(z.string(), z.string()).default({}),
-    grants: z.record(z.string(), WalletAuthorizationSchema).default({}),
+    grants: z.preprocess(
+      value =>
+        value && typeof value === 'object' && !Array.isArray(value)
+          ? Object.fromEntries(Object.entries(value).filter(([, grant]) => grant != null))
+          : value,
+      z.record(z.string(), WalletAuthorizationSchema).default({}),
+    ),
     order: z.record(z.string(), z.number()).default({}),
     revision: z.number().default(0),
   })
@@ -69,6 +75,18 @@ export function walletAuthorization(book: WalletBook, charKey: string): WalletAu
   const account =
     selected?.ownerType === 'shared' && selected.ownerId === charKey ? selected : book.accounts[`char:${charKey}`];
   return account ? WalletAuthorizationSchema.parse({ accountId: account.id, ...account }) : undefined;
+}
+/** Retain old grants as routing evidence, but never cache a missing authorization. */
+export function replayWalletAuthorization(
+  book: WalletBook,
+  layer: string,
+  charKey: string,
+): WalletAuthorization | undefined {
+  const grant = book.grants[layer] || walletAuthorization(book, charKey);
+  if (!grant || book.deletedAccountIds.includes(grant.accountId) || !book.accounts[grant.accountId]) return undefined;
+  if (grant.ownerId !== charKey) return undefined;
+  book.grants[layer] = grant;
+  return grant;
 }
 export function accountRows(book: WalletBook, account: WalletAccount) {
   const deleted = new Set(account.deletedTransactionIds);

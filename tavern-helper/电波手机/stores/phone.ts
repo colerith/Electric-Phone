@@ -58,6 +58,7 @@ import {
   isWalletCharacter,
   deleteAccount,
   walletAuthorization,
+  replayWalletAuthorization,
   accountWallet,
   accountRows,
   WalletAccountSchema,
@@ -1599,12 +1600,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             ? undefined
             : (block.delta?.app_updates.wallet ?? block.apps.wallet);
         if (walletUpdate !== undefined && isWalletCharacter(identity)) {
-          const grant = (nextState.walletBook.grants[walletGrantKey] ||= walletAuthorization(
-            nextState.walletBook,
-            identity.charKey,
-          )!);
+          const grant = replayWalletAuthorization(nextState.walletBook, walletGrantKey, identity.charKey);
           try {
             if (
+              grant &&
               applyWalletPatch(
                 nextState.walletBook,
                 block.delta ? walletUpdate : parseWallet(String(walletUpdate)),

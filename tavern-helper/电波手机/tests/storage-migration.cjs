@@ -54,6 +54,33 @@ variables.chat[schema.CHAT_VARIABLE_KEY] = schema.ChatStateSchema.parse({
     },
   },
 });
+const { CHARACTER_DEFAULTS_KEY, CharacterDefaultsSchema } = require('../services/core/character-defaults.ts');
+const {
+  WalletBookSchema,
+  ensureWalletAccounts,
+  deleteAccount,
+  replayWalletAuthorization,
+} = require('../services/wallet/wallet-accounts.ts');
+const wrongBook = WalletBookSchema.parse({});
+ensureWalletAccounts(wrongBook, 'other', 'Other');
+wrongBook.accounts['char:other'].opening.CNY = 9999;
+variables.global[CHARACTER_DEFAULTS_KEY] = wrap({ [oldKey]: CharacterDefaultsSchema.parse({ walletBook: wrongBook }) });
+const ownBook = variables.chat[schema.CHAT_VARIABLE_KEY].walletBook;
+ensureWalletAccounts(ownBook, 'alice', 'Alice');
+ownBook.accounts['char:alice'].opening.CNY = 123;
+ownBook.grants.invalid = undefined;
+ownBook.grants.nullGrant = null;
+const repaired = WalletBookSchema.parse(ownBook);
+assert(!Object.hasOwn(repaired.grants, 'invalid'));
+assert(!Object.hasOwn(repaired.grants, 'nullGrant'));
+const valid = replayWalletAuthorization(repaired, 'old-floor', 'alice');
+assert(valid);
+deleteAccount(repaired, 'char:alice');
+assert.equal(replayWalletAuthorization(repaired, 'old-floor', 'alice'), undefined);
+assert.equal(replayWalletAuthorization(repaired, 'new-floor', 'alice'), undefined);
+assert(!Object.hasOwn(repaired.grants, 'new-floor'));
+assert(repaired.grants['old-floor'], 'deleted historical grant retains routing evidence');
+WalletBookSchema.parse(repaired);
 (async () => {
   const { createPinia, setActivePinia } = require('pinia');
   setActivePinia(createPinia());
@@ -62,6 +89,12 @@ variables.chat[schema.CHAT_VARIABLE_KEY] = schema.ChatStateSchema.parse({
   assert(phone.isReady, phone.syncError);
   const currentKey = phone.context.cardKey;
   assert.equal(currentKey, 'character-file:Alice.png');
+  assert(!phone.state.walletBook.accounts['char:other'], 'legacy index wallet must not cross cards');
+  assert.equal(phone.state.walletBook.accounts['char:alice'].opening.CNY, 123);
+  assert(
+    variables.global[CHARACTER_DEFAULTS_KEY].data[oldKey].walletBook.accounts['char:other'],
+    'retain legacy backup',
+  );
   assert(phone.state.identities.alice);
   assert(Object.values(phone.state.threads).some(t => t.messages.some(m => m.content === '旧聊天不能丢')));
   assert.equal(variables.global[schema.PROFILE_VARIABLE_KEY].data[`${currentKey}::alice`].remark, '旧联系人备注');
