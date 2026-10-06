@@ -1,3 +1,4 @@
+import { parseJsonResponse } from './json-response';
 import { validateCommentLanguages } from '../space/comment-language';
 import {
   NpcGenerationOptionsSchema,
@@ -71,7 +72,7 @@ function extractJson(raw: string): unknown {
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
   if (start < 0 || end <= start) throw Error('副 API 没有返回 JSON。');
-  return JSON.parse(cleaned.slice(start, end + 1));
+  return parseJsonResponse(cleaned.slice(start, end + 1));
 }
 
 const runningRequests = new Map<string, { cancelled: boolean; backendId: string }>();
@@ -95,6 +96,8 @@ async function requestConfigured<T>(
   let attemptStarted = Date.now();
   let failureLogged = false;
   let contextStep = '';
+  let formatRetryUsed = false;
+  let formatCorrection = '';
   const secrets = [settings.api.key, settings.api.key.trim()];
   const reportFailure = (error: unknown) => {
     const failure = describeRequestError(
@@ -106,7 +109,7 @@ async function requestConfigured<T>(
     );
     logDiagnostic(
       '请求失败',
-      `${generationId}｜第 ${attempt + 1}/${settings.api.retryCount + 1} 次｜耗时 ${Date.now() - attemptStarted} ms｜${failure.detail}`,
+      `${generationId}｜第 ${attempt + 1}/${settings.api.retryCount + 1 + (formatRetryUsed ? 1 : 0)} 次｜耗时 ${Date.now() - attemptStarted} ms｜${failure.detail}`,
     );
     failureLogged = true;
     return failure;
@@ -162,7 +165,7 @@ async function requestConfigured<T>(
         const raw = await withTimeout(
           generateRaw({
             user_input: userInput || undefined,
-            ordered_prompts: ordered,
+            ordered_prompts: formatCorrection ? [...ordered, { role: 'system', content: formatCorrection }] : ordered,
             overrides,
             custom_api: api,
             should_stream: false,
@@ -188,7 +191,15 @@ async function requestConfigured<T>(
         return parsed;
       } catch (error) {
         const failure = reportFailure(error);
-        if (request.cancelled || !failure.retryable || attempt >= settings.api.retryCount) throw Error(failure.detail);
+        const repairSyntax = stage === '校验回复' && error instanceof SyntaxError && !formatRetryUsed;
+        if (request.cancelled || (!repairSyntax && (!failure.retryable || attempt >= settings.api.retryCount)))
+          throw Error(failure.detail);
+        if (repairSyntax) {
+          formatRetryUsed = true;
+          formatCorrection =
+            '上一轮 JSON 语法错误，未应用任何内容。请重新完整生成请求的数据，只返回合法 JSON：字符串中的英文双引号及换行必须使用 JSON 转义，字段之间用英文逗号分隔，闭合全部括号。避免冗长文字造成截断，保留所有必需字段。不要添加 Markdown、解释或额外模块。';
+          logDiagnostic('格式纠正', `${generationId}｜JSON 语法错误，额外进行一次完整格式重试`);
+        }
         logDiagnostic('自动重试', `${generationId}｜下次为第 ${attempt + 2} 次｜原因：${failure.category}`);
         console.info('[wave-phone] 请求失败，自动重试', { attempt: attempt + 1, generationId });
         await new Promise(resolve => window.setTimeout(resolve, Math.min(3000, 500 * 2 ** attempt)));
