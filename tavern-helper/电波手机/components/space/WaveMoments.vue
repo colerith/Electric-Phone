@@ -346,38 +346,46 @@
             <small
               >{{ timeLabel(post.createdAt)
               }}<template v-if="post.authorKey === 'user'"> · {{ visibilityLabel(post) }}</template></small
-            ><button
-              type="button"
-              :aria-pressed="likesFor(post.id).some(like => like.authorKey === 'user')"
-              @click="phone.likeMoment(post.id)"
             >
-              <i class="fa-regular fa-heart"></i>{{ post.legacyLikeCount + likesFor(post.id).length || '赞' }}</button
-            ><button
-              type="button"
-              @click="
-                commenting = commenting === post.id ? '' : post.id;
-                replyingComment = null;
-              "
-            >
-              <i class="fa-regular fa-comment"></i>评论</button
-            ><button
-              type="button"
-              aria-label="转发空间动态"
-              @click="$emit('share', post, nameFor(post.authorKey, post.authorName))"
-            >
-              <i class="fa-solid fa-arrow-up-from-bracket"></i>转发
-            </button>
-            <button
-              v-if="post.authorKey === 'user'"
-              type="button"
-              :disabled="!!interacting || phone.moduleGenerating"
-              @click="interact(post.id)"
-            >
-              {{ interacting === post.id ? '互动生成中…' : '触发互动' }}
-            </button>
-            <button type="button" class="wave-content-delete" aria-label="删除空间动态" @click="deleting = post.id">
-              <i class="fa-regular fa-trash-can"></i>删除
-            </button>
+            <div class="moment-action-bar">
+              <div class="moment-primary-actions">
+                <button
+                  type="button"
+                  :aria-pressed="likesFor(post.id).some(like => like.authorKey === 'user')"
+                  @click="phone.likeMoment(post.id)"
+                >
+                  <i class="fa-regular fa-heart"></i
+                  >{{ post.legacyLikeCount + likesFor(post.id).length || '赞' }}</button
+                ><button
+                  type="button"
+                  @click="
+                    commenting = commenting === post.id ? '' : post.id;
+                    replyingComment = null;
+                  "
+                >
+                  <i class="fa-regular fa-comment"></i>评论</button
+                ><button
+                  type="button"
+                  aria-label="转发空间动态"
+                  @click="$emit('share', post, nameFor(post.authorKey, post.authorName))"
+                >
+                  <i class="fa-solid fa-arrow-up-from-bracket"></i>转发
+                </button>
+              </div>
+              <div class="moment-secondary-actions">
+                <button
+                  v-if="post.authorKey === 'user'"
+                  type="button"
+                  :disabled="!!interacting || phone.moduleGenerating"
+                  @click="interact(post.id)"
+                >
+                  {{ interacting === post.id ? '互动生成中…' : '触发互动' }}
+                </button>
+                <button type="button" class="wave-content-delete" aria-label="删除空间动态" @click="deleting = post.id">
+                  <i class="fa-regular fa-trash-can"></i>删除
+                </button>
+              </div>
+            </div>
           </div>
           <p v-if="phone.momentInteractionFeedback[post.id]" class="moment-generation-feedback" role="status">
             {{ phone.momentInteractionFeedback[post.id] }}
@@ -1160,5 +1168,49 @@ defineExpose({ openComposer, openProfile, back, isSubpage, subpageTitle, canPubl
   border: 0;
   padding: 0;
   cursor: pointer;
+}
+/* Metadata never competes with actions for the same narrow row. */
+#wave-phone-script-root .space-moments .moment-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 14px;
+}
+#wave-phone-script-root .space-moments .moment-meta > small {
+  flex: none;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.moment-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+.moment-primary-actions,
+.moment-secondary-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.moment-secondary-actions {
+  margin-left: auto;
+}
+#wave-phone-script-root .space-moments .moment-meta button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 5px 2px;
+  line-height: 1.4;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+#wave-phone-script-root .space-moments .moment-meta button i {
+  margin: 0;
 }
 </style>
