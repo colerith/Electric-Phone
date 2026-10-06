@@ -1600,6 +1600,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
               ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
               : [identity.charKey],
             identity.source === 'local_group',
+            new Date(messageClockTime(settings.value.basic.systemClock)).toISOString(),
           );
           applyCharacterReactions(
             thread.messages,
@@ -2130,6 +2131,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
             : [identity.charKey],
           identity.source === 'local_group',
+          new Date(messageClockTime(settings.value.basic.systemClock)).toISOString(),
         );
         applyCharacterReactions(
           thread.messages,
@@ -3586,6 +3588,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
           : [identity.charKey],
         identity.source === 'local_group',
+        new Date(messageClockTime(settings.value.basic.systemClock)).toISOString(),
       );
       applyCharacterReactions(
         currentThread.messages,
@@ -3953,7 +3956,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!payment.canRespond) throw Error('这笔红包或转账已处理，或不能由你领取。');
     if (decision === 'received' && !payment.canReceive) throw Error('金额无效或红包已领完，无法收款。');
     const currency = String(message.payload.currency || 'CNY');
-    const now = nowIso();
+    const now = new Date(messageClockTime(settings.value.basic.systemClock)).toISOString();
     if (decision === 'received') {
       const claimed = claimPayment(message, 'user', now);
       if (claimed === null) throw Error('红包已领取或已抢完，请刷新详情。');

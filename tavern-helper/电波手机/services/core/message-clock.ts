@@ -22,3 +22,13 @@ export function messageClockTime(settings: SystemClockSettings): number {
     date.getUTCSeconds(),
   ).getTime();
 }
+
+/** Match the phone's local civil display; do not expose ISO/UTC storage syntax. */
+export function formatMessageDateTime(value: string): string {
+  if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value.replaceAll('-', '/');
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return value;
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}

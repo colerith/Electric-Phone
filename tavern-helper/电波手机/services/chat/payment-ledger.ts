@@ -53,6 +53,8 @@ export function syncPaymentLedger(
           account.deletedTransactionIds.includes(id)
         )
           return;
+        // Repair timestamps on existing receipts without adding another transaction.
+        if (account.manual[id]) account.manual[id].date = at;
         account.manual[id] ||= AccountRowSchema.parse({
           id,
           title: label + title,

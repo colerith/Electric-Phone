@@ -89,7 +89,7 @@
         ></span>
         <div>
           <strong>{{ row.title || row.category }}</strong
-          ><small>{{ row.date || '日期未记录' }} · {{ row.category }}</small
+          ><small>{{ formatMessageDateTime(row.date) || '日期未记录' }} · {{ row.category }}</small
           ><small v-if="row.state !== 'received'">{{
             row.state === 'pending' ? '待确认 · 未计入收支' : '已退款 · 未计入收支'
           }}</small>
@@ -158,6 +158,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import { formatMessageDateTime } from '../../services/core/message-clock';
 import { computed, reactive, ref } from 'vue';
 import WaveSelect from '../shared/WaveSelect.vue';
 import { artworkUrl } from '../../services/core/artworks';

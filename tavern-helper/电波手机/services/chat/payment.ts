@@ -74,7 +74,7 @@ export function paymentClaims(message: PhoneMessage): PaymentClaim[] {
   );
 }
 /** Amounts are allocated locally in cents, never taken from model-written dialogue. */
-export function claimPayment(message: PhoneMessage, actorKey: string, at = new Date().toISOString()): number | null {
+export function claimPayment(message: PhoneMessage, actorKey: string, at = message.createdAt): number | null {
   const p = message.payload,
     detail = paymentDetails(message);
   if (
@@ -109,6 +109,7 @@ export function applyPaymentActions(
   actions: { message_id: string; actor_key?: string; action: 'receive' | 'refund' }[] | undefined,
   actorKeys: string[],
   group = false,
+  at?: string,
 ): void {
   for (const action of actions || []) {
     const key = action.actor_key || (actorKeys.length === 1 ? actorKeys[0] : '');
@@ -127,12 +128,12 @@ export function applyPaymentActions(
     const detail = paymentDetails(message);
     if ((!group || !detail.group) && message.sender !== 'user') continue;
     if (group && !detail.group && message.payload.recipientKey && message.payload.recipientKey !== key) continue;
-    if (action.action === 'receive') claimPayment(message, key);
+    if (action.action === 'receive') claimPayment(message, key, at || message.createdAt);
     else if (!detail.group && String(message.payload.state || 'pending') === 'pending') {
       message.payload.paymentLedgerVersion = 1;
       message.payload.state = 'refunded';
       message.payload.refundedBy = key;
-      message.payload.refundedAt = new Date().toISOString();
+      message.payload.refundedAt = at || message.createdAt;
     }
   }
 }

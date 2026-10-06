@@ -64,3 +64,25 @@ const npc = { ...message, id: 'npc', payload: { amount: 10, state: 'pending', pa
 syncPaymentLedger(book, [{ charKey: 'npc', messages: [npc] }], identities, 'chat:test:');
 assert(!book.accounts['char:npc']);
 console.log('PASS payment expenses, income, refund, currency, idempotence and no NPC wallet creation');
+
+const { repairThreadTime } = require(base + '/services/chat/repair-time.ts');
+const { formatMessageDateTime } = require(base + '/services/core/message-clock.ts');
+const storyTime = new Date(2027, 8, 25, 19, 41).toISOString();
+const timed = { ...message, id: 'timed', payload: { amount: 50, packetType: 'group', count: 2, state: 'group_available', paymentLedgerVersion: 1 } };
+thread.messages.push(timed);
+applyPaymentActions(thread.messages, [{ message_id: 'timed', actor_key: 'alice', action: 'receive' }], ['alice'], true, storyTime);
+assert.equal(timed.payload.claims[0].at, storyTime, 'AI receipt uses supplied phone time');
+claimPayment(timed, 'user', storyTime);
+syncPaymentLedger(book, [thread], identities, 'chat:test:');
+const countBeforeRepair = accountRows(book, book.accounts.user).length;
+const repairAt = new Date(2028, 1, 3, 12, 30).getTime();
+repairThreadTime(thread, repairAt);
+syncPaymentLedger(book, [thread], identities, 'chat:test:');
+assert.equal(timed.payload.claims[0].at, timed.createdAt);
+assert.equal(timed.payload.claims[1].at, timed.createdAt);
+assert.equal(accountRows(book, book.accounts.user).length, countBeforeRepair, 'repair does not double-book receipts');
+assert.equal(book.accounts.user.manual['chat:test:payment:alice:timed:user'].date, timed.createdAt);
+assert.equal(book.accounts['char:alice'].manual['chat:test:payment:alice:timed:sent:alice'].date, timed.createdAt);
+assert.equal(formatMessageDateTime(storyTime), '2027/09/25 19:41');
+assert.equal(formatMessageDateTime('2027-09-25'), '2027/09/25');
+console.log('PASS phone payment time, historic claim repair, existing ledger dates and local display format');

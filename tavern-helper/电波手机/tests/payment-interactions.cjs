@@ -96,10 +96,16 @@ function click(text) {
   await tick();
   assert(document.querySelector('[role=dialog]'));
   assert(document.querySelector('.wave-payment-dialog').textContent.includes('88.00'));
+  phone.settings.basic.systemClock.source = 'custom';
+  phone.settings.basic.systemClock.customTime = '2027-09-25T19:41';
+  phone.settings.basic.systemClock.customRunning = false;
   phone.setDraft('保留草稿');
   click('领取红包');
   await tick();
   assert(document.querySelector('.payment-status').textContent.includes('已收款'));
+  const receiptAt = phone.activeThread.messages.find(m => m.id === 'packet').payload.claims[0].at;
+  assert.equal(new Date(receiptAt).getFullYear(), 2027, 'user claim follows phone clock');
+  assert.equal(new Date(receiptAt).getHours(), 19);
   assert(!document.querySelector('.payment-actions'));
   assert.equal(phone.activeThread.draft, '保留草稿');
   assert.equal(Object.values(phone.state.walletBook.accounts.user.manual).length, 1);

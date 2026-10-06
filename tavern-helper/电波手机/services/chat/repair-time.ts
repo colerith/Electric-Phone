@@ -1,4 +1,5 @@
 import type { Thread } from '../../schemas';
+import { paymentClaims } from './payment';
 
 /** 旧数据的真实故事时间不可恢复；按已知发送顺序重建，保留原时间供追溯。 */
 export function repairThreadTime(thread: Thread, end: number): number {
@@ -17,6 +18,23 @@ export function repairThreadTime(thread: Thread, end: number): number {
   for (const message of [...(thread.historyArchive || []), ...thread.messages]) {
     if (!message.payload.timeRepairOriginal) message.payload.timeRepairOriginal = message.createdAt;
     message.createdAt = times.get(message.id)!;
+    if (['red_packet', 'transfer'].includes(message.type)) {
+      const receipt = messages.find(item => item.payload.paymentMessageId === message.id && item.sender === 'user');
+      const receiptAt = receipt ? times.get(receipt.id)! : message.createdAt;
+      for (const claim of paymentClaims(message)) {
+        const original = claim as typeof claim & { timeRepairOriginal?: string };
+        original.timeRepairOriginal ||= claim.at;
+        claim.at = claim.actorKey === 'user' ? receiptAt : message.createdAt;
+      }
+      if (message.payload.userPaymentAt) {
+        message.payload.userPaymentTimeRepairOriginal ||= message.payload.userPaymentAt;
+        message.payload.userPaymentAt = receiptAt;
+      }
+      if (message.payload.refundedAt) {
+        message.payload.refundTimeRepairOriginal ||= message.payload.refundedAt;
+        message.payload.refundedAt = message.createdAt;
+      }
+    }
   }
   thread.messages.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   thread.historyArchive?.sort((a, b) => a.createdAt.localeCompare(b.createdAt));

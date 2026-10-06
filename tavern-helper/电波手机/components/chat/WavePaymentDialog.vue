@@ -40,7 +40,7 @@
           <div v-for="claim in claims" :key="claim.actorKey" class="payment-claim">
             <span
               ><strong>{{ recipientName(claim.actorKey) }}</strong
-              ><small>{{ claim.at ? new Date(claim.at).toLocaleString() : '' }}</small></span
+              ><small>{{ formatMessageDateTime(claim.at) }}</small></span
             >
             <span
               >{{ currency }} {{ claim.amount.toFixed(2)
@@ -69,6 +69,7 @@
   </Teleport>
 </template>
 <script setup lang="ts">
+import { formatMessageDateTime } from '../../services/core/message-clock';
 import { computed, inject, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { PhoneMessage } from '../../schemas';
 import { usePhoneStore } from '../../stores/phone';
