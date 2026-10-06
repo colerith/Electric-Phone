@@ -145,7 +145,7 @@
           <i class="fa-solid fa-sliders"></i>
         </button>
       </header>
-      <WaveTogether />
+      <WaveTogether :user-avatar="userAvatar" :character-avatar-style="characterAvatarStyle" />
       <div class="music-turntable">
         <div class="music-vinyl" :class="{ spinning: music.playing }">
           <img v-if="music.current?.cover" :src="music.current.cover" alt="专辑封面" /><i
@@ -322,7 +322,7 @@ import WavePlaylists from './WavePlaylists.vue';
 const libraryTab = ref(false),
   playlistDetail = ref(false);
 import WaveTogether from '../chat/WaveTogether.vue';
-const props = defineProps<{ raw: string }>();
+const props = defineProps<{ raw: string; userAvatar: string; characterAvatarStyle?: import('vue').CSSProperties }>();
 defineEmits<{ settings: [] }>();
 const music = useMusicStore(),
   phone = usePhoneStore();

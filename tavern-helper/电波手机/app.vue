@@ -1147,6 +1147,8 @@
             <WaveMusicPanel
               v-else-if="store.currentPage === 'music'"
               :raw="store.activeSnapshot.music"
+              :user-avatar="userAvatar"
+              :character-avatar-style="avatarStyle(store.activeIdentity)"
               @settings="toggleAppSettings"
             />
             <WaveApps
