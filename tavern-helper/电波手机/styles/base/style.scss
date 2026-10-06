@@ -4641,6 +4641,9 @@
   z-index: 12;
 }
 #wave-phone-script-root .chat-bottom-jump {
+  opacity: 0.62;
+  transition: opacity 0.18s ease;
+  font-size: 17px;
   position: absolute;
   right: 16px;
   bottom: 12px;
@@ -4659,4 +4662,30 @@
 }
 #wave-phone-script-root .chat-bottom-jump:hover {
   background: rgba(247, 250, 255, 0.95);
+}
+
+#wave-phone-script-root .chat-bottom-jump:hover,
+#wave-phone-script-root .chat-bottom-jump:focus-visible {
+  opacity: 0.92;
+}
+#wave-phone-script-root .chat-unread-jump {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 15px;
+  border: 1px solid rgba(128, 151, 190, 0.16);
+  border-radius: 22px;
+  background: rgba(247, 250, 255, 0.9);
+  color: #5c80be;
+  box-shadow: 0 3px 14px rgba(34, 54, 85, 0.1);
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#wave-phone-script-root .chat-unread-jump.above-bottom {
+  bottom: 62px;
 }

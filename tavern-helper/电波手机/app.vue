@@ -557,6 +557,16 @@
 
               <div class="chat-bottom-jump-anchor">
                 <button
+                  v-if="unreadReplyIds.length"
+                  type="button"
+                  class="chat-unread-jump"
+                  :class="{ 'above-bottom': isAwayFromBottom }"
+                  @click.stop="scrollToUnreadReply"
+                >
+                  <i class="fa-solid fa-angles-up" aria-hidden="true"></i>
+                  <span>{{ unreadReplyIds.length }} 条新消息</span>
+                </button>
+                <button
                   v-if="isAwayFromBottom"
                   type="button"
                   class="chat-bottom-jump"
@@ -564,7 +574,7 @@
                   title="回到底部"
                   @click.stop="scrollToThreadEnd"
                 >
-                  <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
+                  <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
                 </button>
               </div>
               <div v-if="multiSelectMode" class="message-multi-toolbar">
@@ -1325,6 +1335,16 @@ const extraDraft = ref({
 });
 const threadElement = ref<HTMLElement | null>(null);
 const isAwayFromBottom = ref(false);
+const unreadReplyIds = ref<string[]>([]);
+let unreadReplyRound = '';
+function scrollToUnreadReply(): void {
+  const target = [...(threadElement.value?.querySelectorAll<HTMLElement>('[data-message-id]') || [])].find(element =>
+    unreadReplyIds.value.includes(element.dataset.messageId || ''),
+  );
+  target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  unreadReplyIds.value = [];
+}
+
 function updateThreadScroll(): void {
   const element = threadElement.value;
   isAwayFromBottom.value = !!element && element.scrollHeight - element.clientHeight - element.scrollTop > 48;
@@ -1685,6 +1705,34 @@ const visibleMessages = computed<PhoneMessage[]>(() => {
     ...notices,
   ].sort((a, b) => (Date.parse(a.createdAt) || 0) - (Date.parse(b.createdAt) || 0));
 });
+watch(
+  () => ({ threadId: store.activeThread?.id, messages: visibleMessages.value }),
+  (current, previous) => {
+    if (current.threadId !== previous?.threadId) {
+      unreadReplyIds.value = [];
+      unreadReplyRound = '';
+      return;
+    }
+    const known = new Set(previous.messages.map(message => message.id));
+    const visible = new Set(current.messages.map(message => message.id));
+    unreadReplyIds.value = unreadReplyIds.value.filter(id => visible.has(id));
+    for (const message of current.messages) {
+      if (known.has(message.id) || message.id.startsWith('legacy-') || message.sender !== 'char' || message.withdrawn)
+        continue;
+      const round = String(
+        message.payload.replyGenerationId ||
+          store.activeThread?.generationId ||
+          current.messages.slice(0, current.messages.indexOf(message)).findLast(item => item.sender === 'user')?.id ||
+          'reply',
+      );
+      if (round !== unreadReplyRound) {
+        unreadReplyIds.value = [];
+        unreadReplyRound = round;
+      }
+      unreadReplyIds.value.push(message.id);
+    }
+  },
+);
 const groupElectric = computed(() =>
   store.activeIdentity?.source === 'local_group' ? groupRoundElectric(visibleMessages.value) : {},
 );
@@ -1712,6 +1760,7 @@ function scheduleMessageReveal(): void {
   revealSequenceStarted = true;
   revealTimer = window.setTimeout(
     () => {
+      const followLatest = !isAwayFromBottom.value;
       revealTimer = 0;
       revealQueue.shift();
       const hidden = new Set(hiddenMessageIds.value);
@@ -1725,7 +1774,7 @@ function scheduleMessageReveal(): void {
         revealSequenceStarted = false;
       }
       void nextTick(() => {
-        if (threadElement.value)
+        if (threadElement.value && followLatest)
           threadElement.value.scrollTo({ top: threadElement.value.scrollHeight, behavior: 'smooth' });
       });
     },
@@ -1753,7 +1802,7 @@ watch(
   { flush: 'sync' },
 );
 watch(showTypingBubble, visible => {
-  if (!visible) return;
+  if (!visible || isAwayFromBottom.value) return;
   void nextTick(() => {
     if (threadElement.value)
       threadElement.value.scrollTo({ top: threadElement.value.scrollHeight, behavior: 'smooth' });
@@ -2132,7 +2181,8 @@ async function send(activateReply = true): Promise<void> {
     await sending;
 
     await nextTick();
-    if (threadElement.value) threadElement.value.scrollTop = threadElement.value.scrollHeight;
+    if (threadElement.value && (!activateReply || !isAwayFromBottom.value))
+      threadElement.value.scrollTop = threadElement.value.scrollHeight;
   } catch (error) {
     toastr.error(requestErrorToast(error), '电波发送失败', { escapeHtml: true });
   }
