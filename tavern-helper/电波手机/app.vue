@@ -597,14 +597,24 @@
                     role="dialog"
                     aria-label="隐秘心声"
                     @click.stop
-                    @keydown.esc.stop="avatarThoughtKey = ''"
+                    @keydown.esc.stop.prevent="closeAvatarThought"
                   >
-                    <header>
-                      <span>♥ 心声便签 · {{ displayIdentityName(store.state.identities[avatarThoughtKey]) }}</span
-                      ><button type="button" aria-label="关闭隐秘心声" @click="avatarThoughtKey = ''">
-                        <i class="fa-solid fa-xmark"></i>
+                    <i class="fa-solid fa-paperclip thought-paperclip" aria-hidden="true"></i>
+                    <div class="thought-note-heading">
+                      <span
+                        ><i class="fa-solid fa-heart" aria-hidden="true"></i> 心声便签 ·
+                        {{ displayIdentityName(store.state.identities[avatarThoughtKey]) }}</span
+                      >
+                      <button
+                        class="thought-note-close"
+                        type="button"
+                        aria-label="关闭隐秘心声"
+                        @pointerdown.stop
+                        @click.stop.prevent="closeAvatarThought"
+                      >
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                       </button>
-                    </header>
+                    </div>
                     <p>{{ avatarThought || '暂时还没有隐秘心声，前往状态查看或更新。' }}</p>
                     <button type="button" class="chat-thought-link" @click="openThoughtStatus">
                       查看状态 <i class="fa-solid fa-arrow-right"></i>
@@ -2197,6 +2207,11 @@ function cancelAvatarHome(): void {
   clearTimeout(avatarHomeTimer);
 }
 const avatarThoughtKey = ref('');
+function closeAvatarThought(): void {
+  cancelAvatarHome();
+  avatarThoughtKey.value = '';
+  avatarThoughtMessageId.value = '';
+}
 const avatarThoughtMessageId = ref('');
 const avatarThought = computed(
   () => parseStatusProfile(store.state.snapshots[avatarThoughtKey.value]?.status || '').thought,

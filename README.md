@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.1.98`
+当前发布版本：`v1.1.99`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.98/file/index-1.1.98.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.1.99/file/index-1.1.99.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：隐秘心声以便签卡片插入消息之间；编辑消息使用独立弹窗并保留输入草稿；输入框支持自动增高与展开编辑。
+本版更新：心声便签改为回形针折角纸条样式，爱心使用 Font Awesome；修复关闭交互及按钮标题行对齐。
 
 ## 首次配置
 

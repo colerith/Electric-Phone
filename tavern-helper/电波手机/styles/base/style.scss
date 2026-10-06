@@ -4718,59 +4718,98 @@
 }
 
 #wave-phone-script-root .wave-device .chat-avatar-thought {
-  position: absolute;
-  z-index: 25;
-  left: 52px;
-  width: min(220px, calc(100% - 68px));
-  padding: 10px 12px;
-  border: 1px solid #dce4ef;
-  border-radius: 5px 14px 14px;
-  background: rgba(251, 253, 255, 0.97);
-  box-shadow: 0 5px 18px rgba(40, 58, 88, 0.13);
-  color: #536177;
+  position: relative;
+  z-index: 1;
+  margin: 18px 18px 16px;
+  padding: 14px 16px 20px;
+  border: 1px solid #e3e1dd;
+  border-radius: 16px 16px 3px 16px;
+  background: #faf9f6;
+  color: #62656b;
+  box-shadow: 0 5px 14px rgba(45, 49, 56, 0.07);
   font-size: 11px;
-  header {
+  &::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 21px;
+    height: 21px;
+    background: linear-gradient(135deg, #d6d5d1 50%, #f1f1f1 51%);
+    border-radius: 5px 0 0;
+    pointer-events: none;
+  }
+  .thought-paperclip {
+    position: absolute;
+    top: -9px;
+    left: 10px;
+    transform: rotate(-25deg);
+    font-size: 23px;
+    color: #a7a9a7;
+    pointer-events: none;
+  }
+  .thought-note-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 6px;
+    gap: 8px;
+    padding-left: 13px;
+    min-height: 24px;
+  }
+  .thought-note-heading > span {
+    min-width: 0;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .thought-note-heading .fa-heart {
+    color: #939794;
+    margin-right: 3px;
     font-size: 10px;
   }
-  header button {
-    padding: 3px;
-    background: none;
+  .thought-note-close {
+    position: static;
+    flex: 0 0 24px;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
     border: 0;
-    color: #8190a5;
-    font-size: 11px;
+    border-radius: 50%;
+    background: #eeefed;
+    color: #858b90;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    pointer-events: auto;
+  }
+  .thought-note-close:hover {
+    background: #e2e5e1;
+  }
+  .thought-note-close i {
+    pointer-events: none;
   }
   p {
-    margin: 7px 0;
-    max-height: 110px;
+    margin: 8px 0;
+    max-height: 150px;
     overflow-y: auto;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     font-size: 11px;
-    line-height: 1.65;
+    line-height: 1.75;
   }
   .chat-thought-link {
     padding: 3px 0;
     border: 0;
     background: none;
-    color: #5c80be;
+    color: #7b899a;
     font-size: 10px;
   }
 }
 
-#wave-phone-script-root .wave-device .chat-avatar-thought {
-  position: relative;
-  left: auto;
-  top: auto;
-  width: auto;
-  margin: 12px 18px 14px;
-  border-radius: 16px;
-  background: #fbfaf8;
-  box-shadow: 0 4px 14px rgba(40, 58, 88, 0.08);
-}
 #wave-phone-script-root .wave-device .composer-text-wrap {
   position: relative;
   flex: 1;
