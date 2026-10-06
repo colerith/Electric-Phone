@@ -237,7 +237,7 @@
 }
 
 // A geometric cross avoids font baseline and inherited icon padding in dialog headers.
-#wave-phone-script-root .wave-device button[aria-label^='关闭'] {
+#wave-phone-script-root .wave-device button[aria-label^='关闭']:not(.wave-close-control) {
   position: relative;
   display: inline-grid !important;
   place-items: center;

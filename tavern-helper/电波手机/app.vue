@@ -291,9 +291,7 @@
                 >
                   <header>
                     <strong>{{ editingMessageId ? '编辑消息' : '输入消息' }}</strong
-                    ><button type="button" aria-label="关闭编辑窗口" @click="closeChatEditor">
-                      <i class="fa-solid fa-chevron-down"></i>
-                    </button>
+                    ><WaveCloseButton label="关闭编辑窗口" @close="closeChatEditor" />
                   </header>
                   <textarea
                     v-if="editingMessageId"
@@ -605,15 +603,7 @@
                         ><i class="fa-solid fa-heart" aria-hidden="true"></i> 心声便签 ·
                         {{ displayIdentityName(store.state.identities[avatarThoughtKey]) }}</span
                       >
-                      <button
-                        class="thought-note-close"
-                        type="button"
-                        aria-label="关闭隐秘心声"
-                        @pointerdown.stop
-                        @click.stop.prevent="closeAvatarThought"
-                      >
-                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                      </button>
+                      <WaveCloseButton label="关闭隐秘心声" @close="closeAvatarThought" />
                     </div>
                     <p>{{ avatarThought || '暂时还没有隐秘心声，前往状态查看或更新。' }}</p>
                     <button type="button" class="chat-thought-link" @click="openThoughtStatus">
@@ -729,7 +719,7 @@
                 <button type="button" aria-label="扩展功能" @click="toggleExtras">
                   <i class="fa-solid fa-plus"></i>
                 </button>
-                <div class="composer-text-wrap">
+                <div class="composer-text-wrap" :class="{ 'has-expand': composerHasLongText }">
                   <textarea
                     ref="composerInput"
                     :value="store.activeThread?.draft || ''"
@@ -743,6 +733,7 @@
                   ></textarea
                   ><button
                     type="button"
+                    v-if="composerHasLongText"
                     class="composer-expand"
                     aria-label="展开输入框"
                     @click="composerExpanded = true"
@@ -1201,6 +1192,7 @@
 </template>
 
 <script setup lang="ts">
+import WaveCloseButton from './components/shared/WaveCloseButton.vue';
 import WaveManualImageOptions from './components/shared/WaveManualImageOptions.vue';
 import { manualImageMedia } from './services/image/manual';
 import { parseStatusProfile } from './services/apps/status';
@@ -2125,17 +2117,31 @@ function onDraft(event: Event): void {
   store.setDraft((event.target as HTMLTextAreaElement).value);
 }
 const composerInput = ref<HTMLTextAreaElement | null>(null);
+const composerHasLongText = ref(false);
 function resizeComposer(): void {
   const input = composerInput.value;
   if (!input) return;
-  input.style.height = 'auto';
-  input.style.height = `${Math.min(150, Math.max(36, input.scrollHeight))}px`;
+  const style = getComputedStyle(input);
+  const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.6;
+  const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+  input.style.height = '0px';
+  const contentHeight = input.scrollHeight;
+  composerHasLongText.value = !!input.value && contentHeight - padding > lineHeight * 3 + 2;
+  input.style.height = `${Math.min(150, Math.max(36, contentHeight))}px`;
 }
+
 watch(
   () => [store.activeThread?.draft, composerExpanded.value, composerInput.value],
   () => nextTick(resizeComposer),
 );
-useResizeObserver(composerInput, resizeComposer);
+let composerMeasuredWidth = 0;
+useResizeObserver(composerInput, entries => {
+  const width = entries[0]?.contentRect.width || 0;
+  if (width !== composerMeasuredWidth) {
+    composerMeasuredWidth = width;
+    resizeComposer();
+  }
+});
 
 let enterHandledAt = 0;
 function onComposerEnter(event: KeyboardEvent): void {

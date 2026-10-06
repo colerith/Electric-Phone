@@ -4884,3 +4884,43 @@
   color: #5c80be;
   font-size: 12px;
 }
+
+#wave-phone-script-root .wave-device .chat-avatar-thought {
+  border: 0;
+  border-radius: 16px 16px 0 16px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 21px), calc(100% - 21px) 100%, 0 100%);
+  &::after {
+    background: #d6d5d1;
+    border-radius: 5px 0 0;
+  }
+}
+#wave-phone-script-root .wave-device .composer-text-wrap textarea {
+  padding-right: 11px;
+}
+#wave-phone-script-root .wave-device .composer-text-wrap.has-expand {
+  padding-bottom: 30px;
+  border: 1px solid var(--wave-line);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.88);
+  textarea {
+    border: 0;
+    background: transparent;
+  }
+  .composer-expand {
+    right: 7px;
+    bottom: 4px;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #f0f3f7;
+    color: #71839b;
+    display: grid;
+    place-items: center;
+  }
+}
+
+#wave-phone-script-root .wave-device .chat-avatar-thought .thought-paperclip {
+  top: 2px;
+  left: 6px;
+  font-size: 19px;
+}
