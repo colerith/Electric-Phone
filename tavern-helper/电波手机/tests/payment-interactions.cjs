@@ -193,6 +193,15 @@ function click(text) {
   applyPaymentActions(phone.activeThread.messages, actions, ['alice', 'bob', 'carl'], true);
   assert.equal(paymentClaims(aiGroup).length, 3);
   await tick();
+  let exhaustedCard = [...document.querySelectorAll('.wave-message-red-packet')].at(-1);
+  assert(exhaustedCard.classList.contains('red-packet-group_empty'));
+  // Historical packets may keep their available state after all shares were claimed.
+  aiGroup.payload.state = 'group_available';
+  aiGroup.payload.userPaymentDecision = 'received';
+  await tick();
+  exhaustedCard = [...document.querySelectorAll('.wave-message-red-packet')].at(-1);
+  assert(exhaustedCard.classList.contains('red-packet-group_empty'));
+  assert(exhaustedCard.textContent.includes('已抢完 3/3'));
   const ownCards = [...document.querySelectorAll('.wave-message-red-packet')];
   ownCards.at(-1).click();
   await tick();

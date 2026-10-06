@@ -613,6 +613,9 @@ const transferState = computed<'pending' | 'received' | 'refunded'>(() => {
 const transferStateLabel = computed(() => paymentDetails(props.message).label);
 type RedPacketState = 'pending' | 'received' | 'refunded' | 'group_available' | 'group_claimed' | 'group_empty';
 const redPacketState = computed<RedPacketState>(() => {
+  const details = paymentDetails(props.message);
+  if (details.group && (details.claimed >= details.count || payloadString('state') === 'group_empty'))
+    return 'group_empty';
   const state = (payloadString('userPaymentDecision') || payloadString('state')).toLowerCase();
   if (['received', 'paid', 'accepted'].includes(state)) return 'received';
   if (['refunded', 'refund', 'returned'].includes(state)) return 'refunded';
@@ -621,9 +624,7 @@ const redPacketState = computed<RedPacketState>(() => {
   if (state === 'group_available') return 'group_available';
   return 'pending';
 });
-const redPacketIsGroup = computed(
-  () => payloadString('packetType') === 'group' || redPacketState.value.startsWith('group_'),
-);
+const redPacketIsGroup = computed(() => paymentDetails(props.message).group);
 const redPacketCount = computed(() => Math.max(1, Math.round(payloadNumber('count') || 1)));
 const redPacketClaimedCount = computed(() =>
   _.clamp(

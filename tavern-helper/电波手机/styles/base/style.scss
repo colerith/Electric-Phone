@@ -3486,12 +3486,12 @@
   font-size: inherit;
 }
 
-#wave-phone-script-root .wave-message-red-packet:is(.red-packet-received, .red-packet-group_claimed) {
+#wave-phone-script-root .wave-device .wave-message-red-packet:is(.red-packet-received, .red-packet-group_claimed) {
   --red-packet-color: #ce8877;
   --red-packet-deep: #a96558;
 }
 
-#wave-phone-script-root .wave-message-red-packet:is(.red-packet-refunded, .red-packet-group_empty) {
+#wave-phone-script-root .wave-device .wave-message-red-packet:is(.red-packet-refunded, .red-packet-group_empty) {
   --red-packet-color: #b7aaa2;
   --red-packet-deep: #7f746e;
   box-shadow: 0 7px 16px rgba(68, 57, 52, 0.1);
