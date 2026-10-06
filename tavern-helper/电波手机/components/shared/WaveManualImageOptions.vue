@@ -66,13 +66,14 @@ watch(
 );
 </script>
 <style lang="scss">
-#wave-phone-script-root .wave-manual-image-options {
+#wave-phone-script-root .wave-device .wave-manual-image-options {
   display: grid;
-  gap: 12px;
-  padding: 14px;
-  margin: 12px 0;
+  gap: 9px;
+  padding: 9px 11px;
+  margin: 8px 0;
   border: 1px solid var(--settings-line, #dce3ee);
-  border-radius: 16px;
+  border-radius: 13px;
+  font-size: 11px;
   background: var(--settings-control, #f4f7fc);
   color: var(--settings-text, #374558);
   .manual-image-toggle,
@@ -81,6 +82,11 @@ watch(
     align-items: center;
     justify-content: space-between;
     gap: 10px;
+  }
+  .manual-image-toggle {
+    min-height: 24px;
+    font-size: 11px;
+    line-height: 1.4;
   }
   > label {
     display: grid;
@@ -94,6 +100,24 @@ watch(
     font-size: 11px;
     line-height: 1.6;
     color: var(--settings-muted, #7f8a9a);
+  }
+}
+#wave-phone-script-root .wave-device .wave-manual-image-options .wave-toggle-control {
+  width: 34px !important;
+  min-width: 34px !important;
+  max-width: 34px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+  align-self: center;
+  > span {
+    width: 16px !important;
+    height: 16px !important;
+    top: 2px;
+    left: 2px;
+  }
+  &.active > span {
+    transform: translateX(14px);
   }
 }
 </style>

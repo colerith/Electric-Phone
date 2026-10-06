@@ -390,21 +390,32 @@ function removeMember() {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 10px;
+    margin: 0 0 12px;
+    padding-top: 8px;
+    min-height: 36px;
   }
   .group-members-heading .wave-settings-title {
-    margin: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1.4;
+    align-self: center;
   }
   .group-add-button {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 10px;
+    position: static;
+    margin: 0;
+    align-self: center;
+    flex: 0 0 auto;
+    min-height: 28px;
+    padding: 5px 9px;
     border: 1px solid var(--settings-line);
     border-radius: 12px;
     background: var(--settings-control);
     color: var(--settings-accent);
-    font-size: 12px;
+    font-size: 10px;
+    line-height: 1.4;
     cursor: pointer;
   }
   .group-member-search {
