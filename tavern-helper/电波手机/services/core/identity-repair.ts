@@ -47,7 +47,7 @@ export function repairSingleCardAliases(
   for (const [from, to] of Object.entries(defaults.identityAliases)) {
     const source = state.identities[from],
       target = state.identities[to];
-    if (!source || !target || from === to) continue;
+    if (!source || !target || from === to || !from.startsWith('single:') || !to.startsWith('single:')) continue;
     // Retain a lossless pre-repair copy in durable per-card defaults, including conflicting settings.
     defaults.identityRecovery[`${state.chatKey}::${from}`] ??= klona({ state, roster, profiles });
     const sourceThread = Object.values(state.threads).find(thread => thread.charKey === from);

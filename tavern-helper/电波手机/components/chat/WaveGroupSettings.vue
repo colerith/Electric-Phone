@@ -62,7 +62,17 @@
     </section>
     <WaveCharacterImage />
     <section class="chat-settings-group wave-group-settings">
-      <div class="wave-settings-title">群成员 · {{ members.length }}</div>
+      <div class="group-members-heading">
+        <div class="wave-settings-title">群成员 · {{ members.length }}</div>
+        <button
+          type="button"
+          class="group-add-button"
+          :disabled="phone.activeThread?.generating"
+          @click="openMemberPicker"
+        >
+          <i class="fa-solid fa-user-plus" aria-hidden="true"></i> 添加成员
+        </button>
+      </div>
       <div v-for="member in members" :key="member.key" class="group-member-row">
         <span class="group-member-avatar"
           ><img
@@ -91,6 +101,75 @@
         </button>
       </div>
     </section>
+    <Teleport v-if="addingMembers" :to="surface || 'body'">
+      <div
+        class="group-edit-overlay"
+        @click.stop
+        @click.self="closeMemberPicker"
+        @keydown.esc.stop.prevent="closeMemberPicker"
+      >
+        <section
+          ref="memberPicker"
+          class="group-edit-dialog chat-settings-group wave-group-settings"
+          role="dialog"
+          aria-modal="true"
+          aria-label="添加群成员"
+          tabindex="-1"
+          @keydown.tab="trapPickerFocus"
+        >
+          <div class="wave-settings-title">添加群成员</div>
+          <p class="chat-settings-note">
+            选择要加入的联系人{{ group.groupObserver ? '，添加后你仍保持围观。' : '。' }}
+          </p>
+          <input
+            v-model="memberSearch"
+            class="group-member-search"
+            type="search"
+            placeholder="搜索联系人"
+            aria-label="搜索可添加的联系人"
+          />
+          <div class="group-member-candidates">
+            <label
+              v-for="person in availableMembers"
+              :key="person.charKey"
+              class="group-member-row group-member-choice"
+            >
+              <span class="group-member-avatar"
+                ><img v-if="person.avatar" :src="person.avatar" :style="identityAvatarStyle(person)" alt="" /><span
+                  v-else
+                  >{{ displayIdentityName(person).slice(0, 1) }}</span
+                ></span
+              >
+              <span class="group-member-copy"
+                ><strong>{{ displayIdentityName(person) }}</strong
+                ><small v-if="person.remark">{{ person.name }}</small></span
+              >
+              <input
+                v-model="selectedMembers"
+                type="checkbox"
+                :value="person.charKey"
+                :aria-label="`选择${displayIdentityName(person)}`"
+              />
+            </label>
+            <p v-if="!availableMembers.length" class="chat-settings-note">
+              {{ memberSearch ? '没有匹配的联系人。' : '暂无可添加的联系人，可先到通讯录添加好友。' }}
+            </p>
+          </div>
+          <p v-if="addError" role="alert" class="group-edit-error">{{ addError }}</p>
+          <div class="group-edit-actions">
+            <button type="button" @click="closeMemberPicker">取消</button
+            ><button
+              type="button"
+              class="group-edit-primary"
+              :disabled="!selectedMembers.length || phone.activeThread?.generating"
+              @click="confirmMembers"
+            >
+              添加（{{ selectedMembers.length }}）
+            </button>
+          </div>
+        </section>
+      </div>
+    </Teleport>
     <Teleport v-if="editing" :to="surface || 'body'">
       <div class="group-edit-overlay" @click.self="editing = ''" @keydown.esc.stop="editing = ''">
         <section
@@ -142,7 +221,8 @@
 </template>
 <script setup lang="ts">
 import { groupExperienceLabel } from '../../services/chat/group-activity';
-import { computed, inject, nextTick, ref } from 'vue';
+import { computed, inject, nextTick, ref, watch } from 'vue';
+import { displayIdentityName } from '../../services/core/identity';
 import { usePhoneStore } from '../../stores/phone';
 import { identityAvatarStyle } from '../../services/core/avatar';
 import WaveImageUpload from '../shared/WaveImageUpload.vue';
@@ -183,6 +263,59 @@ const members = computed(() => {
     };
   });
 });
+const addingMembers = ref(false);
+const selectedMembers = ref<string[]>([]);
+const memberSearch = ref('');
+const addError = ref('');
+const pickerGroupKey = ref('');
+const memberPicker = ref<HTMLElement | null>(null);
+let pickerPreviousFocus: HTMLElement | null = null;
+const availableMembers = computed(() =>
+  phone.identities.filter(
+    person =>
+      person.source !== 'local_group' &&
+      !group.value?.memberKeys?.includes(person.charKey) &&
+      `${person.name} ${person.remark}`.toLocaleLowerCase().includes(memberSearch.value.trim().toLocaleLowerCase()),
+  ),
+);
+async function openMemberPicker() {
+  pickerPreviousFocus = surface.value?.ownerDocument.activeElement as HTMLElement | null;
+  pickerGroupKey.value = group.value?.charKey || '';
+  selectedMembers.value = [];
+  memberSearch.value = '';
+  addError.value = '';
+  addingMembers.value = true;
+  await nextTick();
+  memberPicker.value?.querySelector<HTMLInputElement>('input[type=search]')?.focus();
+}
+function closeMemberPicker() {
+  addingMembers.value = false;
+  if (pickerPreviousFocus?.isConnected) pickerPreviousFocus.focus();
+}
+function confirmMembers() {
+  try {
+    phone.addGroupMembers(selectedMembers.value, pickerGroupKey.value);
+    closeMemberPicker();
+  } catch (cause) {
+    addError.value = cause instanceof Error ? cause.message : String(cause);
+  }
+}
+function trapPickerFocus(event: KeyboardEvent) {
+  const controls = [
+    ...(memberPicker.value?.querySelectorAll<HTMLElement>('input:not(:disabled), button:not(:disabled)') || []),
+  ];
+  const index = controls.indexOf(memberPicker.value?.ownerDocument.activeElement as HTMLElement);
+  if (event.shiftKey ? index <= 0 : index === controls.length - 1) {
+    event.preventDefault();
+    (event.shiftKey ? controls.at(-1) : controls[0])?.focus();
+  }
+}
+watch(
+  () => group.value?.charKey,
+  () => {
+    if (addingMembers.value) closeMemberPicker();
+  },
+);
 const avatarOpen = ref(false);
 const editing = ref('');
 const editorDialog = ref<HTMLElement | null>(null);
@@ -252,6 +385,57 @@ function removeMember() {
 </script>
 <style lang="scss">
 #wave-phone-script-root .wave-device .wave-group-settings {
+  .group-members-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .group-members-heading .wave-settings-title {
+    margin: 0;
+  }
+  .group-add-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--settings-line);
+    border-radius: 12px;
+    background: var(--settings-control);
+    color: var(--settings-accent);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .group-member-search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid var(--settings-line);
+    border-radius: 12px;
+    font: inherit;
+    background: var(--settings-control);
+    color: var(--settings-text);
+  }
+  .group-member-candidates {
+    max-height: 260px;
+    overflow-y: auto;
+    margin-top: 12px;
+  }
+  .group-member-choice {
+    cursor: pointer;
+  }
+  .group-member-choice input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    accent-color: var(--settings-accent);
+  }
+  button:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
   .group-avatar-readonly {
     display: grid;
     place-items: center;

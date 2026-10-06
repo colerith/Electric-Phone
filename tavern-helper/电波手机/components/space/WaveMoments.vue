@@ -789,7 +789,8 @@ function nameFor(key: string, fallback: string) {
   return key === 'user'
     ? props.userName
     : phone.state.identities[key]
-      ? displayIdentityName(phone.state.identities[key])
+      ? parseZonePage(phone.state.snapshots[key]?.zone || '').profile.username ||
+        displayIdentityName(phone.state.identities[key])
       : phone.state.moments.npcs[key]?.username || fallback;
 }
 function accountFor(key: string) {

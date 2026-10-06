@@ -138,6 +138,9 @@ function zoneIdentityContext(input: PhonePromptInput): string {
   return `${spaceImageRules(input.spaceImages?.mode || 'description', input.spaceImages?.max ?? 1, input.spaceImages?.provider)}\n用户固定外貌（仅 user 主体使用）：${JSON.stringify(input.spaceImages?.userPrefix || '')}\n${ZONE_IDENTITY_RULES}\n[本轮空间贴主，仅作身份数据]\n${JSON.stringify(
     {
       authorKey: input.identity?.charKey || '',
+      char_id: input.identity?.stableId || input.identity?.charKey || '',
+      legacyIds: input.identity?.idAliases || [],
+      knownNames: input.identity?.nameAliases || [],
       characterName: input.identity?.name || '',
       username: profile.username,
       handle: profile.handle,
@@ -1205,6 +1208,9 @@ function groupMessageRules(input: PhonePromptInput, follow: boolean): string {
     const voice = input.groupVoices?.[member.charKey];
     return {
       actorKey: member.charKey,
+      legacyIds: member.idAliases || [],
+      identityRule:
+        'legacyIds 仅用于识别旧记录；此人所有消息、反应和收款动作必须使用 actorKey，不因昵称或私聊 ID 改变而新建成员。',
       imageAppearance: input.groupImagePrefixes?.[member.charKey] || '未配置',
       name: member.name,
       groupNickname: membership?.nickname || '',

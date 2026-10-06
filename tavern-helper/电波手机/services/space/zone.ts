@@ -78,7 +78,7 @@ export const ZoneInteractionSchema = z
 export type ZoneInteraction = z.infer<typeof ZoneInteractionSchema>;
 export const ZoneInteractionsSchema = z.record(z.string(), z.record(z.string(), ZoneInteractionSchema)).prefault({});
 
-export type ZoneActor = { key: string; names: string[] };
+export type ZoneActor = { key: string; names: string[]; ids?: string[] };
 /** Stable keys win; legacy names only resolve when they identify exactly one known person. */
 export function resolveZoneAuthorKey(
   author: string,
@@ -87,7 +87,13 @@ export function resolveZoneAuthorKey(
   actors: ZoneActor[],
 ): string {
   if (authorKey === 'owner') return ownerKey;
-  if (authorKey) return actors.some(actor => actor.key === authorKey) ? authorKey : '';
+  if (authorKey) {
+    if (actors.some(actor => actor.key === authorKey)) return authorKey;
+    const byId = actors.filter(actor => actor.ids?.includes(authorKey));
+    if (byId.length === 1) return byId[0].key;
+    // Some legacy outputs put a known social handle in the ID slot.
+    return resolveZoneAuthorKey(authorKey, undefined, ownerKey, actors);
+  }
   const normalize = (value: string) => value.trim().normalize('NFKC').replace(/^@+/, '').toLocaleLowerCase();
   const name = normalize(author);
   if (!name) return '';

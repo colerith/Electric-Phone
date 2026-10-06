@@ -9,6 +9,11 @@ export function phoneHistory(thread: Thread) {
 export function actorContext(identity: Identity) {
   return {
     actorId: identity.charKey,
+    char_id: identity.stableId || identity.charKey,
+    legacyIds: identity.idAliases || [],
+    knownNames: identity.nameAliases || [],
+    identityRule:
+      '这是同一人的身份映射。char_id 原样返回此 char_id；authorKey、actorKey、actor_key 使用 actorId。旧 ID 仅用于识别历史，不得继续输出；昵称变化不创建新人。',
     name: identity.name,
     actorType: identity.actorType || 'main',
     relationshipToUser: identity.relationshipToUser || '未设置',

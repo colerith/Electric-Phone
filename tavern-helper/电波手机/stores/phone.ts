@@ -27,6 +27,7 @@ import { migratePhoneCardNamespace } from '../services/core/storage-migration';
 import { repairThreadTime } from '../services/chat/repair-time';
 import { latestReplyRound } from '../services/chat/regeneration';
 import { repairSingleCardAliases } from '../services/core/identity-repair';
+import { repairIdentityLinks } from '../services/core/identity-links';
 import { messageClockTime } from '../services/core/message-clock';
 import { sharedChatHistory } from '../services/chat/shared-history';
 import { updateGroupActivity } from '../services/chat/group-activity';
@@ -153,6 +154,7 @@ import {
 } from '../schemas';
 import {
   createParsedIdentity,
+  findIdentityById,
   getRuntimeContext,
   makeSingleCardIdentity,
   makeThreadId,
@@ -1307,7 +1309,11 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     Object.values(nextState.identities).forEach(identity => {
       if (identity.source !== 'auto_single_card') return;
       const thread = Object.values(nextState.threads).find(item => item.charKey === identity.charKey);
-      if (thread?.messages?.length || thread?.historyArchive?.length) {
+      if (
+        thread?.messages?.length ||
+        thread?.historyArchive?.length ||
+        Object.values(nextState.identities).some(group => group.memberKeys?.includes(identity.charKey))
+      ) {
         nextState.identities[identity.charKey] = {
           ...identity,
           name: `待迁移 · ${identity.name}`,
@@ -1378,6 +1384,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         persistCardRosters(cardRosters.value);
         persistCharacterProfiles(characterProfiles.value);
       }
+      const repairLinks = () => {
+        if (!repairIdentityLinks(nextState, runtime, roster, characterProfiles.value, defaults)) return;
+        persistData(CHARACTER_DEFAULTS_KEY, allDefaults);
+        persistCardRosters(cardRosters.value);
+        persistCharacterProfiles(characterProfiles.value);
+      };
+      repairLinks();
       const previousSnapshots = klona(nextState.snapshots);
       const previousWalletSignatures = new Map(
         Object.values(nextState.walletBook.accounts).map(account => [
@@ -1487,7 +1500,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             identity = {
               ...identity,
               name: block.name || identity.name,
-              stableId: block.stableId || identity.stableId,
+              stableId: identity.stableId || block.stableId,
+              idAliases: [...new Set([...(identity.idAliases || []), block.stableId].filter(Boolean))],
+              nameAliases: [...new Set([...(identity.nameAliases || []), identity.name, block.name].filter(Boolean))],
               updatedAt: nowIso(),
             };
           }
@@ -1595,7 +1610,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           if (block.messageId <= thread.displayFloorCutoff) return;
           applyPaymentActions(
             thread.messages,
-            block.delta.payment_actions,
+            block.delta.payment_actions?.map(action => ({
+              ...action,
+              actor_key: findIdentityById(nextState, action.actor_key || '')?.charKey || action.actor_key,
+            })),
             identity.source === 'local_group'
               ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
               : [identity.charKey],
@@ -1610,6 +1628,20 @@ export const usePhoneStore = defineStore('wave-phone', () => {
               : [identity.charKey],
           );
           block.delta.messages.forEach((message, index) => {
+            const originalMessage = message;
+            if (identity.source === 'local_group' && message.sender === 'char') {
+              try {
+                message = {
+                  ...message,
+                  payload: {
+                    ...message.payload,
+                    actorKey: resolveGroupActor(identity, nextState.identities, message.payload),
+                  },
+                };
+              } catch {
+                return;
+              }
+            }
             if (
               identity.source === 'local_group' &&
               message.sender === 'char' &&
@@ -1629,7 +1661,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
                 return;
             }
             let hash = 2166136261;
-            for (const char of JSON.stringify(message)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+            for (const char of JSON.stringify(originalMessage)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
             const id = `wave-floor-${block.messageId}-${block.ordinal}-${index}-${hash >>> 0}`;
             if (thread.replacedMessageIds.includes(id)) return;
             const existing = oldFloorMessages.get(id);
@@ -1656,6 +1688,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         }
       });
 
+      repairLinks();
       for (const update of nextState.independentAppUpdates) {
         if (!nextState.identities[update.charKey]) continue;
         const snapshot = nextState.snapshots[update.charKey] || AppSnapshotSchema.parse({});
@@ -1677,6 +1710,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         nextState.moments,
         assistantMessages.map(message => message.message),
       );
+      repairLinks();
       const updateKey = `${runtime.cardKey}:${runtime.chatKey}`;
       const currentUpdates = new Map<number, string>();
       for (const block of blocks)
@@ -2126,7 +2160,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         delta.messages = normalizeGroupReplies(identity, delta.messages);
         applyPaymentActions(
           thread.messages,
-          delta.payment_actions,
+          delta.payment_actions?.map(action => ({
+            ...action,
+            actor_key: findIdentityById(state.value, action.actor_key || '')?.charKey || action.actor_key,
+          })),
           identity.source === 'local_group'
             ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
             : [identity.charKey],
@@ -2304,7 +2341,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       },
       ...identities.value.map(identity => ({
         key: identity.charKey,
+        ids: [identity.stableId, ...(identity.idAliases || [])],
         names: [
+          ...(identity.nameAliases || []),
           identity.name,
           identity.remark,
           identity.stableId,
@@ -3110,6 +3149,48 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
   }
 
+  function addGroupMembers(keys: string[], expectedGroupKey = activeIdentity.value?.charKey): number {
+    const group = activeIdentity.value;
+    if (!group || group.source !== 'local_group' || group.charKey !== expectedGroupKey)
+      throw Error('群聊已切换，请重新选择成员');
+    if (activeThread.value?.generating) throw Error('请等当前回复结束后再添加成员');
+    const selected = keys.map(key => findIdentityById(state.value, key));
+    if (
+      selected.some(
+        person => !person || person.source === 'local_group' || state.value.deletedCharKeys.includes(person.charKey),
+      )
+    )
+      throw Error('部分联系人已不存在，请重新选择');
+    const added = [...new Set(selected.map(person => person!.charKey))].filter(key => !group.memberKeys?.includes(key));
+    if (!added.length) return 0;
+    const updated = IdentitySchema.parse({
+      ...group,
+      memberKeys: [...(group.memberKeys || []), ...added],
+      groupMembers: {
+        ...group.groupMembers,
+        ...Object.fromEntries(
+          added.map(key => [key, { nickname: '', title: '', level: 1, admin: false, muted: false }]),
+        ),
+      },
+      updatedAt: nowIso(),
+    });
+    state.value.identities[group.charKey] = updated;
+    for (const key of added) {
+      appendGroupNotice(updated, 'add', `「${groupMemberDisplayName(updated, key)}」加入了群聊`, key);
+      // Observer edits are out-of-character operations, never a fictional action by User.
+      if (updated.groupObserver) {
+        const notice = activeThread.value?.messages.at(-1);
+        if (notice?.payload.action === 'add') {
+          notice.payload.actorKey = 'system';
+          notice.payload.actorName = '系统';
+        }
+      }
+    }
+    ++syncToken;
+    saveChat();
+    return added.length;
+  }
+
   function updateGroupMember(
     key: string,
     changes: {
@@ -3583,7 +3664,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       });
       applyPaymentActions(
         currentThread.messages,
-        result.data.payment_actions,
+        result.data.payment_actions?.map(action => ({
+          ...action,
+          actor_key: findIdentityById(state.value, action.actor_key || '')?.charKey || action.actor_key,
+        })),
         identity.source === 'local_group'
           ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
           : [identity.charKey],
@@ -4415,6 +4499,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     createGroup,
     updateGroupDetails,
     updateGroupMember,
+    addGroupMembers,
     moduleGenerating,
     manualGeneratingApp,
     generateModule,

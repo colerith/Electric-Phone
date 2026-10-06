@@ -12,7 +12,14 @@ export function resolveGroupActor(
   const matches = supplied.map(value => {
     if (keys.includes(value)) return [value];
     return keys.filter(key =>
-      [identities[key].name, identities[key].remark, group.groupMembers?.[key]?.nickname].includes(value),
+      [
+        identities[key].stableId,
+        ...(identities[key].idAliases || []),
+        ...(identities[key].nameAliases || []),
+        identities[key].name,
+        identities[key].remark,
+        group.groupMembers?.[key]?.nickname,
+      ].includes(value),
     );
   });
   if (!supplied.length) throw Error('缺少发言者 payload.actorKey');
