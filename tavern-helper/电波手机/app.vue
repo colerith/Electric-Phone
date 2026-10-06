@@ -276,6 +276,26 @@
             />
 
             <section v-else-if="store.currentPage === 'conversation'" class="chat-page">
+              <aside
+                v-if="avatarThoughtKey"
+                class="chat-avatar-thought"
+                :style="avatarThoughtPosition"
+                role="dialog"
+                aria-label="隐秘心声"
+                @click.stop
+                @keydown.esc.stop="avatarThoughtKey = ''"
+              >
+                <header>
+                  <span>隐秘心声 · {{ displayIdentityName(store.state.identities[avatarThoughtKey]) }}</span
+                  ><button type="button" aria-label="关闭隐秘心声" @click="avatarThoughtKey = ''">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </header>
+                <p>{{ avatarThought || '暂时还没有隐秘心声，前往状态查看或更新。' }}</p>
+                <button type="button" class="chat-thought-link" @click="openThoughtStatus">
+                  查看状态 <i class="fa-solid fa-arrow-right"></i>
+                </button>
+              </aside>
               <button
                 v-if="unreadReplyIds.length"
                 type="button"
@@ -289,7 +309,10 @@
               <div
                 ref="threadElement"
                 class="chat-thread"
-                @click="closeMessageMenu"
+                @click="
+                  closeMessageMenu();
+                  avatarThoughtKey = '';
+                "
                 @scroll.passive="updateThreadScroll"
                 @load.capture="updateThreadScroll"
               >
@@ -428,11 +451,11 @@
                       class="chat-avatar"
                       role="button"
                       tabindex="0"
-                      :title="message.sender === 'char' ? '点击查看手机，双击拍一拍' : '双击头像拍一拍'"
+                      :title="message.sender === 'char' ? '点击查看隐秘心声，双击拍一拍' : '双击头像拍一拍'"
                       :aria-label="message.sender === 'user' ? userName : displayIdentityName(messageIdentity(message))"
-                      @click.stop="scheduleAvatarHome(message.sender, messageIdentity(message))"
-                      @keydown.enter.stop.prevent="openAvatarHome(message.sender, messageIdentity(message))"
-                      @keydown.space.stop.prevent="openAvatarHome(message.sender, messageIdentity(message))"
+                      @click.stop="scheduleAvatarHome(message.sender, messageIdentity(message), $event)"
+                      @keydown.enter.stop.prevent="openAvatarHome(message.sender, messageIdentity(message), $event)"
+                      @keydown.space.stop.prevent="openAvatarHome(message.sender, messageIdentity(message), $event)"
                       @dblclick.stop="
                         cancelAvatarHome();
                         pokeAvatar(message.sender, messageIdentity(message));
@@ -1116,6 +1139,7 @@
 <script setup lang="ts">
 import WaveManualImageOptions from './components/shared/WaveManualImageOptions.vue';
 import { manualImageMedia } from './services/image/manual';
+import { parseStatusProfile } from './services/apps/status';
 import { paymentClaims, paymentDetails } from './services/chat/payment';
 import { latestReplyRound } from './services/chat/regeneration';
 import { groupRoundElectric } from './services/generation/electric';
@@ -2093,15 +2117,48 @@ let avatarHomeTimer: ReturnType<typeof setTimeout> | undefined;
 function cancelAvatarHome(): void {
   clearTimeout(avatarHomeTimer);
 }
-function openAvatarHome(sender: string, identity: Identity | null): void {
+const avatarThoughtKey = ref('');
+const avatarThoughtPosition = ref<Record<string, string>>({});
+const avatarThought = computed(
+  () => parseStatusProfile(store.state.snapshots[avatarThoughtKey.value]?.status || '').thought,
+);
+watch(
+  () => [store.currentPage, store.activeThread?.id, store.context?.chatKey],
+  () => {
+    cancelAvatarHome();
+    avatarThoughtKey.value = '';
+  },
+);
+function openAvatarHome(sender: string, identity: Identity | null, event?: Event): void {
   cancelAvatarHome();
-  if (sender !== 'char' || !identity) return;
-  store.selectIdentity(identity.charKey);
-  store.currentPage = 'home';
+  if (sender !== 'char' || !identity || store.currentPage !== 'conversation') return;
+  if (avatarThoughtKey.value === identity.charKey) {
+    avatarThoughtKey.value = '';
+    return;
+  }
+  const target = event?.currentTarget as HTMLElement | null;
+  const page = threadElement.value?.closest('.chat-page') as HTMLElement | null;
+  if (page && target) {
+    const frame = page.getBoundingClientRect(),
+      anchor = target.getBoundingClientRect();
+    const scale = frame.height / page.offsetHeight || 1;
+    avatarThoughtPosition.value = {
+      top: `${Math.max(8, Math.min(page.clientHeight - 190, (anchor.top - frame.top) / scale))}px`,
+    };
+  }
+  avatarThoughtKey.value = identity.charKey;
 }
-function scheduleAvatarHome(sender: string, identity: Identity | null): void {
+function openThoughtStatus(): void {
+  const key = avatarThoughtKey.value;
+  if (!store.state.identities[key]) return;
+  avatarThoughtKey.value = '';
+  store.selectIdentity(key);
+  store.currentPage = 'status';
+}
+function scheduleAvatarHome(sender: string, identity: Identity | null, event: Event): void {
   cancelAvatarHome();
-  avatarHomeTimer = setTimeout(() => openAvatarHome(sender, identity), 350);
+  const target = event.currentTarget;
+  avatarHomeTimer = setTimeout(() => openAvatarHome(sender, identity, { currentTarget: target } as Event), 350);
 }
 
 async function pokeAvatar(sender: string, target: Identity | null = store.activeIdentity): Promise<void> {
@@ -2773,6 +2830,7 @@ onMounted(async () => {
   );
 });
 onUnmounted(() => {
+  cancelAvatarHome();
   cancelAvatarHome();
   cancelReturnPress();
   stopNotification();

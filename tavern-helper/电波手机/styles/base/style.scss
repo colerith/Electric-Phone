@@ -4716,3 +4716,47 @@
   > strong {
   color: #81776f;
 }
+
+#wave-phone-script-root .wave-device .chat-avatar-thought {
+  position: absolute;
+  z-index: 25;
+  left: 52px;
+  width: min(220px, calc(100% - 68px));
+  padding: 10px 12px;
+  border: 1px solid #dce4ef;
+  border-radius: 5px 14px 14px;
+  background: rgba(251, 253, 255, 0.97);
+  box-shadow: 0 5px 18px rgba(40, 58, 88, 0.13);
+  color: #536177;
+  font-size: 11px;
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: 10px;
+  }
+  header button {
+    padding: 3px;
+    background: none;
+    border: 0;
+    color: #8190a5;
+    font-size: 11px;
+  }
+  p {
+    margin: 7px 0;
+    max-height: 110px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 11px;
+    line-height: 1.65;
+  }
+  .chat-thought-link {
+    padding: 3px 0;
+    border: 0;
+    background: none;
+    color: #5c80be;
+    font-size: 10px;
+  }
+}
