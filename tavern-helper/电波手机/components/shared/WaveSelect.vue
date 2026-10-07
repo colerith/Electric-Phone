@@ -29,6 +29,11 @@
       role="listbox"
       :aria-label="ariaLabel"
       @keydown="onMenuKeydown"
+      @touchstart.stop.passive="onTouchStart"
+      @touchmove.stop.passive="onTouchMove"
+      @touchend.stop.passive="onTouchEnd"
+      @touchcancel.stop.passive="onTouchCancel"
+      @click.capture="guardTouchClick"
     >
       <button
         v-for="(option, index) in options"
@@ -71,6 +76,34 @@ const isOpen = ref(false),
   focusedIndex = ref(0);
 const selectedOption = computed(() => props.options.find(option => option.value === props.modelValue));
 let ownerDocument: Document | null = null;
+let touchOrigin: { x: number; y: number } | null = null;
+let touchMoved = false;
+let suppressClickUntil = 0;
+function onTouchStart(event: TouchEvent) {
+  const touch = event.touches[0];
+  touchOrigin = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  touchMoved = event.touches.length > 1;
+  suppressClickUntil = 0;
+}
+function onTouchMove(event: TouchEvent) {
+  const touch = event.touches[0];
+  if (touch && touchOrigin && Math.hypot(touch.clientX - touchOrigin.x, touch.clientY - touchOrigin.y) > 6)
+    touchMoved = true;
+}
+function onTouchEnd() {
+  if (touchMoved) suppressClickUntil = Date.now() + 500;
+  touchOrigin = null;
+}
+function onTouchCancel() {
+  touchMoved = true;
+  onTouchEnd();
+}
+function guardTouchClick(event: MouseEvent) {
+  if (event.detail !== 0 && Date.now() < suppressClickUntil) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}
 function placeMenu() {
   const root = rootElement.value;
   if (!root || !isOpen.value) return;

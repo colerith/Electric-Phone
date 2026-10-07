@@ -18,6 +18,7 @@
           :src="avatar(phone.state.activeCharKey)"
           :style="crop(phone.state.activeCharKey)"
           alt=""
+          draggable="false"
           @error="failed[phone.state.activeCharKey] = true"
         />
         <i v-else class="fa-solid fa-user"></i>
@@ -30,6 +31,7 @@
           :src="avatar(option.value)"
           :style="crop(option.value)"
           alt=""
+          draggable="false"
           @error="failed[option.value] = true"
         />
         <i v-else class="fa-solid fa-user"></i>
@@ -119,6 +121,9 @@ watch(
     overflow-x: hidden;
     overscroll-behavior-y: contain;
     touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+    scroll-behavior: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -132,6 +137,9 @@ watch(
     width: min(220px, 75cqw);
     min-width: 0;
     [role='option'] {
+      touch-action: pan-y;
+      transform: none;
+      transition: none;
       min-height: 46px;
       margin: 0;
       padding: 7px 9px;
@@ -144,6 +152,10 @@ watch(
       height: auto;
       border-radius: 10px;
       text-align: left;
+    }
+    [role='option'] img {
+      pointer-events: none;
+      -webkit-user-drag: none;
     }
     [role='option'] strong {
       font: 500 14px/1.5 var(--wave-ui-font, sans-serif) !important;
