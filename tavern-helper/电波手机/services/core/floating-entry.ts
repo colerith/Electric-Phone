@@ -21,7 +21,11 @@ export function bindFloatingEntry(
 ) {
   const doc = button.ownerDocument,
     view = doc.defaultView!;
-  let position = { ...initial },
+  let position = {
+      x: Number.isFinite(initial?.x) ? initial.x : 1,
+      y: Number.isFinite(initial?.y) ? initial.y : 0.56,
+      edge: initial?.edge || 'right',
+    },
     x = 0,
     y = 0,
     dragged = false,

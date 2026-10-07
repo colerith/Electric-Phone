@@ -4,6 +4,7 @@ import { createApp, watch, type App as VueApp } from 'vue';
 import { createScriptIdDiv, destroyScriptIdDiv, deteleportStyle, teleportStyle } from '../../script';
 import App from './app.vue';
 import './styles/base/style.scss';
+import './styles/base/floating-entry.scss';
 import './styles/apps/apps.scss';
 import './styles/apps/messages.scss';
 import './styles/apps/memo.scss';
@@ -49,7 +50,18 @@ async function initialize(): Promise<void> {
   teleportStyle();
 
   const store = usePhoneStore(pinia);
-  stopEntryWatch = watch(() => store.settings.appearance.quickReplyEntry, syncPhoneQuickReply, { immediate: true });
+  stopEntryWatch = watch(
+    () => [store.settings.appearance.quickReplyEntry, store.settings.appearance.floatingEntry],
+    ([quickReply, floating]) => {
+      // Recover old/imported settings that otherwise leave no way into the phone.
+      if (!quickReply && !floating) {
+        store.settings.appearance.floatingEntry = true;
+        store.saveSettings();
+      }
+      syncPhoneQuickReply(quickReply);
+    },
+    { immediate: true },
+  );
   buttonEvent = eventOn(getButtonEvent(PHONE_QUICK_REPLY_BUTTON), () => {
     store.isOpen = !store.isOpen;
   });

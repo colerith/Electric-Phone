@@ -74,10 +74,10 @@ for (const pointerSupport of [true, false]) {
   assert.equal(button.style.cssText, before, 'listeners removed');
 }
 if (process.env.WAVE_QA_DIR) {
-  const { parse, compileStyle } = require('vue/compiler-sfc');
-  const { descriptor } = parse(fs.readFileSync(base + '/components/shared/WaveFloatingEntry.vue', 'utf8'));
+  const { compileStyle } = require('vue/compiler-sfc');
+  // Entry CSS is loaded eagerly, even when the component starts disabled.
   const css = compileStyle({
-    source: descriptor.styles[0].content,
+    source: fs.readFileSync(base + '/styles/base/floating-entry.scss', 'utf8'),
     filename: 'floating.vue',
     id: 'qa',
     scoped: false,
@@ -91,3 +91,13 @@ if (process.env.WAVE_QA_DIR) {
 console.log(
   'PASS floating entry: host viewport, keyboard/zoom bounds, pointer/mouse drag, click suppression and cleanup',
 );
+
+const styles = fs.readFileSync(base + '/styles/base/floating-entry.scss', 'utf8');
+assert(styles.includes('.wave-floating-viewport') && styles.includes('pointer-events: auto'));
+assert(fs.readFileSync(base + '/index.ts', 'utf8').includes("import './styles/base/floating-entry.scss'"));
+const recoveryDom = new JSDOM('<button></button>');
+const recovered = recoveryDom.window.document.querySelector('button');
+const release = bindFloatingEntry(recovered, { x: NaN, y: Infinity, edge: 'right' }, () => {});
+assert(Number.isFinite(parseFloat(recovered.style.left)));
+assert(Number.isFinite(parseFloat(recovered.style.top)));
+release();
