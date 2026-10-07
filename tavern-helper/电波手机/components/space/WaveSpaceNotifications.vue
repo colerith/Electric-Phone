@@ -36,7 +36,7 @@
           /></span>
           <span class="space-notice-body"
             ><span class="space-notice-person"
-              ><strong>{{ item.actorName || '匿名访客' }}</strong
+              ><strong>{{ nameFor(item) }}</strong
               ><time>{{ time(item) }}</time></span
             ><small v-if="item.source === 'hole'" class="space-notice-source">匿名树洞</small
             ><span class="space-notice-content"
@@ -58,6 +58,8 @@
 import { computed, ref } from 'vue';
 import { useNow } from '@vueuse/core';
 import { usePhoneStore } from '../../stores/phone';
+import { parseZonePage } from '../../services/space/zone';
+import { displayIdentityName } from '../../services/core/identity';
 import { npcAvatarUrl, spaceAvatarUrl } from '../../services/space/npc-avatar';
 import { anonymousAvatarUrl } from '../../services/space/tree-hole';
 import type { SpaceNotice } from '../../services/space/notifications';
@@ -101,6 +103,13 @@ function markRead() {
 function visit(item: SpaceNotice) {
   phone.readSpaceNotifications([item.id]);
   emit('visit', item);
+}
+function nameFor(item: SpaceNotice) {
+  if (item.source === 'hole') return item.actorName || '匿名访客';
+  const identity = phone.state.identities[item.actorKey];
+  return identity
+    ? parseZonePage(phone.state.snapshots[item.actorKey]?.zone || '').profile.username || displayIdentityName(identity)
+    : phone.state.moments.npcs[item.actorKey]?.username || item.actorName || '访客';
 }
 function avatar(item: SpaceNotice) {
   return item.source === 'hole'
