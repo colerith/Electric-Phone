@@ -3252,7 +3252,10 @@
   height: 30px;
   display: grid;
   place-items: center;
-  padding: 0 0 0 1px;
+  padding: 0;
+  border: 0;
+  line-height: 1;
+  box-sizing: border-box;
   border-radius: 50%;
   background: var(--message-primary, #5e80be);
   color: #fff;
@@ -4959,4 +4962,42 @@
   box-shadow: none !important;
   background: transparent !important;
   border-radius: 0 !important;
+}
+
+// Keep the loading rotation independent of icon font bearings and play alignment.
+#wave-phone-script-root .wave-message-voice .wave-voice-control-icon {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  transform: none;
+}
+#wave-phone-script-root .wave-message-voice .wave-voice-control-icon.fa-play {
+  padding-left: 2px;
+  box-sizing: border-box;
+}
+#wave-phone-script-root .wave-message-voice .wave-voice-loading {
+  display: block;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid #ffffff55;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  transform-origin: 50% 50%;
+  animation: wave-voice-loading-spin 0.8s linear infinite;
+}
+@keyframes wave-voice-loading-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

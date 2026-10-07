@@ -180,8 +180,12 @@
           :aria-label="voiceBusy ? '取消合成' : voicePlaying ? '暂停语音' : '合成并播放语音'"
           @click.stop="toggleVoice"
         >
+          <span v-if="voiceBusy" class="wave-voice-loading" aria-hidden="true"></span>
           <i
-            :class="voiceBusy ? 'fa-solid fa-spinner fa-spin' : voicePlaying ? 'fa-solid fa-pause' : 'fa-solid fa-play'"
+            v-else
+            class="wave-voice-control-icon"
+            :class="voicePlaying ? 'fa-solid fa-pause' : 'fa-solid fa-play'"
+            aria-hidden="true"
           ></i>
         </button>
         <button

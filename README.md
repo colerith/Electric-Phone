@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.2.22`
+当前发布版本：`v1.2.23`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.22/file/index-1.2.22.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.23/file/index-1.2.23.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：优化转发弹窗顶部取消、发送按钮；扩大附加留言输入区，提高字号与行距。
+本版更新：修正语音播放、暂停图标居中；加载使用固定圆环中心旋转，避免旋转位移。
 
 ## 首次配置
 
