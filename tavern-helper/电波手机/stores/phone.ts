@@ -1791,11 +1791,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             if (app !== 'messages' && app !== 'wallet' && !sameAppContent(snapshot[app], before[app])) updated.add(app);
           }
           const thread = Object.values(nextState.threads).find(item => item.charKey === charKey);
-          if (
-            snapshot.messages !== before.messages ||
-            JSON.stringify(thread?.messages.map(message => message.id) || []) !==
-              JSON.stringify(previousThreadMessages.get(charKey) || [])
-          )
+          const previousIds = new Set(previousThreadMessages.get(charKey) || []);
+          if (thread?.messages.some(message => message.sender === 'char' && !previousIds.has(message.id)))
             updated.add('messages');
           if (updated.size) updatedByChar.set(charKey, updated);
         }
@@ -2499,7 +2496,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (!event) throw Error('朋友圈结果未通过身份或互动规则校验');
       event.independent = true;
       const charKey = state.value.activeCharKey;
-      if (charKey) markAppsUnread(charKey, ['messages']);
+      if (charKey) markAppsUnread(charKey, ['zone']);
       saveMoments();
       logDiagnostic('手动朋友圈生成', `${plan.id} 已通过副 API 写入当前聊天`);
       return targetPostId
