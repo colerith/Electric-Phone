@@ -1,6 +1,6 @@
 <template>
   <button
-    v-if="music.current"
+    v-if="music.current && (phone.currentPage !== 'conversation' || music.ownerKey === phone.state.activeCharKey)"
     class="music-together"
     type="button"
     @click="
@@ -12,9 +12,9 @@
       <span><img v-if="userAvatar" :src="userAvatar" alt="我" /><template v-else>我</template></span>
       <span
         ><img
-          v-if="phone.activeIdentity?.avatar"
-          :src="phone.activeIdentity.avatar"
-          :style="characterAvatarStyle"
+          v-if="listeningIdentity?.avatar"
+          :src="listeningIdentity.avatar"
+          :style="listeningIdentity ? identityAvatarStyle(listeningIdentity) : characterAvatarStyle"
           alt="角色"
         /><template v-else>TA</template></span
       >
@@ -27,12 +27,14 @@
   </button>
 </template>
 <script setup lang="ts">
-import type { CSSProperties } from 'vue';
+import { computed, type CSSProperties } from 'vue';
+import { identityAvatarStyle } from '../../services/core/avatar';
 defineProps<{ userAvatar: string; characterAvatarStyle?: CSSProperties }>();
 import { useMusicStore } from '../../stores/music';
 import { usePhoneStore } from '../../stores/phone';
 const music = useMusicStore(),
   phone = usePhoneStore();
+const listeningIdentity = computed(() => phone.state.identities[music.ownerKey]);
 </script>
 
 <style scoped lang="scss">

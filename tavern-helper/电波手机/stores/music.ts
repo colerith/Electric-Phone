@@ -8,6 +8,8 @@ import { usePhoneStore } from './phone';
 export const useMusicStore = defineStore('wave-music', () => {
   const phone = usePhoneStore();
   const view = ref<'home' | 'player'>('home');
+  const ownerKey = ref('');
+  const queueKey = computed(() => ownerKey.value || phone.state.activeCharKey);
   const playlistOpen = ref(false),
     playlistCover = ref('');
   const current = ref<Track | null>(null),
@@ -89,12 +91,12 @@ export const useMusicStore = defineStore('wave-music', () => {
     phone.saveMusicLibrary();
   }
   function clearQueue() {
-    phone.state.musicQueues[phone.state.activeCharKey] = [];
+    phone.state.musicQueues[queueKey.value] = [];
     phone.saveMusicLibrary();
   }
 
   const togetherSeconds = ref(0);
-  const queue = computed(() => phone.state.musicQueues[phone.state.activeCharKey] || []);
+  const queue = computed(() => phone.state.musicQueues[queueKey.value] || []);
   const playlists = computed(() => phone.state.musicPlaylists[phone.state.activeCharKey] || []);
   const daily = computed<Track[]>(() =>
     [
@@ -164,7 +166,7 @@ export const useMusicStore = defineStore('wave-music', () => {
     phone.saveMusicLibrary();
   }
   function enqueue(track: Track, feedback = false) {
-    const key = phone.state.activeCharKey;
+    const key = queueKey.value;
     if (!key) return;
     const rows = (phone.state.musicQueues[key] ||= []);
     const exists = rows.some(t => t.id === track.id && t.source === track.source);
@@ -174,7 +176,7 @@ export const useMusicStore = defineStore('wave-music', () => {
     phone.saveMusicLibrary();
   }
   function removeQueue(index: number) {
-    phone.state.musicQueues[phone.state.activeCharKey]?.splice(index, 1);
+    phone.state.musicQueues[queueKey.value]?.splice(index, 1);
     phone.saveMusicLibrary();
   }
   function createPlaylist(name: string) {
@@ -210,7 +212,7 @@ export const useMusicStore = defineStore('wave-music', () => {
   function playPlaylist(id: string) {
     const list = playlists.value.find(row => row.id === id);
     if (!list?.tracks.length) return;
-    phone.state.musicQueues[phone.state.activeCharKey] = list.tracks.map(t => ({ ...t }));
+    phone.state.musicQueues[queueKey.value] = list.tracks.map(t => ({ ...t }));
     phone.saveMusicLibrary();
     void select(list.tracks[0]);
     view.value = 'player';
@@ -229,7 +231,7 @@ export const useMusicStore = defineStore('wave-music', () => {
     () => {
       phone.listening = current.value
         ? {
-            charKey: phone.state.activeCharKey,
+            charKey: ownerKey.value || phone.state.activeCharKey,
             title: current.value.title,
             artist: current.value.artist,
             playing: playing.value,
@@ -282,6 +284,7 @@ export const useMusicStore = defineStore('wave-music', () => {
   function reset(key: string) {
     if (context === key) return;
     context = key;
+    ownerKey.value = key;
     lastIntent = '';
     radioTrack.value = null;
     cancelAutomatic();
@@ -338,6 +341,10 @@ export const useMusicStore = defineStore('wave-music', () => {
     }
   }
   async function select(track: Track, autoplay = true) {
+    if (!ownerKey.value) {
+      ownerKey.value = phone.state.activeCharKey;
+      context = ownerKey.value;
+    }
     ++syncId;
     cancelAutomatic();
     if (searching.value) searchStatus.value = '已停止后续查询，保留已返回的结果';
@@ -436,6 +443,7 @@ export const useMusicStore = defineStore('wave-music', () => {
     await select(rows[next]);
   }
   async function sync(raw: string, key: string, force = false) {
+    if (!force && context && key !== context && (current.value || busy.value)) return;
     reset(key);
     const intent = musicIntent(raw);
     const signature = JSON.stringify([
@@ -555,6 +563,10 @@ export const useMusicStore = defineStore('wave-music', () => {
       }
     }
   }
+  watch(
+    () => phone.context?.cardKey,
+    () => reset(''),
+  );
   const lyrics = computed(() => parseLrc(current.value?.lyric || ''));
   const lyricIndex = computed(() =>
     lyrics.value.reduce((found, row, index) => (row.time <= time.value ? index : found), -1),
@@ -588,6 +600,7 @@ export const useMusicStore = defineStore('wave-music', () => {
     phone.listening = null;
   });
   return {
+    ownerKey,
     searching,
     searchStatus,
     queueOpen,

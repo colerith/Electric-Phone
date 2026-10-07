@@ -1287,9 +1287,13 @@ import { useSystemClockStore } from './stores/system-clock';
 const store = usePhoneStore();
 const music = useMusicStore();
 watch(
-  () => [store.state.activeCharKey, store.activeSnapshot.music, store.settings.musicApi, store.settings.musicSource],
   () => {
-    void music.sync(store.activeSnapshot.music, store.state.activeCharKey);
+    const key = music.current || music.busy ? music.ownerKey || store.state.activeCharKey : store.state.activeCharKey;
+    return [key, store.state.snapshots[key]?.music || '', store.settings.musicApi, store.settings.musicSource];
+  },
+  () => {
+    const key = music.current || music.busy ? music.ownerKey || store.state.activeCharKey : store.state.activeCharKey;
+    void music.sync(store.state.snapshots[key]?.music || '', key);
   },
   { immediate: true },
 );
