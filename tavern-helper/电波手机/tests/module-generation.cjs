@@ -177,7 +177,7 @@ const schema = require(base + '/schemas.ts'),
   await follow.installPhoneRegexes();
   await follow.installPhoneRegexes();
   assert.equal(writes, 1);
-  assert.equal(rules.length, 4);
+  assert.equal(rules.length, 5);
   const speechRule = rules.find(r => r.id === 'wave-phone-speech-display-v1');
   assert.deepEqual(speechRule.destination, { display: true, prompt: false });
   const speechRe = new RegExp(speechRule.find_regex.slice(1, -2), 'g');

@@ -126,8 +126,8 @@ async function resolveMeting(track: Track, signal?: AbortSignal): Promise<Track>
 export function musicIntent(raw: string): { title: string; artist: string; note: string } {
   try {
     const data = JSON.parse(raw);
-    if (data.title)
-      return { title: String(data.title), artist: String(data.artist || ''), note: String(data.note || '') };
+    if (data && typeof data === 'object' && !Array.isArray(data))
+      return { title: String(data.title || ''), artist: String(data.artist || ''), note: String(data.note || '') };
   } catch {
     /* legacy text */
   }

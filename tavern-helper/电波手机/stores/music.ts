@@ -442,7 +442,7 @@ export const useMusicStore = defineStore('wave-music', () => {
     }
     await select(rows[next]);
   }
-  async function sync(raw: string, key: string, force = false) {
+  async function sync(raw: string, key: string, force = false, retryFailed = false) {
     if (!force && context && key !== context && (current.value || busy.value)) return;
     reset(key);
     const intent = musicIntent(raw);
@@ -453,7 +453,7 @@ export const useMusicStore = defineStore('wave-music', () => {
       phone.settings.musicApi,
       phone.settings.musicSource,
     ]);
-    if (!force && signature === lastIntent) return;
+    if (!force && signature === lastIntent && !(retryFailed && error.value && !busy.value && !current.value)) return;
     lastIntent = signature;
     radioTrack.value = null;
     const version = ++syncId;

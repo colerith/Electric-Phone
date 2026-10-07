@@ -568,6 +568,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         }
       : { ...snapshot, wallet: '' };
   }
+  function sameAppContent(left: string, right: string): boolean {
+    if (left === right) return true;
+    try {
+      return _.isEqual(JSON.parse(left), JSON.parse(right));
+    } catch {
+      return left.trim() === right.trim();
+    }
+  }
   function applyIndependentAppUpdate(
     snapshot: AppSnapshot,
     app: AppId,
@@ -581,7 +589,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       : typeof value === 'string'
         ? value
         : JSON.stringify(value, null, 2);
-    return snapshot[app] !== before;
+    return !sameAppContent(snapshot[app], before);
   }
   function filterDeletedSnapshotContent(
     snapshot: AppSnapshot,
@@ -629,6 +637,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const snapshot = state.value.snapshots[charKey] || AppSnapshotSchema.parse({});
     const changed = applyIndependentAppUpdate(snapshot, app, value, moduleSettings);
     if (!changed) return false;
+    ++syncToken; // A pending reconstruction must not overwrite this newer committed update.
     state.value.snapshots[charKey] = { ...snapshot };
     state.value.independentAppUpdates.push({
       id,
@@ -1779,7 +1788,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           const before = previousSnapshots[charKey] || AppSnapshotSchema.parse({});
           const updated = new Set<AppId>();
           for (const app of APP_IDS) {
-            if (app !== 'messages' && app !== 'wallet' && snapshot[app] !== before[app]) updated.add(app);
+            if (app !== 'messages' && app !== 'wallet' && !sameAppContent(snapshot[app], before[app])) updated.add(app);
           }
           const thread = Object.values(nextState.threads).find(item => item.charKey === charKey);
           if (

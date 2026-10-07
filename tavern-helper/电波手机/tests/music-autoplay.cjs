@@ -15,6 +15,11 @@ function load(file, mocks = {}) {
 const playback = load('services/music/music-playback.ts');
 const service = load('services/music/music.ts', { '../core/network': {}, '../apps/browser': {} });
 const raw = '歌曲名称：Here Comes the Sun\n歌手名称：The Beatles\n听歌感想：阳光还没出来。';
+assert.deepEqual(service.musicIntent(JSON.stringify({ note: '新的感想' })), {
+  title: '',
+  artist: '',
+  note: '新的感想',
+});
 assert.deepEqual(service.musicIntent(raw), {
   title: 'Here Comes the Sun',
   artist: 'The Beatles',
@@ -227,10 +232,17 @@ function fixture(options = {}) {
   assert.deepEqual(f.played, ['https://audio/manual']);
   f.dispose();
 
-  f = fixture({ search: async () => [] });
+  let retrySearches = 0;
+  f = fixture({ search: async () => { retrySearches++; return []; } });
   await f.store.sync(raw, 'a');
   assert.match(f.store.error, /未找到歌曲/);
   assert.equal(f.store.searching, false);
+  await f.store.sync(raw, 'a');
+  assert.equal(retrySearches, 1, 'reactive sync must not loop after failure');
+  await f.store.sync(raw, 'a', false, true);
+  assert.equal(retrySearches, 2, 'explicit app entry retries failed request');
+  assert.equal(f.store.busy, false);
+  assert.match(f.store.error, /未找到歌曲/);
   f.dispose();
 
   let rejectLate,

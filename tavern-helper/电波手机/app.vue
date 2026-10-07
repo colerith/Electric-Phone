@@ -1981,6 +1981,7 @@ function openApp(id: AppId): void {
   if (id === 'music') music.view = 'home';
   store.currentPage = id;
   store.markAppRead(id);
+  if (id === 'music') void music.sync(store.activeSnapshot.music, store.state.activeCharKey, false, true);
   store.scheduleSync(0);
 }
 function openAppearance(): void {
