@@ -1,7 +1,7 @@
 <template>
   <section class="chat-settings-group module-generation-settings">
     <div class="wave-settings-title">每轮新增</div>
-    <p class="chat-settings-note">手动生成与跟随聊天共用此设置。旧内容更新不占额度，设为 0 后只更新已有内容。</p>
+    <p class="chat-settings-note">手动更新空间按此数量新增动态；跟随聊天以此为新增上限。点赞、评论及旧内容更新不占新增条数，设为 0 后只更新已有内容。</p>
     <div class="module-limit-field">
       <label :for="`wave-${app}-limit`"
         >{{ labels[app] }}<b>{{ prefs.maxNew }} 条</b></label

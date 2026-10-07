@@ -2300,8 +2300,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const plan = planMoments(state.value.moments, identities.value, momentsFeed.value.posts, Date.now(), Math.random, {
       force: true,
       targetPostId,
+      newPosts: runtime.settings.moduleSettings.zone.maxNew,
     });
-    if (!plan) throw Error('没有可参与的角色或互动名额，请检查空间参与者、可见范围和互动数量');
+    if (!plan)
+      throw Error(
+        !targetPostId && runtime.settings.moduleSettings.zone.maxNew === 0
+          ? '空间新增设为 0，本轮不发新帖；当前没有可更新的已有动态'
+          : '没有可参与的角色或互动名额，请检查空间参与者、可见范围和互动数量',
+      );
     if (targetPostId && !momentsFeed.value.posts.some(p => p.id === targetPostId && p.authorKey === 'user'))
       throw Error('目标动态不存在');
     const id = createPhoneGenerationId();
@@ -2342,7 +2348,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (charKey) markAppsUnread(charKey, ['messages']);
       saveMoments();
       logDiagnostic('手动朋友圈生成', `${plan.id} 已通过副 API 写入当前聊天`);
-      return targetPostId ? '点赞与评论已生成' : '朋友圈动态已写入当前聊天';
+      return targetPostId
+        ? `已生成 ${batch.comments.length} 条评论、${batch.likes.length} 个赞`
+        : `已新增 ${batch.posts.length} 条动态、${batch.comments.length} 条评论、${batch.likes.length} 个赞`;
     } catch (error) {
       const current = getRuntimeContext();
       if (current?.cardKey === runtime.input.cardKey && current.chatKey === runtime.input.chatKey) {

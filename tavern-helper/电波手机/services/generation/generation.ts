@@ -29,9 +29,21 @@ import {
 } from '../../schemas';
 import { buildMomentsPrompt, buildPhonePrompts, presetMomentsRules, type PhonePromptInput } from '../../prompts';
 import { getRuntimeContext } from '../core/identity';
-import { MomentBatchSchema, type MomentPlan, type MomentsState, type MomentPost } from '../space/moments';
+import {
+  MomentBatchSchema,
+  validMomentPosts,
+  type MomentPlan,
+  type MomentsState,
+  type MomentPost,
+} from '../space/moments';
 
-import { ZoneUpdateSchema, validateZoneCommentActors, type ZoneUpdate } from '../space/zone';
+import {
+  ZoneUpdateSchema,
+  validateZoneCommentActors,
+  validateManualZonePosts,
+  PostCountError,
+  type ZoneUpdate,
+} from '../space/zone';
 
 type GenerationInput = {
   spaceActors?: PhonePromptInput['spaceActors'];
@@ -192,14 +204,17 @@ async function requestConfigured<T>(
         return parsed;
       } catch (error) {
         const failure = reportFailure(error);
-        const repairSyntax = stage === '校验回复' && error instanceof SyntaxError && !formatRetryUsed;
+        const repairSyntax =
+          stage === '校验回复' && (error instanceof SyntaxError || error instanceof PostCountError) && !formatRetryUsed;
         if (request.cancelled || (!repairSyntax && (!failure.retryable || attempt >= settings.api.retryCount)))
           throw Error(failure.detail);
         if (repairSyntax) {
           formatRetryUsed = true;
           formatCorrection =
-            '上一轮 JSON 语法错误，未应用任何内容。请重新完整生成请求的数据，只返回合法 JSON：字符串中的英文双引号及换行必须使用 JSON 转义，字段之间用英文逗号分隔，闭合全部括号。避免冗长文字造成截断，保留所有必需字段。不要添加 Markdown、解释或额外模块。';
-          logDiagnostic('格式纠正', `${generationId}｜JSON 语法错误，额外进行一次完整格式重试`);
+            error instanceof PostCountError
+              ? `上一轮未满足发帖任务，结果未写入：${error.message}。请完整重生成，严格执行新增数量和作者分配，旧帖更新、评论、点赞不计入新帖数量，不重复内容；设为0时保持posts为空或仅更新已有ID。`
+              : '上一轮 JSON 语法错误，未应用任何内容。请重新完整生成请求的数据，只返回合法 JSON：字符串中的英文双引号及换行必须使用 JSON 转义，字段之间用英文逗号分隔，闭合全部括号。避免冗长文字造成截断，保留所有必需字段。不要添加 Markdown、解释或额外模块。';
+          logDiagnostic('格式纠正', `${generationId}｜输出协议不符，额外进行一次完整纠正重试`);
         }
         logDiagnostic('自动重试', `${generationId}｜下次为第 ${attempt + 2} 次｜原因：${failure.category}`);
         console.info('[wave-phone] 请求失败，自动重试', { attempt: attempt + 1, generationId });
@@ -355,13 +370,20 @@ export async function generateZonePage(input: GenerationInput): Promise<ZoneUpda
   return requestConfigured(
     input.settings,
     generationId,
-    buildPhonePrompts(buildInputContext(input), 'zone'),
+    buildPhonePrompts(
+      { ...buildInputContext(input), manualZoneCount: input.settings.moduleSettings.zone.maxNew },
+      'zone',
+    ),
     input.latestUserText,
     raw =>
       ZoneUpdateSchema.refine(
         value => value.profile !== undefined || value.posts !== undefined,
         '空间输出缺少 profile/posts',
       )
+        .transform(value => {
+          validateManualZonePosts(value, input.appSnapshot.zone, input.settings.moduleSettings.zone.maxNew);
+          return value;
+        })
         .transform(value =>
           ZoneUpdateSchema.parse(
             limitModulePatch(
@@ -424,6 +446,12 @@ export async function generatePhoneModule(input: GenerationInput, module: import
     `手动生成 ${module} 模块的新内容`,
     raw => {
       const delta = parseRequestedModule(extractJson(raw), module);
+      if (module === 'zone')
+        validateManualZonePosts(
+          ZoneUpdateSchema.parse(delta.app_updates.zone),
+          input.appSnapshot.zone,
+          input.settings.moduleSettings.zone.maxNew,
+        );
       if (module === 'wallet' && delta.app_updates.wallet === undefined)
         throw Error('首次钱包生成必须返回 wallet 与数字余额');
       if (module === 'messages') validateReplyMedia(delta.messages, input.media);
@@ -494,6 +522,10 @@ export async function generateMomentsBatch(
     raw => {
       const batch = MomentBatchSchema.parse(extractJson(raw));
       if (batch.request_id !== plan.id) throw Error('朋友圈结果 request_id 不匹配');
+      if (!validMomentPosts(batch, plan))
+        throw new PostCountError(
+          `本轮发帖数量或作者不符：要求 ${plan.postTasks?.length ?? (plan.postActor ? 1 : 0)} 条，不能用点赞替代动态`,
+        );
       validateCommentLanguages(batch, posts, input.actorLanguagePreferences);
       return batch;
     },

@@ -29,7 +29,9 @@ export function registerMomentsFollow(
       try {
         const input = getInput();
         if (!input || input.busy || isCardExcluded(input.settings, input.cardName)) return;
-        const plan = planMoments(input.state, input.identities, input.posts);
+        const plan = planMoments(input.state, input.identities, input.posts, Date.now(), Math.random, {
+          newPosts: input.settings.moduleSettings.zone.maxNew,
+        });
         if (!plan) return;
         release = injectPrompts(
           [

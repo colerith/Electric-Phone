@@ -199,3 +199,17 @@ export function validateZoneCommentActors(
       if (byId && byName && byId !== byName) throw Error('空间评论作者 ID 与姓名属于不同角色，请按人物资料重新生成');
     }
 }
+
+export class PostCountError extends Error {}
+export function validateManualZonePosts(page: ZoneUpdate, previous: string, expected: number): void {
+  const oldIds = new Set(parseZonePage(previous).posts.map(post => post.id));
+  const fresh = (page.posts || []).filter(post => !oldIds.has(post.id));
+  if (
+    new Set(fresh.map(post => post.id)).size !== expected ||
+    fresh.length !== expected ||
+    new Set(fresh.map(post => post.content.trim())).size !== expected
+  )
+    throw new PostCountError(
+      `手动空间更新要求新增 ${expected} 条不同动态，实际返回 ${fresh.length} 条；点赞、评论和旧帖更新不计入新增`,
+    );
+}

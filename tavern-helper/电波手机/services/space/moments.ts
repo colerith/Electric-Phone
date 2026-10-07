@@ -71,6 +71,7 @@ export const MomentPlanSchema = z.object({
   id: z.string(),
   actors: z.array(ActorSchema),
   postActor: z.string().nullable(),
+  postTasks: z.array(z.string()).max(5).optional(),
   user: z.object({ key: z.literal('user'), name: z.string() }).default({ key: 'user', name: 'User' }),
   reservedNames: z.array(z.string()).default([]),
   likes: z.array(z.object({ actorKey: z.string(), postId: z.string() })).default([]),
@@ -116,7 +117,7 @@ export const MomentBatchSchema = z.object({
         delaySeconds: z.number().min(0).max(86400).default(0),
       }),
     )
-    .max(1)
+    .max(5)
     .default([]),
   comments: z
     .array(
@@ -220,7 +221,7 @@ export function planMoments(
   posts: MomentPost[],
   now = Date.now(),
   random = Math.random,
-  options: { force?: boolean; targetPostId?: string } = {},
+  options: { force?: boolean; targetPostId?: string; newPosts?: number } = {},
 ): MomentPlan | null {
   const settings = state.settings;
   if (!options.force && (!settings.followEnabled || now - state.lastRequestAt < settings.cooldownMinutes * 60000))
@@ -273,13 +274,14 @@ export function planMoments(
   }
   if (!actors.length) return null;
   const pick = <T>(list: T[]) => list[Math.min(list.length - 1, Math.floor(random() * list.length))]!;
-  const postActor = options.targetPostId
-    ? null
-    : options.force
-      ? pick(actors).key
-      : random() * 100 < settings.postProbability
+  const postActor =
+    options.targetPostId || options.newPosts === 0
+      ? null
+      : options.force
         ? pick(actors).key
-        : null;
+        : random() * 100 < settings.postProbability
+          ? pick(actors).key
+          : null;
   const comments: MomentPlan['comments'] = [],
     likes: MomentPlan['likes'] = [];
   const low = Math.min(settings.minInteractions, settings.maxInteractions),
@@ -314,6 +316,22 @@ export function planMoments(
     id: `moments-${now}-${Math.floor(random() * 1e9).toString(36)}`,
     actors,
     postActor,
+    ...(options.force && !options.targetPostId && options.newPosts !== undefined
+      ? {
+          postTasks: Array.from(
+            { length: Math.max(0, Math.min(5, options.newPosts)) },
+            (_, index) =>
+              actors[
+                (Math.max(
+                  0,
+                  actors.findIndex(actor => actor.key === postActor),
+                ) +
+                  index) %
+                  actors.length
+              ].key,
+          ),
+        }
+      : {}),
     user: {
       key: 'user',
       name: state.profile.nickname || (typeof SillyTavern !== 'undefined' ? SillyTavern.name1 : 'User') || 'User',
@@ -434,7 +452,7 @@ export function syncMomentEvents(state: MomentsState, messages: string[], now = 
         )
           continue;
         if (
-          batch.posts.some(post => post.authorKey !== plan.postActor) ||
+          !validMomentPosts(batch, plan) ||
           batch.comments.some(
             comment =>
               !plan.comments.some(
@@ -622,4 +640,20 @@ export function momentContentSignature(state: MomentsState): string {
       comments: event.batch.comments,
     })),
   });
+}
+
+/** Manual refresh has explicit post slots; likes/comments cannot satisfy them. */
+export function validMomentPosts(
+  batch: { posts: Array<{ authorKey: string; content: string }> },
+  plan: MomentPlan,
+): boolean {
+  const slots = plan.postTasks ?? (plan.postActor ? [plan.postActor] : []);
+  if (batch.posts.length > slots.length || (plan.postTasks && batch.posts.length !== slots.length)) return false;
+  const remaining = [...slots];
+  for (const post of batch.posts) {
+    const index = remaining.indexOf(post.authorKey);
+    if (index < 0) return false;
+    remaining.splice(index, 1);
+  }
+  return !plan.postTasks || new Set(batch.posts.map(post => post.content.trim())).size === batch.posts.length;
 }
