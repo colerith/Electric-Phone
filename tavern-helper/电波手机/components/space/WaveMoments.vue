@@ -243,10 +243,11 @@
           ><label>每轮互动上限<input v-model.number="settings.maxInteractions" type="number" min="1" max="3" /></label>
         </div>
         <p>每轮从范围内随机选择数量上限，点赞和评论共用；概率未命中或没有合适目标时可少于下限。</p>
-        <label class="settings-switch"
-          ><span>定时自动互动</span><WaveToggle v-model="settings.heartbeatEnabled" aria-label="定时自动互动"
-        /></label>
-        <p>
+        <div class="system-toggle-row">
+          <span>定时自动互动</span>
+          <WaveToggle v-model="settings.heartbeatEnabled" aria-label="定时自动互动" />
+        </div>
+        <p class="moments-heartbeat-hint">
           启用副 API 后按最小间隔检查空间与树洞；关闭手机界面仍运行，网页关闭后暂停；间隔为 0 时定时检查仍至少相隔 1
           分钟。
         </p>
