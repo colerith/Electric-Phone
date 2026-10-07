@@ -1608,3 +1608,20 @@ export function replyCountRules(input: PhonePromptInput): string {
     b = Math.max(1, Math.min(15, input.replyCount?.maxReplies ?? 5));
   return `[电波手机·本轮回复条数] 目标角色每轮 messages 至少 ${Math.min(a, b)} 条、最多 ${Math.max(a, b)} 条，所有气泡类型合并计数；本规则优先于默认节奏与旧条数范围。仅约束本轮已激活的消息生成任务，未激活消息模块时不得额外生成消息。自然分句，不代替 User 发言。`;
 }
+
+export function buildTreeHolePrompt(
+  plan: MomentPlan,
+  state: MomentsState,
+  posts: MomentPost[],
+  topic: string,
+  preferences?: ChatPreferences,
+  actorPreferences: Record<string, ChatPreferences> = {},
+): string {
+  return (
+    buildMomentsPrompt(plan, state, posts, '', preferences, undefined, actorPreferences).replaceAll(
+      'wave_moments',
+      'wave_tree_hole',
+    ) +
+    `\n[匿名树洞最高优先规则] 今日话题：${JSON.stringify(topic)}。只使用上面匿名演员和公开帖子、评论，不引用现实姓名、角色卡、用户身份、现场或私聊。匿名昵称跨轮复用；不猜测匿名者真实身份。所有 images=[]，不得生图、文字图或图片地址。新帖数量严格遵守 postTasks，互动仅按 tasks 执行，评论必须承接 target.replyToCommentId；无独立语言配置时继承目标主帖原文与译文格式。`
+  );
+}

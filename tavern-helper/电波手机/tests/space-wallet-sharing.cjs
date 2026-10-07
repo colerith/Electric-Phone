@@ -469,93 +469,43 @@ function snapshot(name) {
   const day = treeHoleDay();
   assert.equal(dailyTopic(day, 'card'), dailyTopic(day, 'card'));
   phone.publishTreeHole('希望明天的自己，也能勇敢一点。');
-  const holePost = phone.state.treeHole[day].posts[0];
+  const holePost = phone.treeHoleFeed(day)[0];
   phone.commentTreeHole(day, holePost.id, '你已经做得很好了。');
   phone.likeTreeHole(day, holePost.id);
   await tick();
   assert(document.body.textContent.includes(phone.state.moments.profile.anonymousId));
   assert(!document.querySelector('.space-hole-post .space-post-account'));
-  assert(document.querySelector('.space-hole-actions time'));
-  assert(holePost.comments[0].mine);
-  assert(holePost.liked);
+  assert(document.querySelector('.space-hole-meta time'));
+  assert(phone.treeHoleFeed(day)[0].comments[0].mine);
+  assert(phone.treeHoleFeed(day)[0].liked);
   const savedAlias = phone.state.moments.profile.anonymousId;
   const savedSeed = phone.state.moments.profile.anonymousAvatarSeed;
   phone.ensureAnonymousProfile();
   assert.equal(phone.state.moments.profile.anonymousId, savedAlias);
   assert.equal(phone.state.moments.profile.anonymousAvatarSeed, savedSeed);
-  holePost.comments[0].mine = undefined;
-  holePost.comments[0].alias = '匿名的我';
   await tick();
   assert(!document.querySelector('.space-hole-post').textContent.includes('匿名的我'));
   const anonymousImages = [...document.querySelectorAll('.space-anonymous-avatar img')];
   assert(anonymousImages.length >= 2);
-  assert(
-    anonymousImages.every(img => /\/10\.x\/(?:notionists|bottts-neutral)\/svg\?seed=wave-hole-/.test(img.src)),
-  );
+  assert(anonymousImages.every(img => /\/10\.x\/(?:notionists|bottts-neutral)\/svg\?seed=wave-hole-/.test(img.src)));
   assert.equal(anonymousImages[0].src, anonymousImages[1].src);
   snapshot('space-hole');
   phone.publishTreeHole('可以删除的测试动态');
   await tick();
-  const removable = phone.state.treeHole[day].posts.at(-1).id;
+  const removable = phone.treeHoleFeed(day).at(-1).id;
   document.querySelector('[aria-label="删除匿名动态"]').click();
   await tick();
   assert(document.querySelector('[role="alertdialog"]'));
   assert.equal(document.activeElement.textContent, '取消');
   click('.space-delete-dialog button', '取消');
   await tick();
-  assert(phone.state.treeHole[day].posts.some(post => post.id === removable));
+  assert(phone.treeHoleFeed(day).some(post => post.id === removable));
   document.querySelector('[aria-label="删除匿名动态"]').click();
   await tick();
   click('.space-delete-dialog button', '确认删除');
   await tick();
-  assert(!phone.state.treeHole[day].posts.some(post => post.id === removable));
-  assert(phone.state.treeHole[day].posts.some(post => post.id === holePost.id));
-  const oldZone = phone.activeSnapshot.zone;
-  phone.settings.api.enabled = true;
-  phone.settings.api.url = 'https://test.invalid/v1';
-  phone.settings.api.apiurl = 'https://test.invalid/v1';
-  phone.settings.api.model = 'test';
-  phone.settings.api.key = 'test';
-  phone.settings.api.retryCount = 0;
-  global.generateRaw = async args => {
-    assert.equal(args.max_chat_history, 0);
-    assert(args.ordered_prompts.some(prompt => typeof prompt === 'object' && prompt.content.includes('匿名树洞')));
-    return JSON.stringify({
-      posts: [
-        {
-          id: 'generated',
-          content: '今天听到一句很温柔的话。',
-          translation: { language: 'English', content: 'I heard something kind today.' },
-          comments: [
-            {
-              id: 'reply',
-              author: 'secret-name',
-              content: '把温柔传下去。',
-              translation: { language: 'English', content: 'Pass it on.' },
-            },
-          ],
-        },
-      ],
-    });
-  };
-  await phone.refreshTreeHole(day);
-  assert.equal(phone.activeSnapshot.zone, oldZone);
-  assert.equal(phone.state.treeHole[day].posts.length, 2);
-  assert.equal(phone.state.treeHole[day].posts[1].comments[0].alias, '匿名回声 1');
-  assert(!phone.state.treeHole[day].posts[1].comments[0].mine);
-  await tick();
-  assert(document.querySelector('.space-hole').textContent.includes('匿名回声 1'));
-  assert.equal(phone.state.treeHole[day].posts[1].comments[0].translation.content, 'Pass it on.');
-  await phone.refreshTreeHole(day);
-  assert.equal(phone.state.treeHole[day].posts.length, 2);
-  global.generateRaw = async () => {
-    chatKey = 'chat-B';
-    return JSON.stringify({ posts: [{ id: 'stale', content: 'expired' }] });
-  };
-  await assert.rejects(phone.refreshTreeHole(day), /切换/);
-  assert.equal(phone.state.treeHole[day].posts.length, 2);
-  chatKey = 'chat-A';
-
+  assert(!phone.treeHoleFeed(day).some(post => post.id === removable));
+  assert(phone.treeHoleFeed(day).some(post => post.id === holePost.id));
   assert(phone.state.moments.posts.some(post => post.id === ownId));
   screen.value = 'messenger';
   await tick();

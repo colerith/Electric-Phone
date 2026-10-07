@@ -44,7 +44,7 @@ export const MomentCommentSchema = z.object({
   postId: z.string(),
   authorKey: z.string(),
   authorName: z.string(),
-  content: z.string().min(1).max(1000),
+  content: z.string().min(1).max(2000),
   translation: TranslationSchema.optional(),
   createdAt: z.number(),
   availableAt: z.number(),
@@ -225,9 +225,18 @@ export function planMoments(
   posts: MomentPost[],
   now = Date.now(),
   random = Math.random,
-  options: { force?: boolean; targetPostId?: string; newPosts?: number } = {},
+  options: { force?: boolean; targetPostId?: string; targetCommentId?: string; newPosts?: number } = {},
 ): MomentPlan | null {
   const settings = state.settings;
+  const trigger = options.targetCommentId
+    ? momentTimeline(state).comments.find(
+        comment =>
+          comment.id === options.targetCommentId &&
+          comment.postId === options.targetPostId &&
+          comment.availableAt <= now,
+      )
+    : undefined;
+  if (options.targetCommentId && !trigger) return null;
   if (!options.force && (!settings.followEnabled || now - state.lastRequestAt < settings.cooldownMinutes * 60000))
     return null;
   const actors = identities
@@ -297,14 +306,15 @@ export function planMoments(
     .slice(0, 20)
     .flatMap(post =>
       actors
-        .filter(actor => actor.key !== post.authorKey && canSeeMoment(post, actor.key))
+        .filter(actor => actor.key !== (trigger ? trigger.authorKey : post.authorKey) && canSeeMoment(post, actor.key))
         .map(actor => ({ actorKey: actor.key, postId: post.id })),
     );
   const candidates = targets.flatMap(target => [
     ...(options.targetPostId || random() * 100 < settings.commentProbability
       ? [{ ...target, kind: 'comment' as const }]
       : []),
-    ...(random() * 100 < settings.likeProbability &&
+    ...(!options.targetCommentId &&
+    random() * 100 < settings.likeProbability &&
     !existingLikes.some(like => like.postId === target.postId && like.authorKey === target.actorKey)
       ? [{ ...target, kind: 'like' as const }]
       : []),
@@ -313,7 +323,12 @@ export function planMoments(
     const selected = pick(candidates);
     candidates.splice(candidates.indexOf(selected), 1);
     if (selected.kind === 'like') likes.push({ actorKey: selected.actorKey, postId: selected.postId });
-    else comments.push({ actorKey: selected.actorKey, postId: selected.postId, replyToCommentId: '' });
+    else
+      comments.push({
+        actorKey: selected.actorKey,
+        postId: selected.postId,
+        replyToCommentId: options.targetCommentId || '',
+      });
   }
   if (!postActor && !comments.length && !likes.length) return null;
   return {

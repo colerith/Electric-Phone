@@ -1,3 +1,4 @@
+import { TREE_HOLE_PATTERN } from '../space/tree-hole';
 import { sampleImageCounts } from '../space/image-plan';
 import { parseZonePage, ZoneUpdateSchema } from '../space/zone';
 import { readChatFloor, writeChatFloor } from '../chat/chat-reader';
@@ -68,7 +69,7 @@ export async function installPhoneRegexes(): Promise<void> {
       ...base,
       id: 'wave-phone-data-display-v1',
       script_name: '电波手机 · 数据块隐藏',
-      find_regex: `/(?:${DATA_PATTERN.source}|${MOMENTS_PATTERN.source})/gi`,
+      find_regex: `/(?:${DATA_PATTERN.source}|${MOMENTS_PATTERN.source}|${TREE_HOLE_PATTERN.source})/gi`,
       destination: { display: true, prompt: false },
     },
   ];

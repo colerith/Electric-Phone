@@ -39,7 +39,11 @@ import {
   randomAnonymousAvatarSeed,
   dailyTopic,
   treeHoleDay,
-  TreeHolePostSchema,
+  TREE_HOLE_PATTERN,
+  anonymousActors,
+  anonymousActorKey,
+  prepareTreeHoleActivity,
+  treeHoleFeed as readTreeHoleFeed,
 } from '../services/space/tree-hole';
 import { applyCharacterReactions, toggleMessageReaction } from '../services/chat/message-reactions';
 import { readChatFloors, writeChatFloor } from '../services/chat/chat-reader';
@@ -168,7 +172,6 @@ import {
   generatePhoneReply,
   generatePhoneModule,
   generateZonePage,
-  generateTreeHolePage,
   stopPhoneGeneration,
 } from '../services/generation/generation';
 import { mergeAppSnapshot, parsePhoneMessage, validatePhoneBlocks } from '../services/generation/parser';
@@ -415,6 +418,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   const manualGeneratingApp = ref<ManualGenerationTarget | null>(null);
   let moduleGenerationId = '';
   let disposeFollow: (() => void) | null = null;
+  let disposeTreeHole: (() => void) | null = null;
   let disposeMoments: (() => void) | null = null;
   let zoneGenerationId = '';
   const offEvents: EventOnReturn[] = [];
@@ -1428,6 +1432,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         Object.values(nextState.threads).map(thread => [thread.charKey, thread.messages.map(message => message.id)]),
       );
       const previousMomentContent = momentContentSignature(nextState.moments);
+      const holeSignature = () =>
+        JSON.stringify(
+          Object.entries(nextState.treeHole).map(([day, daily]) => [
+            day,
+            daily.activity ? momentContentSignature(daily.activity) : '',
+          ]),
+        );
+      const previousHoleContent = holeSignature();
       // Tavern's hidden state only controls its own context/display. Phone data remains persistent.
       stage = '读取聊天楼层';
       const assistantMessages = readChatFloors({ role: 'assistant', hide_state: 'all' });
@@ -1730,6 +1742,17 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (!nextState.activeCharKey || !nextState.identities[nextState.activeCharKey]) {
         nextState.activeCharKey = Object.values(nextState.identities)[0]?.charKey || '';
       }
+      for (const daily of Object.values(nextState.treeHole)) {
+        if (!daily.activity) continue;
+        syncMomentEvents(
+          daily.activity,
+          assistantMessages.map(message =>
+            [...message.message.matchAll(new RegExp(TREE_HOLE_PATTERN.source, 'g'))]
+              .map(match => `<wave_moments>${match[1]}</wave_moments>`)
+              .join('\n'),
+          ),
+        );
+      }
       syncMomentEvents(
         nextState.moments,
         assistantMessages.map(message => message.message),
@@ -1770,7 +1793,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           updatedByChar.set(account.ownerId, updated);
           updatedWalletAccountByChar.set(account.ownerId, account.id);
         }
-        if (momentContentSignature(nextState.moments) !== previousMomentContent) {
+        if (
+          momentContentSignature(nextState.moments) !== previousMomentContent ||
+          holeSignature() !== previousHoleContent
+        ) {
           const charKey = nextState.activeCharKey || Object.keys(nextState.identities)[0];
           if (charKey) {
             const updated = updatedByChar.get(charKey) || new Set<AppId>();
@@ -1967,6 +1993,36 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         saveMoments();
       },
     );
+    disposeTreeHole = registerMomentsFollow(
+      () => {
+        const runtime = moduleInput();
+        if (!runtime) return null;
+        const day = treeHoleDay();
+        const daily = ensureTreeHole(day);
+        const activity = holeActivity(day);
+        return {
+          topic: daily.topic,
+          state: activity,
+          identities: anonymousActors(identities.value),
+          posts: momentTimeline(activity).posts,
+          settings: settings.value,
+          cardName: runtime.input.cardName,
+          chatPreferences: ChatPreferencesSchema.parse(state.value.chatPreferences[state.value.activeCharKey]),
+          actorLanguagePreferences: holeLanguages(),
+          busy:
+            moduleGenerating.value ||
+            zoneGenerating.value ||
+            Object.values(state.value.threads).some(thread => thread.generating),
+        };
+      },
+      plan => {
+        const activity = holeActivity(treeHoleDay());
+        activity.requests[plan.id] = plan;
+        activity.lastRequestAt = plan.createdAt;
+        saveChat();
+      },
+      true,
+    );
     await synchronize();
     saveSettings();
   }
@@ -1988,6 +2044,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   function dispose(): void {
     void flushPhoneStorage().catch(() => {});
     cancelLiveSends();
+    disposeTreeHole?.();
+    disposeTreeHole = null;
     disposeMoments?.();
     disposeMoments = null;
     disposeFollow?.();
@@ -2276,11 +2334,11 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       momentInteractionFeedback.value = {};
     },
   );
-  async function generateMomentInteractions(postId: string): Promise<string> {
+  async function generateMomentInteractions(postId: string, commentId?: string): Promise<string> {
     const key = `${context.value?.cardKey}::${context.value?.chatKey}`;
     momentInteractionFeedback.value[postId] = '正在生成点赞与评论…';
     try {
-      const result = await generateMoments(postId);
+      const result = await generateMoments(postId, commentId);
       if (key === `${context.value?.cardKey}::${context.value?.chatKey}`)
         momentInteractionFeedback.value[postId] = result;
       return result;
@@ -2290,7 +2348,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       throw e;
     }
   }
-  async function generateMoments(targetPostId?: string): Promise<string> {
+  async function generateMoments(targetPostId?: string, targetCommentId?: string): Promise<string> {
     const runtime = moduleInput();
     if (!runtime) throw Error('请先选择有角色的聊天');
     if (
@@ -2299,9 +2357,15 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       Object.values(state.value.threads).some(thread => thread.generating)
     )
       throw Error('请等待当前手机生成结束');
-    const plan = planMoments(state.value.moments, identities.value, momentsFeed.value.posts, Date.now(), Math.random, {
+    const requestState = klona(state.value.moments);
+    const knownPosts = new Set(momentTimeline(requestState).posts.map(post => post.id));
+    requestState.posts.push(...klona(momentsFeed.value.posts.filter(post => !knownPosts.has(post.id))));
+    const knownComments = new Set(momentTimeline(requestState).comments.map(comment => comment.id));
+    requestState.comments.push(...klona(momentsFeed.value.comments.filter(comment => !knownComments.has(comment.id))));
+    const plan = planMoments(requestState, identities.value, momentsFeed.value.posts, Date.now(), Math.random, {
       force: true,
       targetPostId,
+      targetCommentId,
       newPosts: runtime.settings.moduleSettings.zone.maxNew,
     });
     if (!plan)
@@ -2310,7 +2374,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           ? '空间新增设为 0，本轮不发新帖；当前没有可更新的已有动态'
           : '没有可参与的角色或互动名额，请检查空间参与者、可见范围和互动数量',
       );
-    if (targetPostId && !momentsFeed.value.posts.some(p => p.id === targetPostId && p.authorKey === 'user'))
+    if (targetPostId && !momentsFeed.value.posts.some(p => p.id === targetPostId && p.availableAt <= Date.now()))
       throw Error('目标动态不存在');
     const id = createPhoneGenerationId();
     const previousRequestAt = state.value.moments.lastRequestAt;
@@ -2329,7 +2393,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           generationId: id,
         },
         plan,
-        klona(state.value.moments),
+        requestState,
         klona(momentsFeed.value.posts),
       );
       const current = getRuntimeContext();
@@ -2341,6 +2405,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         throw Error('生成已停止，旧结果未写入');
       if (targetPostId && !momentsFeed.value.posts.some(p => p.id === targetPostId))
         throw Error('动态已删除，互动结果未写入');
+      if (targetCommentId && !momentsFeed.value.comments.some(comment => comment.id === targetCommentId))
+        throw Error('评论已删除，互动结果未写入');
       const encoded = JSON.stringify(batch).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e');
       syncMomentEvents(state.value.moments, [`<wave_moments>${encoded}</wave_moments>`]);
       const event = state.value.moments.events.find(item => item.requestId === plan.id);
@@ -2462,6 +2528,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             replyToAuthorName: parent?.author || comment.replyToAuthor,
           });
         }
+      }
+    }
+    const commentIndex = new Map(timeline.comments.map(comment => [comment.id, comment]));
+    for (const comment of timeline.comments) {
+      const parent = commentIndex.get(comment.parentId);
+      if (parent) {
+        comment.replyToAuthorKey = parent.authorKey;
+        comment.replyToAuthorName = parent.authorName;
       }
     }
     const deletedComments = new Set(state.value.moments.deletedCommentIds);
@@ -4340,58 +4414,191 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   function ensureTreeHole(day = treeHoleDay()) {
     return (state.value.treeHole[day] ||= { topic: dailyTopic(day, context.value?.cardKey || ''), posts: [] });
   }
+  function holeActivity(day: string) {
+    const activity = prepareTreeHoleActivity(ensureTreeHole(day), state.value.moments.settings);
+    activity.profile.nickname = ensureAnonymousProfile().anonymousId;
+    return activity;
+  }
+  function holeLanguages() {
+    return Object.fromEntries(
+      Object.entries(state.value.chatPreferences).map(([key, value]) => [anonymousActorKey(key), value]),
+    );
+  }
+  function treeHoleFeed(day: string, now = Date.now()) {
+    const daily = state.value.treeHole[day];
+    return daily ? readTreeHoleFeed(daily, now) : [];
+  }
+  const treeHoleFeedback = ref<Record<string, string>>({});
+  const holeQueue = ref<{ day: string; postId: string; commentId?: string }[]>([]);
+  watch(
+    () => `${context.value?.cardKey}::${context.value?.chatKey}`,
+    () => {
+      holeQueue.value = [];
+      treeHoleFeedback.value = {};
+    },
+  );
   function publishTreeHole(content: string, day = treeHoleDay()): void {
     if (!context.value || !content.trim()) return;
-    ensureTreeHole(day).posts.push(
-      TreeHolePostSchema.parse({
-        id: makeId('hole'),
-        alias: ensureAnonymousProfile().anonymousId,
-        content: content.trim().slice(0, 2000),
-        createdAt: Date.now(),
-        mine: true,
-      }),
-    );
+    const activity = holeActivity(day),
+      now = Date.now();
+    const post = MomentPostSchema.parse({
+      id: makeId('hole'),
+      authorKey: 'user',
+      authorName: activity.profile.nickname,
+      content: content.trim().slice(0, 2000),
+      createdAt: now,
+      availableAt: now,
+    });
+    activity.posts.push(post);
     saveChat();
+    if (state.value.moments.settings.autoUserInteractions) holeQueue.value.push({ day, postId: post.id });
   }
   function deleteTreeHole(day: string, id: string): void {
-    const daily = state.value.treeHole[day];
-    if (!daily) return;
-    daily.posts = daily.posts.filter(post => post.id !== id);
+    const activity = holeActivity(day);
+    activity.deletedPostIds.push(id);
+    holeQueue.value = holeQueue.value.filter(item => item.day !== day || item.postId !== id);
     saveChat();
   }
   function likeTreeHole(day: string, id: string): void {
-    const post = state.value.treeHole[day]?.posts.find(post => post.id === id);
-    if (!post) return;
-    post.liked = !post.liked;
+    const activity = holeActivity(day);
+    if (!momentTimeline(activity).posts.some(post => post.id === id && post.availableAt <= Date.now())) return;
+    activity.likes = activity.likes.includes(id) ? activity.likes.filter(key => key !== id) : [...activity.likes, id];
     saveChat();
   }
-  function commentTreeHole(day: string, id: string, content: string, replyTo = ''): void {
-    const post = state.value.treeHole[day]?.posts.find(post => post.id === id);
-    if (!post || !content.trim()) return;
-    post.comments.push({
+  function deleteTreeHoleComment(day: string, id: string): void {
+    holeActivity(day).deletedCommentIds.push(id);
+    saveChat();
+  }
+  function commentTreeHole(day: string, id: string, content: string, parentId = ''): void {
+    if (!content.trim()) return;
+    const activity = holeActivity(day),
+      feed = momentTimeline(activity),
+      now = Date.now();
+    if (!feed.posts.some(post => post.id === id && post.availableAt <= now)) return;
+    const parent = feed.comments.find(comment => comment.id === parentId && comment.postId === id);
+    const comment = MomentCommentSchema.parse({
       id: makeId('hole-comment'),
-      mine: true,
-      alias: ensureAnonymousProfile().anonymousId,
+      postId: id,
+      authorKey: 'user',
+      authorName: activity.profile.nickname,
       content: content.trim().slice(0, 500),
-      createdAt: Date.now(),
-      replyTo,
+      createdAt: now,
+      availableAt: now,
+      parentId: parent?.id || '',
+      replyToAuthorKey: parent?.authorKey || '',
+      replyToAuthorName: parent?.authorName || '',
     });
+    activity.comments.push(comment);
     saveChat();
+    if (settings.value.api.enabled) holeQueue.value.push({ day, postId: id, commentId: comment.id });
   }
-  async function refreshTreeHole(day = treeHoleDay()): Promise<void> {
-    const daily = ensureTreeHole(day);
-    await refreshZone(
-      `这是独立的匿名话题树洞，不是角色个人空间。今日话题：${daily.topic}。请按空间动态格式生成 3 条不同匿名参与者的讨论，可附带匿名评论。不要透露角色或用户的真实姓名、账号、身份或私聊秘密，不改写已有角色空间资料。参与者只用匿名昵称。已有发言：${daily.posts
-        .map(post => post.content)
-        .slice(-12)
-        .join('；')}`,
-      day,
-    );
+  async function refreshTreeHole(day = treeHoleDay(), postId?: string, commentId?: string): Promise<string> {
+    const runtime = moduleInput();
+    if (!runtime) throw Error('请先打开角色聊天');
+    if (isCardExcluded(settings.value, runtime.input.cardName)) throw Error('当前角色卡已排除');
+    if (
+      moduleGenerating.value ||
+      zoneGenerating.value ||
+      Object.values(state.value.threads).some(thread => thread.generating)
+    )
+      throw Error('请等待当前手机生成结束');
+    const daily = ensureTreeHole(day),
+      activity = holeActivity(day);
+    const feed = momentTimeline(activity);
+    if (postId && !feed.posts.some(post => post.id === postId && post.availableAt <= Date.now()))
+      throw Error('目标动态不存在');
+    const plan = planMoments(activity, anonymousActors(identities.value), feed.posts, Date.now(), Math.random, {
+      force: true,
+      targetPostId: postId,
+      targetCommentId: commentId,
+      newPosts: settings.value.moduleSettings.zone.maxNew,
+    });
+    if (!plan) throw Error('没有可参与的匿名角色或互动任务，请检查空间参与者、互动设置与新增数量');
+    const id = createPhoneGenerationId(),
+      feedbackKey = `${day}:${commentId || postId || 'refresh'}`;
+    const previousRequestAt = activity.lastRequestAt;
+    moduleGenerating.value = true;
+    manualGeneratingApp.value = 'moments';
+    moduleGenerationId = id;
+    activity.requests[plan.id] = plan;
+    activity.lastRequestAt = plan.createdAt;
+    treeHoleFeedback.value[feedbackKey] = '回声正在路上…';
+    saveChat();
+    try {
+      const batch = await generateMomentsBatch(
+        {
+          ...klona(runtime.input),
+          settings: klona(settings.value),
+          treeHoleTopic: daily.topic,
+          actorLanguagePreferences: holeLanguages(),
+          generationId: id,
+          latestUserText: '',
+        },
+        plan,
+        klona(activity),
+        klona(feed.posts),
+      );
+      if (
+        moduleGenerationId !== id ||
+        context.value?.cardKey !== runtime.input.cardKey ||
+        context.value?.chatKey !== runtime.input.chatKey
+      )
+        throw Error('聊天已切换或生成已取消，未写入旧结果');
+      const current = holeActivity(day),
+        timeline = momentTimeline(current);
+      if (postId && !timeline.posts.some(post => post.id === postId)) throw Error('目标动态已删除');
+      if (commentId && !timeline.comments.some(comment => comment.id === commentId)) throw Error('目标评论已删除');
+      const encoded = JSON.stringify(batch).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e');
+      syncMomentEvents(current, [`<wave_moments>${encoded}</wave_moments>`]);
+      const event = current.events.find(event => event.requestId === plan.id);
+      if (!event) throw Error('匿名互动未通过身份或回复关系校验');
+      event.independent = true;
+      if (batch.posts.length || batch.comments.length) markAppsUnread(state.value.activeCharKey, ['zone']);
+      saveChat();
+      const result = `已新增 ${batch.posts.length} 条动态、${batch.comments.length} 条回应、${batch.likes.length} 个共鸣`;
+      treeHoleFeedback.value[feedbackKey] = result;
+      return result;
+    } catch (error) {
+      if (context.value?.cardKey === runtime.input.cardKey && context.value?.chatKey === runtime.input.chatKey) {
+        const current = holeActivity(day);
+        delete current.requests[plan.id];
+        if (current.lastRequestAt === plan.createdAt) current.lastRequestAt = previousRequestAt;
+        treeHoleFeedback.value[feedbackKey] = error instanceof Error ? error.message : '互动失败';
+        saveChat();
+      }
+      throw error;
+    } finally {
+      if (moduleGenerationId === id) {
+        moduleGenerationId = '';
+        moduleGenerating.value = false;
+        manualGeneratingApp.value = null;
+      }
+    }
   }
-  async function refreshZone(
-    instruction = '更新当前角色的空间资料与有依据的新动态。',
-    holeDay?: string,
-  ): Promise<void> {
+  watch(
+    () => [
+      holeQueue.value.length,
+      moduleGenerating.value,
+      zoneGenerating.value,
+      Object.values(state.value.threads).some(thread => thread.generating),
+    ],
+    () => {
+      if (
+        !settings.value.api.enabled ||
+        moduleGenerating.value ||
+        zoneGenerating.value ||
+        Object.values(state.value.threads).some(thread => thread.generating)
+      )
+        return;
+      const task = holeQueue.value.shift();
+      if (!task || (!task.commentId && !state.value.moments.settings.autoUserInteractions)) return;
+      void refreshTreeHole(task.day, task.postId, task.commentId).catch(error =>
+        logDiagnostic('匿名树洞互动', String(error)),
+      );
+    },
+    { flush: 'post' },
+  );
+  async function refreshZone(instruction = '更新当前角色的空间资料与有依据的新动态。'): Promise<void> {
     const runtime = context.value;
     if (runtime && isCardExcluded(settings.value, runtime.cardName)) throw Error('当前角色卡已排除，已暂停手机生成。');
     const identity = activeIdentity.value;
@@ -4411,7 +4618,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     try {
       let electric = '',
         electricTitle = '';
-      const page = await (holeDay ? generateTreeHolePage : generateZonePage)({
+      const page = await generateZonePage({
         onElectric: (text, title) => {
           electric = text;
           electricTitle = title;
@@ -4440,34 +4647,6 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         context.value?.chatKey !== runtime.chatKey
       )
         return;
-      if (holeDay) {
-        const daily = ensureTreeHole(holeDay);
-        const existing = new Set(daily.posts.map(post => post.content));
-        for (const post of page.posts || []) {
-          if (existing.has(post.content)) continue;
-          const number = daily.posts.length + 1;
-          daily.posts.push(
-            TreeHolePostSchema.parse({
-              id: makeId('hole'),
-              alias: `匿名旅人 ${number}`,
-              translation: post.translation,
-              content: post.content,
-              createdAt: Date.now(),
-              comments: post.comments.map((comment, index) => ({
-                id: makeId('hole-comment'),
-                alias: `匿名回声 ${index + 1}`,
-                translation: comment.translation,
-                content: comment.content,
-                createdAt: Date.now(),
-                replyTo: '',
-              })),
-            }),
-          );
-          existing.add(post.content);
-        }
-        saveChat();
-        return;
-      }
       const changed = rememberIndependentAppUpdate(
         identity.charKey,
         'zone',
@@ -4645,6 +4824,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     addZoneComment,
     refreshZone,
     ensureAnonymousProfile,
+    treeHoleFeed,
+    treeHoleFeedback,
+    deleteTreeHoleComment,
     publishTreeHole,
     likeTreeHole,
     deleteTreeHole,

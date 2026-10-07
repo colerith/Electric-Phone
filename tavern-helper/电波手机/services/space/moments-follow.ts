@@ -1,11 +1,12 @@
 import type { ChatPreferences } from '../chat/chat-preferences';
-import { presetMomentsRules, buildMomentsPrompt } from '../../prompts';
+import { buildTreeHolePrompt, presetMomentsRules, buildMomentsPrompt } from '../../prompts';
 import { planMoments, type MomentsState, type MomentPost, type MomentPlan } from './moments';
 import { isCardExcluded, stripExcludedTags } from '../generation/context-controls';
 import type { Identity, ScriptSettings } from '../../schemas';
 import { logDiagnostic } from '../core/diagnostics';
 export function registerMomentsFollow(
   getInput: () => {
+    topic?: string;
     actorLanguagePreferences?: Record<string, ChatPreferences>;
     chatPreferences?: ChatPreferences;
     state: MomentsState;
@@ -16,6 +17,7 @@ export function registerMomentsFollow(
     busy: boolean;
   } | null,
   savePlan: (plan: MomentPlan) => void,
+  anonymous = false,
 ) {
   let release: (() => void) | null = null;
   const clear = () => {
@@ -36,22 +38,31 @@ export function registerMomentsFollow(
         release = injectPrompts(
           [
             {
-              id: 'wave-moments-follow-v1',
+              id: anonymous ? 'wave-tree-hole-follow-v1' : 'wave-moments-follow-v1',
               role: 'system',
               position: 'in_chat',
               depth: 0,
               should_scan: false,
               content: stripExcludedTags(
-                buildMomentsPrompt(
-                  plan,
-                  input.state,
-                  input.posts,
-                  presetMomentsRules(input.settings.presets),
-                  input.chatPreferences,
-                  input.settings.imageServices.profiles.find(p => p.id === input.state.settings.imageProfileId)
-                    ?.provider,
-                  input.actorLanguagePreferences,
-                ),
+                anonymous
+                  ? buildTreeHolePrompt(
+                      plan,
+                      input.state,
+                      input.posts,
+                      input.topic || '',
+                      input.chatPreferences,
+                      input.actorLanguagePreferences,
+                    )
+                  : buildMomentsPrompt(
+                      plan,
+                      input.state,
+                      input.posts,
+                      presetMomentsRules(input.settings.presets),
+                      input.chatPreferences,
+                      input.settings.imageServices.profiles.find(p => p.id === input.state.settings.imageProfileId)
+                        ?.provider,
+                      input.actorLanguagePreferences,
+                    ),
                 input.settings.basic.excludedTags,
               ),
             },

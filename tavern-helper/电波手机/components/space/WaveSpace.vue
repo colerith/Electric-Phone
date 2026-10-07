@@ -71,7 +71,7 @@
         </button>
       </div>
       <p v-if="worldError && tab === 'world'" class="zone-error" role="status">{{ worldError }}</p>
-      <WaveTreeHole v-if="tab === 'hole'" ref="treeHole" />
+      <WaveTreeHole v-if="tab === 'hole'" ref="treeHole" @share="(post, author) => $emit('share', post, author)" />
       <WaveMoments
         v-show="tab !== 'hole'"
         :key="tab === 'hole' ? 'world' : tab"

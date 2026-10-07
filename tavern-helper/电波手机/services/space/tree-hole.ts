@@ -1,3 +1,11 @@
+import {
+  MomentsStateSchema,
+  MomentPostSchema,
+  MomentCommentSchema,
+  momentTimeline,
+  type MomentsState,
+} from './moments';
+import type { Identity } from '../../schemas';
 import { TranslationSchema } from '../generation/module-settings';
 import { spaceAvatarUrl } from './npc-avatar';
 import { z } from 'zod';
@@ -21,7 +29,14 @@ export const TreeHolePostSchema = z.object({
   comments: z.array(TreeHoleCommentSchema).default([]),
 });
 export const TreeHoleStateSchema = z
-  .record(z.string(), z.object({ topic: z.string(), posts: z.array(TreeHolePostSchema).default([]) }))
+  .record(
+    z.string(),
+    z.object({
+      topic: z.string(),
+      posts: z.array(TreeHolePostSchema).default([]),
+      activity: MomentsStateSchema.optional(),
+    }),
+  )
   .prefault({});
 const topics = [
   '最近哪件小事偷偷治愈了你？',
@@ -111,4 +126,100 @@ export function randomAnonymousId(previous = '', random = Math.random): string {
 }
 export function randomAnonymousAvatarSeed(): string {
   return `anon-${crypto.randomUUID()}`;
+}
+
+export const TREE_HOLE_PATTERN = /<wave_tree_hole>\s*([\s\S]*?)\s*<\/wave_tree_hole>/g;
+export function anonymousActorKey(key: string): string {
+  let hash = 2166136261;
+  for (const char of key) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return `anonymous:${(hash >>> 0).toString(36)}`;
+}
+export function anonymousActors(identities: Identity[]): Identity[] {
+  return identities.map(identity => ({
+    ...identity,
+    charKey: anonymousActorKey(identity.charKey),
+    stableId: anonymousActorKey(identity.charKey),
+    name: `匿名旅人 ${anonymousActorKey(identity.charKey).split(':')[1]}`,
+    nameAliases: [],
+    idAliases: [],
+    remark: '',
+    about: '只根据树洞公开发言交流的匿名参与者',
+    npcProfile: '匿名参与者，不暴露现实身份或私聊',
+    relationshipToUser: '',
+  }));
+}
+export function prepareTreeHoleActivity(
+  daily: z.infer<typeof TreeHoleStateSchema>[string],
+  settings: MomentsState['settings'],
+): MomentsState {
+  if (!daily.activity) {
+    const activity = MomentsStateSchema.parse({});
+    for (const post of daily.posts) {
+      activity.posts.push(
+        MomentPostSchema.parse({
+          id: post.id,
+          authorKey: post.mine ? 'user' : anonymousActorKey(post.alias),
+          authorName: post.alias,
+          content: post.content,
+          translation: post.translation,
+          createdAt: post.createdAt,
+          availableAt: post.createdAt,
+        }),
+      );
+      if (post.liked) activity.likes.push(post.id);
+      for (const comment of post.comments)
+        activity.comments.push(
+          MomentCommentSchema.parse({
+            id: comment.id,
+            postId: post.id,
+            authorKey: comment.mine || comment.alias === '匿名的我' ? 'user' : anonymousActorKey(comment.alias),
+            authorName: comment.alias,
+            content: comment.content,
+            translation: comment.translation,
+            createdAt: comment.createdAt,
+            availableAt: comment.createdAt,
+            replyToAuthorName: comment.replyTo,
+          }),
+        );
+    }
+    daily.activity = activity;
+    daily.posts = [];
+  }
+  daily.activity.settings = {
+    ...settings,
+    postingCharKeys: settings.postingCharKeys.map(anonymousActorKey),
+    imageMode: 'description',
+    maxImages: 0,
+    imageProbability: 0,
+    npcRules: '匿名树洞访客，只知道公开发言，不知道人物真实身份、私聊或当前场景。',
+  };
+  return daily.activity;
+}
+export function treeHoleFeed(daily: z.infer<typeof TreeHoleStateSchema>[string], now = Date.now()) {
+  if (!daily.activity) return daily.posts.map(post => ({ ...post, likeCount: Number(post.liked) }));
+  const feed = momentTimeline(daily.activity);
+  return feed.posts
+    .sort((a, b) => a.createdAt - b.createdAt)
+    .filter(post => post.availableAt <= now)
+    .map(post => ({
+      id: post.id,
+      alias: post.authorName,
+      content: post.content,
+      translation: post.translation,
+      createdAt: post.createdAt,
+      mine: post.authorKey === 'user',
+      liked: daily.activity!.likes.includes(post.id),
+      likeCount: feed.likes.filter(like => like.postId === post.id && like.availableAt <= now).length,
+      comments: feed.comments
+        .filter(comment => comment.postId === post.id && comment.availableAt <= now)
+        .map(comment => ({
+          id: comment.id,
+          alias: comment.authorName,
+          content: comment.content,
+          translation: comment.translation,
+          createdAt: comment.createdAt,
+          replyTo: comment.replyToAuthorName,
+          mine: comment.authorKey === 'user',
+        })),
+    }));
 }

@@ -28,7 +28,13 @@ import {
   type ScriptSettings,
   type Thread,
 } from '../../schemas';
-import { buildMomentsPrompt, buildPhonePrompts, presetMomentsRules, type PhonePromptInput } from '../../prompts';
+import {
+  buildTreeHolePrompt,
+  buildMomentsPrompt,
+  buildPhonePrompts,
+  presetMomentsRules,
+  type PhonePromptInput,
+} from '../../prompts';
 import { getRuntimeContext } from '../core/identity';
 import {
   MomentBatchSchema,
@@ -48,6 +54,8 @@ import {
 } from '../space/zone';
 
 type GenerationInput = {
+  treeHoleTopic?: string;
+  actorLanguagePreferences?: PhonePromptInput['actorLanguagePreferences'];
   spaceActors?: PhonePromptInput['spaceActors'];
   paymentCurrencies?: PhonePromptInput['paymentCurrencies'];
   groupImagePrefixes?: PhonePromptInput['groupImagePrefixes'];
@@ -98,6 +106,7 @@ async function requestConfigured<T>(
   userInput: string,
   parse: (raw: string) => T,
   namespace?: {
+    treeHoleTopic?: string;
     cardKey: string;
     chatKey: string;
     thread?: Thread;
@@ -144,9 +153,10 @@ async function requestConfigured<T>(
       throw Error('当前角色卡已排除，已暂停手机生成。');
     stage = '准备上下文';
     contextStep = '读取历史楼层与世界书';
-    const overrides = namespace
-      ? await prepareContext(settings, namespace.thread?.historyFloorCutoff ?? -1, namespace.historyBeforeFloor)
-      : undefined;
+    const overrides =
+      namespace && namespace.treeHoleTopic === undefined
+        ? await prepareContext(settings, namespace.thread?.historyFloorCutoff ?? -1, namespace.historyBeforeFloor)
+        : undefined;
     contextStep = '清理手机提示词';
     const filtered = prompts.map(prompt =>
       typeof prompt === 'string'
@@ -341,32 +351,6 @@ function buildInputContext(input: GenerationInput): PhonePromptInput {
 }
 
 /** Daily anonymous discussion has its own prompt and never writes a character profile. */
-export async function generateTreeHolePage(input: GenerationInput): Promise<ZoneUpdate> {
-  const language = resolveBilingual(input.settings.moduleSettings.zone, input.chatPreferences);
-  const bilingualRule = language.autoTranslate
-    ? `每条动态与评论的 content 写 ${language.sourceLanguage} 原文，分别附 translation={language:"${language.targetLanguage}",content:"自然忠实译文"}；不要加译文标签或折叠标记。`
-    : '单语输出。';
-  return requestConfigured(
-    input.settings,
-    input.generationId || createPhoneGenerationId(),
-    [
-      {
-        role: 'system',
-        content:
-          '你为虚构的匿名树洞生成讨论。只根据今日话题和已有匿名发言，写 1–3 条自然、有区别的匿名动态，每条可带 0–2 条简短回应。不要使用真实角色身份，不输出空间资料，不重复已有内容。只输出 JSON：{"posts":[{"id":"唯一编号","content":"匿名发言","comments":[{"id":"评论编号","author":"匿名回声","content":"回应"}]}]}。' +
-          bilingualRule,
-      },
-    ],
-    input.latestUserText,
-    raw =>
-      ZoneUpdateSchema.refine(
-        value => !!value.posts?.length && value.posts.length <= 3,
-        '树洞应返回 1–3 条匿名发言',
-      ).parse(extractJson(raw)),
-    input,
-  );
-}
-
 function withSpaceImagePlan(input: GenerationInput): GenerationInput {
   if (!input.spaceImages) return input;
   return {
@@ -538,23 +522,35 @@ export async function generateMomentsBatch(
     {
       role: 'system',
       content:
-        buildMomentsPrompt(
-          plan,
-          state,
-          posts,
-          presetMomentsRules(input.settings.presets),
-          input.chatPreferences,
-          input.settings.imageServices.profiles.find(p => p.id === state.settings.imageProfileId)?.provider,
-          input.actorLanguagePreferences,
-        ) + '\n这是独立朋友圈生成请求，只输出最终 <wave_moments> 数据块，不续写酒馆正文。',
+        (input.treeHoleTopic !== undefined
+          ? buildTreeHolePrompt(
+              plan,
+              state,
+              posts,
+              input.treeHoleTopic,
+              input.chatPreferences,
+              input.actorLanguagePreferences,
+            )
+          : buildMomentsPrompt(
+              plan,
+              state,
+              posts,
+              presetMomentsRules(input.settings.presets),
+              input.chatPreferences,
+              input.settings.imageServices.profiles.find(p => p.id === state.settings.imageProfileId)?.provider,
+              input.actorLanguagePreferences,
+            )) +
+        `\n这是独立生成请求，只输出最终 <${input.treeHoleTopic !== undefined ? 'wave_tree_hole' : 'wave_moments'}> 数据块，不续写酒馆正文。`,
     },
     'user_input',
   ];
   return requestConfigured(
     input.settings,
     input.generationId || createPhoneGenerationId(),
-    prompts,
-    '手动生成一轮朋友圈动态与互动',
+    input.treeHoleTopic !== undefined ? prompts.filter(prompt => typeof prompt !== 'string') : prompts,
+    input.treeHoleTopic !== undefined
+      ? '生成本轮匿名树洞任务，只输出 wave_tree_hole 数据块'
+      : '手动生成一轮朋友圈动态与互动',
     raw => {
       const batch = MomentBatchSchema.parse(extractJson(raw));
       if (batch.request_id !== plan.id) throw Error('朋友圈结果 request_id 不匹配');
@@ -562,6 +558,13 @@ export async function generateMomentsBatch(
         throw new PostCountError(
           `本轮发帖数量或作者不符：要求 ${plan.postTasks?.length ?? (plan.postActor ? 1 : 0)} 条，不能用点赞替代动态`,
         );
+      if (
+        !plan.postActor &&
+        plan.comments.length + plan.likes.length > 0 &&
+        !batch.comments.length &&
+        !batch.likes.length
+      )
+        throw new PostCountError('本轮是互动任务，必须至少返回一条指定的评论或点赞，不能返回空数组');
       if (plan.imageCounts) validateImageCounts(batch.posts, plan.imageCounts);
       validateCommentLanguages(batch, posts, input.actorLanguagePreferences);
       return batch;

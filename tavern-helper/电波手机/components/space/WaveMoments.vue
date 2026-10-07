@@ -172,7 +172,7 @@
         <div class="system-toggle-row">
           <span>发布后自动点赞 / 评论</span><WaveToggle v-model="settings.autoUserInteractions" />
         </div>
-        <p>调用副 API，使用下方选择的角色与互动数量；遵守动态可见范围。也可在我的动态下点击「触发互动」。</p>
+        <p>调用副 API，使用下方选择的角色与互动数量；遵守动态可见范围。也可在帖子和评论下点击「触发互动」。</p>
       </section>
       <WaveBilingualSettings :prefs="settings" @update="Object.assign(settings, $event)" @save="saveSettings" />
       <section class="settings-card system-settings-card moments-form space-settings-card">
@@ -390,9 +390,8 @@
               </div>
               <div class="moment-secondary-actions">
                 <button
-                  v-if="post.authorKey === 'user'"
                   type="button"
-                  :disabled="!!interacting || phone.moduleGenerating"
+                  :disabled="!!interacting || phone.moduleGenerating || phone.zoneGenerating"
                   @click="interact(post.id)"
                 >
                   {{ interacting === post.id ? '互动生成中…' : '触发互动' }}
@@ -458,6 +457,14 @@
                 />
                 <div class="moment-comment-actions">
                   <button type="button" class="moment-reply-action" @click="startReply(post.id, comment)">回复</button>
+                  <button
+                    type="button"
+                    class="moment-reply-action"
+                    :disabled="!!interacting || phone.moduleGenerating || phone.zoneGenerating"
+                    @click="interact(post.id, comment.id)"
+                  >
+                    触发互动
+                  </button>
                   <button
                     type="button"
                     class="moment-comment-delete"
@@ -762,10 +769,10 @@ function openGallery(post: MomentPost, index: number) {
   gallery.value = { targets: post.images.map((_, index) => ({ kind: 'moment', postId: post.id, index })), index };
 }
 const interacting = ref('');
-async function interact(postId: string) {
+async function interact(postId: string, commentId?: string) {
   interacting.value = postId;
   try {
-    notice.value = await phone.generateMomentInteractions(postId);
+    notice.value = await phone.generateMomentInteractions(postId, commentId);
   } catch (e) {
     notice.value = e instanceof Error ? e.message : '互动失败';
   } finally {
