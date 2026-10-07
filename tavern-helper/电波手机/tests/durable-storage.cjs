@@ -82,7 +82,10 @@ function state(content) {
     unrelated: 42,
     [schema.SCRIPT_VARIABLE_KEY]: wrap(schema.ScriptSettingsSchema.parse({ api: { key: 'test-key', model: 'test' } })),
   });
+  storage.setPhoneStorageInterval(60);
   storage.writePhoneChat(state('服务器保留消息'));
+  await new Promise(resolve => setTimeout(resolve, 500));
+  assert.equal(uploads, 0, 'configured interval does not upload after the old 350ms delay');
   await storage.flushPhoneStorage();
   assert.equal(storage.phoneStorageStatus.pending, 0);
   assert.equal(server.size, 2);

@@ -1979,8 +1979,9 @@ function returnToPreviousPage(): void {
 }
 function openApp(id: AppId): void {
   if (id === 'music') music.view = 'home';
-  store.markAppRead(id);
   store.currentPage = id;
+  store.markAppRead(id);
+  store.scheduleSync(0);
 }
 function openAppearance(): void {
   settingsSection.value = 'appearance';

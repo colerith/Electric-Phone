@@ -152,12 +152,22 @@ function queue(scope: string, data: Record<string, unknown>): number {
   validate(snapshot);
   pending.set(scope, snapshot);
   phoneStorageStatus.pending = pending.size;
-  if (!timer)
-    timer = setTimeout(() => {
-      timer = undefined;
-      void flushPhoneStorage().catch(() => {});
-    }, 350);
+  scheduleStorage();
   return savedAt;
+}
+let storageIntervalMs = 30000;
+function scheduleStorage(): void {
+  if (timer || !pending.size) return;
+  timer = setTimeout(() => {
+    timer = undefined;
+    void flushPhoneStorage(false).catch(() => {});
+  }, storageIntervalMs);
+}
+export function setPhoneStorageInterval(seconds: number): void {
+  storageIntervalMs = Math.max(5, Math.min(600, Number(seconds) || 30)) * 1000;
+  clearTimeout(timer);
+  timer = undefined;
+  scheduleStorage();
 }
 export function readPhoneGlobals(): Record<string, any> {
   return { ...getVariables({ type: 'global' }), ...(supported() ? settings()?.globals : {}) };
@@ -254,17 +264,18 @@ export function writePhoneChat(data: Record<string, any>): void {
   );
 }
 
-export async function flushPhoneStorage(): Promise<void> {
+export async function flushPhoneStorage(drain = true): Promise<void> {
   clearTimeout(timer);
   timer = undefined;
   if (!supported()) return;
   if (flushing) {
     await flushing;
-    if (pending.size) return flushPhoneStorage();
+    if (pending.size && drain) return flushPhoneStorage();
+    scheduleStorage();
     return;
   }
   flushing = (async () => {
-    for (const [scope, snapshot] of pending) {
+    for (const [scope, snapshot] of [...pending]) {
       if (!loaded.has(scope)) await readServer(scope);
       const slot = slots.get(scope) === 0 ? 1 : 0;
       const bytes = new TextEncoder().encode(JSON.stringify(snapshot));
@@ -295,5 +306,6 @@ export async function flushPhoneStorage(): Promise<void> {
       flushing = undefined;
     });
   await flushing;
-  if (pending.size) await flushPhoneStorage();
+  if (pending.size && drain) await flushPhoneStorage();
+  else scheduleStorage();
 }

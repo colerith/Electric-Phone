@@ -1,3 +1,4 @@
+import { startHeartbeat } from '../services/core/heartbeat';
 import { spaceNotices, reconcileSpaceNotices } from '../services/space/notifications';
 import { syncPaymentLedger } from '../services/chat/payment-ledger';
 import {
@@ -23,6 +24,7 @@ import {
   writePhoneChat,
   preparePhoneChat,
   flushPhoneStorage,
+  setPhoneStorageInterval,
 } from '../services/core/durable-storage';
 import { migratePhoneCardNamespace } from '../services/core/storage-migration';
 import { repairThreadTime } from '../services/chat/repair-time';
@@ -625,7 +627,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const snapshot = state.value.snapshots[charKey] || AppSnapshotSchema.parse({});
     const changed = applyIndependentAppUpdate(snapshot, app, value, moduleSettings);
     if (!changed) return false;
-    state.value.snapshots[charKey] = snapshot;
+    state.value.snapshots[charKey] = { ...snapshot };
     state.value.independentAppUpdates.push({
       id,
       charKey,
@@ -1153,6 +1155,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     settings.value.weatherLocation = null;
     saveSettings();
   }
+  watch(() => settings.value.basic.storageIntervalSeconds, setPhoneStorageInterval, { immediate: true });
   function saveSettings(): void {
     settings.value = ScriptSettingsSchema.parse(settings.value);
     persistScriptSettings(settings.value);
@@ -1840,7 +1843,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       }
       if (!nextState.activeCharKey || !nextState.identities[nextState.activeCharKey])
         nextState.activeCharKey = Object.keys(nextState.identities)[0] || '';
-      nextState.lastSyncedAt = nowIso();
+      nextState.lastSyncedAt = _.isEqual(_.omit(nextState, 'lastSyncedAt'), _.omit(state.value, 'lastSyncedAt'))
+        ? state.value.lastSyncedAt
+        : nowIso();
       if (policyConsumed) pendingModulePolicy = null;
       if (token !== syncToken) return;
       context.value = runtime;
@@ -1908,11 +1913,66 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   }
 
   function scheduleSync(delay = 160): void {
-    window.clearTimeout(syncTimer);
-    syncTimer = window.setTimeout(() => void synchronize(), delay);
+    // Do not postpone indefinitely while streaming emits repeated update events.
+    if (syncTimer) return;
+    syncTimer = window.setTimeout(() => {
+      syncTimer = 0;
+      void synchronize();
+    }, delay);
+  }
+  let disposeHeartbeat: (() => void) | undefined;
+  let hostGenerating = false;
+  let heartbeatScope = '',
+    heartbeatAttemptAt = 0,
+    heartbeatStartedAt = Date.now();
+  async function heartbeat(): Promise<void> {
+    const scope = `${context.value?.cardKey}::${context.value?.chatKey}`;
+    if (scope !== heartbeatScope) {
+      heartbeatScope = scope;
+      heartbeatAttemptAt = 0;
+      heartbeatStartedAt = Date.now();
+    }
+    const config = state.value.moments.settings;
+    if (
+      !isReady.value ||
+      !context.value ||
+      !settings.value.api.enabled ||
+      !config.heartbeatEnabled ||
+      hostGenerating ||
+      moduleGenerating.value ||
+      zoneGenerating.value ||
+      Object.values(state.value.threads).some(t => t.generating) ||
+      isCardExcluded(settings.value, context.value.cardName)
+    )
+      return;
+    const now = Date.now(),
+      interval = Math.max(60000, config.cooldownMinutes * 60000);
+    const day = treeHoleDay();
+    const holeLast = state.value.treeHole[day]?.activity?.lastRequestAt || heartbeatStartedAt;
+    const spaceLast = state.value.moments.lastRequestAt || heartbeatStartedAt;
+    if (now - heartbeatAttemptAt < interval || (now - spaceLast < interval && now - holeLast < interval)) return;
+    heartbeatAttemptAt = now;
+    try {
+      if (now - spaceLast >= interval) await generateMoments(undefined, undefined, true);
+      if (`${context.value?.cardKey}::${context.value?.chatKey}` !== scope || !config.heartbeatEnabled) return;
+      if (now - holeLast >= interval) await refreshTreeHole(day, undefined, undefined, true);
+    } catch (error) {
+      logDiagnostic('空间定时互动', String(error));
+    }
   }
 
   function registerEvents(): void {
+    offEvents.push(
+      eventOn(tavern_events.GENERATION_AFTER_COMMANDS, (_type, _options, dry) => {
+        if (!dry) hostGenerating = true;
+      }),
+      eventOn(tavern_events.GENERATION_ENDED, () => {
+        hostGenerating = false;
+      }),
+      eventOn(tavern_events.GENERATION_STOPPED, () => {
+        hostGenerating = false;
+      }),
+    );
     const events = [
       tavern_events.CHARACTER_MESSAGE_RENDERED,
       tavern_events.MESSAGE_UPDATED,
@@ -1924,6 +1984,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     events.forEach(eventName => offEvents.push(eventOn(eventName, () => scheduleSync())));
     offEvents.push(
       eventOn(tavern_events.CHAT_CHANGED, () => {
+        hostGenerating = false;
         cancelLiveSends();
         syncToken += 1;
         if (moduleGenerationId) void stopPhoneGeneration(moduleGenerationId);
@@ -1939,6 +2000,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         context.value = null;
         state.value = ChatStateSchema.parse({});
         currentPage.value = 'home';
+        window.clearTimeout(syncTimer);
+        syncTimer = 0;
         scheduleSync(40);
       }),
     );
@@ -2025,6 +2088,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       true,
     );
     await synchronize();
+    disposeHeartbeat?.();
+    disposeHeartbeat = startHeartbeat(heartbeat);
     saveSettings();
   }
 
@@ -2043,6 +2108,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   }
 
   function dispose(): void {
+    disposeHeartbeat?.();
+    disposeHeartbeat = undefined;
     void flushPhoneStorage().catch(() => {});
     cancelLiveSends();
     disposeTreeHole?.();
@@ -2060,6 +2127,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     manualGeneratingApp.value = null;
     syncToken += 1;
     window.clearTimeout(syncTimer);
+    syncTimer = 0;
     offEvents.splice(0).forEach(handle => handle.stop());
   }
 
@@ -2349,7 +2417,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       throw e;
     }
   }
-  async function generateMoments(targetPostId?: string, targetCommentId?: string): Promise<string> {
+  async function generateMoments(targetPostId?: string, targetCommentId?: string, automatic = false): Promise<string> {
     const runtime = moduleInput();
     if (!runtime) throw Error('请先选择有角色的聊天');
     if (
@@ -2364,11 +2432,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const knownComments = new Set(momentTimeline(requestState).comments.map(comment => comment.id));
     requestState.comments.push(...klona(momentsFeed.value.comments.filter(comment => !knownComments.has(comment.id))));
     const plan = planMoments(requestState, identities.value, momentsFeed.value.posts, Date.now(), Math.random, {
-      force: true,
+      force: !automatic,
+      heartbeat: automatic,
       targetPostId,
       targetCommentId,
       newPosts: runtime.settings.moduleSettings.zone.maxNew,
     });
+    if (!plan && automatic) return '';
     if (!plan)
       throw Error(
         !targetPostId && runtime.settings.moduleSettings.zone.maxNew === 0
@@ -4521,7 +4591,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
     if (settings.value.api.enabled) holeQueue.value.push({ day, postId: id, commentId: comment.id });
   }
-  async function refreshTreeHole(day = treeHoleDay(), postId?: string, commentId?: string): Promise<string> {
+  async function refreshTreeHole(
+    day = treeHoleDay(),
+    postId?: string,
+    commentId?: string,
+    automatic = false,
+  ): Promise<string> {
     const runtime = moduleInput();
     if (!runtime) throw Error('请先打开角色聊天');
     if (isCardExcluded(settings.value, runtime.input.cardName)) throw Error('当前角色卡已排除');
@@ -4537,11 +4612,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (postId && !feed.posts.some(post => post.id === postId && post.availableAt <= Date.now()))
       throw Error('目标动态不存在');
     const plan = planMoments(activity, anonymousActors(identities.value), feed.posts, Date.now(), Math.random, {
-      force: true,
+      force: !automatic,
+      heartbeat: automatic,
       targetPostId: postId,
       targetCommentId: commentId,
       newPosts: settings.value.moduleSettings.zone.maxNew,
     });
+    if (!plan && automatic) return '';
     if (!plan) throw Error('没有可参与的匿名角色或互动任务，请检查空间参与者、互动设置与新增数量');
     const id = createPhoneGenerationId(),
       feedbackKey = `${day}:${commentId || postId || 'refresh'}`;
@@ -4874,6 +4951,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     initialize,
     dispose,
     synchronize,
+    scheduleSync,
     saveSettings,
     saveChat,
     reloadPersistentData,

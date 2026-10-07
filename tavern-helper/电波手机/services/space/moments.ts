@@ -180,6 +180,7 @@ export const MomentsStateSchema = z
         minInteractions: z.number().int().min(1).max(3).default(1),
         maxInteractions: z.number().int().min(1).max(3).default(3),
         commentProbability: z.number().min(0).max(100).default(50),
+        heartbeatEnabled: z.boolean().default(true),
         cooldownMinutes: z.number().min(0).max(1440).default(10),
         minDelaySeconds: z.number().min(0).max(3600).default(15),
         maxDelaySeconds: z.number().min(0).max(86400).default(120),
@@ -225,7 +226,13 @@ export function planMoments(
   posts: MomentPost[],
   now = Date.now(),
   random = Math.random,
-  options: { force?: boolean; targetPostId?: string; targetCommentId?: string; newPosts?: number } = {},
+  options: {
+    heartbeat?: boolean;
+    force?: boolean;
+    targetPostId?: string;
+    targetCommentId?: string;
+    newPosts?: number;
+  } = {},
 ): MomentPlan | null {
   const settings = state.settings;
   const trigger = options.targetCommentId
@@ -237,7 +244,11 @@ export function planMoments(
       )
     : undefined;
   if (options.targetCommentId && !trigger) return null;
-  if (!options.force && (!settings.followEnabled || now - state.lastRequestAt < settings.cooldownMinutes * 60000))
+  if (
+    !options.force &&
+    (!(options.heartbeat ? settings.heartbeatEnabled : settings.followEnabled) ||
+      now - state.lastRequestAt < settings.cooldownMinutes * 60000)
+  )
     return null;
   const actors = identities
     .filter(identity => identity.source !== 'local_group' && settings.postingCharKeys.includes(identity.charKey))

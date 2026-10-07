@@ -167,6 +167,28 @@ const input = (el, text) => {
   const now = Date.now() + 1000,
     plan = planMoments(state, phone.identities, state.posts, now, () => 0);
   assert(plan);
+  state.settings.followEnabled = false;
+  state.settings.heartbeatEnabled = true;
+  assert(
+    planMoments(state, phone.identities, state.posts, now, () => 0, { heartbeat: true }),
+    'heartbeat is independent from chat-follow',
+  );
+  state.lastRequestAt = now;
+  state.settings.cooldownMinutes = 10;
+  assert.equal(
+    planMoments(state, phone.identities, state.posts, now + 1000, () => 0, { heartbeat: true }),
+    null,
+    'heartbeat respects cooldown',
+  );
+  state.settings.heartbeatEnabled = false;
+  assert.equal(
+    planMoments(state, phone.identities, state.posts, now + 700000, () => 0, { heartbeat: true }),
+    null,
+    'disabled heartbeat does not plan',
+  );
+  state.settings.followEnabled = true;
+  state.settings.cooldownMinutes = 0;
+  state.lastRequestAt = 0;
   assert.equal(plan.comments.length, 1);
   assert.notEqual(plan.comments[0].postId, state.posts[0].id);
   const prompt = buildMomentsPrompt(plan, state, state.posts);
@@ -351,6 +373,7 @@ const input = (el, text) => {
   assert(cropImage.style.transform.includes('scale(2)'), '全局裁剪修改即时同步');
   Object.defineProperty(document, 'hidden', { configurable: true, value: false });
   const due = Date.now() + 100;
+  Object.defineProperty(document, 'hidden', { configurable: true, value: true });
   phone.state.moments.posts.push(
     MomentPostSchema.parse({
       id: 'live-update',

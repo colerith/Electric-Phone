@@ -2,6 +2,17 @@
   <div class="system-settings wave-backup-settings">
     <section class="settings-card system-settings-card">
       <div class="wave-settings-title">存储状态</div>
+      <label
+        >自动保存间隔（秒）
+        <input
+          v-model.number="phone.settings.basic.storageIntervalSeconds"
+          type="number"
+          min="5"
+          max="600"
+          @change="phone.saveSettings()"
+        />
+      </label>
+      <p>默认每 30 秒合并保存一次，可设为 5–600 秒；没有变化时不上传。需要立即落盘时可点击下方按钮。</p>
       <p role="status">{{ storageMessage }}</p>
       <p v-if="phoneStorageStatus.recovery">{{ phoneStorageStatus.recovery }}</p>
       <button class="system-action backup-action" type="button" :disabled="storageSaving" @click="saveStorage">
@@ -115,7 +126,7 @@ const storageMessage = computed(() =>
   phoneStorageStatus.error
     ? `服务器保存未完成：${phoneStorageStatus.error}`
     : phoneStorageStatus.pending
-      ? '更改正在保存到酒馆服务器…'
+      ? '有更改等待定时保存到酒馆服务器…'
       : phoneStorageStatus.savedAt
         ? `已保存到酒馆服务器 · ${new Date(phoneStorageStatus.savedAt).toLocaleTimeString()}`
         : '设置与聊天会自动保存到酒馆服务器，并保留上一份存档。',
