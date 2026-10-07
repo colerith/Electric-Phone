@@ -33,10 +33,11 @@
     <template v-else-if="settings.source === 'phone'">
       <label>剧情起始时间（可选）<input v-model="settings.storyInitialTime" type="datetime-local" /></label>
       <p>
-        启用后要求正文回复记录剧情起止时间，手机读取当前聊天最新结束时间。没有时间戳时使用起始时间，不按现实时间自动走时。
+        启用后要求正文回复在正文末尾记录剧情结束时间，手机读取当前聊天最新结束时间。没有时间戳时使用起始时间；未填写则由模型按剧情建立时间，不按现实时间自动走时。
       </p>
       <p>时间戳自动隐藏，原始聊天保留供模型衔接。历史消息不补写；模型漏写时保持最近有效时间。</p>
       <p role="status">{{ clock.status }}</p>
+      <p role="status">{{ chatTimeStatus }}</p>
     </template>
     <template v-else>
       <p>读取柏宝书摘要页的当前时间，实时监听更新。分钟与日期不会自动增加，也不会读取摘要卡片里的历史时间段。</p>
@@ -49,6 +50,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import { chatTimeStatus } from '../../services/core/chat-time';
 import { computed, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { useSystemClockStore } from '../../stores/system-clock';

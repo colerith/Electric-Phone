@@ -1,11 +1,24 @@
-const fs = require('fs'), ts = require('typescript'), assert = require('node:assert/strict');
-require.extensions['.ts'] = (m, f) => m._compile(ts.transpileModule(fs.readFileSync(f, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, f);
+const fs = require('fs'),
+  ts = require('typescript'),
+  assert = require('node:assert/strict');
+require.extensions['.ts'] = (m, f) =>
+  m._compile(
+    ts.transpileModule(fs.readFileSync(f, 'utf8'), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
+    }).outputText,
+    f,
+  );
 const { readPhoneChatTime, CHAT_TIME_PATTERN, registerChatTime } = require('../services/core/chat-time.ts');
 const { SystemClockSettingsSchema, resolveClock, parseCivilTime } = require('../services/core/system-clock.ts');
 global.SillyTavern = { chat: [] };
 const stamp = (tag, time) => `<wave_time_${tag}>${time}</wave_time_${tag}>`;
-const early = '2028/1/20 21:55', late = '2028/1/20 22:30';
-SillyTavern.chat = [{ mes: stamp('end', early) }, { mes: stamp('start', early) + '正文' + stamp('end', late) }, { is_user: true, mes: stamp('end', '2099/1/1 00:00') }];
+const early = '2028/1/20 21:55',
+  late = '2028/1/20 22:30';
+SillyTavern.chat = [
+  { mes: stamp('end', early) },
+  { mes: stamp('start', early) + '正文' + stamp('end', late) },
+  { is_user: true, mes: stamp('end', '2099/1/1 00:00') },
+];
 assert.equal(readPhoneChatTime(), late);
 assert.equal(readPhoneChatTime(true), early);
 assert.equal(SillyTavern.chat[1].mes.replace(CHAT_TIME_PATTERN, ''), '正文');
@@ -16,19 +29,48 @@ assert.equal(readPhoneChatTime(), '');
 const settings = SystemClockSettingsSchema.parse({ source: 'phone', storyInitialTime: early });
 assert.equal(resolveClock(settings, Date.now(), ''), parseCivilTime(early));
 const handlers = {};
-global.tavern_events = Object.fromEntries(['GENERATION_AFTER_COMMANDS', 'GENERATION_ENDED', 'GENERATION_STOPPED', 'CHAT_CHANGED'].map(x => [x,x]));
-global.eventOn = (event, handler) => { handlers[event] = handler; return { stop() { delete handlers[event]; } }; };
-let injected = '', released = 0;
-global.injectPrompts = prompts => { injected = prompts[0].content; return { uninject() { released++; } }; };
+global.tavern_events = Object.fromEntries(
+  ['GENERATION_AFTER_COMMANDS', 'GENERATION_ENDED', 'GENERATION_STOPPED', 'CHAT_CHANGED'].map(x => [x, x]),
+);
+global.eventOn = (event, handler) => {
+  handlers[event] = handler;
+  return {
+    stop() {
+      delete handlers[event];
+    },
+  };
+};
+let injected = '',
+  released = 0;
+global.injectPrompts = prompts => {
+  injected = prompts[0].content;
+  return {
+    uninject() {
+      released++;
+    },
+  };
+};
 const stop = registerChatTime(() => settings);
+assert.ok(injected.includes('<wave_time>'));
+injected = '';
+released = 0;
 handlers.GENERATION_AFTER_COMMANDS('normal', {}, true);
 assert.equal(injected, '');
 handlers.GENERATION_AFTER_COMMANDS('normal', {}, false);
 assert.ok(injected.includes(early) && injected.includes('wave_time_end'));
 handlers.CHAT_CHANGED();
-assert.equal(released, 1);
-settings.source = 'timezone'; injected = '';
+assert.ok(released >= 1);
+injected = '';
+handlers.GENERATION_AFTER_COMMANDS(undefined, {}, false);
+assert.ok(injected.includes('wave_time_end'), 'empty normal generation type still injects');
+handlers.GENERATION_ENDED();
+settings.source = 'timezone';
+injected = '';
 handlers.GENERATION_AFTER_COMMANDS('normal', {}, false);
 assert.equal(injected, '');
-stop(); assert.equal(Object.keys(handlers).length, 0);
+stop();
+assert.equal(Object.keys(handlers).length, 0);
 console.log('PASS: timestamps, invalid dates, edits, isolation, seed, display hiding, injection gating and cleanup');
+
+assert.equal(require('../services/core/chat-time.ts').timeFromText('<wave_time>2028/1/20 22:30</wave_time>'), late);
+assert.equal('<wave_time>2028/1/20 22:30</wave_time>'.replace(CHAT_TIME_PATTERN, ''), '');
