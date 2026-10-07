@@ -375,7 +375,7 @@ function snapshot(name) {
   assert(space.back());
   await tick();
   assert(document.querySelector('.my-comment-card'), 'back restores comment cards');
-  document.querySelector('.space-notice-entry').click();
+  space.openNotifications();
   await tick();
   const noticeRows = [...document.querySelectorAll('.space-notice-row')];
   assert(noticeRows.length, 'unified interaction list contains new posts');
@@ -385,6 +385,18 @@ function snapshot(name) {
   assert(space.back());
   await tick();
   assert(document.querySelector('.space-notice-row'), 'back returns to notification list');
+  click('.space-notice-filters button', '点赞');
+  await tick();
+  assert(!document.querySelector('.space-notice-row'), 'like filter excludes post notifications');
+  click('.space-notice-filters button', '全部');
+  await tick();
+  const postCountBeforeClear = phone.state.moments.posts.length;
+  document.querySelector('.space-notice-clear').click();
+  await tick();
+  assert(!document.querySelector('.space-notice-row'), 'clear removes notifications');
+  assert.equal(phone.state.moments.posts.length, postCountBeforeClear, 'clear preserves posts');
+  assert(phone.state.spaceNotifications.dismissed.length, 'clear persists dismissal IDs');
+
   assert(space.back());
   await tick();
 

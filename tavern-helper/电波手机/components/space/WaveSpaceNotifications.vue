@@ -1,61 +1,74 @@
 <template>
   <section class="space-notifications">
-    <button v-if="!opened" type="button" class="space-notice-entry" @click="open">
-      <span class="space-notice-icon"
-        ><i class="fa-regular fa-comment-dots" aria-hidden="true"></i
-        ><b v-if="unread.length">{{ unread.length > 99 ? '99+' : unread.length }}</b></span
-      >
-      <span class="space-notice-summary"
-        ><strong>{{ unread.length ? `${unread.length} 条新消息` : '互动消息' }}</strong
-        ><small>{{ phone.moduleGenerating || phone.zoneGenerating ? '正在等待新的回应…' : latestLabel }}</small></span
-      >
-      <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
-    </button>
-    <template v-else>
+    <template v-if="opened">
       <header class="space-notice-heading">
-        <span>全部互动消息</span><button type="button" @click="markRead">全部已读</button>
+        <div>
+          <strong>互动消息</strong><small class="space-notice-count">{{ unread.length }} 条未读</small>
+        </div>
+        <div class="space-notice-actions">
+          <button type="button" :disabled="!unread.length" @click="markRead">全部已读</button
+          ><button type="button" class="space-notice-clear" :disabled="!visible.length" @click="clear">清空</button>
+        </div>
       </header>
-      <p v-if="!visible.length" class="messenger-empty">还没有互动消息</p>
-      <button v-for="item in visible" :key="item.id" type="button" class="space-notice-row" @click="visit(item)">
-        <span class="space-notice-avatar"
-          ><img v-if="avatar(item)" :src="avatar(item)" alt="" /><i
-            v-else
-            class="fa-regular fa-user"
-            aria-hidden="true"
-          ></i
-          ><b v-if="!isRead(item)"
-        /></span>
-        <span class="space-notice-body"
-          ><span class="space-notice-person"
-            ><strong>{{ item.actorName || '匿名访客' }}</strong
-            ><time>{{ time(item) }}</time></span
-          ><small v-if="item.source === 'hole'" class="space-notice-source">匿名树洞</small
-          ><span class="space-notice-content"
-            ><i v-if="item.kind === 'like'" class="fa-regular fa-heart" aria-hidden="true"></i>{{ item.content }}</span
-          ></span
+      <div class="space-notice-filters" aria-label="消息筛选">
+        <button
+          v-for="option in filters"
+          :key="option.key"
+          type="button"
+          :aria-pressed="filter === option.key"
+          @click="filter = option.key"
         >
-        <span class="space-notice-preview"
-          ><img v-if="item.thumbnail" :src="item.thumbnail" alt="原帖配图" loading="lazy" /><span v-else>{{
-            item.excerpt
-          }}</span></span
-        >
-      </button>
+          {{ option.label }}
+        </button>
+      </div>
+      <div class="space-notice-list">
+        <p v-if="!filtered.length" class="messenger-empty">
+          {{ filter === 'unread' ? '暂时没有未读消息' : '暂无这类互动消息' }}
+        </p>
+        <button v-for="item in filtered" :key="item.id" type="button" class="space-notice-row" @click="visit(item)">
+          <span class="space-notice-avatar"
+            ><img v-if="avatar(item)" :src="avatar(item)" alt="" /><i
+              v-else
+              class="fa-regular fa-user"
+              aria-hidden="true"
+            ></i
+            ><b v-if="!isRead(item)"
+          /></span>
+          <span class="space-notice-body"
+            ><span class="space-notice-person"
+              ><strong>{{ item.actorName || '匿名访客' }}</strong
+              ><time>{{ time(item) }}</time></span
+            ><small v-if="item.source === 'hole'" class="space-notice-source">匿名树洞</small
+            ><span class="space-notice-content"
+              ><i v-if="item.kind === 'like'" class="fa-regular fa-heart" aria-hidden="true"></i
+              >{{ item.content }}</span
+            ></span
+          >
+          <span class="space-notice-preview"
+            ><img v-if="item.thumbnail" :src="item.thumbnail" alt="原帖配图" loading="lazy" /><span v-else>{{
+              item.excerpt
+            }}</span></span
+          >
+        </button>
+      </div>
     </template>
   </section>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useNow } from '@vueuse/core';
 import { usePhoneStore } from '../../stores/phone';
 import { anonymousAvatarUrl } from '../../services/space/tree-hole';
 import type { SpaceNotice } from '../../services/space/notifications';
 defineProps<{ opened: boolean }>();
-const emit = defineEmits<{ open: []; visit: [item: SpaceNotice] }>();
+const emit = defineEmits<{ visit: [item: SpaceNotice] }>();
 const phone = usePhoneStore(),
   now = useNow({ interval: 1000 });
 const visible = computed(() =>
   phone.spaceNotificationItems
-    .filter(item => item.availableAt <= now.value.getTime())
+    .filter(
+      item => item.availableAt <= now.value.getTime() && !phone.state.spaceNotifications.dismissed.includes(item.id),
+    )
     .sort(
       (a, b) =>
         (phone.state.spaceNotifications.seen[b.id] || b.createdAt) -
@@ -65,17 +78,24 @@ const visible = computed(() =>
 const read = computed(() => new Set(phone.state.spaceNotifications.read));
 const isRead = (item: SpaceNotice) => read.value.has(item.id);
 const unread = computed(() => visible.value.filter(item => !isRead(item)));
-const latestLabel = computed(() =>
-  unread.value.length
-    ? `${unread.value[0].actorName} · ${unread.value[0].kind === 'post' ? '发布了新动态' : unread.value[0].kind === 'like' ? '赞了你的动态' : '有新的评论或回复'}`
-    : '新动态、评论回复与点赞',
+const filters = [
+  { key: 'all', label: '全部' },
+  { key: 'unread', label: '未读' },
+  { key: 'post', label: '新动态' },
+  { key: 'comment', label: '评论回复' },
+  { key: 'like', label: '点赞' },
+];
+const filter = ref('all');
+const filtered = computed(() =>
+  visible.value.filter(
+    item => filter.value === 'all' || (filter.value === 'unread' ? !isRead(item) : item.kind === filter.value),
+  ),
 );
+function clear() {
+  phone.clearSpaceNotifications(visible.value.map(item => item.id));
+}
 function markRead() {
   phone.readSpaceNotifications(visible.value.map(item => item.id));
-}
-function open() {
-  emit('open');
-  markRead();
 }
 function visit(item: SpaceNotice) {
   phone.readSpaceNotifications([item.id]);
@@ -101,63 +121,6 @@ function time(item: SpaceNotice) {
 }
 </script>
 <style scoped>
-#wave-phone-script-root .space-app .space-notice-entry {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 14px 16px;
-  margin: 4px 0 16px;
-  border: 0;
-  border-radius: 18px;
-  background: var(--wave-card, #fff);
-  color: var(--settings-text, #41464f);
-  text-align: left;
-}
-.space-notice-icon {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: #edf2fa;
-  color: var(--settings-accent, #6383bd);
-  font-size: 18px;
-}
-.space-notice-icon b {
-  position: absolute;
-  top: -5px;
-  right: -7px;
-  padding: 2px 5px;
-  min-width: 14px;
-  border-radius: 12px;
-  background: #e97785;
-  color: white;
-  font-size: 10px;
-  text-align: center;
-}
-.space-notice-summary {
-  display: grid;
-  flex: 1;
-  min-width: 0;
-  gap: 4px;
-}
-.space-notice-summary strong {
-  font-size: 13px;
-  font-weight: 600;
-}
-.space-notice-summary small {
-  font-size: 11px;
-  color: var(--settings-muted, #9297a0);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.space-notice-entry > i {
-  font-size: 11px;
-  color: var(--settings-muted, #9297a0);
-}
 .space-notice-heading {
   display: flex;
   justify-content: space-between;
@@ -188,7 +151,7 @@ function time(item: SpaceNotice) {
   flex: 0 0 36px;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 50%;
   background: #f1f3f7;
   display: grid;
   place-items: center;
@@ -270,5 +233,58 @@ function time(item: SpaceNotice) {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+.space-notice-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.space-notice-heading > div:first-child {
+  display: grid;
+  gap: 5px;
+}
+.space-notice-count {
+  color: #e56b94;
+  font-size: 11px;
+}
+#wave-phone-script-root .space-app .space-notice-heading .space-notice-clear {
+  color: #e56b94;
+  font-weight: 600;
+}
+.space-notice-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.space-notice-filters {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0 14px;
+}
+#wave-phone-script-root .space-app .space-notice-filters button {
+  flex: 0 0 auto;
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 20px;
+  font-size: 11px;
+  background: var(--wave-card, #fff);
+  color: var(--settings-muted, #9297a0);
+}
+#wave-phone-script-root .space-app .space-notice-filters button[aria-pressed='true'] {
+  background: var(--settings-accent, #6383bd);
+  color: white;
+}
+.space-notice-list {
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--wave-card, #fff);
+}
+#wave-phone-script-root .space-app .space-notice-row:last-child {
+  border-bottom: 0;
+}
+.space-notice-list .messenger-empty {
+  padding: 32px 16px;
+  text-align: center;
 }
 </style>

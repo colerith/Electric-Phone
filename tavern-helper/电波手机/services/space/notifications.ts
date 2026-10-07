@@ -5,6 +5,7 @@ export const SpaceNotificationsSchema = z
     initialized: z.boolean().default(false),
     seen: z.record(z.string(), z.number()).default({}),
     read: z.array(z.string()).default([]),
+    dismissed: z.array(z.string()).default([]),
   })
   .prefault({});
 export type SpaceNotice = {

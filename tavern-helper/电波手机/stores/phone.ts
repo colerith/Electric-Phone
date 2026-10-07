@@ -2572,6 +2572,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     },
     { flush: 'post' },
   );
+  function clearSpaceNotifications(ids: string[]): void {
+    state.value.spaceNotifications.dismissed = [...new Set([...state.value.spaceNotifications.dismissed, ...ids])];
+    saveChat();
+  }
   function readSpaceNotifications(ids: string[]): void {
     const before = new Set(state.value.spaceNotifications.read);
     ids.forEach(id => before.add(id));
@@ -4809,6 +4813,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     runImageAction,
     spaceNotificationItems,
     readSpaceNotifications,
+    clearSpaceNotifications,
     momentsFeed,
     saveMoments,
     selectUserScope,

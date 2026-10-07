@@ -8,7 +8,7 @@
       @close="showPerson = false"
     />
     <div class="space-scroll">
-      <WaveSpaceNotifications :opened="notificationsOpen" @open="openNotifications" @visit="visitNotice" />
+      <WaveSpaceNotifications v-if="notificationsOpen" :opened="notificationsOpen" @visit="visitNotice" />
       <div v-show="!notificationsOpen">
         <template v-if="tab === 'char'">
           <div class="zone-profile-card space-char-profile">
@@ -230,5 +230,14 @@ const headerTitle = computed(() =>
       : { char: '角色空间', world: '世界', hole: '匿名树洞', me: '我的空间' }[tab.value],
 );
 const isComposing = computed(() => Boolean(moments.value?.isComposing));
-defineExpose({ tab, back, headerTitle, isComposing });
+const unreadCount = computed(
+  () =>
+    phone.spaceNotificationItems.filter(
+      item =>
+        item.availableAt <= now.value.getTime() &&
+        !phone.state.spaceNotifications.read.includes(item.id) &&
+        !phone.state.spaceNotifications.dismissed.includes(item.id),
+    ).length,
+);
+defineExpose({ tab, back, headerTitle, isComposing, openNotifications, unreadCount });
 </script>

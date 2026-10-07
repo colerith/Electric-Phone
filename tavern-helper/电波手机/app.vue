@@ -56,8 +56,22 @@
               !(store.currentPage === 'music' && music.view === 'player' && !appSettingsOpen)
             "
             class="wave-appbar"
+            :class="{ 'has-space-notice': store.currentPage === 'zone' && !appSettingsOpen }"
           >
-            <button type="button" aria-label="返回" @click="goBack"><i class="fa-solid fa-chevron-left"></i></button>
+            <div v-if="store.currentPage === 'zone' && !appSettingsOpen" class="appbar-space-left">
+              <button type="button" aria-label="返回" @click="goBack"><i class="fa-solid fa-chevron-left"></i></button>
+              <button
+                type="button"
+                class="space-notice-bell"
+                :aria-label="`互动消息，${space?.unreadCount || 0} 条未读`"
+                @click="space?.openNotifications()"
+              >
+                <i class="fa-regular fa-bell" aria-hidden="true"></i><b v-if="space?.unreadCount" />
+              </button>
+            </div>
+            <button v-else type="button" aria-label="返回" @click="goBack">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
             <div>
               <strong
                 class="wave-page-title"

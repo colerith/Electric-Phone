@@ -572,3 +572,29 @@
     border-top-color: var(--wave-blue, #6485bb);
   }
 }
+
+#wave-phone-script-root .wave-device .wave-appbar.has-space-notice {
+  grid-template-columns: 78px minmax(0, 1fr) auto;
+}
+#wave-phone-script-root .wave-device .wave-appbar .appbar-space-left {
+  display: flex;
+  gap: 6px;
+}
+#wave-phone-script-root .wave-device .appbar-space-left button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  border-radius: 50%;
+  background: #ffffff70;
+  color: var(--wave-navy, #405779);
+  position: relative;
+}
+.space-notice-bell b {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  top: 5px;
+  right: 5px;
+  border-radius: 50%;
+  background: #e56b94;
+}
