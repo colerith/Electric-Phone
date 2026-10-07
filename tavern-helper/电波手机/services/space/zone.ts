@@ -170,13 +170,22 @@ export function mergeZoneSnapshot(current: string, update: unknown): string {
     else
       posts[index] = {
         ...post,
+        // Stable post IDs represent edits, never a new publication.
+        date: posts[index].date,
         tags: post.tags ?? posts[index].tags,
         comments: [
           ...new Map([
             ...posts[index].comments.map(comment => [comment.id, comment] as const),
             ...post.comments.map(
               comment =>
-                [comment.id, { ...posts[index].comments.find(old => old.id === comment.id), ...comment }] as const,
+                [
+                  comment.id,
+                  {
+                    ...posts[index].comments.find(old => old.id === comment.id),
+                    ...comment,
+                    createdAt: posts[index].comments.find(old => old.id === comment.id)?.createdAt ?? comment.createdAt,
+                  },
+                ] as const,
             ),
           ]).values(),
         ],

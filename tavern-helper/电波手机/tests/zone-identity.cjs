@@ -117,3 +117,35 @@ assert(MOMENTS_RULES.includes('贴主原 authorKey'));
 console.log(
   'PASS: stable author IDs, legacy nickname/account matching, parent reply identity, homonym boundaries, incremental author preservation, and generation identity contract.',
 );
+
+{
+  const { mergeZoneSnapshot, parseZonePage } = require('../services/space/zone.ts');
+  const old = {
+    posts: [
+      {
+        id: 'old',
+        content: '旧帖',
+        date: '2026-10-01T10:00:00',
+        comments: [{ id: 'reply', author: 'A', content: '原评论', createdAt: '2026-10-01T11:00:00' }],
+      },
+    ],
+  };
+  const result = parseZonePage(
+    mergeZoneSnapshot(JSON.stringify(old), {
+      posts: [
+        { id: 'new', content: '新帖', date: '2026-10-07T10:00:00' },
+        {
+          id: 'old',
+          content: '编辑旧帖',
+          date: '2026-10-07T10:00:00',
+          comments: [{ id: 'reply', author: 'A', content: '编辑评论', createdAt: '2026-10-07T11:00:00' }],
+        },
+      ],
+    }),
+  );
+  assert.equal(result.posts.find(p => p.id === 'old').date, old.posts[0].date);
+  assert.equal(result.posts.find(p => p.id === 'old').comments[0].createdAt, old.posts[0].comments[0].createdAt);
+  assert.equal(result.posts.find(p => p.id === 'old').content, '编辑旧帖');
+  assert.equal(result.posts[0].id, 'new');
+  console.log('PASS: old post and comment publication times survive edits alongside new posts');
+}

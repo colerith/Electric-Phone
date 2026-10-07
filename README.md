@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.2.36`
+当前发布版本：`v1.2.37`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.36/file/index-1.2.36.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.37/file/index-1.2.37.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：修复空间互动误标消息 App 红点，以及旧消息删除、重排造成的消息更新误报。
+本版更新：角色空间旧帖与旧评论更新时保留原发布时间，避免被刷新为刚刚并重新置顶。
 
 ## 首次配置
 
