@@ -4034,6 +4034,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         currentThread,
         currentThread.messages.filter(message => message.payload.replyGenerationId === generationId),
       );
+      void triggerCrossChat(
+        identity,
+        currentThread.messages.filter(message => message.payload.replyGenerationId === generationId),
+      );
     } catch (error) {
       const secrets = [settings.value.api.key, settings.value.translation.apiKey];
       const detail = redactDiagnostic(stringifyError(error), secrets);
@@ -4073,6 +4077,129 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (syncDeferred && !activeSends.size) {
         syncDeferred = false;
         scheduleSync(0);
+      }
+    }
+  }
+
+  async function triggerCrossChat(source: Identity, replies: PhoneMessage[]): Promise<void> {
+    const runtime = context.value;
+    if (!replies.some(m => m.sender === 'char' && !m.payload.crossChatSource)) return;
+    const preference = ChatPreferencesSchema.parse(state.value.chatPreferences[source.charKey]);
+    if (
+      !runtime ||
+      !settings.value.api.enabled ||
+      !preference.crossChatEnabled ||
+      Math.random() * 100 >= preference.crossChatProbability
+    )
+      return;
+    const isGroup = source.source === 'local_group';
+    const speakerKeys = [
+      ...new Set(replies.filter(m => m.sender === 'char').map(m => String(m.payload.actorKey || ''))),
+    ];
+    const candidates = identities.value.filter(identity =>
+      isGroup
+        ? identity.source !== 'local_group' &&
+          speakerKeys.includes(identity.charKey) &&
+          source.memberKeys?.includes(identity.charKey)
+        : identity.source === 'local_group' &&
+          !identity.groupObserver &&
+          identity.memberKeys?.includes(source.charKey) &&
+          !identity.groupMembers?.[source.charKey]?.muted,
+    );
+    if (!candidates.length) return;
+    const target = candidates[Math.floor(Math.random() * candidates.length)];
+    const actorKey = isGroup ? target.charKey : source.charKey;
+    const thread = ensureThread(state.value, runtime, target);
+    if (thread.generating || thread.messages.some(m => m.sender === 'user' && m.payload.awaitingReply)) return;
+    const revision = thread.clearRevision;
+    const id = createPhoneGenerationId();
+    thread.generating = true;
+    thread.generationId = id;
+    const count = 1 + Math.floor(Math.random() * 3);
+    try {
+      const result = await generatePhoneReply({
+        settings: klona({
+          ...settings.value,
+          chat: { ...settings.value.chat, minReplies: count, maxReplies: count },
+          generation: {
+            ...settings.value.generation,
+            narrativeMode: 'independent',
+            modules: ['messages'],
+            requiredModules: [],
+          },
+        }),
+        cardKey: runtime.cardKey,
+        chatKey: runtime.chatKey,
+        cardName: runtime.cardName,
+        identity: klona(target),
+        ...klona(groupPromptSettings(target)),
+        actorLanguagePreferences: klona(state.value.chatPreferences),
+        chatPreferences: ChatPreferencesSchema.parse(state.value.chatPreferences[actorKey]),
+        voice: klona(state.value.characterVoices[actorKey]),
+        thread: klona(thread),
+        appSnapshot: AppSnapshotSchema.parse({}),
+        latestUserText:
+          `这是跨聊天的角色主动发言，不是用户发送的新消息。仅由 actorKey=${actorKey} 发言，输出 ${count} 条文字消息，禁止扮演用户或其他成员。${isGroup ? '承接刚才群聊的公开话题，私下向用户自然交流。' : '在共同群聊中自然发起相关话题，不引用、复述或泄露私聊内容及隐私。'}遵守目标会话的语言和翻译格式，不更新其他 App。参考刚结束的角色发言：` +
+          replies
+            .filter(m => m.sender === 'char')
+            .map(m => m.content)
+            .join('\n')
+            .slice(-4000),
+        generationId: id,
+      });
+      const live = state.value.threads[thread.id];
+      if (
+        context.value?.cardKey !== runtime.cardKey ||
+        context.value?.chatKey !== runtime.chatKey ||
+        !live ||
+        live.clearRevision !== revision ||
+        live.generationId !== id ||
+        !state.value.identities[target.charKey]
+      )
+        return;
+      if (result.data.thread_id && result.data.thread_id !== thread.id) throw Error('跨聊天回复会话标识不匹配');
+      const liveGroup = isGroup ? state.value.identities[source.charKey] : state.value.identities[target.charKey];
+      if (
+        !liveGroup?.memberKeys?.includes(actorKey) ||
+        liveGroup.groupObserver ||
+        liveGroup.groupMembers?.[actorKey]?.muted
+      )
+        return;
+      const messages = normalizeGroupReplies(state.value.identities[target.charKey], result.data.messages)
+        .filter(m => m.sender === 'char' && m.type === 'text' && (isGroup || m.payload.actorKey === actorKey))
+        .slice(0, 3);
+      if (!messages.length) throw Error('跨聊天回复没有有效的目标角色文字消息');
+      for (const m of messages)
+        live.messages.push(
+          PhoneMessageSchema.parse({
+            ...m,
+            id: makeId('cross-chat'),
+            createdAt: nextReceivedAt(live),
+            status: 'sent',
+            payload: {
+              ...m.payload,
+              crossChatSource: source.charKey,
+              narrativeRelation: 'independent',
+              replyGenerationId: id,
+            },
+          }),
+        );
+      live.hidden = false;
+      live.updatedAt = nowIso();
+      if (state.value.activeCharKey !== target.charKey || currentPage.value !== 'conversation' || !isOpen.value)
+        live.unread += messages.length;
+      markAppsUnread(target.charKey, ['messages']);
+      saveChat();
+    } catch (error) {
+      logDiagnostic('跨聊天互动失败', stringifyError(error));
+    } finally {
+      if (context.value?.cardKey === runtime.cardKey && context.value?.chatKey === runtime.chatKey) {
+        const live = state.value.threads[thread.id];
+        if (live?.generationId === id) {
+          live.generating = false;
+          live.generationId = '';
+          saveChat();
+        }
       }
     }
   }

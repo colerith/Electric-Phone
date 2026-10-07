@@ -60,6 +60,7 @@
           @update:model-value="value => phone.updateGroupDetails({ voiceFollowPrivate: value })"
       /></label>
     </section>
+    <WaveCrossChatSettings />
     <WaveCharacterImage />
     <section class="chat-settings-group wave-group-settings">
       <div class="group-members-heading">
@@ -220,6 +221,7 @@
   </template>
 </template>
 <script setup lang="ts">
+import WaveCrossChatSettings from './WaveCrossChatSettings.vue';
 import { groupExperienceLabel } from '../../services/chat/group-activity';
 import { computed, inject, nextTick, ref, watch } from 'vue';
 import { displayIdentityName } from '../../services/core/identity';

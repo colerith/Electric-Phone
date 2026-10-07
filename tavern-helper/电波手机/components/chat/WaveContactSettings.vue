@@ -41,8 +41,10 @@
     <p class="chat-settings-note">关系与备注独立保存；NPC 人设用于私聊和朋友圈，头像可在上方修改。</p>
     <p v-if="error" role="alert">{{ error }}</p>
   </section>
+  <WaveCrossChatSettings v-if="phone.activeIdentity?.source !== 'local_group'" />
 </template>
 <script setup lang="ts">
+import WaveCrossChatSettings from './WaveCrossChatSettings.vue';
 import { ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import WaveSelect from '../shared/WaveSelect.vue';

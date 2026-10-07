@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const ChatPreferencesSchema = z
   .object({
+    crossChatEnabled: z.boolean().prefault(false),
+    crossChatProbability: z.number().min(0).max(100).prefault(30),
     autoTranslate: z.boolean().prefault(false),
     expandTranslation: z.boolean().prefault(true),
     outgoingTranslation: z.boolean().prefault(false),

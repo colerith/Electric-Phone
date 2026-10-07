@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.2.27`
+当前发布版本：`v1.2.28`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.27/file/index-1.2.27.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.28/file/index-1.2.28.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：所有 App 的角色切换列表支持触屏滑动和鼠标滚动，隐藏滚动条，并按手机高度限制下拉区域。
+本版更新：私聊与群聊设置新增双向概率联动，副 API 回复后可触发相关会话，每位发言角色 1–3 条，并防止循环触发。
 
 ## 首次配置
 
