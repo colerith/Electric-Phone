@@ -1,3 +1,4 @@
+import { readPhoneChatTime } from '../services/core/chat-time';
 import { registerMessageClock } from '../services/core/message-clock';
 import { computed, ref, watch, onScopeDispose } from 'vue';
 import { defineStore } from 'pinia';
@@ -52,6 +53,11 @@ export const useSystemClockStore = defineStore('wave-system-clock', () => {
       namespace = next;
       storyTime.value = cache.get(next) || '';
       lastApiRead = 0;
+    }
+    if (phone.settings.basic.systemClock.source === 'phone') {
+      storyTime.value = readPhoneChatTime();
+      status.value = storyTime.value ? '已同步本聊天时间戳 · 不自动走时' : '尚无有效时间戳，可设置起始时间后继续聊天';
+      return;
     }
     const dom = readBaiBaiTime(host.document);
     if (dom) lastDom = dom;

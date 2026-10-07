@@ -2,10 +2,11 @@ import { z } from 'zod';
 
 export const SystemClockSettingsSchema = z
   .object({
-    source: z.enum(['timezone', 'custom', 'baibai']).prefault('timezone'),
+    source: z.enum(['timezone', 'custom', 'baibai', 'phone']).prefault('timezone'),
     timeZone: z.string().prefault('Asia/Shanghai'),
     customZone: z.string().prefault('Asia/Shanghai'),
     offsetMinutes: z.coerce.number().int().min(-720).max(840).prefault(480),
+    storyInitialTime: z.string().prefault(''),
     customTime: z.string().prefault(''),
     customAnchor: z.number().prefault(0),
     customRunning: z.boolean().prefault(false),
@@ -43,6 +44,7 @@ export function validTimeZone(zone: string): boolean {
   }
 }
 export function resolveClock(settings: SystemClockSettings, now: number, storyTime: string): number | null {
+  if (settings.source === 'phone') return parseCivilTime(storyTime || settings.storyInitialTime);
   if (settings.source === 'baibai') return parseCivilTime(storyTime);
   if (settings.source === 'custom') {
     const time = parseCivilTime(settings.customTime);

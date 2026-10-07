@@ -30,6 +30,14 @@
       </div>
       <p>关闭时停留在指定时间；开启后从指定时间开始，按真实经过时长前进。</p>
     </template>
+    <template v-else-if="settings.source === 'phone'">
+      <label>剧情起始时间（可选）<input v-model="settings.storyInitialTime" type="datetime-local" /></label>
+      <p>
+        启用后要求正文回复记录剧情起止时间，手机读取当前聊天最新结束时间。没有时间戳时使用起始时间，不按现实时间自动走时。
+      </p>
+      <p>时间戳自动隐藏，原始聊天保留供模型衔接。历史消息不补写；模型漏写时保持最近有效时间。</p>
+      <p role="status">{{ clock.status }}</p>
+    </template>
     <template v-else>
       <p>读取柏宝书摘要页的当前时间，实时监听更新。分钟与日期不会自动增加，也不会读取摘要卡片里的历史时间段。</p>
       <p role="status">{{ clock.status }}</p>
@@ -53,6 +61,7 @@ const settings = computed(() => phone.settings.basic.systemClock);
 const sources = [
   { value: 'timezone', label: '按时区显示真实时间' },
   { value: 'custom', label: '自定义日期时间' },
+  { value: 'phone', label: '电波手机聊天时间戳（自动记录剧情时间）' },
   { value: 'baibai', label: '跟随柏宝书时间（不自动走时）' },
 ];
 const zones = [

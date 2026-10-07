@@ -1,3 +1,4 @@
+import { CHAT_TIME_PATTERN } from '../core/chat-time';
 import { TREE_HOLE_PATTERN } from '../space/tree-hole';
 import { sampleImageCounts } from '../space/image-plan';
 import { parseZonePage, ZoneUpdateSchema } from '../space/zone';
@@ -51,6 +52,13 @@ export async function installPhoneRegexes(): Promise<void> {
     max_depth: null,
   };
   const rules: TavernRegex[] = [
+    {
+      ...base,
+      id: 'wave-phone-chat-time-display-v1',
+      script_name: '电波手机 · 聊天时间戳隐藏',
+      find_regex: `/${CHAT_TIME_PATTERN.source}/gi`,
+      destination: { display: true, prompt: false },
+    },
     {
       ...base,
       id: 'wave-phone-speech-display-v1',

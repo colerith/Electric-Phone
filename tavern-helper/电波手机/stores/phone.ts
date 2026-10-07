@@ -1,3 +1,4 @@
+import { registerChatTime } from '../services/core/chat-time';
 import { startHeartbeat } from '../services/core/heartbeat';
 import { spaceNotices, reconcileSpaceNotices } from '../services/space/notifications';
 import { syncPaymentLedger } from '../services/chat/payment-ledger';
@@ -420,6 +421,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   const moduleGenerating = ref(false);
   const manualGeneratingApp = ref<ManualGenerationTarget | null>(null);
   let moduleGenerationId = '';
+  let disposeChatTime: (() => void) | null = null;
   let disposeFollow: (() => void) | null = null;
   let disposeTreeHole: (() => void) | null = null;
   let disposeMoments: (() => void) | null = null;
@@ -2025,6 +2027,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       logDiagnostic('正则安装失败', String(error));
     }
     registerEvents();
+    disposeChatTime?.();
+    disposeChatTime = registerChatTime(() => settings.value.basic.systemClock);
     disposeFollow = registerFollowGeneration(
       moduleInput,
       () =>
@@ -2116,6 +2120,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     disposeTreeHole = null;
     disposeMoments?.();
     disposeMoments = null;
+    disposeChatTime?.();
+    disposeChatTime = null;
     disposeFollow?.();
     disposeFollow = null;
     if (moduleGenerationId) void stopPhoneGeneration(moduleGenerationId);
