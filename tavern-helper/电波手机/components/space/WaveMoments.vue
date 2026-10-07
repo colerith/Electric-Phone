@@ -456,8 +456,14 @@
           </div>
           <form v-if="commenting === post.id" class="moment-comment-form" @submit.prevent="sendComment(post.id)">
             <div v-if="replyingComment" class="moment-reply-target">
-              回复 {{ nameFor(replyingComment.authorKey, replyingComment.authorName) }}
-              <button type="button" aria-label="取消回复" @click="replyingComment = null">×</button>
+              <i class="fa-solid fa-reply" aria-hidden="true"></i>
+              <span class="moment-reply-label">回复</span>
+              <strong
+                class="moment-reply-name"
+                :title="nameFor(replyingComment.authorKey, replyingComment.authorName)"
+                >{{ nameFor(replyingComment.authorKey, replyingComment.authorName) }}</strong
+              >
+              <WaveCloseButton label="取消回复" @close="replyingComment = null" />
             </div>
             <input
               v-model="commentText"
@@ -681,6 +687,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import WaveCloseButton from '../shared/WaveCloseButton.vue';
 import WaveAppearanceImport from '../shared/WaveAppearanceImport.vue';
 import WaveManualImageOptions from '../shared/WaveManualImageOptions.vue';
 import { manualImageMedia } from '../../services/image/manual';
@@ -1212,5 +1219,40 @@ defineExpose({ openComposer, openProfile, back, isSubpage, subpageTitle, canPubl
 }
 #wave-phone-script-root .space-moments .moment-meta button i {
   margin: 0;
+}
+#wave-phone-script-root .space-moments .moment-reply-target {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px 6px 12px;
+  margin-bottom: 3px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--settings-accent) 7%, transparent);
+  color: var(--settings-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  --wave-close-bg: transparent;
+  --wave-close-color: var(--settings-muted);
+}
+.moment-reply-target > i {
+  color: var(--settings-accent);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.moment-reply-label {
+  flex-shrink: 0;
+}
+.moment-reply-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--settings-accent);
 }
 </style>
