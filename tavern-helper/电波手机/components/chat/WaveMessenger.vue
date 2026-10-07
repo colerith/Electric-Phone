@@ -7,7 +7,7 @@
         >
         <div>
           <strong>{{ userName }}</strong
-          ><small>{{ contacts.length }} 位联系人 · {{ groups.length }} 个群聊</small>
+          ><small>{{ visibleContactCount }} 位联系人 · {{ visibleGroupCount }} 个群聊</small>
           <p>把想说的话，留在这里。</p>
         </div>
       </div>
@@ -493,6 +493,10 @@ function fillWorldbookCharacter() {
 const dialogTitle = computed(() => menuItems.find(item => item.id === dialog.value)?.name || '');
 const contacts = computed(() => phone.identities.filter(identity => identity.source !== 'local_group'));
 const groups = computed(() => phone.identities.filter(identity => identity.source === 'local_group'));
+const visibleContactCount = computed(
+  () => contacts.value.filter(identity => !threadFor(identity.charKey)?.hidden).length,
+);
+const visibleGroupCount = computed(() => groups.value.filter(identity => !threadFor(identity.charKey)?.hidden).length);
 const matches = (identity: Identity, text: string) =>
   `${identity.name} ${identity.remark}`.toLowerCase().includes(text.trim().toLowerCase());
 const filteredContacts = computed(() => contacts.value.filter(identity => matches(identity, query.value)));

@@ -3076,6 +3076,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     }
   }
   function removeConversation(charKey: string): void {
+    ++syncToken;
     const thread = Object.values(state.value.threads).find(item => item.charKey === charKey);
     if (thread) {
       thread.hidden = true;
@@ -3084,6 +3085,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     }
   }
   function deleteContact(charKey: string): void {
+    ++syncToken;
     const identity = state.value.identities[charKey];
     if (!identity) return;
     const runtime = context.value;
