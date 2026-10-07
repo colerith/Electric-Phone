@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.2.19`
+当前发布版本：`v1.2.20`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.19/file/index-1.2.19.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.20/file/index-1.2.20.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：互动入口改为顶部铃铛与未读红点；统一圆形头像、圆角消息列表，新增分类筛选、未读计数和持久化清空通知。
+本版更新：通知铃铛统一为功能按钮配色；修正椭圆头像，通知同步使用空间 NPC 头像。
 
 ## 首次配置
 

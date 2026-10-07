@@ -58,6 +58,7 @@
 import { computed, ref } from 'vue';
 import { useNow } from '@vueuse/core';
 import { usePhoneStore } from '../../stores/phone';
+import { npcAvatarUrl, spaceAvatarUrl } from '../../services/space/npc-avatar';
 import { anonymousAvatarUrl } from '../../services/space/tree-hole';
 import type { SpaceNotice } from '../../services/space/notifications';
 defineProps<{ opened: boolean }>();
@@ -104,7 +105,11 @@ function visit(item: SpaceNotice) {
 function avatar(item: SpaceNotice) {
   return item.source === 'hole'
     ? anonymousAvatarUrl(`${item.day}:${item.actorName}`)
-    : phone.state.identities[item.actorKey]?.avatar || '';
+    : phone.state.identities[item.actorKey]?.avatar ||
+        (phone.state.moments.npcs[item.actorKey]
+          ? npcAvatarUrl(phone.state.moments.npcs[item.actorKey].avatarSeed)
+          : '') ||
+        spaceAvatarUrl(`space-${item.actorKey || `guest:${item.actorName}`}`);
 }
 function time(item: SpaceNotice) {
   const minutes = Math.max(
@@ -146,7 +151,7 @@ function time(item: SpaceNotice) {
   color: var(--settings-text, #41464f);
   text-align: left;
 }
-.space-notice-avatar {
+#wave-phone-script-root .space-app .space-notice-avatar {
   position: relative;
   flex: 0 0 36px;
   width: 36px;
@@ -157,10 +162,17 @@ function time(item: SpaceNotice) {
   place-items: center;
   color: #8995a7;
 }
-.space-notice-avatar img {
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
+#wave-phone-script-root .space-app .space-notice-avatar > img {
+  display: block;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  clip-path: circle(50%);
   object-fit: cover;
 }
 .space-notice-avatar b {

@@ -375,10 +375,22 @@ function snapshot(name) {
   assert(space.back());
   await tick();
   assert(document.querySelector('.my-comment-card'), 'back restores comment cards');
+  phone.state.moments.npcs.other = {
+    npcId: 'other',
+    username: '旅行中的朋友',
+    profile: '',
+    avatarSeed: 'notification-npc-test',
+  };
   space.openNotifications();
   await tick();
   const noticeRows = [...document.querySelectorAll('.space-notice-row')];
   assert(noticeRows.length, 'unified interaction list contains new posts');
+  const npcNotice = noticeRows.find(row => row.textContent.includes('旅行中的朋友'));
+  assert.equal(
+    npcNotice.querySelector('.space-notice-avatar img').getAttribute('src'),
+    require(base + '/services/space/npc-avatar.ts').npcAvatarUrl('notification-npc-test'),
+    'notification uses the NPC avatar seed from the original post',
+  );
   noticeRows[0].click();
   await tick();
   assert(document.querySelector('.moment-post'), 'notification opens original post');
