@@ -4399,6 +4399,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           electric = text;
           electricTitle = title;
         },
+        spaceImages: klona(groupPromptSettings(identity).spaceImages),
         settings: klona(settings.value),
         cardKey: runtime.cardKey,
         chatKey: runtime.chatKey,

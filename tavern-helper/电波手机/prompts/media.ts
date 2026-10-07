@@ -101,8 +101,8 @@ export function mediaCountRules(media?: ReplyMedia) {
 
 export function spaceImageRules(mode: 'description' | 'ai', max: number, provider?: 'novelai' | 'openai') {
   if (mode === 'description')
-    return '[空间配图] images 使用简短自然语言画面描述字符串数组，不提供图片地址、不输出 imageRequest；这是文字图，不声称已经实际生成图片。每帖最多9张。';
-  return `[空间 AI 配图] 每帖 images 最多 ${max} 项，无视觉需要可为空。每项固定 {"subject":"character|user|other_character|scene|object","prompt":"画面提示词","description":"自然简短的图片配文"}。character 指本帖作者，user 指手机使用者；其他人及多人用 other_character。description 不是英文标签或创作指令，不能声称不存在的动作或人物。客户端选择接口并生成真实图片，不返回 URL、Base64、模型或密钥。
+    return '[空间配图] images 使用简短的简体中文画面描述字符串数组；无论正文或角色使用何种语言，照片描述必须是简体中文，不得使用英文、繁体中文或生图标签，不提供图片地址、不输出 imageRequest；这是文字图，不声称已经实际生成图片。每帖最多9张。';
+  return `[空间 AI 配图] 每帖 images 最多 ${max} 项，无视觉需要可为空。禁止返回文字图字符串，必须返回结构化生图请求。每项固定 {"subject":"character|user|other_character|scene|object","prompt":"画面提示词","description":"自然简短的图片配文"}。character 指本帖作者，user 指手机使用者；其他人及多人用 other_character。description 必须为简体中文，不跟随正文语言；description 不是英文标签或创作指令，不能声称不存在的动作或人物。客户端选择接口并生成真实图片，不返回 URL、Base64、模型或密钥。
 ${composition}
 ${provider === 'novelai' ? 'NovelAI：prompt 使用英文逗号分隔标签，顺序为主体与人数、外貌或物件细节、动作和位置、场景、构图机位、光线材质色彩。无人场景以 no humans, scenery 开头；静物以 no humans, still life 开头。不要输出自然语言长段落、接口参数、未知权重或额外人物。' : 'GPT Image：prompt 使用明确连贯的自然语言，先交代主体、数量和目标，再指定位置关系、景别、光线、材质、风格和排除要求。不使用 NovelAI 权重或标签串。场景或物品明确不含人物、人脸、手、人体倒影或海报人像。'} 多图保持各自主题；固定角色外貌不用于物品或场景；不要求人物出镜时不要加入人像。不输出画面规划过程。`;
 }

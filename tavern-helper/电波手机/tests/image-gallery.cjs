@@ -172,7 +172,8 @@ const { nextTick } = require('vue');
     }),
     null,
   );
-  const prompt = buildMomentsPrompt(plan, state, [post], undefined, undefined, 'novelai');
+  assert(!buildMomentsPrompt(plan, state, [post], undefined, undefined, 'novelai').includes('[空间 AI 配图]'));
+  const prompt = buildMomentsPrompt({...plan,postActor:store.activeIdentity.charKey}, state, [post], undefined, undefined, 'novelai');
   assert.match(prompt, /NovelAI/);
   assert.match(prompt, /最多 2/);
   assert.match(prompt, /"subject"/);
@@ -245,6 +246,37 @@ const { nextTick } = require('vue');
   assert.equal(imageCalls, 1);
   await nextTick();
   assert.equal(imageCalls, 1);
+  // The role-space refresh entry point must pass AI settings and enqueue its resulting image.
+  require(base + '/services/generation/generation.ts').generateZonePage = async input => {
+    assert.equal(input.spaceImages.mode, 'ai');
+    assert.equal(input.spaceImages.provider, 'openai');
+    assert.equal(input.spaceImages.max, 1);
+    const promptText = require(base + '/prompts/index.ts')
+      .buildPhonePrompts({ ...input, availableStickers: '' }, 'zone')
+      .filter(p => typeof p !== 'string')
+      .map(p => p.content)
+      .join('\n');
+    assert(promptText.includes('[空间 AI 配图]'));
+    assert(!promptText.includes('这是文字图'));
+    return {
+      posts: [
+        {
+          id: 'auto-zone-image',
+          content: '茶杯',
+          images: [{ subject: 'object', prompt: 'a ceramic cup, no people', description: '一只陶瓷茶杯' }],
+        },
+      ],
+    };
+  };
+  await store.refreshZone();
+  await nextTick();
+  await new Promise(r => setTimeout(r, 80));
+  assert.equal(imageCalls, 2, 'role-space refresh must invoke image generation');
+  await nextTick();
+  assert.equal(imageCalls, 2, 'generated zone image must not repeat');
+  imageCalls = 1; // Keep the subsequent manual-generation counter assertions independent.
+  const { spaceImageRules } = require(base + '/prompts/media.ts');
+  assert(spaceImageRules('description', 9).includes('照片描述必须是简体中文'));
   // Explicit user generation works even when automatic space images are disabled.
   const { manualImageMedia } = require(base + '/services/image/manual.ts');
   assert.throws(() => manualImageMedia({ description: ' ', count: 1, profileId: 'gpt' }));

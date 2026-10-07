@@ -1255,4 +1255,19 @@ defineExpose({ openComposer, openProfile, back, isSubpage, subpageTitle, canPubl
   font-weight: 600;
   color: var(--settings-accent);
 }
+#wave-phone-script-root .space-moments .space-settings-card {
+  gap: 12px;
+}
+#wave-phone-script-root .space-moments .space-settings-card > .wave-settings-title {
+  margin: 0;
+  padding: 0;
+}
+#wave-phone-script-root .space-moments .space-settings-card > label {
+  margin: 0;
+  padding: 10px 0 14px;
+  gap: 8px;
+}
+#wave-phone-script-root .space-moments .space-settings-card > .wave-settings-title + label {
+  padding-top: 0;
+}
 </style>
