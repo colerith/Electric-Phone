@@ -1,3 +1,5 @@
+import { sampleImageCounts } from '../space/image-plan';
+import { parseZonePage, ZoneUpdateSchema } from '../space/zone';
 import { readChatFloor, writeChatFloor } from '../chat/chat-reader';
 import { SPEECH_TAG_PATTERN } from '../chat/speech-tags';
 import { validateWalletPatch, type WalletAuthorization } from '../wallet/wallet-accounts';
@@ -107,6 +109,7 @@ export function constrainPhoneFloor(
   charId: string,
   previous: AppSnapshot,
   walletGrant?: WalletAuthorization,
+  imageCounts?: number[],
 ): string {
   const snapshots = new Map<string, Partial<AppSnapshot>>([[charId, { ...previous }]]);
   const budgets = new Map<string, RoundBudget>();
@@ -119,6 +122,17 @@ export function constrainPhoneFloor(
         delta.app_updates.wallet = { ...validateWalletPatch(delta.app_updates.wallet, walletGrant), ...walletGrant };
       } catch {
         delete delta.app_updates.wallet;
+      }
+    }
+    if (imageCounts && delta.char_id === charId && delta.app_updates.zone !== undefined) {
+      const page = ZoneUpdateSchema.safeParse(delta.app_updates.zone);
+      if (page.success) {
+        const old = new Set(parseZonePage(previous.zone).posts.map(post => post.id));
+        let index = 0;
+        for (const post of page.data.posts || []) {
+          if (!old.has(post.id)) post.images = post.images.slice(0, imageCounts[index++] ?? 0);
+        }
+        delta.app_updates.zone = page.data;
       }
     }
     const snapshot = snapshots.get(delta.char_id) || {};
@@ -143,6 +157,7 @@ export function registerFollowGeneration(
   let injection: { uninject: () => void } | null = null;
   let generationContext = '';
   let request: {
+    imageCounts?: number[];
     policy: ModuleSettings;
     charId: string;
     snapshot: AppSnapshot;
@@ -168,6 +183,15 @@ export function registerFollowGeneration(
           runtime.input.identity.source === 'local_group'
             ? selectedModules.filter(module => module === 'messages')
             : selectedModules;
+        if (modules.includes('zone') && runtime.input.spaceImages) {
+          runtime.input.spaceImages = {
+            ...runtime.input.spaceImages,
+            counts: sampleImageCounts(
+              { ...runtime.input.spaceImages, maxImages: runtime.input.spaceImages.max },
+              runtime.settings.moduleSettings.zone.maxNew,
+            ),
+          };
+        }
         const reference = runtime.settings.generation.shareChatContext ? runtime.chatReference || '' : '';
         if (!modules.length && !reference) return;
         const prompt = stripExcludedTags(
@@ -182,6 +206,7 @@ export function registerFollowGeneration(
         );
         const wrappedPrompt = `<${FOLLOW_PROMPT_TAG}>\n${prompt}\n</${FOLLOW_PROMPT_TAG}>`;
         request = {
+          imageCounts: runtime.input.spaceImages?.counts,
           policy: ModuleSettingsSchema.parse(runtime.settings.moduleSettings),
           charId: runtime.input.identity.stableId || runtime.input.identity.charKey,
           snapshot: { ...runtime.input.appSnapshot },
@@ -232,6 +257,7 @@ export function registerFollowGeneration(
           captured.charId,
           captured.snapshot,
           captured.walletGrant,
+          captured.imageCounts,
         );
         if (constrained !== message.message)
           void writeChatFloor(message.message_id, message.message, constrained).catch(error =>

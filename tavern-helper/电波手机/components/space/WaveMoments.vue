@@ -142,14 +142,30 @@
               { value: 'ai', label: 'AI 生图' },
             ]"
         /></label>
+        <label
+          >新动态配图概率 · {{ settings.imageProbability }}%<WaveSlider
+            v-model="settings.imageProbability"
+            :min="0"
+            :max="100"
+        /></label>
+        <label
+          >每条动态最多配图 {{ settings.maxImages }} 张<WaveSlider v-model="settings.maxImages" :min="0" :max="9"
+        /></label>
+        <label v-if="settings.maxImages > 1"
+          >命中配图后，多图概率 · {{ settings.multiImageProbability }}%<WaveSlider
+            v-model="settings.multiImageProbability"
+            :min="0"
+            :max="100"
+        /></label>
+        <p>
+          每条新动态独立抽取是否配图；命中多图时，在 2 张到上限之间随机选择，否则配 1 张。上限为 1 时只配 1 张，为 0
+          时不配图。手动发布的图片不受概率影响。
+        </p>
         <template v-if="settings.imageMode === 'ai'">
           <label
             >生图接口<WaveSelect
               v-model="settings.imageProfileId"
               :options="phone.settings.imageServices.profiles.map(p => ({ value: p.id, label: p.name }))"
-          /></label>
-          <label
-            >每条动态最多生成 {{ settings.maxImages }} 张<WaveSlider v-model="settings.maxImages" :min="0" :max="9"
           /></label>
           <p>新动态的配图会调用所选接口。已有图片不重复生成，可点开图片单独修改和重生成。</p>
         </template>
@@ -767,13 +783,27 @@ const clearConfirm = ref(false);
 const settings = computed(() => phone.state.moments.settings);
 const contacts = computed(() => phone.identities.filter(identity => identity.source !== 'local_group'));
 const now = ref(Date.now());
-let timer: ReturnType<typeof setInterval> | undefined;
+let timer: ReturnType<typeof setTimeout> | undefined;
+function refreshTimeline(): void {
+  clearTimeout(timer);
+  now.value = Date.now();
+  if (document.hidden) return;
+  const feed = phone.momentsFeed;
+  const next = [...feed.posts, ...feed.comments, ...feed.likes].reduce(
+    (due, item) => (item.availableAt > now.value ? Math.min(due, item.availableAt) : due),
+    now.value + 30000,
+  );
+  timer = setTimeout(refreshTimeline, Math.max(1, next - now.value));
+}
+watch(() => phone.momentsFeed, refreshTimeline);
 onMounted(() => {
-  timer = setInterval(() => {
-    if (!document.hidden) now.value = Date.now();
-  }, 30000);
+  refreshTimeline();
+  document.addEventListener('visibilitychange', refreshTimeline);
 });
-onUnmounted(() => clearInterval(timer));
+onUnmounted(() => {
+  clearTimeout(timer);
+  document.removeEventListener('visibilitychange', refreshTimeline);
+});
 const profileTabs = [
   { id: 'own', label: '发布' },
   { id: 'liked', label: '喜欢' },

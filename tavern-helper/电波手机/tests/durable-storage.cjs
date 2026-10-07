@@ -17,10 +17,14 @@ let vars = { global: {}, chat: {}, script: {} },
   failUpload = false,
   failRead = false;
 let onRead;
+let uploads = 0,
+  settingsSaves = 0;
 Object.assign(global, {
   SillyTavern: {
     extensionSettings: {},
-    saveSettingsDebounced: async () => {},
+    saveSettingsDebounced: async () => {
+      settingsSaves++;
+    },
     getRequestHeaders: () => ({ 'Content-Type': 'application/json' }),
     getCurrentChatId: () => chatId,
     characterId: '0',
@@ -34,6 +38,7 @@ Object.assign(global, {
   },
   fetch: async (url, init = {}) => {
     if (init.method === 'POST') {
+      uploads++;
       if (failUpload) return new Response('', { status: 503 });
       const body = JSON.parse(init.body);
       server.set(body.name, Buffer.from(body.data, 'base64').toString('utf8'));
@@ -83,6 +88,17 @@ function state(content) {
   assert.equal(server.size, 2);
   assert.equal(vars.global.unrelated, 42);
   assert(![...server.values()].some(json => json.includes('unrelated')));
+  const uploaded = uploads,
+    saved = settingsSaves;
+  const revision = vars.chat.wave_phone_saved_at;
+  for (let i = 0; i < 10; i++) {
+    storage.writePhoneGlobals(vars.global);
+    storage.writePhoneChat(state('服务器保留消息'));
+  }
+  await storage.flushPhoneStorage();
+  assert.equal(uploads, uploaded, 'identical global/chat writes do not upload');
+  assert.equal(settingsSaves, saved, 'identical global writes do not emit settings saves');
+  assert.equal(vars.chat.wave_phone_saved_at, revision);
   // A new browser has neither helper variables nor an extension-settings manifest.
   vars = { global: {}, chat: {}, script: {} };
   SillyTavern.extensionSettings = {};

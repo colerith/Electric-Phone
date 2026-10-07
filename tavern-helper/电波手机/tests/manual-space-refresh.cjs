@@ -101,6 +101,50 @@ validateManualZonePosts({ posts: [{ id: 'old', content: 'changed' }] }, previous
   calls = 0;
   await generateZonePage(input);
   assert.equal(calls, 1);
+  const { sampleImageCounts } = require('../services/space/image-plan.ts');
+  const policy = { maxImages: 5, imageProbability: 100, multiImageProbability: 100 };
+  assert.deepEqual(
+    sampleImageCounts({ ...policy, imageProbability: 0 }, 3, () => 0),
+    [0, 0, 0],
+  );
+  assert.deepEqual(
+    sampleImageCounts({ ...policy, maxImages: 0 }, 3, () => 0),
+    [0, 0, 0],
+  );
+  assert.deepEqual(
+    sampleImageCounts({ ...policy, maxImages: 1 }, 3, () => 0),
+    [1, 1, 1],
+  );
+  assert.deepEqual(
+    sampleImageCounts({ ...policy, multiImageProbability: 0 }, 3, () => 0),
+    [1, 1, 1],
+  );
+  const draws = [0, 0, 0, 0, 0, 0.5, 0, 0, 0.999];
+  assert.deepEqual(
+    sampleImageCounts(policy, 3, () => draws.shift()),
+    [2, 4, 5],
+  );
+  const hit = [0.8, 0.1];
+  assert.deepEqual(
+    sampleImageCounts({ maxImages: 1, imageProbability: 60 }, 2, () => hit.shift()),
+    [0, 1],
+  );
+  settings.moduleSettings.zone.maxNew = 1;
+  input.spaceImages = { mode: 'description', max: 2, imageProbability: 100, multiImageProbability: 100 };
+  calls = 0;
+  global.generateRaw = async () =>
+    JSON.stringify({
+      posts: [{ id: 'photo', content: 'two photos', images: ++calls === 1 ? ['一张'] : ['一张', '另一张'] }],
+    });
+  const multi = await generateZonePage(input);
+  assert.equal(calls, 2, 'one image corrected to sampled count');
+  assert.equal(multi.posts[0].images.length, 2);
+  input.spaceImages.imageProbability = 0;
+  calls = 0;
+  global.generateRaw = async () =>
+    JSON.stringify({ posts: [{ id: 'text', content: 'text only', images: ++calls === 1 ? ['不该出现'] : [] }] });
+  assert.equal((await generateZonePage(input)).posts[0].images.length, 0);
+  assert.equal(calls, 2);
   console.log('PASS manual 3-post actor slots, replay, zero cap, old-post exclusion, and bounded corrective retry');
 })().catch(e => {
   console.error(e);

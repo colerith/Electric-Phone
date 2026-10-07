@@ -1,3 +1,4 @@
+import { sampleImageCounts } from '../space/image-plan';
 import { parseJsonResponse } from './json-response';
 import { validateCommentLanguages } from '../space/comment-language';
 import {
@@ -39,6 +40,7 @@ import {
 
 import {
   ZoneUpdateSchema,
+  parseZonePage,
   validateZoneCommentActors,
   validateManualZonePosts,
   PostCountError,
@@ -365,7 +367,38 @@ export async function generateTreeHolePage(input: GenerationInput): Promise<Zone
   );
 }
 
+function withSpaceImagePlan(input: GenerationInput): GenerationInput {
+  if (!input.spaceImages) return input;
+  return {
+    ...input,
+    spaceImages: {
+      ...input.spaceImages,
+      counts: sampleImageCounts(
+        { ...input.spaceImages, maxImages: input.spaceImages.max },
+        input.settings.moduleSettings.zone.maxNew,
+      ),
+    },
+  };
+}
+function validateZoneImages(page: ZoneUpdate, input: GenerationInput): void {
+  const counts = input.spaceImages?.counts;
+  if (!counts) return;
+  const old = new Set(parseZonePage(input.appSnapshot.zone).posts.map(post => post.id));
+  validateImageCounts(
+    (page.posts || []).filter(post => !old.has(post.id)),
+    counts,
+  );
+}
+function validateImageCounts(posts: { images: unknown[] }[], counts: number[]): void {
+  posts.forEach((post, index) => {
+    if (post.images.length !== counts[index])
+      throw new PostCountError(
+        `第${index + 1}条新动态要求 ${counts[index]} 张不同配图，实际 ${post.images.length} 张；请按本轮已抽取数量补全 images，0 张必须返回 []`,
+      );
+  });
+}
 export async function generateZonePage(input: GenerationInput): Promise<ZoneUpdate> {
+  input = withSpaceImagePlan(input);
   const generationId = input.generationId || createPhoneGenerationId();
   return requestConfigured(
     input.settings,
@@ -382,6 +415,7 @@ export async function generateZonePage(input: GenerationInput): Promise<ZoneUpda
       )
         .transform(value => {
           validateManualZonePosts(value, input.appSnapshot.zone, input.settings.moduleSettings.zone.maxNew);
+          validateZoneImages(value, input);
           return value;
         })
         .transform(value =>
@@ -426,6 +460,7 @@ export async function previewPhoneRequest(input: GenerationInput) {
 }
 
 export async function generatePhoneModule(input: GenerationInput, module: import('../../schemas').AppId) {
+  if (module === 'zone') input = withSpaceImagePlan(input);
   const { buildModulePrompt } = await import('../../prompts');
   const { parseRequestedModule } = await import('./module-protocol');
   const prompts: (BuiltinPrompt | RolePrompt)[] = [
@@ -452,6 +487,7 @@ export async function generatePhoneModule(input: GenerationInput, module: import
           input.appSnapshot.zone,
           input.settings.moduleSettings.zone.maxNew,
         );
+      if (module === 'zone') validateZoneImages(ZoneUpdateSchema.parse(delta.app_updates.zone), input);
       if (module === 'wallet' && delta.app_updates.wallet === undefined)
         throw Error('首次钱包生成必须返回 wallet 与数字余额');
       if (module === 'messages') validateReplyMedia(delta.messages, input.media);
@@ -526,6 +562,7 @@ export async function generateMomentsBatch(
         throw new PostCountError(
           `本轮发帖数量或作者不符：要求 ${plan.postTasks?.length ?? (plan.postActor ? 1 : 0)} 条，不能用点赞替代动态`,
         );
+      if (plan.imageCounts) validateImageCounts(batch.posts, plan.imageCounts);
       validateCommentLanguages(batch, posts, input.actorLanguagePreferences);
       return batch;
     },

@@ -1,3 +1,4 @@
+import { sampleImageCounts } from './image-plan';
 import { PostTagsSchema } from './post-tags';
 import { profileDecorationFields } from './profile-badges';
 import { bilingual, TranslationSchema } from '../generation/module-settings';
@@ -72,6 +73,7 @@ export const MomentPlanSchema = z.object({
   actors: z.array(ActorSchema),
   postActor: z.string().nullable(),
   postTasks: z.array(z.string()).max(5).optional(),
+  imageCounts: z.array(z.number().int().min(0).max(9)).max(5).optional(),
   user: z.object({ key: z.literal('user'), name: z.string() }).default({ key: 'user', name: 'User' }),
   reservedNames: z.array(z.string()).default([]),
   likes: z.array(z.object({ actorKey: z.string(), postId: z.string() })).default([]),
@@ -162,6 +164,8 @@ export const MomentsStateSchema = z
         followEnabled: z.boolean().default(false),
         imageMode: z.enum(['description', 'ai']).default('description'),
         imageProfileId: z.string().default(''),
+        imageProbability: z.number().min(0).max(100).default(60),
+        multiImageProbability: z.number().min(0).max(100).default(50),
         maxImages: z.number().int().min(0).max(9).default(1),
         autoUserInteractions: z.boolean().default(false),
         postingCharKeys: z.array(z.string()).default([]),
@@ -336,6 +340,11 @@ export function planMoments(
       key: 'user',
       name: state.profile.nickname || (typeof SillyTavern !== 'undefined' ? SillyTavern.name1 : 'User') || 'User',
     },
+    imageCounts: sampleImageCounts(
+      settings,
+      postActor ? (options.force && !options.targetPostId ? (options.newPosts ?? 1) : 1) : 0,
+      random,
+    ),
     reservedNames: identities.map(identity => identity.name),
     likes,
     interactionLimit,
@@ -435,6 +444,10 @@ export function syncMomentEvents(state: MomentsState, messages: string[], now = 
         const batch = MomentBatchSchema.parse(JSON.parse(match[1]!));
         const plan = state.requests[batch.request_id];
         if (!plan) continue;
+        if (plan.imageCounts)
+          batch.posts.forEach((post, index) => {
+            post.images = post.images.slice(0, plan.imageCounts?.[index] ?? 0);
+          });
         const interactions = [
           ...batch.comments.map(item => ({ ...item, kind: 'comment' })),
           ...batch.likes.map(item => ({ ...item, kind: 'like' })),

@@ -1,3 +1,4 @@
+import isEqual from 'lodash/isEqual';
 import { klona } from 'klona';
 import { reactive } from 'vue';
 import { z } from 'zod';
@@ -132,6 +133,8 @@ function report(error: unknown): void {
 }
 function queue(scope: string, data: Record<string, unknown>): number {
   if (!supported()) return Date.now();
+  const previous = pending.get(scope) || snapshots.get(scope);
+  if (previous && isEqual(previous.data, data)) return previous.savedAt;
   const savedAt = Math.max(
     Date.now(),
     phoneStorageStatus.savedAt + 1,
@@ -168,6 +171,8 @@ export function writePhoneGlobals(value: Record<string, any>): void {
   const savedAt = queue('global', globals);
   replaceVariables({ ...value, wave_phone_global_saved_at: savedAt }, { type: 'global' });
   if (!supported()) return;
+  const current = settings();
+  if (current?.savedAt === savedAt && isEqual(current.globals, globals)) return;
   SillyTavern.extensionSettings[STORAGE_KEY] = { version: 1, globals, savedAt } satisfies DurableSettings;
   void Promise.resolve(SillyTavern.saveSettingsDebounced()).catch(report);
 }

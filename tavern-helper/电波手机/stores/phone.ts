@@ -2058,6 +2058,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const spaceImages = {
       mode: state.value.moments.settings.imageMode,
       max: state.value.moments.settings.maxImages,
+      imageProbability: state.value.moments.settings.imageProbability,
+      multiImageProbability: state.value.moments.settings.multiImageProbability,
       provider: settings.value.imageServices.profiles.find(p => p.id === state.value.moments.settings.imageProfileId)
         ?.provider,
       userPrefix: state.value.moments.profile.imageAppearance,

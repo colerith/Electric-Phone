@@ -349,6 +349,32 @@ const input = (el, text) => {
   phone.state.identities[key].avatarZoom = 2;
   await tick();
   assert(cropImage.style.transform.includes('scale(2)'), '全局裁剪修改即时同步');
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  const due = Date.now() + 100;
+  phone.state.moments.posts.push(
+    MomentPostSchema.parse({
+      id: 'live-update',
+      authorKey: key,
+      authorName: 'Alice',
+      content: '即时显示回归',
+      createdAt: Date.now(),
+      availableAt: Date.now(),
+    }),
+    MomentPostSchema.parse({
+      id: 'due-update',
+      authorKey: key,
+      authorName: 'Alice',
+      content: '延时显示回归',
+      createdAt: due,
+      availableAt: due,
+    }),
+  );
+  await tick();
+  assert(document.body.textContent.includes('即时显示回归'), 'new posts appear without reopening');
+  assert(!document.body.textContent.includes('延时显示回归'), 'future posts remain hidden');
+  await new Promise(resolve => setTimeout(resolve, 140));
+  await tick();
+  assert(document.body.textContent.includes('延时显示回归'), 'scheduled posts appear on time');
   app.unmount();
   console.log(
     'PASS: alphabetical grouping; actual Vue multi-image-description publishing, persistence/profile/own feed; privacy-safe planning/prompt, delayed replay, deduplication, deletion and unauthorized-comment rejection.',
