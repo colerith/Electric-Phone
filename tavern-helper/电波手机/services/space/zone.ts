@@ -184,3 +184,18 @@ export function mergeZoneSnapshot(current: string, update: unknown): string {
   }
   return JSON.stringify({ profile: { ...previous.profile, ...patch.profile }, posts });
 }
+
+/** Reject definite ID/name conflicts; never rewrite a comment into another person's voice. */
+export function validateZoneCommentActors(
+  page: { posts?: Array<{ comments?: Array<{ authorKey?: string; author: string }> }> },
+  actors: ZoneActor[],
+  ownerKey: string,
+): void {
+  for (const post of page.posts || [])
+    for (const comment of post.comments || []) {
+      if (!comment.authorKey) continue;
+      const byId = resolveZoneAuthorKey('', comment.authorKey, ownerKey, actors);
+      const byName = resolveZoneAuthorKey(comment.author, undefined, ownerKey, actors);
+      if (byId && byName && byId !== byName) throw Error('空间评论作者 ID 与姓名属于不同角色，请按人物资料重新生成');
+    }
+}

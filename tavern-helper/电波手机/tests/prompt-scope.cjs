@@ -75,3 +75,14 @@ assert(moments.includes('posts 必须为 []'));
 console.log(
   'PASS prompt scope for manual/follow/chat/zone, single sticker catalog, compact profile and interaction-only rules',
 );
+
+const actors=[{charKey:'price',name:'Price',actorType:'npc',source:'local_contact',npcProfile:'Price 独立人设',nameAliases:['Captain Price']},{charKey:'soap',name:'Soap',actorType:'npc',source:'local_contact',npcProfile:'Soap 独立人设',nameAliases:['Johnny']}];
+const actorPrompt=text(buildPhonePrompts({...input,spaceActors:actors},'zone'));
+assert(actorPrompt.includes('Price 独立人设') && actorPrompt.includes('Soap 独立人设'));
+assert(actorPrompt.includes('评论人物隔离'));
+const {validateZoneCommentActors}=require('../services/space/zone.ts');
+const roster=actors.map(a=>({key:a.charKey,names:[a.name,...a.nameAliases]}));
+assert.throws(()=>validateZoneCommentActors({posts:[{comments:[{authorKey:'price',author:'Soap'}]}]},roster,'alice'),/不同角色/);
+validateZoneCommentActors({posts:[{comments:[{authorKey:'soap',author:'Johnny'},{authorKey:'price',author:'Captain Price'}]}]},roster,'alice');
+assert(!text(buildPhonePrompts({...input,spaceActors:actors})).includes('Price 独立人设'));
+console.log('PASS independent NPC personas, known aliases, conflicting author rejection and message scope');

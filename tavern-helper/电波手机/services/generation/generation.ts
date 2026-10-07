@@ -31,9 +31,10 @@ import { buildMomentsPrompt, buildPhonePrompts, presetMomentsRules, type PhonePr
 import { getRuntimeContext } from '../core/identity';
 import { MomentBatchSchema, type MomentPlan, type MomentsState, type MomentPost } from '../space/moments';
 
-import { ZoneUpdateSchema, type ZoneUpdate } from '../space/zone';
+import { ZoneUpdateSchema, validateZoneCommentActors, type ZoneUpdate } from '../space/zone';
 
 type GenerationInput = {
+  spaceActors?: PhonePromptInput['spaceActors'];
   paymentCurrencies?: PhonePromptInput['paymentCurrencies'];
   groupImagePrefixes?: PhonePromptInput['groupImagePrefixes'];
   spaceImages?: PhonePromptInput['spaceImages'];
@@ -371,6 +372,18 @@ export async function generateZonePage(input: GenerationInput): Promise<ZoneUpda
             ),
           ),
         )
+        .transform(page => {
+          validateZoneCommentActors(
+            page,
+            (input.spaceActors || []).map(actor => ({
+              key: actor.charKey,
+              names: [actor.name, ...(actor.nameAliases || [])],
+              ids: [actor.stableId || actor.charKey, ...(actor.idAliases || [])],
+            })),
+            input.identity.charKey,
+          );
+          return page;
+        })
         .parse(extractJson(raw)),
     input,
   );

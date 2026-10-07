@@ -64,6 +64,7 @@ const ActorSchema = z.object({
   name: z.string(),
   about: z.string().default(''),
   relationshipToUser: z.string().default(''),
+  knownNames: z.array(z.string()).default([]),
   npc: z.boolean().default(false),
 });
 export const MomentPlanSchema = z.object({
@@ -231,6 +232,7 @@ export function planMoments(
       avatarSeed: state.npcs[identity.charKey]?.avatarSeed || '',
       key: identity.charKey,
       name: identity.name,
+      knownNames: identity.nameAliases || [],
       about: identity.actorType === 'npc' ? identity.npcProfile || identity.about || '' : identity.about || '',
       relationshipToUser: identity.relationshipToUser || '',
       npc: identity.actorType === 'npc',
@@ -242,6 +244,7 @@ export function planMoments(
       actors.push({
         key: npc.npcId,
         name: npc.username,
+        knownNames: [],
         about: npc.profile,
         npc: true,
         isNew: false,
@@ -256,6 +259,7 @@ export function planMoments(
       actors.push({
         key,
         name: kind === 'stranger' ? '世界中的陌生人' : '场景 NPC',
+        knownNames: [],
         about:
           kind === 'stranger'
             ? '与当前场景、角色和用户没有既有关系的普通陌生人，有自己的日常生活与兴趣；只了解本轮公开帖子，不知道私聊、角色秘密或现场发生的事。'
@@ -354,6 +358,7 @@ export function planMomentReply(
         avatarSeed: npc?.avatarSeed || '',
         key: actorKey,
         name: identity.name,
+        knownNames: identity.nameAliases || [],
         about: identity.actorType === 'npc' ? identity.npcProfile || identity.about || '' : identity.about || '',
         relationshipToUser: identity.relationshipToUser || '',
         npc: identity.actorType === 'npc',

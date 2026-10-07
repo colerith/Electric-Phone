@@ -2067,7 +2067,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       ? sharedChatHistory(identity, thread, state.value.identities, state.value.threads, settings.value.chat)
       : '';
     if (identity.source !== 'local_group')
-      return { sharedHistory, spaceImages, media: mediaForCharacter(identity.charKey) };
+      return {
+        sharedHistory,
+        spaceImages,
+        spaceActors: Object.values(state.value.identities).filter(
+          actor => !['local_group', 'temporary'].includes(actor.source),
+        ),
+        media: mediaForCharacter(identity.charKey),
+      };
     const members = (identity.memberKeys || []).flatMap(key =>
       state.value.identities[key] ? [state.value.identities[key]] : [],
     );
@@ -4400,6 +4407,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           electricTitle = title;
         },
         spaceImages: klona(groupPromptSettings(identity).spaceImages),
+        spaceActors: klona(
+          Object.values(state.value.identities).filter(actor => !['local_group', 'temporary'].includes(actor.source)),
+        ),
         settings: klona(settings.value),
         cardKey: runtime.cardKey,
         chatKey: runtime.chatKey,

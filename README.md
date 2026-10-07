@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.2.13`
+当前发布版本：`v1.2.14`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.13/file/index-1.2.13.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.14/file/index-1.2.14.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：修复角色空间 AI 配图设置未传入生成请求；文字图描述要求简体中文，收紧空间配图设置标题与字段间距。
+本版更新：空间评论补齐 NPC 独立身份、人设与别称，强化回复对象称呼约束，拦截明确的作者 ID 与姓名冲突。
 
 ## 首次配置
 
