@@ -75,7 +75,7 @@ function placeMenu() {
   const root = rootElement.value;
   if (!root || !isOpen.value) return;
   const rect = root.getBoundingClientRect();
-  const screen = root.closest('.wave-screen')?.getBoundingClientRect();
+  const screen = root.closest('.wave-screen, .wave-device')?.getBoundingClientRect();
   const view = root.ownerDocument.defaultView;
   const scale = rect.height / (root.offsetHeight || rect.height) || 1;
   const top = Math.max(0, screen?.top ?? 0);

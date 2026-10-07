@@ -114,6 +114,19 @@ watch(
     }
   }
   > .wave-select-menu {
+    display: block;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    &::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
     left: auto;
     right: 0;
     width: min(220px, 75cqw);
