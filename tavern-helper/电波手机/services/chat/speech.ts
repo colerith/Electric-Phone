@@ -1,3 +1,4 @@
+import { cachedSpeech } from './speech-cache';
 import { logDiagnostic } from '../core/diagnostics';
 import { redactDiagnostic } from '../core/request-error';
 import { z } from 'zod';
@@ -127,7 +128,29 @@ export function speechRequest(
   }
   return { url, init: { method: 'POST', headers, body: JSON.stringify(body) } };
 }
+export function speechCacheKey(text: string, services: VoiceServices, voice: CharacterVoice): string {
+  // Credentials, saved voice lists, generation quotas and unrelated providers do not change the audio.
+  const request = speechRequest(text, services, voice);
+  return JSON.stringify([
+    'speech-v1',
+    request.url,
+    request.init.body,
+    voice.provider === 'fish' ? services.fish.model : '',
+  ]);
+}
 export async function synthesizeSpeech(
+  text: string,
+  services: VoiceServices,
+  voice: CharacterVoice,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  return cachedSpeech(
+    speechCacheKey(text, services, voice),
+    () => generateSpeech(text, services, voice, signal),
+    signal,
+  );
+}
+async function generateSpeech(
   text: string,
   services: VoiceServices,
   voice: CharacterVoice,

@@ -357,7 +357,7 @@ import { klona } from 'klona';
 import { splitElectric } from '../../services/generation/electric';
 import { usePhoneStore } from '../../stores/phone';
 import { logDiagnostic } from '../../services/core/diagnostics';
-import { CharacterVoiceSchema, synthesizeSpeech } from '../../services/chat/speech';
+import { CharacterVoiceSchema, speechCacheKey, synthesizeSpeech } from '../../services/chat/speech';
 import { distanceLabel, locationDistance } from '../../services/core/location';
 import { displaySpeechText } from '../../services/chat/speech-tags';
 import { computed, inject, onUnmounted, ref, watch } from 'vue';
@@ -686,11 +686,11 @@ async function toggleVoice(): Promise<void> {
         : undefined
       : phone.state.characterVoices[phone.state.activeCharKey],
   );
-  const cacheKey = JSON.stringify([voiceTranscript.value, voice, phone.settings.voiceServices]);
   voiceError.value = '';
   const controller = new AbortController();
   voiceRequest = controller;
   try {
+    const cacheKey = speechCacheKey(voiceTranscript.value, phone.settings.voiceServices, voice);
     if (!voiceAudio || cacheKey !== voiceCacheKey) {
       voiceBusy.value = true;
       const blob = await synthesizeSpeech(
