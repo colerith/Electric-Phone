@@ -59,7 +59,7 @@ const settingKeys: Partial<Record<BackupModule, string[]>> = {
 const chatKeys: Partial<Record<BackupModule, (keyof ChatState)[]>> = {
   messages: ['identities', 'chatPreferences', 'characterVoices'],
   history: ['threads', 'activeCharKey', 'messageImages'],
-  zone: ['moments', 'treeHole', 'zoneInteractions'],
+  zone: ['moments', 'treeHole', 'zoneInteractions', 'spaceNotifications'],
   wallet: ['walletBook'],
   music: ['musicCatalog', 'musicQueues', 'musicPlaylists', 'musicHiddenTracks', 'musicFavorites'],
   browse: ['browser'],

@@ -11,6 +11,14 @@
     <WaveDeleteConfirm v-if="deleting" title="删除这条匿名动态？" @cancel="deleting = null" @confirm="confirmDelete" />
     <header class="space-hole-topic">
       <small>每日树洞 · {{ day }}</small>
+      <label v-if="historyDays.length > 1" class="hole-history"
+        ><i class="fa-regular fa-calendar" aria-hidden="true"></i><span>历史树洞</span
+        ><select v-model="day" aria-label="查看历史树洞">
+          <option v-for="date in historyDays" :key="date" :value="date">
+            {{ date === treeHoleDay() ? '今天' : date }}
+          </option>
+        </select></label
+      >
       <h2>{{ topic }}</h2>
       <p>藏起名字，说说心里话。发帖和互动跟随空间设置，树洞不配图。</p>
       <button type="button" :disabled="phone.zoneGenerating || phone.moduleGenerating" @click="refresh">
@@ -28,7 +36,7 @@
       ><button type="submit" :disabled="!draft.trim()">匿名发布</button>
     </form>
     <p v-if="error" class="zone-error" role="status">{{ error }}</p>
-    <article v-for="post in posts" :key="post.id" class="space-hole-post">
+    <article v-for="post in posts" :key="post.id" class="space-hole-post" :data-hole-post="post.id">
       <header class="space-post-header">
         <WaveAnonymousAvatar :seed="post.mine ? anonymousProfile.anonymousAvatarSeed : `${day}:${post.alias}`" />
         <div class="space-post-author-details">
@@ -84,10 +92,7 @@
           </button>
         </div>
       </div>
-      <p v-if="phone.treeHoleFeedback[`${day}:${post.id}`]" class="moment-generation-feedback" role="status">
-        {{ phone.treeHoleFeedback[`${day}:${post.id}`] }}
-      </p>
-      <div v-for="comment in post.comments" :key="comment.id" class="space-comment">
+      <div v-for="comment in post.comments" :key="comment.id" class="space-comment" :data-hole-comment="comment.id">
         <WaveAnonymousAvatar
           :seed="isMine(comment) ? anonymousProfile.anonymousAvatarSeed : `${day}:${comment.alias}`"
         />
@@ -140,9 +145,6 @@
               <i class="fa-regular fa-trash-can"></i>删除
             </button>
           </div>
-          <p v-if="phone.treeHoleFeedback[`${day}:${comment.id}`]" class="moment-generation-feedback" role="status">
-            {{ phone.treeHoleFeedback[`${day}:${comment.id}`] }}
-          </p>
         </div>
       </div>
       <form v-if="commenting === post.id" class="moment-comment-form" @submit.prevent="sendComment(post.id)">
@@ -200,7 +202,17 @@ function back(): boolean {
   viewingPerson.value = null;
   return true;
 }
-defineExpose({ back });
+async function openPost(date: string, postId: string, commentId = '') {
+  day.value = date;
+  await nextTick();
+  const selector = commentId ? '[data-hole-comment]' : '[data-hole-post]';
+  const root = document.querySelector('.space-hole');
+  const target = Array.from(root?.querySelectorAll<HTMLElement>(selector) || []).find(node =>
+    commentId ? node.dataset.holeComment === commentId : node.dataset.holePost === postId,
+  );
+  target?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+}
+defineExpose({ back, openPost });
 const deleting = ref<{ day: string; id: string } | null>(null);
 function confirmDelete() {
   if (deleting.value) {
@@ -214,7 +226,7 @@ function confirmDelete() {
   deleting.value = null;
 }
 import WaveModuleTranslation from '../shared/WaveModuleTranslation.vue';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 const phone = usePhoneStore();
 phone.ensureAnonymousProfile();
@@ -242,6 +254,10 @@ const day = ref(treeHoleDay()),
   now = ref(Date.now()),
   commenting = ref(''),
   error = ref('');
+const historyDays = computed(() =>
+  [...new Set([treeHoleDay(), day.value, ...Object.keys(phone.state.treeHole)])].sort().reverse(),
+);
+let currentDay = treeHoleDay();
 const topic = computed(
   () => phone.state.treeHole[day.value]?.topic || dailyTopic(day.value, phone.context?.cardKey || ''),
 );
@@ -250,7 +266,9 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 function tick() {
   clearTimeout(timer);
   now.value = Date.now();
-  day.value = treeHoleDay();
+  const today = treeHoleDay();
+  if (day.value === currentDay) day.value = today;
+  currentDay = today;
   if (!document.hidden) {
     const activity = phone.state.treeHole[day.value]?.activity;
     const feed = activity ? momentTimeline(activity) : { posts: [], comments: [], likes: [] };
@@ -310,6 +328,42 @@ function time(value: number) {
 </script>
 
 <style scoped>
+#wave-phone-script-root .space-hole .hole-interaction-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 0 0;
+  padding: 8px 11px;
+  border-radius: 10px;
+  background: var(--wave-tint, #f5f7fa);
+  color: var(--settings-muted, #8893a3);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.hole-interaction-status i {
+  flex: none;
+  font-size: 11px;
+  color: var(--settings-accent, #6283bd);
+}
+.hole-history {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+  font-size: 11px;
+  color: var(--settings-muted, #8893a3);
+}
+#wave-phone-script-root .space-hole .hole-history select {
+  width: auto;
+  padding: 5px 9px;
+  font-size: 11px;
+  border-radius: 8px;
+  background: var(--wave-tint, #f5f7fa);
+  border: 0;
+  color: inherit;
+}
+
 #wave-phone-script-root .space-hole .space-hole-meta {
   margin-top: 14px;
   color: var(--settings-muted);

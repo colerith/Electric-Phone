@@ -1,3 +1,4 @@
+import { spaceNotices, reconcileSpaceNotices } from '../services/space/notifications';
 import { syncPaymentLedger } from '../services/chat/payment-ledger';
 import {
   ImageAssetSchema,
@@ -2554,6 +2555,30 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       });
     return timeline;
   });
+  const spaceNotificationItems = computed(() => {
+    const items = spaceNotices(momentsFeed.value);
+    for (const [day, daily] of Object.entries(state.value.treeHole)) {
+      const copy = klona(daily);
+      const activity = prepareTreeHoleActivity(copy, state.value.moments.settings);
+      items.push(...spaceNotices(momentTimeline(activity), 'hole', day));
+    }
+    return items;
+  });
+  watch(
+    () => [isReady.value, spaceNotificationItems.value],
+    () => {
+      if (!isReady.value || !context.value) return;
+      if (reconcileSpaceNotices(state.value.spaceNotifications, spaceNotificationItems.value)) saveChat();
+    },
+    { flush: 'post' },
+  );
+  function readSpaceNotifications(ids: string[]): void {
+    const before = new Set(state.value.spaceNotifications.read);
+    ids.forEach(id => before.add(id));
+    if (before.size === state.value.spaceNotifications.read.length) return;
+    state.value.spaceNotifications.read = [...before];
+    saveChat();
+  }
   function imageSource(target: ImageTarget) {
     if (target.kind === 'message') {
       const thread = state.value.threads[target.threadId];
@@ -4782,6 +4807,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     getImageAsset,
     updateImageAsset,
     runImageAction,
+    spaceNotificationItems,
+    readSpaceNotifications,
     momentsFeed,
     saveMoments,
     selectUserScope,

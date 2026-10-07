@@ -175,7 +175,37 @@ const { treeHoleDay, TreeHolePostSchema, TreeHoleStateSchema, anonymousActorKey 
   };
   await phone.refreshTreeHole(day);
   assert.equal(phone.treeHoleFeed(day).length, 3, 'manual count follows slider');
-  assert.equal(phone.state.treeHole[day].posts.length, 0, 'legacy moved once');
+  assert.equal(phone.state.treeHole[day].posts.length, 1, 'legacy source retained');
+  const mixed = TreeHoleStateSchema.parse({
+    mixed: {
+      topic: 'test',
+      activity: {},
+      posts: [
+        TreeHolePostSchema.parse({
+          id: 'hidden-old',
+          alias: '匿名',
+          content: '旧数据不能被空activity遮住',
+          createdAt: 1,
+        }),
+      ],
+    },
+  });
+  const { treeHoleFeed: readFeed } = require(base + '/services/space/tree-hole.ts');
+  assert.equal(readFeed(mixed.mixed).length, 1, 'mixed legacy/activity records remain visible');
+  mixed.mixed.posts[0].createdAt = Date.now() + 86400000;
+  assert.equal(readFeed(mixed.mixed).length, 1, 'already published legacy posts are not hidden by clock differences');
+  phone.state.treeHole['2020-01-01'] = mixed.mixed;
+  await tick();
+  const history = document.querySelector('[aria-label="查看历史树洞"]');
+  assert(history);
+  history.value = '2020-01-01';
+  history.dispatchEvent(new Event('change', { bubbles: true }));
+  await tick();
+  assert(document.body.textContent.includes('旧数据不能被空activity遮住'));
+  history.value = day;
+  history.dispatchEvent(new Event('change', { bubbles: true }));
+  await tick();
+
   const old = phone.treeHoleFeed(day).find(p => p.id === 'old');
   assert(old.liked && old.comments.some(c => c.id === 'old-comment' && c.replyTo === '匿名甲'));
   TreeHoleStateSchema.parse(phone.state.treeHole);

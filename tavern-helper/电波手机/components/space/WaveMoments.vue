@@ -1,5 +1,5 @@
 <template>
-  <div class="moments-view" :class="{ 'space-moments': context === 'space' }">
+  <div ref="viewRoot" class="moments-view" :class="{ 'space-moments': context === 'space' }">
     <WaveDeleteConfirm v-if="deleting" title="删除这条动态？" @cancel="deleting = ''" @confirm="confirmDelete" />
     <WaveNpcProfile
       v-if="viewingPerson"
@@ -22,7 +22,10 @@
       </div>
       <div class="moments-signature">{{ phone.state.moments.profile.signature || '记录生活里的小事' }}</div>
     </template>
-    <section v-else-if="view === 'me' && panel === 'home'" :class="{ 'space-user-card': context === 'space' }">
+    <section
+      v-else-if="view === 'me' && panel === 'home' && !openedCommentPost"
+      :class="{ 'space-user-card': context === 'space' }"
+    >
       <button
         v-if="context === 'space'"
         type="button"
@@ -274,7 +277,10 @@
         </div>
       </section>
     </template>
-    <div v-if="context === 'space' && view === 'me' && panel === 'home'" class="space-profile-tabs">
+    <div
+      v-if="context === 'space' && view === 'me' && panel === 'home' && !openedCommentPost"
+      class="space-profile-tabs"
+    >
       <div role="tablist" aria-label="我的动态筛选">
         <button
           v-for="item in profileTabs"
@@ -288,8 +294,48 @@
         </button>
       </div>
     </div>
+    <div v-if="showCommentCards" class="my-comment-list">
+      <button
+        v-for="item in myComments"
+        :key="item.comment.id"
+        type="button"
+        class="my-comment-card"
+        :aria-label="`查看原帖：${nameFor(item.post.authorKey, item.post.authorName)}的动态`"
+        @click="openCommentPost(item.post.id, item.comment.id)"
+      >
+        <span class="my-comment-heading"
+          ><span
+            ><i class="fa-regular fa-comment-dots" aria-hidden="true"></i>我的{{
+              item.comment.parentId ? '回复' : '评论'
+            }}</span
+          ><time>{{ timeLabel(item.comment.createdAt) }}</time></span
+        >
+        <span v-if="item.comment.replyToAuthorName" class="my-comment-recipient"
+          >回复 {{ nameFor(item.comment.replyToAuthorKey, item.comment.replyToAuthorName) }}</span
+        >
+        <span class="my-comment-text">{{ item.comment.content }}</span>
+        <span v-if="item.comment.translation?.content" class="my-comment-translation">{{
+          item.comment.translation.content
+        }}</span>
+        <span class="my-comment-source"
+          ><span class="my-comment-source-copy"
+            ><strong>{{ nameFor(item.post.authorKey, item.post.authorName) }}</strong
+            ><span>{{ item.post.content || (item.post.images.length ? '分享了图片' : '查看原帖') }}</span></span
+          ><i class="fa-solid fa-chevron-right" aria-hidden="true"></i
+        ></span>
+        <span class="my-comment-link"
+          >查看原帖<i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i
+        ></span>
+      </button>
+      <p v-if="!myComments.length" class="messenger-empty">还没有发表过评论</p>
+    </div>
     <div
-      v-if="view === 'feed' || panel === 'own' || (context === 'space' && view === 'me' && panel === 'home')"
+      v-else-if="
+        openedCommentPost ||
+        view === 'feed' ||
+        panel === 'own' ||
+        (context === 'space' && view === 'me' && panel === 'home')
+      "
       class="moments-feed"
     >
       <article v-for="post in posts" :key="post.id" class="moment-post">
@@ -402,9 +448,6 @@
               </div>
             </div>
           </div>
-          <p v-if="phone.momentInteractionFeedback[post.id]" class="moment-generation-feedback" role="status">
-            {{ phone.momentInteractionFeedback[post.id] }}
-          </p>
           <div v-if="likesFor(post.id).length || commentsFor(post.id).length" class="moment-interactions">
             <div v-if="likesFor(post.id).length" class="moment-likes">
               <i class="fa-regular fa-heart" aria-hidden="true"></i>
@@ -415,7 +458,13 @@
                 </button></template
               >
             </div>
-            <div v-for="comment in commentsFor(post.id)" :key="comment.id" class="moment-comment-row space-comment">
+            <div
+              v-for="comment in commentsFor(post.id)"
+              :key="comment.id"
+              class="moment-comment-row space-comment"
+              :class="{ 'comment-jump-target': comment.id === openedCommentId }"
+              :data-comment-id="comment.id"
+            >
               <button
                 type="button"
                 class="space-comment-avatar"
@@ -772,7 +821,8 @@ const interacting = ref('');
 async function interact(postId: string, commentId?: string) {
   interacting.value = postId;
   try {
-    notice.value = await phone.generateMomentInteractions(postId, commentId);
+    await phone.generateMomentInteractions(postId, commentId);
+    notice.value = '';
   } catch (e) {
     notice.value = e instanceof Error ? e.message : '互动失败';
   } finally {
@@ -816,6 +866,41 @@ const profileTabs = [
   { id: 'liked', label: '喜欢' },
   { id: 'commented', label: '评论' },
 ] as const;
+const viewRoot = ref<HTMLElement | null>(null);
+const openedCommentPost = ref(''),
+  openedCommentId = ref('');
+let commentListScroll = 0;
+const showCommentCards = computed(
+  () =>
+    props.context === 'space' &&
+    props.view === 'me' &&
+    panel.value === 'home' &&
+    profileFilter.value === 'commented' &&
+    !openedCommentPost.value,
+);
+const myComments = computed(() => {
+  const postsById = new Map(
+    phone.momentsFeed.posts.filter(post => post.availableAt <= now.value).map(post => [post.id, post]),
+  );
+  return phone.momentsFeed.comments
+    .filter(
+      comment => comment.authorKey === 'user' && comment.availableAt <= now.value && postsById.has(comment.postId),
+    )
+    .map(comment => ({ comment, post: postsById.get(comment.postId)! }))
+    .sort((a, b) => b.comment.createdAt - a.comment.createdAt);
+});
+async function openCommentPost(postId: string, commentId: string) {
+  const scroller = viewRoot.value?.closest('.space-scroll');
+  commentListScroll = scroller?.scrollTop || 0;
+  openedCommentPost.value = postId;
+  openedCommentId.value = commentId;
+  await nextTick();
+  const target = Array.from(viewRoot.value?.querySelectorAll<HTMLElement>('[data-comment-id]') || []).find(
+    node => node.dataset.commentId === commentId,
+  );
+  if (target?.scrollIntoView) target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  else if (scroller) scroller.scrollTop = 0;
+}
 const profileFilter = ref<'own' | 'liked' | 'commented'>('own');
 const ownPosts = computed(() =>
   phone.momentsFeed.posts.filter(post => post.authorKey === 'user' && post.availableAt <= now.value),
@@ -831,6 +916,7 @@ const receivedLikes = computed(
 );
 const posts = computed(() =>
   phone.momentsFeed.posts.filter(post => {
+    if (openedCommentPost.value) return post.id === openedCommentPost.value && post.availableAt <= now.value;
     if (post.availableAt > now.value || (props.authorKey && post.authorKey !== props.authorKey)) return false;
     if (
       props.query &&
@@ -1169,22 +1255,155 @@ function back() {
     backFromSelection();
     return true;
   }
+  if (openedCommentPost.value) {
+    openedCommentPost.value = '';
+    openedCommentId.value = '';
+    void nextTick(() => {
+      const scroller = viewRoot.value?.closest('.space-scroll');
+      if (scroller) scroller.scrollTop = commentListScroll;
+    });
+    return true;
+  }
   if (panel.value !== 'home') {
     panel.value = 'home';
     return true;
   }
   return false;
 }
-const isSubpage = computed(() => props.view === 'me' && panel.value !== 'home');
-const subpageTitle = computed(
-  () => ({ home: '我的', profile: '编辑资料', settings: '空间互动', own: '我的动态', wallet: '我的钱包' })[panel.value],
+const isSubpage = computed(() => !!openedCommentPost.value || (props.view === 'me' && panel.value !== 'home'));
+const subpageTitle = computed(() =>
+  openedCommentPost.value
+    ? '动态详情'
+    : { home: '我的', profile: '编辑资料', settings: '空间互动', own: '我的动态', wallet: '我的钱包' }[panel.value],
+);
+watch(
+  () => [phone.context?.cardKey, phone.context?.chatKey, props.view],
+  () => {
+    openedCommentPost.value = '';
+    openedCommentId.value = '';
+  },
 );
 const isComposing = computed(() => composing.value);
 const canPublish = computed(() => !viewingPerson.value && props.view === 'me' && panel.value === 'own');
-defineExpose({ openComposer, openProfile, back, isSubpage, subpageTitle, canPublish, isComposing });
+defineExpose({
+  openPost: openCommentPost,
+  openComposer,
+  openProfile,
+  back,
+  isSubpage,
+  subpageTitle,
+  canPublish,
+  isComposing,
+});
 </script>
 
 <style scoped>
+.my-comment-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+#wave-phone-script-root .space-moments button.my-comment-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--settings-line, #edf0f4);
+  border-radius: 20px;
+  background: var(--wave-card, #fff);
+  color: var(--settings-text, #41464f);
+  text-align: left;
+  cursor: pointer;
+}
+.my-comment-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--settings-muted, #8c919b);
+  font-size: 11px;
+}
+.my-comment-heading > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--settings-accent, #6283bd);
+}
+.my-comment-heading time {
+  white-space: nowrap;
+}
+.my-comment-text,
+.my-comment-translation,
+.my-comment-source-copy > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  line-height: 1.7;
+  font-size: 13px;
+}
+.my-comment-translation {
+  -webkit-line-clamp: 2;
+  color: var(--settings-muted, #8c919b);
+  font-size: 12px;
+}
+.my-comment-recipient {
+  color: var(--settings-accent, #6283bd);
+  font-size: 11px;
+}
+.my-comment-source {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: var(--wave-tint, #f5f7fa);
+}
+.my-comment-source-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.my-comment-source-copy strong {
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.my-comment-source-copy > span {
+  -webkit-line-clamp: 2;
+  font-size: 11px;
+  color: var(--settings-muted, #8c919b);
+}
+.my-comment-source > i {
+  font-size: 10px;
+  color: var(--settings-muted, #8c919b);
+}
+.my-comment-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--settings-accent, #6283bd);
+}
+.my-comment-card:focus-visible {
+  outline: 2px solid var(--settings-accent, #6283bd);
+  outline-offset: 3px;
+}
+.comment-jump-target {
+  background: var(--wave-tint, #f5f7fa);
+  border-radius: 12px;
+  scroll-margin-block: 20px;
+}
+
 .moment-generation-feedback {
   margin: 8px 0;
   padding: 0;

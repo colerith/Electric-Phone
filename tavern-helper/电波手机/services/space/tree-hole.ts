@@ -152,38 +152,42 @@ export function prepareTreeHoleActivity(
   daily: z.infer<typeof TreeHoleStateSchema>[string],
   settings: MomentsState['settings'],
 ): MomentsState {
-  if (!daily.activity) {
-    const activity = MomentsStateSchema.parse({});
+  {
+    const activity = daily.activity || MomentsStateSchema.parse({});
+    const knownPosts = new Set(momentTimeline(activity).posts.map(post => post.id));
+    const knownComments = new Set(momentTimeline(activity).comments.map(comment => comment.id));
     for (const post of daily.posts) {
-      activity.posts.push(
-        MomentPostSchema.parse({
-          id: post.id,
-          authorKey: post.mine ? 'user' : anonymousActorKey(post.alias),
-          authorName: post.alias,
-          content: post.content,
-          translation: post.translation,
-          createdAt: post.createdAt,
-          availableAt: post.createdAt,
-        }),
-      );
-      if (post.liked) activity.likes.push(post.id);
-      for (const comment of post.comments)
-        activity.comments.push(
-          MomentCommentSchema.parse({
-            id: comment.id,
-            postId: post.id,
-            authorKey: comment.mine || comment.alias === '匿名的我' ? 'user' : anonymousActorKey(comment.alias),
-            authorName: comment.alias,
-            content: comment.content,
-            translation: comment.translation,
-            createdAt: comment.createdAt,
-            availableAt: comment.createdAt,
-            replyToAuthorName: comment.replyTo,
+      if (!knownPosts.has(post.id) && !activity.deletedPostIds.includes(post.id))
+        activity.posts.push(
+          MomentPostSchema.parse({
+            id: post.id,
+            authorKey: post.mine ? 'user' : anonymousActorKey(post.alias),
+            authorName: post.alias,
+            content: post.content,
+            translation: post.translation,
+            createdAt: post.createdAt,
+            availableAt: 0,
           }),
         );
+      if (!knownPosts.has(post.id) && post.liked && !activity.likes.includes(post.id)) activity.likes.push(post.id);
+      for (const comment of post.comments)
+        if (!knownComments.has(comment.id) && !activity.deletedCommentIds.includes(comment.id))
+          activity.comments.push(
+            MomentCommentSchema.parse({
+              id: comment.id,
+              postId: post.id,
+              authorKey: comment.mine || comment.alias === '匿名的我' ? 'user' : anonymousActorKey(comment.alias),
+              authorName: comment.alias,
+              content: comment.content,
+              translation: comment.translation,
+              createdAt: comment.createdAt,
+              availableAt: 0,
+              replyToAuthorName: comment.replyTo,
+            }),
+          );
     }
     daily.activity = activity;
-    daily.posts = [];
+    // Keep legacy records as a migration source; tombstones prevent resurrection.
   }
   daily.activity.settings = {
     ...settings,
@@ -197,7 +201,38 @@ export function prepareTreeHoleActivity(
 }
 export function treeHoleFeed(daily: z.infer<typeof TreeHoleStateSchema>[string], now = Date.now()) {
   if (!daily.activity) return daily.posts.map(post => ({ ...post, likeCount: Number(post.liked) }));
-  const feed = momentTimeline(daily.activity);
+  const legacyPosts = daily.posts
+    .filter(post => !daily.activity!.posts.some(current => current.id === post.id))
+    .map(post =>
+      MomentPostSchema.parse({
+        id: post.id,
+        authorKey: post.mine ? 'user' : anonymousActorKey(post.alias),
+        authorName: post.alias,
+        content: post.content,
+        translation: post.translation,
+        createdAt: post.createdAt,
+        availableAt: 0,
+      }),
+    );
+  const feed = momentTimeline(daily.activity, legacyPosts);
+  const commentIds = new Set(feed.comments.map(comment => comment.id));
+  for (const post of daily.posts)
+    for (const comment of post.comments) {
+      if (commentIds.has(comment.id) || daily.activity.deletedCommentIds.includes(comment.id)) continue;
+      feed.comments.push(
+        MomentCommentSchema.parse({
+          id: comment.id,
+          postId: post.id,
+          authorKey: comment.mine || comment.alias === '匿名的我' ? 'user' : anonymousActorKey(comment.alias),
+          authorName: comment.alias,
+          content: comment.content,
+          translation: comment.translation,
+          createdAt: comment.createdAt,
+          availableAt: 0,
+          replyToAuthorName: comment.replyTo,
+        }),
+      );
+    }
   return feed.posts
     .sort((a, b) => a.createdAt - b.createdAt)
     .filter(post => post.availableAt <= now)

@@ -366,6 +366,28 @@ function snapshot(name) {
   click('[role=tab]', '评论');
   await tick();
   assert(document.body.textContent.includes('一路顺风'));
+  assert(document.querySelector('.my-comment-card'), 'comments render as cards');
+  assert(!document.querySelector('.moment-post'), 'comment list does not render complete posts');
+  document.querySelector('.my-comment-card').click();
+  await tick();
+  assert(document.querySelector('.moment-post'), 'card opens original post');
+  assert(document.querySelector('.comment-jump-target'), 'target comment is highlighted');
+  assert(space.back());
+  await tick();
+  assert(document.querySelector('.my-comment-card'), 'back restores comment cards');
+  document.querySelector('.space-notice-entry').click();
+  await tick();
+  const noticeRows = [...document.querySelectorAll('.space-notice-row')];
+  assert(noticeRows.length, 'unified interaction list contains new posts');
+  noticeRows[0].click();
+  await tick();
+  assert(document.querySelector('.moment-post'), 'notification opens original post');
+  assert(space.back());
+  await tick();
+  assert(document.querySelector('.space-notice-row'), 'back returns to notification list');
+  assert(space.back());
+  await tick();
+
   click('[role=tab]', '发布');
   await tick();
   click('.moments-me-menu button', '编辑资料');

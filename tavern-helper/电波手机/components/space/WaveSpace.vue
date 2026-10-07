@@ -8,87 +8,90 @@
       @close="showPerson = false"
     />
     <div class="space-scroll">
-      <template v-if="tab === 'char'">
-        <div class="zone-profile-card space-char-profile">
-          <button type="button" class="zone-profile-cover" aria-label="设置空间封面" @click="$emit('cover')">
-            <img v-if="cover" :src="cover" alt="" />
-          </button>
-          <div class="zone-profile-body">
-            <span class="zone-profile-avatar"
-              ><img v-if="avatar" :src="avatar" :style="avatarStyle" alt="" /><span v-else>{{
-                name.slice(0, 1)
-              }}</span></span
-            ><button type="button" class="zone-username moment-person-link" @click="showPerson = true">
-              {{ page.profile.username || name }}</button
-            ><span v-if="page.profile.handle" class="zone-handle">@{{ page.profile.handle.replace(/^@+/, '') }}</span>
-            <WaveProfileDecorations
-              :title="page.profile.title"
-              :title-color="page.profile.titleColor"
-              :badges="page.profile.badges"
-            />
-            <div v-if="page.profile.tags.length" class="zone-badges">
-              <span v-for="tag in page.profile.tags" :key="tag">{{ tag }}</span>
-            </div>
-            <p class="zone-signature">{{ page.profile.signature || '记录生活里的小事' }}</p>
-            <small v-if="page.profile.location" class="zone-location">{{ page.profile.location }}</small>
-            <div class="zone-profile-actions">
-              <button type="button" @click="$emit('message')"><i class="fa-regular fa-comment-dots"></i> 私聊</button
-              ><button type="button" :disabled="busy" @click="$emit('refresh')">
-                <i class="fa-solid fa-arrows-rotate" :class="{ 'fa-spin': busy }"></i>
-                {{ busy ? '更新中…' : '更新动态' }}
-              </button>
-            </div>
-            <div class="zone-stats">
-              <span
-                ><b>{{ charStats.posts }}</b> 日记</span
-              ><span
-                ><b>{{ charStats.likes }}</b> 喜欢</span
-              ><span
-                ><b>{{ charStats.comments }}</b> 评论</span
-              >
+      <WaveSpaceNotifications :opened="notificationsOpen" @open="openNotifications" @visit="visitNotice" />
+      <div v-show="!notificationsOpen">
+        <template v-if="tab === 'char'">
+          <div class="zone-profile-card space-char-profile">
+            <button type="button" class="zone-profile-cover" aria-label="设置空间封面" @click="$emit('cover')">
+              <img v-if="cover" :src="cover" alt="" />
+            </button>
+            <div class="zone-profile-body">
+              <span class="zone-profile-avatar"
+                ><img v-if="avatar" :src="avatar" :style="avatarStyle" alt="" /><span v-else>{{
+                  name.slice(0, 1)
+                }}</span></span
+              ><button type="button" class="zone-username moment-person-link" @click="showPerson = true">
+                {{ page.profile.username || name }}</button
+              ><span v-if="page.profile.handle" class="zone-handle">@{{ page.profile.handle.replace(/^@+/, '') }}</span>
+              <WaveProfileDecorations
+                :title="page.profile.title"
+                :title-color="page.profile.titleColor"
+                :badges="page.profile.badges"
+              />
+              <div v-if="page.profile.tags.length" class="zone-badges">
+                <span v-for="tag in page.profile.tags" :key="tag">{{ tag }}</span>
+              </div>
+              <p class="zone-signature">{{ page.profile.signature || '记录生活里的小事' }}</p>
+              <small v-if="page.profile.location" class="zone-location">{{ page.profile.location }}</small>
+              <div class="zone-profile-actions">
+                <button type="button" @click="$emit('message')"><i class="fa-regular fa-comment-dots"></i> 私聊</button
+                ><button type="button" :disabled="busy" @click="$emit('refresh')">
+                  <i class="fa-solid fa-arrows-rotate" :class="{ 'fa-spin': busy }"></i>
+                  {{ busy ? '更新中…' : '更新动态' }}
+                </button>
+              </div>
+              <div class="zone-stats">
+                <span
+                  ><b>{{ charStats.posts }}</b> 日记</span
+                ><span
+                  ><b>{{ charStats.likes }}</b> 喜欢</span
+                ><span
+                  ><b>{{ charStats.comments }}</b> 评论</span
+                >
+              </div>
             </div>
           </div>
-        </div>
-        <div class="space-feed-tools">
+          <div class="space-feed-tools">
+            <div>
+              <button type="button" :aria-pressed="!likedOnly" @click="likedOnly = false">日记</button
+              ><button type="button" :aria-pressed="likedOnly" @click="likedOnly = true">已喜欢</button>
+            </div>
+            <label
+              ><i class="fa-solid fa-magnifying-glass"></i
+              ><input v-model="query" placeholder="搜索日记" aria-label="搜索空间日记"
+            /></label>
+          </div>
+          <p v-if="error" class="zone-error">{{ error }}</p>
+        </template>
+        <div v-if="tab === 'world'" class="space-world-heading">
           <div>
-            <button type="button" :aria-pressed="!likedOnly" @click="likedOnly = false">日记</button
-            ><button type="button" :aria-pressed="likedOnly" @click="likedOnly = true">已喜欢</button>
+            <small>此刻，世界正在发生</small>
+            <h2>世界动态</h2>
           </div>
-          <label
-            ><i class="fa-solid fa-magnifying-glass"></i
-            ><input v-model="query" placeholder="搜索日记" aria-label="搜索空间日记"
-          /></label>
+          <button type="button" :disabled="phone.moduleGenerating" @click="refreshWorld">
+            {{ phone.moduleGenerating ? '更新中…' : '更新' }}
+          </button>
         </div>
-        <p v-if="error" class="zone-error">{{ error }}</p>
-      </template>
-      <div v-if="tab === 'world'" class="space-world-heading">
-        <div>
-          <small>此刻，世界正在发生</small>
-          <h2>世界动态</h2>
-        </div>
-        <button type="button" :disabled="phone.moduleGenerating" @click="refreshWorld">
-          {{ phone.moduleGenerating ? '更新中…' : '更新' }}
-        </button>
+        <p v-if="worldError && tab === 'world'" class="zone-error" role="status">{{ worldError }}</p>
+        <WaveTreeHole v-if="tab === 'hole'" ref="treeHole" @share="(post, author) => $emit('share', post, author)" />
+        <WaveMoments
+          v-show="tab !== 'hole'"
+          :key="tab === 'hole' ? 'world' : tab"
+          ref="moments"
+          :view="tab === 'me' ? 'me' : 'feed'"
+          context="space"
+          embedded
+          :author-key="tab === 'char' ? phone.activeIdentity?.charKey : undefined"
+          :query="tab === 'char' ? query : ''"
+          :liked-only="tab === 'char' && likedOnly"
+          :user-name="userName"
+          :user-avatar="userAvatar"
+          @share="(post, author) => $emit('share', post, author)"
+        />
       </div>
-      <p v-if="worldError && tab === 'world'" class="zone-error" role="status">{{ worldError }}</p>
-      <WaveTreeHole v-if="tab === 'hole'" ref="treeHole" @share="(post, author) => $emit('share', post, author)" />
-      <WaveMoments
-        v-show="tab !== 'hole'"
-        :key="tab === 'hole' ? 'world' : tab"
-        ref="moments"
-        :view="tab === 'me' ? 'me' : 'feed'"
-        context="space"
-        embedded
-        :author-key="tab === 'char' ? phone.activeIdentity?.charKey : undefined"
-        :query="tab === 'char' ? query : ''"
-        :liked-only="tab === 'char' && likedOnly"
-        :user-name="userName"
-        :user-avatar="userAvatar"
-        @share="(post, author) => $emit('share', post, author)"
-      />
     </div>
     <nav
-      v-if="!moments?.isComposing && (!moments?.isSubpage || tab === 'hole')"
+      v-if="!notificationsOpen && !moments?.isComposing && (!moments?.isSubpage || tab === 'hole')"
       class="space-bottom"
       aria-label="空间导航"
     >
@@ -108,6 +111,8 @@
 </template>
 <script setup lang="ts">
 import { computed, nextTick, ref, watch, type CSSProperties } from 'vue';
+import WaveSpaceNotifications from './WaveSpaceNotifications.vue';
+import type { SpaceNotice } from '../../services/space/notifications';
 import WaveNpcProfile from './WaveNpcProfile.vue';
 import { useNow } from '@vueuse/core';
 import WaveProfileDecorations from './WaveProfileDecorations.vue';
@@ -133,12 +138,35 @@ const phone = usePhoneStore(),
   tab = ref<'char' | 'world' | 'hole' | 'me'>('char');
 const moments = ref<InstanceType<typeof WaveMoments> | null>(null),
   worldError = ref('');
-const showPerson = ref(false);
+const showPerson = ref(false),
+  notificationsOpen = ref(false);
+let returningToNotifications = false;
+let notificationOrigin: 'char' | 'world' | 'hole' | 'me' = 'char';
+function openNotifications() {
+  notificationOrigin = tab.value;
+  notificationsOpen.value = true;
+}
+async function visitNotice(item: SpaceNotice) {
+  notificationsOpen.value = false;
+  returningToNotifications = true;
+  tab.value = item.source === 'hole' ? 'hole' : 'world';
+  await nextTick();
+  if (item.source === 'hole') await treeHole.value?.openPost(item.day, item.postId, item.commentId);
+  else await moments.value?.openPost(item.postId, item.commentId);
+}
+
 const treeHole = ref<InstanceType<typeof WaveTreeHole> | null>(null);
 watch(
   () => [phone.context?.cardKey, phone.context?.chatKey, tab.value],
   () => {
     showPerson.value = false;
+  },
+);
+watch(
+  () => [phone.context?.cardKey, phone.context?.chatKey],
+  () => {
+    notificationsOpen.value = false;
+    returningToNotifications = false;
   },
 );
 const query = ref(''),
@@ -176,6 +204,17 @@ async function refreshWorld() {
   }
 }
 function back(): boolean {
+  if (notificationsOpen.value) {
+    notificationsOpen.value = false;
+    tab.value = notificationOrigin;
+    return true;
+  }
+  if (returningToNotifications) {
+    moments.value?.back();
+    returningToNotifications = false;
+    notificationsOpen.value = true;
+    return true;
+  }
   if (showPerson.value) {
     showPerson.value = false;
     return true;
@@ -184,9 +223,11 @@ function back(): boolean {
   return moments.value?.back() || false;
 }
 const headerTitle = computed(() =>
-  moments.value?.isSubpage && tab.value !== 'hole'
-    ? moments.value.subpageTitle
-    : { char: '角色空间', world: '世界', hole: '匿名树洞', me: '我的空间' }[tab.value],
+  notificationsOpen.value
+    ? '互动消息'
+    : moments.value?.isSubpage && tab.value !== 'hole'
+      ? moments.value.subpageTitle
+      : { char: '角色空间', world: '世界', hole: '匿名树洞', me: '我的空间' }[tab.value],
 );
 const isComposing = computed(() => Boolean(moments.value?.isComposing));
 defineExpose({ tab, back, headerTitle, isComposing });
