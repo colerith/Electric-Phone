@@ -58,7 +58,7 @@
         <footer>
           <label>
             <span>附加留言</span>
-            <textarea v-model="note" rows="2" maxlength="500" placeholder="说点什么…（选填）"></textarea>
+            <textarea v-model="note" rows="4" maxlength="500" placeholder="说点什么…（选填）"></textarea>
           </label>
         </footer>
       </section>
@@ -135,20 +135,26 @@ onMounted(async () => {
 .wave-forward-dialog > header strong {
   font-size: 15px;
 }
-.wave-forward-dialog > header button {
-  padding: 5px 0;
+#wave-phone-script-root .wave-forward-dialog > header button {
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  justify-self: start;
+  line-height: 1.4;
   border: 0;
-  background: transparent;
+  background: var(--wave-tint);
   color: var(--wave-muted);
-  font-size: 12px;
-  text-align: left;
+  font-size: 13px;
+  text-align: center;
 }
-.wave-forward-dialog > header .forward-confirm {
-  color: var(--wave-blue-strong);
-  text-align: right;
+#wave-phone-script-root .wave-forward-dialog > header .forward-confirm {
+  justify-self: end;
+  background: var(--wave-blue-strong, #597bb4);
+  color: #fff;
+  text-align: center;
   font-weight: 700;
 }
-.wave-forward-dialog > header .forward-confirm:disabled {
+#wave-phone-script-root .wave-forward-dialog > header .forward-confirm:disabled {
   opacity: 0.38;
 }
 .wave-forward-search {
@@ -260,19 +266,25 @@ onMounted(async () => {
   display: grid;
   gap: 7px;
   color: var(--wave-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
-.wave-forward-dialog textarea {
+#wave-phone-script-root .wave-forward-dialog textarea {
   box-sizing: border-box;
   width: 100%;
   resize: none;
-  padding: 10px 11px;
+  min-height: 112px;
+  max-height: 180px;
+  padding: 12px 14px;
   border: 1px solid var(--wave-line);
   border-radius: 13px;
   outline: 0;
   background: var(--wave-tint);
   color: var(--wave-ink);
   font: inherit;
-  font-size: 11px;
+  font-size: 15px;
+  line-height: 1.65;
+}
+#wave-phone-script-root .wave-forward-dialog textarea:focus {
+  border-color: var(--wave-blue-strong, #597bb4);
 }
 </style>
