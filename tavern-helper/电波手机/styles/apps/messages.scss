@@ -208,3 +208,62 @@
   margin: 6px 0 0;
   border-radius: 8px;
 }
+
+#wave-phone-script-root .wave-device .group-observer-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 14px 16px;
+  border-top: 1px solid var(--wave-line);
+  background: var(--wave-card, #fff);
+  > i {
+    flex: 0 0 24px;
+    text-align: center;
+    font-size: 18px;
+    color: #7c94bc;
+  }
+  .group-observer-copy {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    strong {
+      font-size: 14px;
+      line-height: 1.5;
+      font-weight: 600;
+      color: var(--wave-ink);
+    }
+    small {
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--wave-muted);
+    }
+  }
+  > button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    width: auto;
+    height: 40px;
+    min-width: 0;
+    margin: 0;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 14px;
+    background: #edf2fa;
+    color: #597bb4;
+    font: 500 13px/1.4 var(--wave-ui-font, sans-serif);
+    white-space: nowrap;
+    i {
+      font-size: 13px;
+    }
+    &:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+  }
+}

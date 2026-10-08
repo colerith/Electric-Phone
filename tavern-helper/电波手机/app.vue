@@ -642,7 +642,13 @@
                   </span>
                   <span class="typing-bubble wave-message-text" aria-label="对方正在输入"> <i></i><i></i><i></i> </span>
                 </div>
-                <div v-if="!visibleMessages.length" class="empty-state">发送第一条只属于这个聊天的手机消息。</div>
+                <div v-if="!visibleMessages.length" class="empty-state">
+                  {{
+                    observingGroup
+                      ? '群里还没有消息，点击「继续围观」看看大家聊些什么。'
+                      : '发送第一条只属于这个聊天的手机消息。'
+                  }}
+                </div>
               </div>
 
               <div class="chat-bottom-jump-anchor">
@@ -718,15 +724,17 @@
                   </button>
                 </div>
               </section>
-              <div v-if="observingGroup" class="composer">
-                <span>仅围观 · 你不在本群中</span
+              <div v-if="observingGroup" class="group-observer-bar">
+                <i class="fa-regular fa-eye" aria-hidden="true"></i>
+                <span class="group-observer-copy"><strong>围观模式</strong><small>你不在本群中，仅查看群聊</small></span
                 ><button
                   type="button"
                   :disabled="store.moduleGenerating"
                   aria-label="继续围观"
                   @click="runManualGeneration('messages')"
                 >
-                  <i class="fa-solid fa-rotate-right"></i>
+                  <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                  <span>{{ store.moduleGenerating ? '更新中…' : '继续围观' }}</span>
                 </button>
               </div>
               <form v-if="!multiSelectMode && !observingGroup" class="composer" @submit.prevent="handlePrimarySend">
