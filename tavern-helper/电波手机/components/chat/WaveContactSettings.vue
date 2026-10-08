@@ -33,7 +33,6 @@
       >NPC 人设<textarea
         v-model="draft.npcProfile"
         rows="6"
-        maxlength="10000"
         placeholder="身份、经历、性格、说话方式，以及与我的关系…"
         aria-label="NPC 人设"
       />

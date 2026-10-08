@@ -11,6 +11,7 @@
           `page-${store.currentPage}`,
           {
             'is-subpage': store.currentPage !== 'home',
+            'is-observing-group': store.currentPage === 'conversation' && observingGroup,
             'space-composing': store.currentPage === 'zone' && space?.isComposing,
             'music-immersive': store.currentPage === 'music' && music.view === 'player' && !appSettingsOpen,
             'music-is-playing': music.playing,

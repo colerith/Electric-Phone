@@ -267,3 +267,9 @@
     }
   }
 }
+
+#wave-phone-script-root .wave-device.is-observing-group .wave-homebar {
+  background: var(--wave-card, #fff);
+  border-color: transparent;
+  box-shadow: none;
+}

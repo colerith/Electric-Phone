@@ -333,8 +333,21 @@ function readChatState(context: RuntimeContext): ChatState {
       ...new Set(Object.values(parsed.snapshots).flatMap(snapshot => snapshot.sourceMessageIds)),
     ];
   }
-  if (parsed.cardKey && (parsed.cardKey !== context.cardKey || parsed.chatKey !== context.chatKey)) {
+  if (parsed.cardKey && parsed.cardKey !== context.cardKey) {
     throw Error('聊天存档归属不匹配，已停止覆盖。请切回原聊天或导入对应备份');
+  }
+  if (parsed.cardKey === context.cardKey && parsed.chatKey && parsed.chatKey !== context.chatKey) {
+    // ST may copy chat variables into branches/new chats. Never write back to the source scope.
+    const emptyNewChat =
+      !SillyTavern.chatMetadata?.main_chat && Array.isArray(SillyTavern.chat) && SillyTavern.chat.length <= 1;
+    logDiagnostic(
+      '同卡聊天存档接续',
+      emptyNewChat ? '新聊天建立独立存档，联系人由角色档案恢复' : '当前聊天继承复制的数据，另存为独立分支',
+    );
+    if (emptyNewChat) {
+      replaceVariables({ ...variables, wave_phone_inherited_backup: klona(saved) }, { type: 'chat' });
+      return ChatStateSchema.parse({ cardKey: context.cardKey, chatKey: context.chatKey });
+    }
   }
   return ChatStateSchema.parse({ ...parsed, cardKey: context.cardKey, chatKey: context.chatKey });
 }
