@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.2.39`
+当前发布版本：`v1.2.40`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.39/file/index-1.2.39.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.40/file/index-1.2.40.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：围观底栏背景衔接；修复同卡新聊天与分支存档归属误判、长角色资料阻止语言设置保存。
+本版更新：补正围观群聊底部背景，将白底延伸至小白条与底部安全区，消除灰白分段。
 
 ## 首次配置
 

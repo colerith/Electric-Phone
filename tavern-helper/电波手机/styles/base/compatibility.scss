@@ -164,7 +164,7 @@
     backdrop-filter: none;
   }
   // Extend the input surface through the reserved bottom area; the indicator stays transparent.
-  .wave-device.page-conversation:has(.composer, .message-multi-toolbar)::after,
+  .wave-device.page-conversation:has(.composer, .message-multi-toolbar, .group-observer-bar)::after,
   .wave-device.page-messages:has(.messenger-app)::after {
     content: '';
     position: absolute;
