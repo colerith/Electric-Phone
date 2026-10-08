@@ -28,7 +28,16 @@ export const musicProviders = [
 export const musicPlatform = (source: string) => musicProviders.find(p => p.id === source)?.platform || source;
 export const musicSourceLabel = (source: string) =>
   musicProviders.find(p => p.id === source)?.label ||
-  ({ netease: '网易云', tencent: 'QQ 音乐', daily: '精选' } as Record<string, string>)[source] ||
+  (
+    {
+      netease: '网易云',
+      tencent: 'QQ 音乐',
+      daily: '精选',
+      'account-netease': '网易云 · 我的账号',
+      'account-qq': 'QQ 音乐 · 我的账号',
+      'account-kugou': '酷狗 · 我的账号',
+    } as Record<string, string>
+  )[source] ||
   source;
 export type SearchProgress = (tracks: Track[], status: string) => void;
 function abortIfNeeded(signal?: AbortSignal) {
@@ -193,6 +202,7 @@ async function searchSingle(query: string, base: string, source: string, signal?
     }));
 }
 export async function resolveTrack(track: Track, base: string, signal?: AbortSignal): Promise<Track> {
+  if (track.source.startsWith('account-')) return (await import('./music-accounts')).resolveAccountTrack(track, signal);
   if (track.source === 'meting-kugou') return resolveMeting(track, signal);
   const provider = musicProviders.find(p => p.id === track.source);
   const result = await resolveSingle(

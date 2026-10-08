@@ -112,6 +112,7 @@
       </button>
     </div>
     <div v-if="app === 'music'" class="browser-preferences">
+      <WaveMusicAccounts configure />
       <label class="service-preference settings-toggle-field"
         ><span>使用推荐服务的登录态</span
         ><WaveToggle
@@ -219,6 +220,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import WaveMusicAccounts from '../music/WaveMusicAccounts.vue';
 import WaveMoments from '../space/WaveMoments.vue';
 import WaveWalletWorkspace from '../wallet/WaveWalletWorkspace.vue';
 import WaveModuleSettings from './WaveModuleSettings.vue';

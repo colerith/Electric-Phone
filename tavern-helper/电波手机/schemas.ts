@@ -18,7 +18,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.2.42';
+export const WAVE_PHONE_RELEASE_VERSION = '1.2.43';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -231,6 +231,9 @@ export const ScriptSettingsSchema = z
     musicApi: z.string().prefault('https://api.vkeys.cn/v2/music'),
     musicPlaybackMode: z.enum(['sequence', 'shuffle', 'loop', 'single']).prefault('sequence'),
     musicPersonalized: z.boolean().prefault(false),
+    musicAccountApis: z
+      .object({ netease: z.string().prefault(''), qq: z.string().prefault(''), kugou: z.string().prefault('') })
+      .prefault({}),
     neteaseApi: z.string().prefault('https://netease-cloud-music-wheat.vercel.app'),
     qqMusicApi: z.string().prefault(''),
     musicSource: z.string().prefault('aggregate'),

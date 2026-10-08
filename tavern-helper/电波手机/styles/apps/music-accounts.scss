@@ -1,0 +1,194 @@
+#wave-phone-script-root .music-accounts {
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 22px;
+  background: var(--wave-card, #fff);
+  color: var(--wave-text, #374558);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  button {
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  strong,
+  small {
+    display: block;
+  }
+  small {
+    font-size: 12px;
+    line-height: 1.6;
+    color: #8e8e93;
+    margin-top: 4px;
+  }
+  .music-account-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    border: 0;
+  }
+  .music-account-heading strong {
+    font-size: 16px;
+  }
+  .music-account-heading i {
+    color: var(--wave-blue);
+  }
+  .music-account-endpoint {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 14px;
+  }
+  .music-account-endpoint input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    font-size: 14px;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #e5e5e8;
+    background: var(--wave-tint, #f3f3f3);
+    color: inherit;
+  }
+  .music-account-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .music-account-profile img {
+    width: 44px;
+    height: 44px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: 0 0 44px;
+  }
+  .music-account-profile > i {
+    font-size: 36px;
+    color: var(--wave-blue);
+  }
+  .music-account-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .music-account-actions button,
+  > button:not(.music-account-heading):not(.music-account-playlist),
+  .music-account-list-heading button {
+    border: 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: #edf2fa;
+    color: var(--wave-blue);
+    min-height: 40px;
+  }
+  .music-account-actions .is-danger {
+    color: #e86994;
+    background: #fff0f5;
+  }
+  .music-account-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+  }
+  .music-account-qr img {
+    width: 200px;
+    max-width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+    background: #fff;
+    padding: 8px;
+    box-sizing: border-box;
+    border-radius: 12px;
+  }
+  p {
+    margin: 0;
+    white-space: normal;
+    text-indent: 0;
+    line-height: 1.6;
+    font-size: 13px;
+  }
+  .music-account-hint {
+    color: #8e8e93;
+  }
+  .music-account-status {
+    color: var(--wave-blue);
+  }
+  .music-account-error {
+    color: #dc6288;
+  }
+  .music-account-playlist {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 0;
+    border: 0;
+    border-bottom: 1px solid #eee;
+    text-align: left;
+    color: inherit;
+    background: transparent;
+  }
+  .music-account-playlist img,
+  .music-account-playlist > i:first-child {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: var(--wave-tint, #f3f3f3);
+    color: var(--wave-blue);
+  }
+  .music-account-playlist span {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .music-account-list-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .music-account-list-heading strong {
+    flex: 1;
+    overflow-wrap: anywhere;
+  }
+  .music-account-song {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #eee;
+    padding: 8px 0;
+  }
+  .music-account-song button {
+    padding: 8px;
+    background: transparent;
+    border: 0;
+    color: inherit;
+  }
+  .music-account-song button:first-child {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+  .music-account-song button:last-child {
+    flex: 0 0 40px;
+    height: 40px;
+    color: var(--wave-blue);
+  }
+}

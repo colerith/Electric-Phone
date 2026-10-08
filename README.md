@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.2.42`
+当前发布版本：`v1.2.43`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.42/file/index-1.2.42.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.43/file/index-1.2.43.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：跨聊天互动概率滑块统一使用内置 WaveSlider，并补充组件规范。
+本版更新：音乐平台扫码登录、账号会员信息与个人歌单；需配置兼容 API，详见[音乐账号接入](tavern-helper/电波手机/docs/音乐账号接入.md)。
 
 ## 首次配置
 

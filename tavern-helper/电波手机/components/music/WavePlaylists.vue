@@ -1,6 +1,7 @@
 <template>
   <section class="playlist-browser" :class="{ 'is-detail': selected }">
     <template v-if="!selected">
+      <WaveMusicAccounts />
       <form
         class="playlist-create"
         @submit.prevent="
@@ -138,6 +139,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import WaveMusicAccounts from './WaveMusicAccounts.vue';
 import { computed, ref, watch, onBeforeUnmount } from 'vue';
 import { useMusicStore } from '../../stores/music';
 import type { Track } from '../../services/music/music';

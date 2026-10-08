@@ -77,6 +77,7 @@ $(window).on('pagehide', cleanup);
 import './styles/apps/browser.scss';
 import './styles/apps/music.scss';
 import './styles/apps/music-refinements.scss';
+import './styles/apps/music-accounts.scss';
 
 import './styles/base/shell-refinements.scss';
 
