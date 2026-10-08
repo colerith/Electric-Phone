@@ -82,6 +82,15 @@ function state(content) {
     unrelated: 42,
     [schema.SCRIPT_VARIABLE_KEY]: wrap(schema.ScriptSettingsSchema.parse({ api: { key: 'test-key', model: 'test' } })),
   });
+  const beforeBatch = settingsSaves;
+  storage.batchPhoneStorage(() => {
+    for (let i = 0; i < 4; i++) {
+      const current = storage.readPhoneGlobals();
+      storage.writePhoneGlobals({ ...current, [schema.USER_PROFILE_VARIABLE_KEY]: wrap({}) });
+      assert.ok(storage.readPhoneGlobals()[schema.USER_PROFILE_VARIABLE_KEY]);
+    }
+  });
+  assert.equal(settingsSaves - beforeBatch, 1, 'four related writes produce one settings save');
   storage.setPhoneStorageInterval(60);
   storage.writePhoneChat(state('服务器保留消息'));
   await new Promise(resolve => setTimeout(resolve, 500));

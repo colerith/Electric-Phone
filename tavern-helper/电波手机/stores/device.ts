@@ -4,7 +4,10 @@ import { advancePower, normalizePower, powerPrompt, POWER_KEY } from '../service
 export const useDeviceStore = defineStore('wave-device-power', () => {
   const power = ref(advancePower(normalizePower(getVariables({ type: 'script' })?.[POWER_KEY])));
   const signal = ref(4);
-  function persist() {
+  let lastPersisted = 0;
+  function persist(force = false) {
+    if (!force && Date.now() - lastPersisted < 60000) return;
+    lastPersisted = Date.now();
     const variables = getVariables({ type: 'script' }) || {};
     replaceVariables({ ...variables, [POWER_KEY]: { ...power.value } }, { type: 'script' });
   }
@@ -24,7 +27,7 @@ export const useDeviceStore = defineStore('wave-device-power', () => {
   function toggleCharging() {
     power.value = advancePower(power.value);
     power.value.charging = !power.value.charging;
-    persist();
+    persist(true);
   }
   function context() {
     power.value = advancePower(power.value);

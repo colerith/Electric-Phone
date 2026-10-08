@@ -14,7 +14,7 @@ function load() {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const module = { exports: {} };
-  new Function('require', 'module', 'exports', code)(require, module, module.exports);
+  new Function('require', 'module', 'exports', code)(id => id === './music-backend' ? { isBuiltinMusicBase: () => false } : require(id), module, module.exports);
   return module.exports;
 }
 let service = load(),

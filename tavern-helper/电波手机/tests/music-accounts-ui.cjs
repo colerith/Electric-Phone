@@ -58,6 +58,8 @@ new Function('require', 'module', 'exports', code)(
     if (id.endsWith('stores/phone')) return { usePhoneStore: () => phone };
     if (id.endsWith('stores/music')) return { useMusicStore: () => ({}) };
     if (id.endsWith('music-accounts')) return mock;
+    if (id.endsWith('music-backend')) return { musicBackend: vue.ref('ready'), checkMusicBackend: async()=>{}, builtinMusicBase: p=>'https://localhost/api/plugins/electric-phone-music/'+p };
+    if (id.endsWith('core/runtime')) return { isExtensionRuntime: true };
     return require(id);
   },
   moduleValue,
@@ -71,6 +73,7 @@ const tick = async () => {
 };
 const click = label => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === label).click();
 (async () => {
+  assert.equal(document.querySelector('button.music-account-heading'), null, 'settings header does not collapse');
   click('扫码登录');
   await tick();
   assert.ok(!signal.aborted);

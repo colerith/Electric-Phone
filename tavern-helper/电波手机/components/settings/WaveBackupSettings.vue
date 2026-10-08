@@ -26,9 +26,9 @@
       <p v-if="migrationNotice" role="status" :class="{ 'backup-error': migrationFailed }">{{ migrationNotice }}</p>
     </section>
     <section class="settings-card system-settings-card">
-      <div class="wave-settings-title">存储状态</div>
-      <label
-        >自动保存间隔（秒）
+      <div class="wave-settings-title">{{ isExtensionRuntime ? '自动保存与恢复' : '存储状态' }}</div>
+      <label v-if="!isExtensionRuntime"
+        >{{ isExtensionRuntime ? '恢复副本保存间隔（秒）' : '自动保存间隔（秒）' }}
         <input
           v-model.number="phone.settings.basic.storageIntervalSeconds"
           type="number"
@@ -37,7 +37,10 @@
           @change="phone.saveSettings()"
         />
       </label>
-      <p>默认每 30 秒合并保存一次，可设为 5–600 秒；没有变化时不上传。需要立即落盘时可点击下方按钮。</p>
+      <p v-if="isExtensionRuntime">
+        设置由酒馆自动保存；恢复副本会合并写入服务器，没有变化时不重复上传。无需手动保存。
+      </p>
+      <p v-else>默认每 30 秒合并保存一次，可设为 5–600 秒；没有变化时不上传。</p>
       <p role="status">{{ storageMessage }}</p>
       <p v-if="phoneStorageStatus.recovery">{{ phoneStorageStatus.recovery }}</p>
       <button class="system-action backup-action" type="button" :disabled="storageSaving" @click="saveStorage">

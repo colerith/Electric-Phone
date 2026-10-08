@@ -1,3 +1,4 @@
+import { isBuiltinMusicBase } from './music-backend';
 import type { Track } from './music';
 
 export const accountProviders = [
@@ -112,11 +113,20 @@ async function request(
       headers['Content-Type'] = 'application/x-www-form-urlencoded';
       if (cookie) body.set('cookie', cookie);
     }
+    const builtin = isBuiltinMusicBase(base);
+    if (builtin) {
+      method = 'POST';
+      if (cookie) body.set('cookie', cookie);
+      Object.assign(headers, SillyTavern.getRequestHeaders());
+      headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      delete headers['X-QQ-Session'];
+      url.search = '';
+    }
     const response = await fetch(url.href, {
       method,
       headers,
       body: method === 'POST' ? body : undefined,
-      credentials: 'omit',
+      credentials: builtin ? 'same-origin' : 'omit',
       cache: 'no-store',
       redirect: 'error',
       signal: controller.signal,

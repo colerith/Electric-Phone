@@ -192,3 +192,46 @@
     color: var(--wave-blue);
   }
 }
+
+#wave-phone-script-root .browser-preferences .music-accounts.music-accounts-settings {
+  padding: 0;
+  margin: 0 0 18px;
+  border-radius: 0;
+  background: transparent;
+  color: var(--settings-text);
+  gap: 14px;
+  .music-account-heading {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+  }
+  .music-account-heading strong {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .music-account-endpoint {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    width: 100%;
+  }
+  .music-account-endpoint input {
+    margin: 0;
+    background: var(--settings-control);
+  }
+  .music-account-hint,
+  .music-account-status,
+  .music-account-error {
+    margin: 0;
+    line-height: 1.6;
+  }
+  .music-account-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .music-account-actions button {
+    min-height: 40px;
+    margin: 0;
+    border-radius: 12px;
+  }
+}

@@ -169,17 +169,39 @@ export function setPhoneStorageInterval(seconds: number): void {
   timer = undefined;
   scheduleStorage();
 }
+let globalBatchDepth = 0;
+let batchedGlobals: Record<string, any> | undefined;
+/** Coalesce dependent writes while keeping in-batch reads current. */
+export function batchPhoneStorage<T>(action: () => T): T {
+  globalBatchDepth++;
+  try {
+    return action();
+  } finally {
+    if (--globalBatchDepth === 0 && batchedGlobals) {
+      const value = batchedGlobals;
+      batchedGlobals = undefined;
+      writePhoneGlobals(value);
+    }
+  }
+}
 export function readPhoneGlobals(): Record<string, any> {
+  if (batchedGlobals) return { ...batchedGlobals };
   return { ...getVariables({ type: 'global' }), ...(supported() ? settings()?.globals : {}) };
 }
 export function writePhoneGlobals(value: Record<string, any>): void {
+  if (globalBatchDepth) {
+    batchedGlobals = value;
+    return;
+  }
   const globals = globalsOnly(value);
   if (!Object.keys(globals).length) {
     replaceVariables(value, { type: 'global' });
     return;
   }
   const savedAt = queue('global', globals);
-  replaceVariables({ ...value, wave_phone_global_saved_at: savedAt }, { type: 'global' });
+  const local = getVariables({ type: 'global' });
+  if (!isEqual(local, { ...value, wave_phone_global_saved_at: savedAt }))
+    replaceVariables({ ...value, wave_phone_global_saved_at: savedAt }, { type: 'global' });
   if (!supported()) return;
   const current = settings();
   if (current?.savedAt === savedAt && isEqual(current.globals, globals)) return;
@@ -258,10 +280,9 @@ export function writePhoneChat(data: Record<string, any>): void {
   if (!current || data.cardKey !== current.cardKey || data.chatKey !== current.chatKey)
     throw Error('聊天已切换，已阻止旧数据写入当前聊天');
   const savedAt = queue(chatScope(current), data);
-  replaceVariables(
-    { ...getVariables({ type: 'chat' }), [CHAT_VARIABLE_KEY]: klona(data), wave_phone_saved_at: savedAt },
-    { type: 'chat' },
-  );
+  const local = getVariables({ type: 'chat' });
+  if (local.wave_phone_saved_at === savedAt && isEqual(local[CHAT_VARIABLE_KEY], data)) return;
+  replaceVariables({ ...local, [CHAT_VARIABLE_KEY]: klona(data), wave_phone_saved_at: savedAt }, { type: 'chat' });
 }
 
 export async function flushPhoneStorage(drain = true): Promise<void> {

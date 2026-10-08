@@ -1,21 +1,54 @@
 <template>
-  <section class="music-accounts">
-    <button class="music-account-heading" type="button" :aria-expanded="expanded" @click="expanded = !expanded">
+  <section class="music-accounts" :class="{ 'music-accounts-settings': configure }">
+    <div v-if="configure" class="music-account-heading">
+      <span><strong>我的音乐账号</strong><small>登录平台 · 会员状态 · 个人歌单</small></span>
+    </div>
+    <button v-else class="music-account-heading" type="button" :aria-expanded="expanded" @click="expanded = !expanded">
       <span><strong>我的音乐账号</strong><small>登录平台 · 会员状态 · 个人歌单</small></span>
       <i :class="expanded ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'"></i>
     </button>
-    <template v-if="expanded">
+    <template v-if="configure || expanded">
       <WaveSelect
         v-model="provider"
         :options="accountProviders.map(p => ({ value: p.id, label: p.name }))"
         aria-label="音乐账号平台"
       />
-      <label v-if="configure" class="music-account-endpoint"
+      <div v-if="isExtensionRuntime" class="music-account-backend">
+        <p class="music-account-hint">
+          {{
+            musicBackend === 'ready'
+              ? '酒馆音乐插件已连接，无需填写服务地址。'
+              : musicBackend === 'checking'
+                ? '正在检测酒馆音乐插件…'
+                : '尚未检测到音乐后端插件，安装并重启酒馆后可直接扫码。'
+          }}
+        </p>
+        <div class="music-account-actions">
+          <button
+            v-if="musicBackend !== 'ready'"
+            type="button"
+            :disabled="musicBackend === 'checking'"
+            @click="checkMusicBackend"
+          >
+            重新检测
+          </button>
+          <button
+            v-if="musicBackend === 'ready' && phone.settings.musicAccountApis[provider]"
+            type="button"
+            @click="useBuiltin"
+          >
+            使用酒馆音乐插件
+          </button>
+        </div>
+      </div>
+      <label
+        v-if="configure && (musicBackend !== 'ready' || phone.settings.musicAccountApis[provider])"
+        class="music-account-endpoint"
         >{{ providerInfo.name }}登录服务
         <input v-model="draftBase" type="url" placeholder="https://你的音乐服务地址" @change="saveBase" />
         <small>{{ providerInfo.backend }} 兼容接口；需允许酒馆地址跨域访问。只向此服务发送该平台的登录凭据。</small>
       </label>
-      <p v-if="!base" class="music-account-hint">请先在音乐设置中填写此平台的登录服务地址。</p>
+      <p v-if="!base" class="music-account-hint">安装酒馆音乐插件，或填写已有的兼容音乐服务地址。</p>
       <template v-else>
         <div v-if="account" class="music-account-profile">
           <img v-if="account.avatar" :src="account.avatar" alt="" referrerpolicy="no-referrer" />
@@ -91,7 +124,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import WaveSelect from '../shared/WaveSelect.vue';
 import { usePhoneStore } from '../../stores/phone';
 import { useMusicStore } from '../../stores/music';
@@ -109,6 +142,8 @@ import {
   type MusicAccount,
   type AccountPlaylist,
 } from '../../services/music/music-accounts';
+import { musicBackend, checkMusicBackend, builtinMusicBase } from '../../services/music/music-backend';
+import { isExtensionRuntime } from '../../services/core/runtime';
 import type { Track } from '../../services/music/music';
 const props = defineProps<{ configure?: boolean }>();
 const phone = usePhoneStore(),
@@ -117,7 +152,19 @@ const expanded = ref(Boolean(props.configure)),
   provider = ref<MusicAccountProvider>('netease'),
   channel = ref('qq');
 const providerInfo = computed(() => accountProviders.find(p => p.id === provider.value)!);
-const base = computed(() => phone.settings.musicAccountApis[provider.value]);
+const base = computed(
+  () =>
+    phone.settings.musicAccountApis[provider.value] ||
+    (musicBackend.value === 'ready' ? builtinMusicBase(provider.value) : ''),
+);
+onMounted(() => {
+  if (musicBackend.value === 'idle') void checkMusicBackend();
+});
+function useBuiltin() {
+  phone.settings.musicAccountApis[provider.value] = '';
+  phone.saveSettings();
+}
+
 const draftBase = ref(''),
   account = ref<MusicAccount>(),
   busy = ref(false),
@@ -150,7 +197,7 @@ function reset() {
   songsMore.value = false;
   loaded.value = false;
   error.value = '';
-  draftBase.value = base.value;
+  draftBase.value = phone.settings.musicAccountApis[provider.value];
   try {
     account.value = cachedMusicAccount(provider.value, base.value);
   } catch {

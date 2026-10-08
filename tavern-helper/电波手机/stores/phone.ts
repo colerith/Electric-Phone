@@ -1,3 +1,4 @@
+import { batchPhoneStorage } from '../services/core/durable-storage';
 import { applyGroupManagement } from '../services/chat/group-management';
 import { registerChatTime } from '../services/core/chat-time';
 import { startHeartbeat } from '../services/core/heartbeat';
@@ -1190,6 +1191,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   }
 
   function saveChat(): void {
+    batchPhoneStorage(persistCurrentChat);
+  }
+  function persistCurrentChat(): void {
     if (!context.value || !state.value.chatKey) return;
     syncPaymentLedger(
       state.value.walletBook,
