@@ -1,7 +1,8 @@
 import { preparePhoneStorage } from './services/core/durable-storage';
-import { createPinia } from 'pinia';
+import { createPinia, disposePinia, type Pinia } from 'pinia';
 import { createApp, watch, type App as VueApp } from 'vue';
-import { createScriptIdDiv, destroyScriptIdDiv, deteleportStyle, teleportStyle } from '../../script';
+import { createScriptIdDiv, destroyScriptIdDiv, deteleportStyle, teleportStyle } from './services/core/mount-root';
+import { isExtensionRuntime } from './services/core/runtime';
 import App from './app.vue';
 import './styles/base/style.scss';
 import './styles/base/floating-entry.scss';
@@ -16,12 +17,13 @@ import { bindPhoneViewport } from './services/core/viewport';
 import { PHONE_QUICK_REPLY_BUTTON, syncPhoneQuickReply } from './services/core/entry-buttons';
 
 const ROOT_ID = 'wave-phone-script-root';
+let activePinia: Pinia | null = null;
 let stopEntryWatch: (() => void) | null = null;
 let vueApp: VueApp<Element> | null = null;
 let buttonEvent: EventOnReturn | null = null;
 let mountedRoot: HTMLElement | null = null;
 let releaseViewport: (() => void) | null = null;
-function cleanup(): void {
+export function cleanup(): void {
   stopEntryWatch?.();
   stopEntryWatch = null;
   releaseViewport?.();
@@ -30,12 +32,25 @@ function cleanup(): void {
   buttonEvent = null;
   vueApp?.unmount();
   vueApp = null;
+  if (activePinia) disposePinia(activePinia);
+  activePinia = null;
   destroyScriptIdDiv();
   deteleportStyle();
   mountedRoot = null;
 }
 
-async function initialize(): Promise<void> {
+export function openPhone(): void {
+  if (activePinia) usePhoneStore(activePinia).isOpen = true;
+}
+
+export async function initialize(): Promise<void> {
+  if (
+    !isExtensionRuntime &&
+    window.parent.document.querySelector('#wave-phone-script-root[data-wave-runtime="extension"]')
+  ) {
+    toastr.warning('电波手机扩展已运行，请停用旧脚本');
+    return;
+  }
   await preparePhoneStorage();
   cleanup();
   const $root = createScriptIdDiv().attr('id', ROOT_ID);
@@ -44,6 +59,7 @@ async function initialize(): Promise<void> {
   releaseViewport = bindPhoneViewport(mountedRoot);
 
   const pinia = createPinia();
+  activePinia = pinia;
   vueApp = createApp(App);
   vueApp.use(pinia);
   vueApp.mount($root[0]);
@@ -65,12 +81,13 @@ async function initialize(): Promise<void> {
   buttonEvent = eventOn(getButtonEvent(PHONE_QUICK_REPLY_BUTTON), () => {
     store.isOpen = !store.isOpen;
   });
-  console.info('[wave-phone] 脚本界面已挂载');
+  console.info(isExtensionRuntime ? '[wave-phone] 扩展界面已挂载' : '[wave-phone] 脚本界面已挂载');
 }
 
-$(() => {
-  void errorCatched(initialize)();
-});
+if (!isExtensionRuntime)
+  $(() => {
+    void errorCatched(initialize)();
+  });
 
 $(window).on('pagehide', cleanup);
 

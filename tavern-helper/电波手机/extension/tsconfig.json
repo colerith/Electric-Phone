@@ -1,0 +1,1 @@
+{"compilerOptions":{"target":"ES2022","module":"ESNext","moduleResolution":"Bundler","esModuleInterop":true,"resolveJsonModule":true,"skipLibCheck":true,"allowJs":true,"sourceMap":true},"include":["../**/*.ts","../**/*.vue"],"exclude":["../tests"]}

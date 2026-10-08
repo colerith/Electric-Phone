@@ -13,7 +13,14 @@
         />
       </div>
       <div class="system-toggle-row">
-        <span><strong>注入快速回复栏</strong><small>显示酒馆助手的「📱 电波手机」脚本按钮</small></span>
+        <span
+          ><strong>{{ isExtensionRuntime ? '扩展菜单入口' : '注入快速回复栏' }}</strong
+          ><small>{{
+            isExtensionRuntime
+              ? '在酒馆扩展菜单中显示电波手机；扩展设置中始终保留入口'
+              : '显示酒馆助手的「📱 电波手机」脚本按钮'
+          }}</small></span
+        >
         <WaveToggle
           v-model="appearance.quickReplyEntry"
           aria-label="注入快速回复栏"
@@ -133,6 +140,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import { isExtensionRuntime } from '../../services/core/runtime';
 import { computed, ref } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import WaveToggle from '../shared/WaveToggle.vue';

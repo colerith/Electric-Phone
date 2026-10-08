@@ -1,0 +1,12 @@
+{
+  "display_name": "电波手机",
+  "loading_order": 120,
+  "requires": [],
+  "optional": [],
+  "js": "dist/index.js",
+  "author": "colerith",
+  "version": "1.3.0",
+  "homePage": "https://github.com/colerith/Electric-Phone",
+  "auto_update": true,
+  "minimum_client_version": "1.13.0"
+}
