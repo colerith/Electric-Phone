@@ -29,7 +29,11 @@
         />
       </div>
       <label class="chat-setting-block"
-        >群名称<input :value="group.name" maxlength="40" :disabled="!isOwner" @change="updateName"
+        >群名称<input
+          :value="group.name"
+          maxlength="40"
+          :disabled="!isOwner && !group.groupObserver"
+          @change="updateName"
       /></label>
       <label class="chat-setting-block"
         >群公告<textarea

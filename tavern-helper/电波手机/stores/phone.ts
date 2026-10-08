@@ -1,3 +1,4 @@
+import { applyGroupManagement } from '../services/chat/group-management';
 import { registerChatTime } from '../services/core/chat-time';
 import { startHeartbeat } from '../services/core/heartbeat';
 import { spaceNotices, reconcileSpaceNotices } from '../services/space/notifications';
@@ -213,7 +214,10 @@ function nextReceivedAt(thread: Thread): string {
     const value = Date.parse(message.createdAt);
     return Number.isFinite(value) ? Math.max(latest, value) : latest;
   }, 0);
-  const current = messageClockTime(usePhoneStore().settings.basic.systemClock);
+  const phone = usePhoneStore();
+  const current = messageClockTime(phone.settings.basic.systemClock);
+  if (phone.state.identities[thread.charKey]?.source === 'local_group')
+    return new Date(Math.max(current, last + 1)).toISOString();
   // 仅维持同一分钟内的接收顺序；旧系统时间或主动回拨不能拉走手机时间。
   return new Date(last >= current && last - current < 60_000 ? last + 1 : current).toISOString();
 }
@@ -1763,9 +1767,15 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       for (const [charKey, snapshot] of Object.entries(nextState.snapshots))
         filterDeletedSnapshotContent(snapshot, charKey, nextState.contentTombstones);
 
-      Object.values(nextState.threads).forEach(thread =>
-        thread.messages.sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-      );
+      Object.values(nextState.threads).forEach(thread => {
+        if (nextState.identities[thread.charKey]?.source === 'local_group') {
+          // Floor replay appends old messages again. Retain their original receipt order.
+          const order = new Map((previousThreadMessages.get(thread.charKey) || []).map((id, index) => [id, index]));
+          thread.messages.sort(
+            (a, b) => (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+          );
+        } else thread.messages.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      });
 
       if (!nextState.activeCharKey || !nextState.identities[nextState.activeCharKey]) {
         nextState.activeCharKey = Object.values(nextState.identities)[0]?.charKey || '';
@@ -1871,6 +1881,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (token !== syncToken) return;
       context.value = runtime;
       state.value = ChatStateSchema.parse(nextState);
+      for (const thread of Object.values(state.value.threads)) {
+        const group = state.value.identities[thread.charKey];
+        if (group) applyGroupManagement(group, thread, state.value.identities);
+      }
       for (const thread of Object.values(state.value.threads)) {
         if (state.value.identities[thread.charKey]?.source === 'local_group') continue;
         const maximum = mediaForCharacter(thread.charKey).voice.max;
@@ -3170,6 +3184,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!context.value || !state.value.identities[charKey]) return;
     const thread = ensureThread(state.value, context.value, state.value.identities[charKey]);
     thread.hidden = false;
+    currentPage.value = 'conversation';
     selectIdentity(charKey);
     saveChat();
   }
@@ -3367,6 +3382,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   function selectIdentity(charKey: string): void {
     if (!state.value.identities[charKey]) return;
     if (state.value.activeCharKey !== charKey) {
+      ++syncToken;
       if (zoneGenerationId) void stopPhoneGeneration(zoneGenerationId);
       zoneGenerationId = '';
       zoneGenerating.value = false;
@@ -3402,8 +3418,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         payload: {
           interaction: 'group_management',
           action,
-          actorKey: 'user',
-          actorName: groupMemberDisplayName(group, 'user'),
+          actorKey: group.groupObserver ? 'system' : 'user',
+          actorName: group.groupObserver ? '系统' : groupMemberDisplayName(group, 'user'),
           targetKey,
         },
       }),
@@ -3420,7 +3436,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const group = activeIdentity.value;
     if (!group || group.source !== 'local_group') return;
     const canManage = !group.groupObserver && (group.groupOwnerKey || 'user') === 'user';
-    const name = !canManage || changes.name === undefined ? group.name : changes.name.trim().slice(0, 40);
+    const name =
+      (!canManage && !group.groupObserver) || changes.name === undefined
+        ? group.name
+        : changes.name.trim().slice(0, 40);
     if (!name) throw Error('群名称不能为空');
     state.value.identities[group.charKey] = IdentitySchema.parse({
       ...group,
@@ -3434,7 +3453,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       updatedAt: nowIso(),
     });
     const updated = state.value.identities[group.charKey];
-    const actor = groupMemberDisplayName(group, 'user');
+    const actor = group.groupObserver ? '系统' : groupMemberDisplayName(group, 'user');
     if (name !== group.name) appendGroupNotice(group, 'name', `${actor}将群名称修改为「${name}」`);
     if ((updated.groupAnnouncement || '') !== (group.groupAnnouncement || ''))
       appendGroupNotice(
@@ -4010,6 +4029,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           error: '',
         });
       });
+      applyGroupManagement(state.value.identities[identity.charKey] || identity, currentThread, state.value.identities);
       const updatedApps = new Set<AppId>();
       if (result.data.messages.length) updatedApps.add('messages');
       Object.entries(result.data.app_updates).forEach(([rawAppId, value]) => {

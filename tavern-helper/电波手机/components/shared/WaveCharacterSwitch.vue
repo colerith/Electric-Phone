@@ -61,6 +61,7 @@ function crop(key: string): Record<string, string> {
 watch(
   [() => phone.state.activeCharKey, options],
   () => {
+    if (!['status', 'memo', 'zone', 'calendar', 'browse', 'music'].includes(phone.currentPage)) return;
     if (!options.value.some(option => option.value === phone.state.activeCharKey) && options.value[0])
       phone.selectPanelCharacter(options.value[0].value);
   },

@@ -77,6 +77,16 @@ const tick = async () => {
   phone.activeThread.draft = 'Keep this draft';
   assert(phone.activeIdentity.groupObserver);
   const owner = phone.activeIdentity.groupOwnerKey;
+  phone.updateGroupDetails({ name: '围观新群名' });
+  assert.equal(phone.activeIdentity.name, '围观新群名');
+  assert.equal(phone.activeThread.messages.at(-1).payload.actorKey, 'system');
+  phone.activeThread.messages.at(-1).createdAt = '2099-01-01T00:00:00.000Z';
+  phone.selectIdentity(alice);
+  const staleSync = phone.synchronize();
+  phone.startConversation(group);
+  await staleSync;
+  assert.equal(phone.activeIdentity.charKey, group, 'late sync must not switch the opened group back to private chat');
+  assert.equal(phone.currentPage, 'conversation');
   app.mount('#app');
   await tick();
   document.querySelector('.group-add-button').click();
@@ -101,6 +111,7 @@ const tick = async () => {
   assert.equal(phone.activeThread.draft, 'Keep this draft');
   const notices = phone.activeThread.messages.filter(m => m.payload.action === 'add');
   assert.equal(notices.length, 2);
+  assert(notices.every(m => Date.parse(m.createdAt) > Date.parse('2099-01-01T00:00:00.000Z')), 'join notices follow previous group messages even if clock moves backward');
   assert(notices.every(m => m.payload.actorKey === 'system'));
   assert.equal(phone.addGroupMembers([clara, clara], group), 0);
   assert.equal(phone.activeThread.messages.filter(m => m.payload.action === 'add').length, 2);

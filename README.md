@@ -9,15 +9,15 @@
 3. 启用脚本后，点击页面中的电波手机入口。
 4. 首次使用请先打开「设置 → API 连接」，配置生成服务。
 
-当前发布版本：`v1.2.40`
+当前发布版本：`v1.2.41`
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.40/file/index-1.2.40.js';
+import 'https://cdn.jsdelivr.net/gh/colerith/Electric-Phone@v1.2.41/file/index-1.2.41.js';
 ```
 
 > 更新版本时，需要同时替换地址中的版本标签和文件名，然后停用再重新启用脚本。
 
-本版更新：补正围观群聊底部背景，将白底延伸至小白条与底部安全区，消除灰白分段。
+本版更新：修复群聊入口切换与消息顺序；围观群支持改名，群主与管理员可按剧情执行结构化群管理操作。
 
 ## 首次配置
 
