@@ -10,13 +10,13 @@
     /></label>
     <label v-if="preferences.crossChatEnabled" class="chat-setting-block"
       >触发概率 · {{ preferences.crossChatProbability }}%
-      <input
-        type="range"
-        min="0"
-        max="100"
-        step="5"
-        :value="preferences.crossChatProbability"
-        @change="update({ crossChatProbability: Number(($event.target as HTMLInputElement).value) })"
+      <WaveSlider
+        :min="0"
+        :max="100"
+        :step="5"
+        :model-value="preferences.crossChatProbability"
+        aria-label="跨聊天互动触发概率"
+        @update:model-value="value => update({ crossChatProbability: value })"
       />
     </label>
     <p class="chat-settings-note">
@@ -31,6 +31,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import WaveToggle from '../shared/WaveToggle.vue';
+import WaveSlider from '../shared/WaveSlider.vue';
 import { usePhoneStore } from '../../stores/phone';
 import { ChatPreferencesSchema, type ChatPreferences } from '../../services/chat/chat-preferences';
 const phone = usePhoneStore();
