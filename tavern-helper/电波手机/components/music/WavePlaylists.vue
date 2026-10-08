@@ -2,6 +2,7 @@
   <section class="playlist-browser" :class="{ 'is-detail': selected }">
     <template v-if="!selected">
       <WaveMusicAccounts />
+      <p v-if="music.librarySyncStatus" role="status">{{ music.librarySyncStatus }}</p>
       <form
         class="playlist-create"
         @submit.prevent="
@@ -19,7 +20,7 @@
         v-for="list in music.playlists"
         :key="list.id"
         class="playlist-row"
-        @contextmenu.prevent="deleting = list.id"
+        @contextmenu.prevent="!music.isRemotePlaylist(list.id) && (deleting = list.id)"
         @touchstart.passive="touch = [$event.touches[0].clientX, $event.touches[0].clientY]"
         @touchend.passive="swipe($event, list.id)"
       >
@@ -27,7 +28,9 @@
           <img v-if="cover(list)" :src="cover(list)" alt="" /><span v-else class="playlist-art">♫</span
           ><span
             ><strong>{{ list.name }}</strong
-            ><small>{{ list.tracks.length }} 首歌曲</small></span
+            ><small
+              >{{ list.tracks.length }} 首歌曲{{ music.isRemotePlaylist(list.id) ? ' · 平台同步' : '' }}</small
+            ></span
           >
         </button>
         <button
@@ -41,7 +44,14 @@
         >
           删除
         </button>
-        <button v-else type="button" aria-label="歌单选项" @click="deleting = list.id">⋯</button>
+        <button
+          v-else-if="!music.isRemotePlaylist(list.id)"
+          type="button"
+          aria-label="歌单选项"
+          @click="deleting = list.id"
+        >
+          ⋯
+        </button>
       </article>
       <p v-if="!music.playlists.length">给喜欢的旋律一个名字，创建你的第一张歌单。</p>
     </template>
@@ -58,6 +68,7 @@
           >
             <i class="fa-solid fa-chevron-left"></i></button
           ><button
+            v-if="!music.isRemotePlaylist(selected.id)"
             type="button"
             aria-label="编辑歌单"
             @click="
@@ -96,12 +107,13 @@
         ><button type="button" @click="editing = false">取消</button>
       </div>
       <div
-        v-for="(track, index) in selected.tracks"
+        v-for="(track, index) in selected.tracks.slice(0, visibleTracks)"
         :key="track.source + track.id"
         class="playlist-song-swipe"
         :class="{ revealed: removingTrack === trackKey(track) }"
       >
         <button
+          v-if="!music.isRemotePlaylist(selected.id)"
           type="button"
           class="playlist-song-remove"
           :tabindex="removingTrack === trackKey(track) ? 0 : -1"
@@ -113,7 +125,7 @@
         <article
           class="playlist-song"
           @click.capture="suppressSongAction"
-          @contextmenu.prevent="removingTrack = trackKey(track)"
+          @contextmenu.prevent="!music.isRemotePlaylist(selected.id) && (removingTrack = trackKey(track))"
           @pointerdown="startSongSwipe($event, track)"
           @pointerup="endSongSwipe"
           @pointercancel="songSwipe = null"
@@ -134,17 +146,27 @@
           </button>
         </article>
       </div>
-      <p v-if="!selected.tracks.length">从歌曲旁的 ＋ 添加到这张歌单。</p>
+      <button v-if="selected.tracks.length > visibleTracks" ref="moreTracks" type="button" @click="visibleTracks += 80">
+        显示更多歌曲
+      </button>
+      <p v-if="!selected.tracks.length">
+        {{
+          music.isRemotePlaylist(selected.id)
+            ? '歌单暂无可读取的歌曲；同步完成后会自动显示。'
+            : '从歌曲旁的 ＋ 添加到这张歌单。'
+        }}
+      </p>
     </template>
   </section>
 </template>
 <script setup lang="ts">
 import WaveMusicAccounts from './WaveMusicAccounts.vue';
-import { computed, ref, watch, onBeforeUnmount } from 'vue';
+import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue';
 import { useMusicStore } from '../../stores/music';
 import type { Track } from '../../services/music/music';
 import WaveImageUpload from '../shared/WaveImageUpload.vue';
 const music = useMusicStore();
+onMounted(() => void music.syncAccountLibraries());
 const emit = defineEmits<{ detail: [value: boolean] }>();
 const name = ref(''),
   selectedId = ref(''),
@@ -153,6 +175,21 @@ const name = ref(''),
   editName = ref(''),
   editCover = ref(''),
   removingTrack = ref('');
+const visibleTracks = ref(80);
+const moreTracks = ref<HTMLElement | null>(null);
+let trackObserver: IntersectionObserver | undefined;
+watch(moreTracks, element => {
+  trackObserver?.disconnect();
+  if (!element || typeof IntersectionObserver === 'undefined') return;
+  trackObserver = new IntersectionObserver(entries => {
+    if (entries.some(entry => entry.isIntersecting)) visibleTracks.value += 80;
+  });
+  trackObserver.observe(element);
+});
+onBeforeUnmount(() => trackObserver?.disconnect());
+watch(selectedId, () => {
+  visibleTracks.value = 80;
+});
 const touch = ref([0, 0]);
 let suppressClickUntil = 0;
 let songSwipe: { x: number; y: number; key: string } | null = null;
@@ -184,6 +221,7 @@ onBeforeUnmount(() => {
   music.playlistCover = '';
 });
 function swipe(event: TouchEvent, id: string) {
+  if (music.isRemotePlaylist(id)) return;
   const end = event.changedTouches[0];
   if (end.clientX - touch.value[0] < -45 && Math.abs(end.clientY - touch.value[1]) < 35) {
     deleting.value = id;
@@ -199,7 +237,7 @@ function playSong(track: Track) {
   music.view = 'player';
 }
 function startSongSwipe(event: PointerEvent, track: Track) {
-  if (event.button !== 0) return;
+  if (event.button !== 0 || (selected.value && music.isRemotePlaylist(selected.value.id))) return;
   songSwipe = { x: event.clientX, y: event.clientY, key: trackKey(track) };
 }
 function endSongSwipe(event: PointerEvent) {

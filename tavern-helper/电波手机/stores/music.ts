@@ -1,5 +1,20 @@
+import { shallowRef, computed, onScopeDispose, ref, watch } from 'vue';
+import {
+  accountProviders,
+  cachedMusicAccount,
+  type MusicAccountProvider,
+  type MusicAccount,
+} from '../services/music/music-accounts';
+import { musicBackend, builtinMusicBase, checkMusicBackend } from '../services/music/music-backend';
+import {
+  libraryKey,
+  readLibrary,
+  writeLibrary,
+  synchronizeLibrary,
+  type SyncedPlaylist,
+} from '../services/music/account-library';
 import { defineStore } from 'pinia';
-import { computed, onScopeDispose, ref, watch } from 'vue';
+
 import { musicIntent, parseLrc, resolveTrack, searchMusic, type Track } from '../services/music/music';
 import { fetchRecommendations, extraLyrics, simplifyLyrics } from '../services/music/music-discovery';
 import { nextQueueIndex, type PlaybackMode } from '../services/music/music-queue';
@@ -97,7 +112,103 @@ export const useMusicStore = defineStore('wave-music', () => {
 
   const togetherSeconds = ref(0);
   const queue = computed(() => phone.state.musicQueues[queueKey.value] || []);
-  const playlists = computed(() => phone.state.musicPlaylists[phone.state.activeCharKey] || []);
+  const remoteLibraries = shallowRef<Record<string, SyncedPlaylist[]>>({});
+  const librarySyncStatus = ref('');
+  const libraryRequests = new Map<string, { controller: AbortController; promise: Promise<void> }>();
+  const lastLibrarySync = new Map<string, number>();
+  const playlists = computed(() => [
+    ...(phone.state.musicPlaylists[phone.state.activeCharKey] || []),
+    ...Object.values(remoteLibraries.value).flat(),
+  ]);
+  const isRemotePlaylist = (id: string) =>
+    Object.values(remoteLibraries.value).some(rows => rows.some(row => row.id === id));
+  function clearAccountLibrary(provider: MusicAccountProvider, base: string) {
+    for (const [key, pending] of libraryRequests) {
+      const [p, endpoint] = JSON.parse(key);
+      if (p === provider && endpoint === base) {
+        pending.controller.abort();
+        libraryRequests.delete(key);
+      }
+    }
+    remoteLibraries.value = Object.fromEntries(
+      Object.entries(remoteLibraries.value).filter(([key]) => {
+        const [p, endpoint] = JSON.parse(key);
+        return p !== provider || endpoint !== base;
+      }),
+    );
+  }
+  async function syncAccountLibrary(
+    provider: MusicAccountProvider,
+    base: string,
+    account: MusicAccount,
+    force = false,
+  ): Promise<void> {
+    const key = libraryKey(provider, base, account.id);
+    for (const [oldKey, job] of libraryRequests) {
+      const [oldProvider, oldBase] = JSON.parse(oldKey);
+      if (oldKey !== key && oldProvider === provider && oldBase === JSON.parse(key)[1]) job.controller.abort();
+    }
+    remoteLibraries.value = Object.fromEntries(
+      Object.entries(remoteLibraries.value).filter(([oldKey]) => {
+        const [oldProvider, oldBase] = JSON.parse(oldKey);
+        return oldKey === key || oldProvider !== provider || oldBase !== JSON.parse(key)[1];
+      }),
+    );
+    const existing = libraryRequests.get(key);
+    if (existing) return existing.promise;
+    if (!force && remoteLibraries.value[key] && Date.now() - (lastLibrarySync.get(key) || 0) < 300000) return;
+    const controller = new AbortController();
+    const stillCurrent = () => !controller.signal.aborted && cachedMusicAccount(provider, base)?.id === account.id;
+    const promise = (async () => {
+      const cached = remoteLibraries.value[key] || (await readLibrary(key));
+      if (!stillCurrent()) return;
+      remoteLibraries.value = { ...remoteLibraries.value, [key]: cached };
+      const result = await synchronizeLibrary(provider, base, account.id, cached, controller.signal, (done, total) => {
+        librarySyncStatus.value = `正在同步 ${account.name} 的歌单 ${done}/${total}`;
+      });
+      if (!stillCurrent()) return;
+      remoteLibraries.value = { ...remoteLibraries.value, [key]: result.rows };
+      await writeLibrary(key, result.rows);
+      lastLibrarySync.set(key, Date.now());
+      librarySyncStatus.value = result.failed
+        ? `已同步，${result.failed} 张歌单暂未更新，保留原内容`
+        : `已同步 ${result.rows.length} 张平台歌单`;
+    })()
+      .catch(error => {
+        if (!controller.signal.aborted)
+          librarySyncStatus.value = error instanceof Error ? error.message : '歌单同步失败，已保留缓存';
+      })
+      .finally(() => {
+        if (libraryRequests.get(key)?.controller === controller) libraryRequests.delete(key);
+      });
+    libraryRequests.set(key, { controller, promise });
+    return promise;
+  }
+  async function syncAccountLibraries() {
+    if (musicBackend.value === 'idle') await checkMusicBackend();
+    const active = new Set<string>();
+    const jobs: (() => Promise<void>)[] = [];
+    for (const provider of accountProviders) {
+      const base =
+        phone.settings.musicAccountApis[provider.id] ||
+        (musicBackend.value === 'ready' ? builtinMusicBase(provider.id) : '');
+      if (!base) continue;
+      try {
+        const account = cachedMusicAccount(provider.id, base);
+        if (!account?.id) continue;
+        active.add(libraryKey(provider.id, base, account.id));
+        jobs.push(() => syncAccountLibrary(provider.id, base, account));
+      } catch {
+        /* Invalid custom endpoint is shown in settings. */
+      }
+    }
+    for (const [key, job] of libraryRequests) if (!active.has(key)) job.controller.abort();
+    remoteLibraries.value = Object.fromEntries(
+      Object.entries(remoteLibraries.value).filter(([key]) => active.has(key)),
+    );
+    for (const job of jobs) await job();
+  }
+
   const daily = computed<Track[]>(() =>
     [
       ['晴天', '周杰伦'],
@@ -155,6 +266,10 @@ export const useMusicStore = defineStore('wave-music', () => {
     }
   }
   function editPlaylist(id: string, name: string, cover: string) {
+    if (isRemotePlaylist(id)) {
+      inform('平台歌单自动同步，请在音乐平台编辑');
+      return;
+    }
     const row = playlists.value.find(list => list.id === id);
     if (!row || !name.trim()) return;
     row.name = name.trim().slice(0, 80);
@@ -162,6 +277,10 @@ export const useMusicStore = defineStore('wave-music', () => {
     phone.saveMusicLibrary();
   }
   function deletePlaylist(id: string) {
+    if (isRemotePlaylist(id)) {
+      inform('平台歌单自动同步，请在音乐平台编辑');
+      return;
+    }
     phone.state.musicPlaylists[phone.state.activeCharKey] = playlists.value.filter(row => row.id !== id);
     phone.saveMusicLibrary();
   }
@@ -190,6 +309,10 @@ export const useMusicStore = defineStore('wave-music', () => {
     phone.saveMusicLibrary();
   }
   function collect(id: string, track: Track) {
+    if (isRemotePlaylist(id)) {
+      inform('平台歌单自动同步，请在音乐平台编辑');
+      return;
+    }
     const list = playlists.value.find(row => row.id === id);
     if (!list) return;
     if (list.tracks.some(t => t.id === track.id && t.source === track.source)) {
@@ -202,6 +325,10 @@ export const useMusicStore = defineStore('wave-music', () => {
     inform(`已收藏到「${list.name}」`);
   }
   function removeFromPlaylist(id: string, track: Track) {
+    if (isRemotePlaylist(id)) {
+      inform('平台歌单自动同步，请在音乐平台编辑');
+      return;
+    }
     const list = playlists.value.find(row => row.id === id);
     if (!list) return;
     const key = `${track.source}:${track.id}`;
@@ -374,15 +501,18 @@ export const useMusicStore = defineStore('wave-music', () => {
         track = match;
         phone.rememberMusicTracks([track]);
       }
-      const [resolved, extra] = await Promise.all([
-        resolveTrack(track, phone.settings.musicApi, controller.signal),
-        extraLyrics(track, phone.settings.neteaseApi, phone.settings.qqMusicApi, controller.signal),
-      ]);
-      resolved.lyric = simplifyLyrics(extra || resolved.lyric);
+      const resolved = await resolveTrack(track, phone.settings.musicApi, controller.signal);
+      resolved.lyric = simplifyLyrics(resolved.lyric);
       if (controller.signal.aborted) return;
       current.value = resolved;
       player().src = resolved.url;
       if (autoplay) await startMusicPlayback(player(), controller.signal);
+      void extraLyrics(track, phone.settings.neteaseApi, phone.settings.qqMusicApi, controller.signal)
+        .then(lyric => {
+          if (!controller.signal.aborted && current.value?.url === resolved.url && lyric)
+            current.value.lyric = simplifyLyrics(lyric);
+        })
+        .catch(() => {});
     } catch (e) {
       if (!controller.signal.aborted) error.value = e instanceof Error ? e.message : '播放失败';
     } finally {
@@ -594,6 +724,7 @@ export const useMusicStore = defineStore('wave-music', () => {
     inform('歌曲已从音乐资料中删除');
   }
   onScopeDispose(() => {
+    for (const job of libraryRequests.values()) job.controller.abort();
     stop();
     clearInterval(ticker);
     clearTimeout(noticeTimer);
@@ -628,6 +759,11 @@ export const useMusicStore = defineStore('wave-music', () => {
     daily,
     queue,
     playlists,
+    librarySyncStatus,
+    syncAccountLibrary,
+    syncAccountLibraries,
+    clearAccountLibrary,
+    isRemotePlaylist,
     enqueue,
     removeQueue,
     createPlaylist,

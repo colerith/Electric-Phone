@@ -12,6 +12,7 @@
         v-model="provider"
         :options="accountProviders.map(p => ({ value: p.id, label: p.name }))"
         aria-label="音乐账号平台"
+        @update:model-value="providerChosen = true"
       />
       <div v-if="isExtensionRuntime" class="music-account-backend">
         <p class="music-account-hint">
@@ -81,43 +82,7 @@
         </div>
         <p v-if="status" class="music-account-status" role="status">{{ status }}</p>
         <p v-if="error" class="music-account-error" role="alert">{{ error }}</p>
-        <template v-if="selected">
-          <div class="music-account-list-heading">
-            <button type="button" @click="backToLists">‹ 返回歌单</button><strong>{{ selected.name }}</strong>
-          </div>
-          <article v-for="track in songs" :key="track.source + track.id" class="music-account-song">
-            <button type="button" @click="play(track)">
-              <strong>{{ track.title }}</strong
-              ><small>{{ track.artist }}</small>
-            </button>
-            <button type="button" :aria-label="`加入队列：${track.title}`" @click="music.enqueue(track, true)">
-              <i class="fa-solid fa-plus"></i>
-            </button>
-          </article>
-          <button v-if="songsMore" type="button" :disabled="busy" @click="loadSongs(true)">加载更多歌曲</button>
-          <p v-if="!busy && !songs.length && !error" class="music-account-hint">这张歌单暂无可读取的歌曲。</p>
-        </template>
-        <template v-else>
-          <button
-            v-for="list in lists"
-            :key="list.id"
-            class="music-account-playlist"
-            type="button"
-            :disabled="busy"
-            @click="openList(list)"
-          >
-            <img v-if="list.cover" :src="list.cover" alt="" referrerpolicy="no-referrer" /><i
-              v-else
-              class="fa-solid fa-music"
-            ></i>
-            <span
-              ><strong>{{ list.name }}</strong
-              ><small>{{ list.count }} 首</small></span
-            ><i class="fa-solid fa-chevron-right"></i>
-          </button>
-          <button v-if="listsMore" type="button" :disabled="busy" @click="loadLists(true)">加载更多歌单</button>
-          <p v-if="loaded && !busy && !lists.length && !error" class="music-account-hint">此账号暂无可读取的歌单。</p>
-        </template>
+        <p v-if="account" class="music-account-hint">平台歌单和歌曲自动同步到「我的歌单」，使用内置歌单与播放器。</p>
         <p class="music-account-hint">登录仅保存在当前浏览器，不随聊天或备份上传。播放范围由平台及账号权限决定。</p>
       </template>
     </template>
@@ -135,22 +100,47 @@ import {
   createMusicQr,
   checkMusicQr,
   refreshMusicAccount,
-  fetchAccountPlaylists,
-  fetchAccountTracks,
   logoutMusicAccount,
   type MusicAccountProvider,
   type MusicAccount,
-  type AccountPlaylist,
 } from '../../services/music/music-accounts';
 import { musicBackend, checkMusicBackend, builtinMusicBase } from '../../services/music/music-backend';
 import { isExtensionRuntime } from '../../services/core/runtime';
-import type { Track } from '../../services/music/music';
 const props = defineProps<{ configure?: boolean }>();
 const phone = usePhoneStore(),
   music = useMusicStore();
 const expanded = ref(Boolean(props.configure)),
   provider = ref<MusicAccountProvider>('netease'),
   channel = ref('qq');
+const providerChosen = ref(false);
+function chooseLoggedInProvider() {
+  if (providerChosen.value) return;
+  let preferred = '';
+  try {
+    preferred = localStorage.getItem('wave-music-last-provider') || '';
+  } catch {
+    /* Browser storage may be disabled. */
+  }
+  const loggedIn = accountProviders.filter(item => {
+    const endpoint =
+      phone.settings.musicAccountApis[item.id] || (musicBackend.value === 'ready' ? builtinMusicBase(item.id) : '');
+    try {
+      return endpoint && cachedMusicAccount(item.id, endpoint);
+    } catch {
+      return false;
+    }
+  });
+  const chosen = loggedIn.find(item => item.id === preferred) || loggedIn[0];
+  if (chosen) provider.value = chosen.id;
+}
+watch(musicBackend, chooseLoggedInProvider);
+watch(provider, value => {
+  try {
+    localStorage.setItem('wave-music-last-provider', value);
+  } catch {
+    /* Browser storage may be disabled. */
+  }
+});
 const providerInfo = computed(() => accountProviders.find(p => p.id === provider.value)!);
 const base = computed(
   () =>
@@ -158,6 +148,7 @@ const base = computed(
     (musicBackend.value === 'ready' ? builtinMusicBase(provider.value) : ''),
 );
 onMounted(() => {
+  chooseLoggedInProvider();
   if (musicBackend.value === 'idle') void checkMusicBackend();
 });
 function useBuiltin() {
@@ -171,15 +162,7 @@ const draftBase = ref(''),
   error = ref(''),
   status = ref(''),
   qrImage = ref('');
-const lists = ref<AccountPlaylist[]>([]),
-  selected = ref<AccountPlaylist>(),
-  songs = ref<Track[]>([]);
-const listsMore = ref(false),
-  songsMore = ref(false),
-  loaded = ref(false);
-let listOffset = 0,
-  songOffset = 0,
-  controller: AbortController | undefined;
+let controller: AbortController | undefined;
 function cancel() {
   controller?.abort();
   controller = undefined;
@@ -190,12 +173,6 @@ function cancel() {
 function reset() {
   cancel();
   account.value = undefined;
-  lists.value = [];
-  selected.value = undefined;
-  songs.value = [];
-  listsMore.value = false;
-  songsMore.value = false;
-  loaded.value = false;
   error.value = '';
   draftBase.value = phone.settings.musicAccountApis[provider.value];
   try {
@@ -239,14 +216,8 @@ async function refreshData(signal: AbortSignal, p: MusicAccountProvider, endpoin
   const profile = await refreshMusicAccount(p, endpoint, signal);
   if (signal.aborted) return;
   account.value = profile;
-  const page = await fetchAccountPlaylists(p, endpoint, profile.id, 0, signal);
-  if (signal.aborted) return;
-  lists.value = page.lists;
-  listOffset = page.next;
-  listsMore.value = page.more;
-  loaded.value = true;
-  selected.value = undefined;
-  status.value = '账号与歌单已更新';
+  await music.syncAccountLibrary(p, endpoint, profile, true);
+  if (!signal.aborted) status.value = music.librarySyncStatus || '账号已更新';
 }
 function refresh() {
   return run(refreshData);
@@ -303,54 +274,11 @@ function login() {
 }
 function logout() {
   return run(async (signal, p, endpoint) => {
+    music.clearAccountLibrary(p, endpoint);
     const pending = logoutMusicAccount(p, endpoint);
     account.value = undefined;
-    lists.value = [];
-    selected.value = undefined;
-    songs.value = [];
-    loaded.value = false;
-    listsMore.value = false;
     await pending;
     if (!signal.aborted) status.value = '已退出登录';
   });
-}
-function loadLists(append: boolean) {
-  return run(async (signal, p, endpoint) => {
-    const page = await fetchAccountPlaylists(p, endpoint, account.value?.id || '', append ? listOffset : 0, signal);
-    if (signal.aborted) return;
-    lists.value = [...new Map([...(append ? lists.value : []), ...page.lists].map(list => [list.id, list])).values()];
-    listOffset = page.next;
-    listsMore.value = page.more;
-    loaded.value = true;
-  });
-}
-function openList(list: AccountPlaylist) {
-  selected.value = list;
-  songs.value = [];
-  songsMore.value = false;
-  songOffset = 0;
-  void loadSongs(false);
-}
-function backToLists() {
-  cancel();
-  selected.value = undefined;
-  error.value = '';
-}
-function loadSongs(append: boolean) {
-  const list = selected.value;
-  if (!list) return;
-  return run(async (signal, p, endpoint) => {
-    const page = await fetchAccountTracks(p, endpoint, list, append ? songOffset : 0, signal);
-    if (signal.aborted) return;
-    songs.value = [
-      ...new Map([...(append ? songs.value : []), ...page.tracks].map(track => [track.id, track])).values(),
-    ];
-    songOffset = page.next;
-    songsMore.value = page.more;
-  });
-}
-function play(track: Track) {
-  void music.select(track);
-  music.view = 'player';
 }
 </script>

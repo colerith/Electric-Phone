@@ -390,8 +390,13 @@
           </div>
           <div v-if="post.images.length" class="moment-media-grid" :class="{ single: post.images.length === 1 }">
             <button v-for="(media, index) in post.images" :key="index" type="button" @click="openGallery(post, index)">
-              <img v-if="media.kind === 'image'" :src="media.url" :alt="media.description || '空间动态图片'" /><span
-                v-else
+              <img
+                loading="lazy"
+                decoding="async"
+                v-if="media.kind === 'image'"
+                :src="media.url"
+                :alt="media.description || '空间动态图片'"
+              /><span v-else
                 ><i class="fa-regular fa-image"></i>{{ media.description
                 }}<small v-if="postImageStatus(post, index)" role="status">{{
                   postImageStatus(post, index)
@@ -610,9 +615,13 @@
           <div v-if="draft.images.length" class="moment-draft-images">
             <div v-for="(media, index) in draft.images" :key="index">
               <button type="button" @click="preview = media">
-                <img v-if="media.kind === 'image'" :src="media.url" :alt="media.description || '图片'" /><span v-else>{{
-                  media.description
-                }}</span></button
+                <img
+                  loading="lazy"
+                  decoding="async"
+                  v-if="media.kind === 'image'"
+                  :src="media.url"
+                  :alt="media.description || '图片'"
+                /><span v-else>{{ media.description }}</span></button
               ><button
                 type="button"
                 class="moment-remove-image"

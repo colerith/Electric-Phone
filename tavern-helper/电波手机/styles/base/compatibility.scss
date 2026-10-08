@@ -273,3 +273,14 @@
   touch-action: auto;
   scroll-margin-block: 16px;
 }
+
+/* Skip off-screen layout/paint while preserving measured height and scroll anchoring. */
+#wave-phone-script-root .moment-post,
+#wave-phone-script-root .space-hole-post {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
+}
+#wave-phone-script-root .playlist-song-swipe {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
+}

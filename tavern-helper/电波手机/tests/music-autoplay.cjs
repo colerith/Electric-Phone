@@ -82,6 +82,12 @@ function fixture(options = {}) {
   global.Audio = AudioMock;
   const scope = vue.effectScope();
   const { useMusicStore } = load('stores/music.ts', {
+    '../services/music/music-accounts': { accountProviders: [], cachedMusicAccount:()=>options.account },
+    '../services/music/music-backend': { musicBackend: vue.ref('missing'), checkMusicBackend:async()=>{} },
+    '../services/music/account-library': {
+      libraryKey: (p,b,id)=>JSON.stringify([p,b,id]), readLibrary:async()=>[], writeLibrary:async()=>{},
+      synchronizeLibrary:async()=>({rows:[{id:'remote',name:'同名歌单',cover:'',tracks:[track('remote')],remote:true,origin:JSON.stringify(['qq','https://api','user'])}],failed:0}),
+    },
     pinia: { defineStore: (_id, setup) => () => vue.proxyRefs(scope.run(setup)) },
     vue,
     './phone': { usePhoneStore: () => phone },
@@ -123,6 +129,16 @@ function fixture(options = {}) {
   };
 }
 (async () => {
+  const library = fixture({account:{id:'user',name:'User'}});
+  library.store.createPlaylist('同名歌单');
+  const manual = library.phone.state.musicPlaylists.a[0];
+  await library.store.syncAccountLibrary('qq','https://api',{id:'user',name:'User'});
+  assert.equal(library.store.playlists.length,2);
+  assert.equal(library.phone.state.musicPlaylists.a[0],manual,'sync never overwrites manually created playlists');
+  assert.equal(library.phone.state.musicPlaylists.a.length,1,'remote library stays out of chat storage');
+  library.store.clearAccountLibrary('qq','https://api');
+  assert.equal(library.store.playlists.length,1,'logout hides remote playlists only');
+  library.dispose();
   let f = fixture({
     resolve: async t => {
       if (t.id === '1') throw Error('no URL');

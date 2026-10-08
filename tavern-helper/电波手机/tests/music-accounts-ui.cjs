@@ -93,6 +93,12 @@ const click = label => [...document.querySelectorAll('button')].find(b => b.text
   resolveQr({ key: 'late', image: 'data:image/png;base64,AAAA' });
   await tick();
   assert.equal(polls, 0);
+  mock.cachedMusicAccount = p => p === 'qq' ? { id: 'qq-user', name: 'QQ User' } : undefined;
+  const restored = vue.createApp(moduleValue.exports.default, { configure: true });
+  restored.mount('#app');
+  await tick();
+  assert.equal(document.querySelector('select').value, 'qq', 'first logged-in platform is selected automatically');
+  restored.unmount();
   console.log('music accounts UI: platform switch and unmount cancel stale login work');
 })().catch(error => {
   console.error(error);

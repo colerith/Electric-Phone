@@ -490,13 +490,5 @@ export async function resolveAccountTrack(track: Track, signal?: AbortSignal): P
   const candidate = entry?.url || entry?.play_url || entry?.playUrl;
   const url = safeUrl(Array.isArray(candidate) ? candidate[0] : candidate);
   if (!url) throw new MusicAccountError('该账号暂无此歌曲的播放权限或音源不可用');
-  let lyric = track.lyric;
-  if (provider === 'netease')
-    try {
-      const lyrics = await request(provider, base, '/lyric', { id: track.id }, signal);
-      lyric = String(lyrics.lrc?.lyric || '');
-    } catch {
-      if (signal?.aborted) throw new DOMException('已取消', 'AbortError');
-    }
-  return { ...track, url, lyric };
+  return { ...track, url };
 }

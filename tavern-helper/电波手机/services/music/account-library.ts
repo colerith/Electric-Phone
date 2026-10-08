@@ -1,0 +1,114 @@
+import {
+  accountBase,
+  fetchAccountPlaylists,
+  fetchAccountTracks,
+  type MusicAccountProvider,
+  type AccountPlaylist,
+} from './music-accounts';
+import type { Track } from './music';
+export type SyncedPlaylist = { id: string; name: string; cover: string; tracks: Track[]; origin: string; remote: true };
+export const libraryKey = (provider: MusicAccountProvider, base: string, accountId: string) =>
+  JSON.stringify([provider, accountBase(base), accountId]);
+const memory = new Map<string, SyncedPlaylist[]>();
+function database(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('wave-phone-music-library-v1', 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('libraries');
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+export async function readLibrary(key: string): Promise<SyncedPlaylist[]> {
+  if (memory.has(key)) return memory.get(key)!;
+  try {
+    const db = await database();
+    const result = await new Promise<any>((resolve, reject) => {
+      const request = db.transaction('libraries').objectStore('libraries').get(key);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    }).finally(() => db.close());
+    const rows = Array.isArray(result)
+      ? result.filter(row => row?.origin === key && row.remote === true && Array.isArray(row.tracks))
+      : [];
+    memory.set(key, rows);
+    return rows;
+  } catch {
+    return [];
+  }
+}
+export async function writeLibrary(key: string, rows: SyncedPlaylist[]): Promise<void> {
+  memory.set(key, rows);
+  try {
+    const db = await database();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('libraries', 'readwrite');
+      tx.objectStore('libraries').put(rows, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    }).finally(() => db.close());
+  } catch {
+    /* The in-memory library remains available if browser storage is unavailable. */
+  }
+}
+export async function synchronizeLibrary(
+  provider: MusicAccountProvider,
+  base: string,
+  userId: string,
+  previous: SyncedPlaylist[],
+  signal: AbortSignal,
+  progress: (done: number, total: number) => void,
+  api = { lists: fetchAccountPlaylists, tracks: fetchAccountTracks },
+): Promise<{ rows: SyncedPlaylist[]; failed: number }> {
+  const origin = libraryKey(provider, base, userId);
+  const lists = new Map<string, AccountPlaylist>();
+  let offset = 0;
+  for (let page = 0; ; page++) {
+    signal.throwIfAborted();
+    if (page >= 200) throw Error('平台歌单分页异常，已保留已有歌单');
+    const result = await api.lists(provider, base, userId, offset, signal);
+    for (const list of result.lists) lists.set(list.id, list);
+    if (!result.more) break;
+    if (result.next <= offset) throw Error('平台歌单分页没有推进，已保留已有歌单');
+    offset = result.next;
+  }
+  const source = [...lists.values()];
+  const rows = new Array<SyncedPlaylist>(source.length);
+  let next = 0,
+    done = 0,
+    failed = 0;
+  progress(0, source.length);
+  async function worker() {
+    while (next < source.length) {
+      signal.throwIfAborted();
+      const index = next++,
+        list = source[index];
+      const id = `account:${origin}:${list.id}`;
+      const old = previous.find(row => row.id === id && row.origin === origin);
+      try {
+        const tracks = new Map<string, Track>();
+        let offset = 0;
+        for (let page = 0; ; page++) {
+          signal.throwIfAborted();
+          if (page >= 300) throw Error('歌曲分页异常');
+          const result = await api.tracks(provider, base, list, offset, signal);
+          for (const track of result.tracks)
+            tracks.set(`${track.source}:${track.id}`, { ...track, url: '', lyric: '' });
+          if (!result.more) break;
+          if (result.next <= offset) throw Error('歌曲分页没有推进');
+          offset = result.next;
+        }
+        rows[index] = { id, origin, remote: true, name: list.name, cover: list.cover, tracks: [...tracks.values()] };
+      } catch (e) {
+        signal.throwIfAborted();
+        failed++;
+        rows[index] = old || { id, origin, remote: true, name: list.name, cover: list.cover, tracks: [] };
+      }
+      progress(++done, source.length);
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+  }
+  await Promise.all([worker(), worker()]);
+  signal.throwIfAborted();
+  return { rows, failed };
+}

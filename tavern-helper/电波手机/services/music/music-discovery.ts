@@ -1,3 +1,4 @@
+import { fetchBuiltinLyrics } from './music-lyrics';
 import * as OpenCC from 'opencc-js/t2cn';
 import { fetchJson } from '../core/network';
 import { MusicTrackSchema, musicPlatform, type Track } from './music';
@@ -66,6 +67,13 @@ export async function fetchRecommendations(
 }
 export async function extraLyrics(track: Track, netease: string, qq: string, signal?: AbortSignal): Promise<string> {
   track = { ...track, source: musicPlatform(track.source) };
+  try {
+    const lyric = await fetchBuiltinLyrics(track, signal);
+    if (lyric) return lyric;
+  } catch {
+    /* Custom services remain available when the built-in backend is offline. */
+  }
+  if (signal?.aborted) return '';
   const base = track.source === 'tencent' ? qq : netease;
   if (!base || !['netease', 'tencent'].includes(track.source)) return '';
   try {

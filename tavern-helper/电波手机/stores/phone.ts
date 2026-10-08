@@ -2917,11 +2917,17 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   }
   const imageJobs = new Map<string, string>();
   function saveMoments(): void {
-    state.value.moments = MomentsStateSchema.parse(state.value.moments);
-    momentUserProfiles.value[activeUserKey.value] = MomentUserProfileSchema.parse(state.value.moments.profile);
-    persistMomentUserProfiles(momentUserProfiles.value);
-    syncToken += 1;
-    saveChat();
+    // Chat persistence validates the complete state. Keep existing post identities stable for Vue.
+    batchPhoneStorage(() => {
+      const profile = MomentUserProfileSchema.parse(state.value.moments.profile);
+      if (!_.isEqual(momentUserProfiles.value[activeUserKey.value], profile)) {
+        momentUserProfiles.value[activeUserKey.value] = profile;
+        persistMomentUserProfiles(momentUserProfiles.value);
+      }
+      reconcileSpaceNotices(state.value.spaceNotifications, spaceNotificationItems.value);
+      syncToken += 1;
+      saveChat();
+    });
   }
   function publishMoment(draft: {
     tags?: string[];
