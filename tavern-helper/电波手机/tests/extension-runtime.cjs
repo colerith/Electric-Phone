@@ -75,13 +75,28 @@ const appMock = {
   },
 };
 legacy.enabled = true;
-load('extension/index.ts', { '../index': appMock, './bridge': bridge });
+load('extension/index.ts', {
+  '../index': appMock,
+  './bridge': bridge,
+  '../schemas': { WAVE_PHONE_RELEASE_VERSION: '1.3.2' },
+});
 const tick = () => new Promise(r => setImmediate(r));
 (async () => {
   await tick();
   assert.equal(initialized, 0);
   assert.match(document.querySelector('#wave-phone-extension-settings').textContent, /停用旧脚本/);
+  assert.ok(document.querySelector('#wave-phone-extension-settings .inline-drawer-header'));
+  assert.ok(document.querySelector('#wave-phone-extension-settings .inline-drawer-content'));
   legacy.enabled = false;
+  const stale = document.createElement('div');
+  stale.id = 'wave-phone-script-root';
+  document.body.append(stale);
+  document.querySelector('#wave-phone-extension-settings button').click();
+  await tick();
+  assert.equal(initialized, 0, 'stale runtime must not be started twice');
+  assert.match(document.querySelector('#wave-phone-extension-settings').textContent, /残留/);
+  assert.equal(document.querySelectorAll('#wave-phone-extension-settings button')[1].hidden, false);
+  stale.remove();
   document.querySelector('#wave-phone-extension-settings button').click();
   await tick();
   assert.equal(initialized, 1);

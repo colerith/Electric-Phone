@@ -1,3 +1,4 @@
+import { WAVE_PHONE_RELEASE_VERSION } from '../schemas';
 import { initialize, cleanup, openPhone } from '../index';
 import { helper, legacyScripts, migrateLegacyVariables, stopExtensionEvents } from './bridge';
 
@@ -7,6 +8,7 @@ let starting = false,
   disposed = false;
 let readyTimer: ReturnType<typeof setTimeout> | undefined;
 let status: HTMLElement;
+let refreshButton: HTMLButtonElement;
 function setStatus(text: string) {
   if (status) status.textContent = text;
 }
@@ -19,10 +21,23 @@ async function start(open = false) {
   starting = true;
   try {
     helper();
-    if (document.getElementById('wave-phone-script-root') || legacyScripts().some(row => row.active)) {
-      setStatus('检测到旧电波手机脚本。请在酒馆助手停用旧脚本，再点击打开；不要删除存档。');
+    const activeScripts = legacyScripts().filter(row => row.active);
+    if (activeScripts.length) {
+      setStatus(
+        `旧电波手机脚本仍启用：${activeScripts.map(row => row.name || row.id).join('、')}。请在酒馆助手停用旧脚本，再点击打开。`,
+      );
       return;
     }
+    if (document.getElementById('wave-phone-script-root')) {
+      setStatus(
+        '当前页面仍残留另一份手机界面。停用或卸载旧脚本后，请刷新页面以释放旧脚本，再进入扩展版；无需清除缓存或删除存档。',
+      );
+      refreshButton.hidden = false;
+      refreshButton.style.display = '';
+      return;
+    }
+    refreshButton.hidden = true;
+    refreshButton.style.display = 'none';
     migrateLegacyVariables();
     await initialize();
     if (disposed) {
@@ -30,7 +45,7 @@ async function start(open = false) {
       return;
     }
     running = true;
-    setStatus('电波手机已就绪');
+    setStatus(`电波手机 v${WAVE_PHONE_RELEASE_VERSION} 扩展版已就绪`);
     if (open) openPhone();
   } catch (e) {
     cleanup();
@@ -45,7 +60,17 @@ function installEntry() {
   if (document.getElementById(EXTENSION_ID)) return;
   const panel = document.createElement('div');
   panel.id = EXTENSION_ID;
-  panel.className = 'inline-drawer';
+  panel.className = 'extension_container';
+  const drawer = document.createElement('div');
+  drawer.className = 'inline-drawer';
+  const header = document.createElement('div');
+  header.className = 'inline-drawer-toggle inline-drawer-header';
+  const arrow = document.createElement('div');
+  arrow.className = 'inline-drawer-icon fa-solid fa-circle-chevron-down down';
+  const content = document.createElement('div');
+  content.className = 'inline-drawer-content';
+  const version = document.createElement('p');
+  version.textContent = `扩展版本 v${WAVE_PHONE_RELEASE_VERSION}`;
   const heading = document.createElement('strong');
   heading.textContent = '📱 电波手机';
   status = document.createElement('p');
@@ -55,7 +80,17 @@ function installEntry() {
   button.className = 'menu_button';
   button.textContent = '打开电波手机 / 重试';
   button.onclick = () => void start(true);
-  panel.append(heading, status, button);
+  refreshButton = document.createElement('button');
+  refreshButton.type = 'button';
+  refreshButton.className = 'menu_button';
+  refreshButton.textContent = '刷新页面，加载扩展版';
+  refreshButton.hidden = true;
+  refreshButton.style.display = 'none';
+  refreshButton.onclick = () => window.location.reload();
+  header.append(heading, arrow);
+  content.append(version, status, button, refreshButton);
+  drawer.append(header, content);
+  panel.append(drawer);
   (
     document.getElementById('extensions_settings2') ||
     document.getElementById('extensions_settings') ||
