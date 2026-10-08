@@ -1,5 +1,30 @@
 <template>
   <div class="system-settings wave-backup-settings">
+    <section v-if="isExtensionRuntime" class="settings-card system-settings-card">
+      <div class="wave-settings-title">迁移旧脚本设置</div>
+      <p>
+        一键读取同一酒馆用户下的旧脚本设置，包括 API、外观、角色配置和各 App
+        设置。聊天记录继续沿用，旧脚本和迁移前快照会保留。
+      </p>
+      <label v-if="migrationSources.length > 1"
+        >迁移来源
+        <WaveSelect
+          v-model="migrationSource"
+          :disabled="busy"
+          :options="migrationSources.map(source => ({ value: source.id, label: source.name || source.id }))"
+          aria-label="迁移来源"
+        />
+      </label>
+      <button
+        class="system-action backup-action"
+        type="button"
+        :disabled="busy || (migrationSources.length > 1 && !migrationSource)"
+        @click="migrateSettings"
+      >
+        <i class="fa-solid fa-file-import"></i>{{ migrating ? '正在迁移…' : '一键迁移脚本所有设置' }}
+      </button>
+      <p v-if="migrationNotice" role="status" :class="{ 'backup-error': migrationFailed }">{{ migrationNotice }}</p>
+    </section>
     <section class="settings-card system-settings-card">
       <div class="wave-settings-title">存储状态</div>
       <label
@@ -120,7 +145,32 @@ import { BACKUP_MODULES, type BackupModule } from '../../services/core/backup-mo
 import { usePhoneStore } from '../../stores/phone';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
 
+import WaveSelect from '../shared/WaveSelect.vue';
+import { isExtensionRuntime } from '../../services/core/runtime';
+import { legacyScripts } from '../../extension/bridge';
+import { migrateScriptSettings } from '../../extension/migration';
+
 const phone = usePhoneStore();
+const migrationSources = isExtensionRuntime ? legacyScripts() : [];
+const migrationSource = ref(migrationSources.length === 1 ? migrationSources[0].id : '');
+const migrating = ref(false);
+const migrationNotice = ref('');
+const migrationFailed = ref(false);
+async function migrateSettings(): Promise<void> {
+  if (busy.value) return;
+  busy.value = migrating.value = true;
+  migrationFailed.value = false;
+  migrationNotice.value = '';
+  try {
+    const count = await migrateScriptSettings(migrationSource.value, phone.reloadPersistentData);
+    migrationNotice.value = `已迁移并应用 ${count} 类设置，无需导入导出。`;
+  } catch (error) {
+    migrationFailed.value = true;
+    migrationNotice.value = error instanceof Error ? error.message : '迁移失败，请重试。';
+  } finally {
+    busy.value = migrating.value = false;
+  }
+}
 const storageSaving = ref(false);
 const storageMessage = computed(() =>
   phoneStorageStatus.error

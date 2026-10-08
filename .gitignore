@@ -21,3 +21,6 @@ Thumbs.db
 # Editor settings
 .idea/
 .vscode/
+
+# Local documentation (all docs directories)
+docs/
