@@ -1424,8 +1424,16 @@ defineExpose({
   outline-offset: 3px;
 }
 #wave-phone-script-root .space-moments .comment-jump-target {
-  border-radius: 0;
+  position: relative;
+  isolation: isolate;
   scroll-margin-block: 20px;
+}
+#wave-phone-script-root .space-moments .comment-jump-target::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 4px -10px;
+  pointer-events: none;
   animation: comment-location-glow 3s ease-out both;
 }
 @keyframes comment-location-glow {
@@ -1440,7 +1448,7 @@ defineExpose({
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  #wave-phone-script-root .space-moments .comment-jump-target {
+  #wave-phone-script-root .space-moments .comment-jump-target::before {
     animation: none;
     background: #6687be0e;
     box-shadow: inset 2px 0 #7896c18c;
