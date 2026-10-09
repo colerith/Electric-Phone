@@ -887,6 +887,8 @@ const viewRoot = ref<HTMLElement | null>(null);
 const openedCommentPost = ref(''),
   openedCommentId = ref('');
 let commentListScroll = 0;
+let commentHighlightTimer: ReturnType<typeof setTimeout> | undefined;
+onUnmounted(() => clearTimeout(commentHighlightTimer));
 const showCommentCards = computed(
   () =>
     props.context === 'space' &&
@@ -909,6 +911,7 @@ const myComments = computed(() => {
 async function openCommentPost(postId: string, commentId: string) {
   const scroller = viewRoot.value?.closest('.space-scroll');
   commentListScroll = scroller?.scrollTop || 0;
+  clearTimeout(commentHighlightTimer);
   openedCommentPost.value = postId;
   openedCommentId.value = commentId;
   await nextTick();
@@ -917,6 +920,9 @@ async function openCommentPost(postId: string, commentId: string) {
   );
   if (target?.scrollIntoView) target.scrollIntoView({ block: 'center', behavior: 'smooth' });
   else if (scroller) scroller.scrollTop = 0;
+  commentHighlightTimer = setTimeout(() => {
+    openedCommentId.value = '';
+  }, 3000);
 }
 const profileFilter = ref<'own' | 'liked' | 'commented'>('own');
 const ownPosts = computed(() =>
@@ -1273,6 +1279,7 @@ function back() {
     return true;
   }
   if (openedCommentPost.value) {
+    clearTimeout(commentHighlightTimer);
     openedCommentPost.value = '';
     openedCommentId.value = '';
     void nextTick(() => {
@@ -1296,6 +1303,7 @@ const subpageTitle = computed(() =>
 watch(
   () => [phone.context?.cardKey, phone.context?.chatKey, props.view],
   () => {
+    clearTimeout(commentHighlightTimer);
     openedCommentPost.value = '';
     openedCommentId.value = '';
   },
@@ -1415,10 +1423,28 @@ defineExpose({
   outline: 2px solid var(--settings-accent, #6283bd);
   outline-offset: 3px;
 }
-.comment-jump-target {
-  background: var(--wave-tint, #f5f7fa);
-  border-radius: 12px;
+#wave-phone-script-root .space-moments .comment-jump-target {
+  border-radius: 0;
   scroll-margin-block: 20px;
+  animation: comment-location-glow 3s ease-out both;
+}
+@keyframes comment-location-glow {
+  0%,
+  35% {
+    background-color: #6687be0e;
+    box-shadow: inset 2px 0 #7896c18c;
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: inset 2px 0 transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #wave-phone-script-root .space-moments .comment-jump-target {
+    animation: none;
+    background: #6687be0e;
+    box-shadow: inset 2px 0 #7896c18c;
+  }
 }
 
 .moment-generation-feedback {
