@@ -46,7 +46,10 @@
           <i class="fa-solid fa-satellite-dish"></i>
           <strong>正在捕捉讯号</strong>
           <p>{{ store.syncError || '读取当前聊天…' }}</p>
-          <button type="button" @click="store.synchronize">重新同步</button>
+          <button type="button" :disabled="resyncing" :aria-busy="resyncing" @click="retrySynchronize">
+            <i v-if="resyncing" class="fa-solid fa-spinner fa-spin"></i>{{ resyncing ? '正在重新同步…' : '重新同步' }}
+          </button>
+          <p v-if="resyncNotice" role="status">{{ resyncNotice }}</p>
         </div>
 
         <template v-else>
@@ -1217,6 +1220,8 @@
 </template>
 
 <script setup lang="ts">
+import _ from 'lodash';
+
 import WaveCloseButton from './components/shared/WaveCloseButton.vue';
 import WaveManualImageOptions from './components/shared/WaveManualImageOptions.vue';
 import { manualImageMedia } from './services/image/manual';
@@ -2964,4 +2969,21 @@ onUnmounted(() => {
   personaEvents.splice(0).forEach(event => event.stop());
   store.dispose();
 });
+const resyncing = ref(false),
+  resyncNotice = ref('');
+async function retrySynchronize() {
+  if (resyncing.value) return;
+  resyncing.value = true;
+  resyncNotice.value = '正在读取聊天与存档…';
+  await nextTick();
+  await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+  try {
+    await store.synchronize();
+    resyncNotice.value = store.syncError || (store.isReady ? '同步完成' : '尚未读取到聊天，请选择聊天后重试');
+  } catch {
+    resyncNotice.value = '同步失败，请稍后重试';
+  } finally {
+    resyncing.value = false;
+  }
+}
 </script>

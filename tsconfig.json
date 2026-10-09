@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "allowUmdGlobalAccess": true,
+    "strict": true,
+    "types": [
+      "jquery",
+      "jqueryui",
+      "lodash",
+      "toastr"
+    ],
+    "lib": [
+      "ESNext",
+      "DOM",
+      "DOM.Iterable"
+    ]
+  },
+  "include": [
+    "types/**/*.d.ts",
+    "tavern-helper/**/*.ts",
+    "tavern-helper/**/*.vue"
+  ],
+  "exclude": [
+    "**/tests/**",
+    "node_modules",
+    "dist"
+  ]
+}

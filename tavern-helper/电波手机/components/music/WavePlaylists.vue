@@ -20,7 +20,7 @@
         v-for="list in music.playlists"
         :key="list.id"
         class="playlist-row"
-        @contextmenu.prevent="!music.isRemotePlaylist(list.id) && (deleting = list.id)"
+        @contextmenu.prevent="deleting = list.id"
         @touchstart.passive="touch = [$event.touches[0].clientX, $event.touches[0].clientY]"
         @touchend.passive="swipe($event, list.id)"
       >
@@ -36,6 +36,19 @@
         <button
           v-if="deleting === list.id"
           type="button"
+          @click="
+            openPlaylist(list.id);
+            editName = list.name;
+            editCover = list.cover;
+            editing = true;
+            deleting = '';
+          "
+        >
+          编辑
+        </button>
+        <button
+          v-if="deleting === list.id"
+          type="button"
           class="playlist-delete"
           @click="
             music.deletePlaylist(list.id);
@@ -44,14 +57,7 @@
         >
           删除
         </button>
-        <button
-          v-else-if="!music.isRemotePlaylist(list.id)"
-          type="button"
-          aria-label="歌单选项"
-          @click="deleting = list.id"
-        >
-          ⋯
-        </button>
+        <button v-else type="button" aria-label="歌单选项" @click="deleting = list.id">⋯</button>
       </article>
       <p v-if="!music.playlists.length">给喜欢的旋律一个名字，创建你的第一张歌单。</p>
     </template>
@@ -68,7 +74,6 @@
           >
             <i class="fa-solid fa-chevron-left"></i></button
           ><button
-            v-if="!music.isRemotePlaylist(selected.id)"
             type="button"
             aria-label="编辑歌单"
             @click="
@@ -113,7 +118,6 @@
         :class="{ revealed: removingTrack === trackKey(track) }"
       >
         <button
-          v-if="!music.isRemotePlaylist(selected.id)"
           type="button"
           class="playlist-song-remove"
           :tabindex="removingTrack === trackKey(track) ? 0 : -1"
@@ -125,7 +129,7 @@
         <article
           class="playlist-song"
           @click.capture="suppressSongAction"
-          @contextmenu.prevent="!music.isRemotePlaylist(selected.id) && (removingTrack = trackKey(track))"
+          @contextmenu.prevent="removingTrack = trackKey(track)"
           @pointerdown="startSongSwipe($event, track)"
           @pointerup="endSongSwipe"
           @pointercancel="songSwipe = null"
@@ -221,7 +225,6 @@ onBeforeUnmount(() => {
   music.playlistCover = '';
 });
 function swipe(event: TouchEvent, id: string) {
-  if (music.isRemotePlaylist(id)) return;
   const end = event.changedTouches[0];
   if (end.clientX - touch.value[0] < -45 && Math.abs(end.clientY - touch.value[1]) < 35) {
     deleting.value = id;
@@ -237,7 +240,7 @@ function playSong(track: Track) {
   music.view = 'player';
 }
 function startSongSwipe(event: PointerEvent, track: Track) {
-  if (event.button !== 0 || (selected.value && music.isRemotePlaylist(selected.value.id))) return;
+  if (event.button !== 0) return;
   songSwipe = { x: event.clientX, y: event.clientY, key: trackKey(track) };
 }
 function endSongSwipe(event: PointerEvent) {

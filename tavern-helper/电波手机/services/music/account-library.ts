@@ -67,7 +67,7 @@ export async function synchronizeLibrary(
     signal.throwIfAborted();
     if (page >= 200) throw Error('平台歌单分页异常，已保留已有歌单');
     const result = await api.lists(provider, base, userId, offset, signal);
-    for (const list of result.lists) lists.set(list.id, list);
+    for (const list of result.lists) if (list.owned === true) lists.set(list.id, list);
     if (!result.more) break;
     if (result.next <= offset) throw Error('平台歌单分页没有推进，已保留已有歌单');
     offset = result.next;
@@ -111,4 +111,49 @@ export async function synchronizeLibrary(
   await Promise.all([worker(), worker()]);
   signal.throwIfAborted();
   return { rows, failed };
+}
+export type PlaylistOverride = {
+  name?: string;
+  cover?: string;
+  deleted?: boolean;
+  removed?: string[];
+  added?: Track[];
+};
+export function applyPlaylistOverride(row: SyncedPlaylist, edit: PlaylistOverride = {}): SyncedPlaylist | null {
+  if (edit.deleted) return null;
+  const removed = new Set(edit.removed || []);
+  const tracks = new Map(
+    row.tracks.filter(t => !removed.has(`${t.source}:${t.id}`)).map(t => [`${t.source}:${t.id}`, t]),
+  );
+  for (const track of edit.added || []) tracks.set(`${track.source}:${track.id}`, track);
+  return { ...row, name: edit.name ?? row.name, cover: edit.cover ?? row.cover, tracks: [...tracks.values()] };
+}
+export async function readLibraryOverrides(key: string): Promise<Record<string, PlaylistOverride>> {
+  try {
+    const db = await database();
+    return await new Promise<Record<string, PlaylistOverride>>((resolve, reject) => {
+      const request = db.transaction('libraries').objectStore('libraries').get(`edits:${key}`);
+      request.onsuccess = () => resolve(request.result || {});
+      request.onerror = () => reject(request.error);
+    }).finally(() => db.close());
+  } catch {
+    return {};
+  }
+}
+let overrideWrite = Promise.resolve();
+export function writeLibraryOverrides(key: string, edits: Record<string, PlaylistOverride>): Promise<void> {
+  const snapshot = JSON.parse(JSON.stringify(edits));
+  overrideWrite = overrideWrite
+    .catch(() => {})
+    .then(async () => {
+      const db = await database();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction('libraries', 'readwrite');
+        tx.objectStore('libraries').put(snapshot, `edits:${key}`);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      }).finally(() => db.close());
+    });
+  return overrideWrite;
 }

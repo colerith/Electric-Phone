@@ -369,7 +369,13 @@ export async function fetchAccountPlaylists(
       name: String(row.name || row.dirName || row.dissname || row.listname || row.specialname || '未命名歌单'),
       cover: safeUrl(row.coverImgUrl || row.bigpicUrl || row.picUrl || row.pic || row.img || row.image),
       count: Number(row.trackCount ?? row.songNum ?? row.songnum ?? row.count ?? row.song_count ?? 0),
-      ...(row.dirId !== undefined ? { dirId: Number(row.dirId), owned: row.dirName !== undefined } : {}),
+      ...(row.dirId !== undefined ? { dirId: Number(row.dirId) } : {}),
+      owned:
+        provider === 'qq'
+          ? row.dirId !== undefined && row.dirName !== undefined
+          : provider === 'netease'
+            ? String(row.creator?.userId ?? row.userId ?? '') === userId
+            : String(row.create_userid ?? row.list_create_userid ?? row.creator?.userid ?? row.userid ?? '') === userId,
     }))
     .filter(row => row.id);
   return { lists, next: offset + rows.length, more: provider !== 'qq' && (raw.more === true || rows.length === 50) };

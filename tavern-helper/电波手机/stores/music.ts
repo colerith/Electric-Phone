@@ -1,3 +1,14 @@
+import {
+  applyPlaylistOverride,
+  readLibraryOverrides,
+  writeLibraryOverrides,
+  type PlaylistOverride,
+  libraryKey,
+  readLibrary,
+  writeLibrary,
+  synchronizeLibrary,
+  type SyncedPlaylist
+} from '../services/music/account-library';
 import { shallowRef, computed, onScopeDispose, ref, watch } from 'vue';
 import {
   accountProviders,
@@ -6,13 +17,6 @@ import {
   type MusicAccount,
 } from '../services/music/music-accounts';
 import { musicBackend, builtinMusicBase, checkMusicBackend } from '../services/music/music-backend';
-import {
-  libraryKey,
-  readLibrary,
-  writeLibrary,
-  synchronizeLibrary,
-  type SyncedPlaylist,
-} from '../services/music/account-library';
 import { defineStore } from 'pinia';
 
 import { musicIntent, parseLrc, resolveTrack, searchMusic, type Track } from '../services/music/music';
@@ -114,14 +118,31 @@ export const useMusicStore = defineStore('wave-music', () => {
   const queue = computed(() => phone.state.musicQueues[queueKey.value] || []);
   const remoteLibraries = shallowRef<Record<string, SyncedPlaylist[]>>({});
   const librarySyncStatus = ref('');
+  const libraryOverrides = shallowRef<Record<string, Record<string, PlaylistOverride>>>({});
   const libraryRequests = new Map<string, { controller: AbortController; promise: Promise<void> }>();
   const lastLibrarySync = new Map<string, number>();
   const playlists = computed(() => [
     ...(phone.state.musicPlaylists[phone.state.activeCharKey] || []),
-    ...Object.values(remoteLibraries.value).flat(),
+    ...Object.values(remoteLibraries.value)
+      .flat()
+      .map(row => applyPlaylistOverride(row, libraryOverrides.value[row.origin]?.[row.id]))
+      .filter((row): row is SyncedPlaylist => row !== null),
   ]);
   const isRemotePlaylist = (id: string) =>
     Object.values(remoteLibraries.value).some(rows => rows.some(row => row.id === id));
+  function editRemotePlaylist(id: string, update: (edit: PlaylistOverride) => PlaylistOverride): boolean {
+    const row = Object.values(remoteLibraries.value)
+      .flat()
+      .find(row => row.id === id);
+    if (!row) return false;
+    const edits = {
+      ...libraryOverrides.value[row.origin],
+      [id]: update(libraryOverrides.value[row.origin]?.[id] || {}),
+    };
+    libraryOverrides.value = { ...libraryOverrides.value, [row.origin]: edits };
+    void writeLibraryOverrides(row.origin, edits).catch(() => inform('本地修改暂未保存，请检查浏览器存储空间'));
+    return true;
+  }
   function clearAccountLibrary(provider: MusicAccountProvider, base: string) {
     for (const [key, pending] of libraryRequests) {
       const [p, endpoint] = JSON.parse(key);
@@ -161,6 +182,8 @@ export const useMusicStore = defineStore('wave-music', () => {
     const stillCurrent = () => !controller.signal.aborted && cachedMusicAccount(provider, base)?.id === account.id;
     const promise = (async () => {
       const cached = remoteLibraries.value[key] || (await readLibrary(key));
+      if (!libraryOverrides.value[key])
+        libraryOverrides.value = { ...libraryOverrides.value, [key]: await readLibraryOverrides(key) };
       if (!stillCurrent()) return;
       remoteLibraries.value = { ...remoteLibraries.value, [key]: cached };
       const result = await synchronizeLibrary(provider, base, account.id, cached, controller.signal, (done, total) => {
@@ -266,10 +289,8 @@ export const useMusicStore = defineStore('wave-music', () => {
     }
   }
   function editPlaylist(id: string, name: string, cover: string) {
-    if (isRemotePlaylist(id)) {
-      inform('平台歌单自动同步，请在音乐平台编辑');
-      return;
-    }
+    if (!name.trim()) return;
+    if (editRemotePlaylist(id, edit => ({ ...edit, name: name.trim().slice(0, 80), cover }))) return;
     const row = playlists.value.find(list => list.id === id);
     if (!row || !name.trim()) return;
     row.name = name.trim().slice(0, 80);
@@ -277,11 +298,10 @@ export const useMusicStore = defineStore('wave-music', () => {
     phone.saveMusicLibrary();
   }
   function deletePlaylist(id: string) {
-    if (isRemotePlaylist(id)) {
-      inform('平台歌单自动同步，请在音乐平台编辑');
-      return;
-    }
-    phone.state.musicPlaylists[phone.state.activeCharKey] = playlists.value.filter(row => row.id !== id);
+    if (editRemotePlaylist(id, edit => ({ ...edit, deleted: true }))) return;
+    phone.state.musicPlaylists[phone.state.activeCharKey] = (
+      phone.state.musicPlaylists[phone.state.activeCharKey] || []
+    ).filter(row => row.id !== id);
     phone.saveMusicLibrary();
   }
   function enqueue(track: Track, feedback = false) {
@@ -309,10 +329,17 @@ export const useMusicStore = defineStore('wave-music', () => {
     phone.saveMusicLibrary();
   }
   function collect(id: string, track: Track) {
-    if (isRemotePlaylist(id)) {
-      inform('平台歌单自动同步，请在音乐平台编辑');
+    if (
+      editRemotePlaylist(id, edit => ({
+        ...edit,
+        added: [
+          ...(edit.added || []).filter(t => t.source !== track.source || t.id !== track.id),
+          { ...track, url: '', lyric: '' },
+        ],
+        removed: (edit.removed || []).filter(key => key !== `${track.source}:${track.id}`),
+      }))
+    )
       return;
-    }
     const list = playlists.value.find(row => row.id === id);
     if (!list) return;
     if (list.tracks.some(t => t.id === track.id && t.source === track.source)) {
@@ -325,10 +352,14 @@ export const useMusicStore = defineStore('wave-music', () => {
     inform(`已收藏到「${list.name}」`);
   }
   function removeFromPlaylist(id: string, track: Track) {
-    if (isRemotePlaylist(id)) {
-      inform('平台歌单自动同步，请在音乐平台编辑');
+    if (
+      editRemotePlaylist(id, edit => ({
+        ...edit,
+        removed: [...new Set([...(edit.removed || []), `${track.source}:${track.id}`])],
+        added: (edit.added || []).filter(t => t.source !== track.source || t.id !== track.id),
+      }))
+    )
       return;
-    }
     const list = playlists.value.find(row => row.id === id);
     if (!list) return;
     const key = `${track.source}:${track.id}`;

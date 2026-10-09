@@ -85,6 +85,7 @@ function fixture(options = {}) {
     '../services/music/music-accounts': { accountProviders: [], cachedMusicAccount:()=>options.account },
     '../services/music/music-backend': { musicBackend: vue.ref('missing'), checkMusicBackend:async()=>{} },
     '../services/music/account-library': {
+      applyPlaylistOverride: (row,edit={})=>edit.deleted?null:{...row,...edit}, readLibraryOverrides:async()=>({}), writeLibraryOverrides:async()=>{},
       libraryKey: (p,b,id)=>JSON.stringify([p,b,id]), readLibrary:async()=>[], writeLibrary:async()=>{},
       synchronizeLibrary:async()=>({rows:[{id:'remote',name:'同名歌单',cover:'',tracks:[track('remote')],remote:true,origin:JSON.stringify(['qq','https://api','user'])}],failed:0}),
     },
@@ -136,6 +137,12 @@ function fixture(options = {}) {
   assert.equal(library.store.playlists.length,2);
   assert.equal(library.phone.state.musicPlaylists.a[0],manual,'sync never overwrites manually created playlists');
   assert.equal(library.phone.state.musicPlaylists.a.length,1,'remote library stays out of chat storage');
+  library.store.editPlaylist('remote','本地改名','local-cover');
+  await library.store.syncAccountLibrary('qq','https://api',{id:'user',name:'User'},true);
+  assert.equal(library.store.playlists.find(x=>x.id==='remote').name,'本地改名');
+  library.store.deletePlaylist('remote');
+  await library.store.syncAccountLibrary('qq','https://api',{id:'user',name:'User'},true);
+  assert.equal(library.store.playlists.length,1,'resync retains local deletion');
   library.store.clearAccountLibrary('qq','https://api');
   assert.equal(library.store.playlists.length,1,'logout hides remote playlists only');
   library.dispose();

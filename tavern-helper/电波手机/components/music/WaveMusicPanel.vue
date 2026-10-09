@@ -203,6 +203,28 @@
       </div>
       <p v-if="music.busy" class="music-feedback" role="status">正在寻找旋律…</p>
       <p v-if="music.error" class="music-feedback" role="alert">{{ music.error }}</p>
+      <div class="lyrics-tools" aria-label="歌词显示">
+        <button
+          type="button"
+          :aria-pressed="showTranslation"
+          aria-label="显示歌词翻译"
+          title="翻译"
+          @click="toggleAlternate('translation')"
+        >
+          <i class="fa-solid fa-language"></i><span>翻译</span>
+        </button>
+        <button
+          type="button"
+          :aria-pressed="showRomanization"
+          aria-label="显示歌词音译"
+          title="音译"
+          @click="toggleAlternate('romanization')"
+        >
+          <i class="fa-solid fa-font"></i><span>音译</span>
+        </button>
+        <span v-if="alternateBusy" role="status"><i class="fa-solid fa-spinner fa-spin"></i> 加载中</span>
+      </div>
+      <p v-if="alternateNotice" class="music-feedback" role="status">{{ alternateNotice }}</p>
       <button v-if="!followLyrics" class="lyrics-resume" type="button" @click="resumeLyrics">回到当前歌词</button>
       <div
         class="music-lyrics"
@@ -219,7 +241,13 @@
             :class="{ active: index === music.lyricIndex }"
             @click="music.seek(line.time)"
           >
-            {{ line.text }}
+            <span>{{ line.text }}</span>
+            <small v-if="showRomanization && alternateAt(romanization, line.time)">{{
+              alternateAt(romanization, line.time)
+            }}</small>
+            <small v-if="showTranslation && alternateAt(translation, line.time)">{{
+              alternateAt(translation, line.time)
+            }}</small>
           </p></template
         >
         <p v-else>{{ music.current ? '暂无同步歌词' : '旋律会在这里留下回声' }}</p>
@@ -311,10 +339,11 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, ref, watch, nextTick, inject } from 'vue';
+import { computed, ref, watch, nextTick, inject, onBeforeUnmount } from 'vue';
 import { useMusicStore } from '../../stores/music';
 import { usePhoneStore } from '../../stores/phone';
-import { musicIntent, musicSourceLabel, type Track } from '../../services/music/music';
+import { musicIntent, musicSourceLabel, parseLrc, type Track } from '../../services/music/music';
+import { fetchBuiltinLyricTracks } from '../../services/music/music-lyrics';
 import WaveSlider from '../shared/WaveSlider.vue';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
 const phoneSurface = inject(phoneSurfaceKey, ref(null));
@@ -326,6 +355,73 @@ const props = defineProps<{ raw: string; userAvatar: string; characterAvatarStyl
 defineEmits<{ settings: [] }>();
 const music = useMusicStore(),
   phone = usePhoneStore();
+const showTranslation = ref(false),
+  showRomanization = ref(false),
+  alternateBusy = ref(false),
+  alternateNotice = ref('');
+const translation = ref<ReturnType<typeof parseLrc>>([]),
+  romanization = ref<ReturnType<typeof parseLrc>>([]);
+let alternateController: AbortController | undefined;
+let alternateLoaded = false;
+function alternateAt(rows: ReturnType<typeof parseLrc>, time: number) {
+  let low = 0,
+    high = rows.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (rows[mid].time < time - 0.25) low = mid + 1;
+    else high = mid;
+  }
+  const result: string[] = [];
+  for (let i = low; i < rows.length && rows[i].time <= time + 0.25; i++) result.push(rows[i].text);
+  return result.join(' ');
+}
+async function loadAlternates() {
+  if (!music.current || alternateLoaded || alternateBusy.value) return;
+  alternateController?.abort();
+  const controller = new AbortController();
+  alternateController = controller;
+  alternateBusy.value = true;
+  alternateNotice.value = '';
+  try {
+    const result = await fetchBuiltinLyricTracks(music.current, controller.signal, true);
+    if (controller.signal.aborted) return;
+    translation.value = parseLrc(result.translation);
+    romanization.value = parseLrc(result.romanization);
+    alternateLoaded = true;
+    updateAlternateNotice();
+  } catch {
+    if (!controller.signal.aborted) alternateNotice.value = '歌词附加文本加载失败，关闭后重新点击可重试';
+  } finally {
+    if (alternateController === controller) alternateBusy.value = false;
+  }
+}
+function updateAlternateNotice() {
+  alternateNotice.value = [
+    showTranslation.value && !translation.value.length ? '暂无翻译' : '',
+    showRomanization.value && !romanization.value.length ? '暂无音译' : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+function toggleAlternate(kind: 'translation' | 'romanization') {
+  const option = kind === 'translation' ? showTranslation : showRomanization;
+  option.value = !option.value;
+  if (alternateLoaded) updateAlternateNotice();
+  else if (option.value) void loadAlternates();
+}
+watch(
+  () => (music.current ? `${music.current.source}:${music.current.id}` : ''),
+  () => {
+    alternateController?.abort();
+    alternateBusy.value = false;
+    alternateLoaded = false;
+    translation.value = [];
+    romanization.value = [];
+    alternateNotice.value = '';
+    if (showTranslation.value || showRomanization.value) void loadAlternates();
+  },
+);
+onBeforeUnmount(() => alternateController?.abort());
 const collecting = ref<Track | null>(null),
   playlistName = ref('');
 const favorite = music.favorite;
@@ -472,3 +568,41 @@ watch(
 );
 watch(favoritesOnly, () => (revealedTrack.value = ''));
 </script>
+
+<style scoped>
+.lyrics-tools {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0;
+}
+.lyrics-tools button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 18px;
+  font: inherit;
+  color: #6d7b91;
+  background: #eef2f8;
+  cursor: pointer;
+}
+.lyrics-tools button[aria-pressed='true'] {
+  color: #fff;
+  background: #5d80c4;
+}
+.lyrics-tools > span {
+  font-size: 13px;
+  color: #8893a4;
+}
+.music-lyrics p small {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.78em;
+  line-height: 1.6;
+  opacity: 0.8;
+}
+</style>

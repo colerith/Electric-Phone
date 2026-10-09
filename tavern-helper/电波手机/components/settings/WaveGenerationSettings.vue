@@ -29,13 +29,7 @@
           </button>
         </div>
         <div class="generation-selection-summary">
-          {{
-            selected(group.id).length
-              ? selected(group.id)
-                  .map(id => MODULE_LABELS[id])
-                  .join(' · ')
-              : '暂未选择模块'
-          }}
+          {{ selected(group.id).length ? selected(group.id).map(moduleLabel).join(' · ') : '暂未选择模块' }}
         </div>
       </div>
       <div v-for="field in ['randomMin', 'randomMax'] as const" :key="field" class="settings-slider-row">
@@ -85,6 +79,7 @@ const groups: { id: Group; label: string; help: string }[] = [
   { id: 'requiredModules', label: '每轮必更新', help: '每轮都检查这些模块；没有新事实时保留原内容。' },
   { id: 'modules', label: '每轮随机更新', help: '按概率随机激活指定数量的模块。选入另一组时会自动移出本组。' },
 ];
+const moduleLabel = (id: keyof typeof MODULE_LABELS) => MODULE_LABELS[id];
 const options = APP_IDS.map(value => ({ value, label: MODULE_LABELS[value] }));
 function selected(group: Group) {
   return phone.settings.generation[group];
