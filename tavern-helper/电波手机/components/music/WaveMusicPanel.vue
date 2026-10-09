@@ -230,6 +230,19 @@
         >
         <p v-else>{{ music.current ? '暂无同步歌词' : '旋律会在这里留下回声' }}</p>
       </div>
+      <div class="lyrics-mode-row">
+        <button
+          type="button"
+          class="lyrics-mode-button"
+          :class="{ 'is-off': !lyricMode.enabled }"
+          :aria-label="lyricMode.label + '，点击切换'"
+          :title="lyricMode.label"
+          :aria-busy="alternateBusy"
+          @click="cycleLyricMode"
+        >
+          <span class="lyrics-mode-icon" aria-hidden="true"><i :class="lyricMode.icon"></i></span>
+        </button>
+      </div>
       <div class="music-progress">
         <WaveSlider
           :model-value="music.time"
@@ -273,34 +286,6 @@
         ><button type="button" aria-label="显示播放列表" @click="music.queueOpen = true">
           <i class="fa-solid fa-list-ul"></i>
         </button>
-      </div>
-      <div class="lyrics-toolbar">
-        <p v-if="alternateNotice" class="lyrics-tool-notice" role="status">{{ alternateNotice }}</p>
-        <div class="lyrics-tools" role="group" aria-label="歌词显示">
-          <button
-            type="button"
-            :aria-pressed="showTranslation"
-            aria-label="歌词翻译"
-            title="翻译"
-            @click="toggleAlternate('translation')"
-          >
-            <span class="lyric-tool-glyph" aria-hidden="true">译</span
-            ><sup v-if="!showTranslation" aria-hidden="true">off</sup>
-          </button>
-          <button
-            type="button"
-            :aria-pressed="showRomanization"
-            aria-label="歌词音译"
-            title="音译"
-            @click="toggleAlternate('romanization')"
-          >
-            <span class="lyric-tool-glyph" aria-hidden="true">音</span
-            ><sup v-if="!showRomanization" aria-hidden="true">off</sup>
-          </button>
-          <span v-if="alternateBusy" class="lyrics-tool-loading" role="status" aria-label="正在加载附加歌词"
-            ><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i
-          ></span>
-        </div>
       </div>
     </template>
     <Teleport v-if="phoneSurface" :to="phoneSurface">
@@ -361,10 +346,17 @@ const props = defineProps<{ raw: string; userAvatar: string; characterAvatarStyl
 defineEmits<{ settings: [] }>();
 const music = useMusicStore(),
   phone = usePhoneStore();
-const showTranslation = ref(false),
-  showRomanization = ref(false),
-  alternateBusy = ref(false),
-  alternateNotice = ref('');
+const lyricModes = [
+  { label: '翻译打开', icon: 'fa-solid fa-language', enabled: true },
+  { label: '翻译关闭', icon: 'fa-solid fa-language', enabled: false },
+  { label: '音译打开', icon: 'fa-solid fa-font', enabled: true },
+  { label: '音译关闭', icon: 'fa-solid fa-font', enabled: false },
+] as const;
+const lyricModeIndex = ref(3);
+const lyricMode = computed(() => lyricModes[lyricModeIndex.value]);
+const showTranslation = computed(() => lyricModeIndex.value === 0);
+const showRomanization = computed(() => lyricModeIndex.value === 2);
+const alternateBusy = ref(false);
 const translation = ref<ReturnType<typeof parseLrc>>([]),
   romanization = ref<ReturnType<typeof parseLrc>>([]);
 let alternateController: AbortController | undefined;
@@ -387,33 +379,21 @@ async function loadAlternates() {
   const controller = new AbortController();
   alternateController = controller;
   alternateBusy.value = true;
-  alternateNotice.value = '';
   try {
     const result = await fetchBuiltinLyricTracks(music.current, controller.signal, true);
     if (controller.signal.aborted) return;
     translation.value = parseLrc(result.translation);
     romanization.value = parseLrc(result.romanization);
     alternateLoaded = true;
-    updateAlternateNotice();
   } catch {
-    if (!controller.signal.aborted) alternateNotice.value = '歌词附加文本加载失败，关闭后重新点击可重试';
+    // Keep the original lyrics; a later enabled mode retries failed requests.
   } finally {
     if (alternateController === controller) alternateBusy.value = false;
   }
 }
-function updateAlternateNotice() {
-  alternateNotice.value = [
-    showTranslation.value && !translation.value.length ? '暂无翻译' : '',
-    showRomanization.value && !romanization.value.length ? '暂无音译' : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
-}
-function toggleAlternate(kind: 'translation' | 'romanization') {
-  const option = kind === 'translation' ? showTranslation : showRomanization;
-  option.value = !option.value;
-  if (alternateLoaded) updateAlternateNotice();
-  else if (option.value) void loadAlternates();
+function cycleLyricMode() {
+  lyricModeIndex.value = (lyricModeIndex.value + 1) % lyricModes.length;
+  if (lyricMode.value.enabled) void loadAlternates();
 }
 watch(
   () => (music.current ? `${music.current.source}:${music.current.id}` : ''),
@@ -423,7 +403,6 @@ watch(
     alternateLoaded = false;
     translation.value = [];
     romanization.value = [];
-    alternateNotice.value = '';
     if (showTranslation.value || showRomanization.value) void loadAlternates();
   },
 );
@@ -574,13 +553,3 @@ watch(
 );
 watch(favoritesOnly, () => (revealedTrack.value = ''));
 </script>
-
-<style scoped>
-.music-lyrics p small {
-  display: block;
-  margin-top: 8px;
-  font-size: 0.78em;
-  line-height: 1.6;
-  opacity: 0.8;
-}
-</style>

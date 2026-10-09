@@ -1146,74 +1146,64 @@
     visibility: visible;
     pointer-events: auto;
   }
-  .lyrics-toolbar {
+  .lyrics-mode-row {
     display: flex;
-    flex-direction: column;
+    justify-content: flex-end;
     align-items: center;
-    gap: 6px;
-    margin: 4px 0 12px;
+    height: 36px;
+    margin: 0 0 8px;
   }
-  .lyrics-tools {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 3px 14px;
-    border-radius: 30px;
-    background: #ffffff50;
-  }
-  .lyrics-tools button {
-    position: relative;
+  .lyrics-mode-row .lyrics-mode-button {
     display: grid;
     place-items: center;
-    width: 44px;
-    height: 38px;
+    width: 40px;
+    height: 36px;
     padding: 0;
+    margin: 0 -6px 0 0;
     border: 0;
-    border-radius: 12px;
-    color: #8b94a8;
+    border-radius: 0;
     background: transparent;
-    font-size: 12px;
-    line-height: 1;
+    box-shadow: none;
+    color: #5b739e;
+    cursor: pointer;
   }
-  .lyrics-tools .lyric-tool-glyph {
+  .lyrics-mode-icon {
+    position: relative;
     display: grid;
     place-items: center;
     width: 22px;
     height: 22px;
-    border: 1.4px solid currentColor;
-    border-radius: 7px;
-    font-size: 12px;
-    font-weight: 500;
-  }
-  .lyrics-tools button sup {
-    position: absolute;
-    top: 1px;
-    right: 0;
-    font-size: 8px;
+    font-size: 17px;
     line-height: 1;
   }
-  .lyrics-tools button[aria-pressed='true'] {
-    color: #5d80b9;
-    background: #dce6f466;
+  .lyrics-mode-button.is-off {
+    color: #8792aa;
   }
-  .lyrics-tools button:focus-visible {
-    outline: 2px solid #5d80b9;
+  .lyrics-mode-button.is-off .lyrics-mode-icon::after {
+    content: '';
+    position: absolute;
+    width: 25px;
+    height: 1.5px;
+    background: currentColor;
+    transform: rotate(-45deg);
+  }
+  .lyrics-mode-button:focus-visible {
+    outline: 2px solid #8398bb;
     outline-offset: 2px;
   }
-  .lyrics-tool-loading {
-    display: grid;
-    place-items: center;
-    width: 18px;
-    height: 18px;
+  .music-lyrics p small {
+    display: block;
+    margin-top: 7px;
     font-size: 11px;
-    color: #8293b2;
+    line-height: 1.65;
+    font-weight: 400;
+    color: #7c88a0;
+    opacity: 1;
+    text-shadow: none;
   }
-  .lyrics-tool-notice {
-    margin: 0;
-    color: #8894a8;
-    font-size: 10px;
-    line-height: 1.5;
-    text-align: center;
+  .music-lyrics p.active small {
+    color: #607698;
+    font-weight: 500;
   }
   @media (prefers-reduced-motion: reduce) {
     .music-track-swipe > article,
