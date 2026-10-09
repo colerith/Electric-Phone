@@ -42,14 +42,19 @@
           <WaveDeviceStatus v-if="store.settings.appearance.showStatusBar" />
         </div>
 
-        <div v-if="!store.isReady" class="wave-loading">
-          <i class="fa-solid fa-satellite-dish"></i>
-          <strong>正在捕捉讯号</strong>
-          <p>{{ store.syncError || '读取当前聊天…' }}</p>
-          <button type="button" :disabled="resyncing" :aria-busy="resyncing" @click="retrySynchronize">
-            <i v-if="resyncing" class="fa-solid fa-spinner fa-spin"></i>{{ resyncing ? '正在重新同步…' : '重新同步' }}
+        <div v-if="!store.isReady" class="wave-loading" :aria-busy="resyncing">
+          <div class="wave-loading-emblem" aria-hidden="true"><i class="fa-solid fa-satellite-dish"></i></div>
+          <strong>{{ resyncing ? '正在重新连接' : store.syncError ? '暂时没有连上' : '正在捕捉讯号' }}</strong>
+          <p class="wave-loading-description" role="status">{{ loadingDescription }}</p>
+          <button class="wave-resync-button" type="button" :disabled="resyncing" @click="retrySynchronize">
+            <span v-if="resyncing" class="wave-resync-spinner" aria-hidden="true"></span>
+            <i v-else class="fa-solid fa-arrow-rotate-right" aria-hidden="true"></i>
+            <span>{{ resyncing ? '同步中' : '重新同步' }}</span>
           </button>
-          <p v-if="resyncNotice" role="status">{{ resyncNotice }}</p>
+          <details v-if="store.syncError && !resyncing" class="wave-loading-details">
+            <summary>查看错误详情</summary>
+            <p>{{ store.syncError }}</p>
+          </details>
         </div>
 
         <template v-else>
@@ -2971,6 +2976,14 @@ onUnmounted(() => {
 });
 const resyncing = ref(false),
   resyncNotice = ref('');
+const loadingDescription = computed(() => {
+  if (resyncing.value) return '正在读取聊天与存档，请稍候';
+  if (store.syncError)
+    return /timed? ?out|timeout|超时/i.test(store.syncError)
+      ? '连接服务器超时，请稍后重试'
+      : '暂时无法读取聊天存档，请重新同步';
+  return resyncNotice.value || '正在读取当前聊天…';
+});
 async function retrySynchronize() {
   if (resyncing.value) return;
   resyncing.value = true;

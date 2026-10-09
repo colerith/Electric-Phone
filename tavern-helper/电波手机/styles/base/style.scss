@@ -966,7 +966,7 @@
     gap: 9px;
     padding: 30px;
     text-align: center;
-    i {
+    > i {
       font-size: 36px;
       color: var(--wave-blue-strong);
       animation: wave-float 1.8s ease-in-out infinite alternate;

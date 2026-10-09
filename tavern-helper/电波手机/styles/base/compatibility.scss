@@ -284,3 +284,109 @@
   content-visibility: auto;
   contain-intrinsic-size: auto 64px;
 }
+
+// Loading icons and controls have independent sizing and motion.
+#wave-phone-script-root .wave-device .wave-loading {
+  gap: 0;
+  .wave-loading-emblem {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 22px;
+    border-radius: 22px;
+    background: #ffffff80;
+    box-shadow: 0 6px 24px #697ea30a;
+  }
+  .wave-loading-emblem > i {
+    font-size: 27px;
+    line-height: 1;
+    color: #7894bd;
+    animation: none;
+  }
+  > strong {
+    font-family: inherit;
+    font-size: 18px;
+    line-height: 1.5;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #43516b;
+  }
+  .wave-loading-description {
+    max-width: 260px;
+    margin: 9px 0 23px;
+    font-size: 11px;
+    line-height: 1.8;
+    color: #8b95a6;
+  }
+  .wave-resync-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 142px;
+    height: 40px;
+    min-height: 40px;
+    margin: 0;
+    padding: 0 16px;
+    border: 1px solid #cdd9eb;
+    border-radius: 20px;
+    background: #e7edf8;
+    color: #5f7fad;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    box-shadow: none;
+  }
+  .wave-resync-button > i {
+    display: block;
+    width: 13px;
+    font-size: 13px;
+    line-height: 1;
+    color: currentColor;
+    animation: none;
+  }
+  .wave-resync-button:disabled {
+    opacity: 0.8;
+    cursor: wait;
+  }
+  .wave-resync-button:focus-visible {
+    outline: 2px solid #7894bd;
+    outline-offset: 3px;
+  }
+  .wave-resync-spinner {
+    box-sizing: border-box;
+    flex: 0 0 13px;
+    width: 13px;
+    height: 13px;
+    border: 1.5px solid #5f7fad30;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: wave-resync-turn 0.9s linear infinite;
+  }
+  .wave-loading-details {
+    max-width: 260px;
+    margin-top: 15px;
+    color: #929cad;
+    font-size: 10px;
+  }
+  .wave-loading-details summary {
+    cursor: pointer;
+  }
+  .wave-loading-details p {
+    margin-top: 8px;
+    font-size: 10px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .wave-resync-spinner {
+      animation: none;
+    }
+  }
+}
+@keyframes wave-resync-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
