@@ -45,7 +45,7 @@ assert.match(musicStyle, /\.music-track-swipe > article[\s\S]*?background: trans
 assert.doesNotMatch(musicStyle, /\.music-track-swipe\.deletable > article\s*{[\s\S]*?background:/);
 assert.match(playlists, /@contextmenu\.prevent="removingTrack = trackKey\(track\)"/);
 assert.match(playlists, /@pointerdown="startSongSwipe\(\$event, track\)"/);
-assert.match(playlists, /class="playlist-song-remove"/);
+assert.match(playlists, /class="music-track-delete-action"/);
 assert.match(musicStore, /function removeFromPlaylist\(id: string, track: Track\)/);
 
 console.log('PASS: settings isolation, API defaults, status-bar toggle and music swipe deletion are wired.');

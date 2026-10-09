@@ -16,40 +16,26 @@
           ＋ 创建
         </button>
       </form>
-      <article
+      <div
         v-for="list in music.playlists"
         :key="list.id"
-        class="playlist-row"
-        @contextmenu.prevent="deleting = list.id"
-        @touchstart.passive="touch = [$event.touches[0].clientX, $event.touches[0].clientY]"
-        @touchend.passive="swipe($event, list.id)"
+        class="music-track-swipe deletable editable"
+        :class="{ revealed: deleting === list.id }"
       >
-        <button class="playlist-open" type="button" @click="openPlaylist(list.id)">
-          <img v-if="cover(list)" :src="cover(list)" alt="" /><span v-else class="playlist-art">♫</span
-          ><span
-            ><strong>{{ list.name }}</strong
-            ><small
-              >{{ list.tracks.length }} 首歌曲{{ music.isRemotePlaylist(list.id) ? ' · 平台同步' : '' }}</small
-            ></span
-          >
-        </button>
         <button
-          v-if="deleting === list.id"
           type="button"
-          @click="
-            openPlaylist(list.id);
-            editName = list.name;
-            editCover = list.cover;
-            editing = true;
-            deleting = '';
-          "
+          class="music-track-delete-action music-track-edit-action"
+          :tabindex="deleting === list.id ? 0 : -1"
+          :aria-label="`编辑歌单：${list.name}`"
+          @click="editPlaylist(list)"
         >
           编辑
         </button>
         <button
-          v-if="deleting === list.id"
           type="button"
-          class="playlist-delete"
+          class="music-track-delete-action"
+          :tabindex="deleting === list.id ? 0 : -1"
+          :aria-label="`删除歌单：${list.name}`"
           @click="
             music.deletePlaylist(list.id);
             deleting = '';
@@ -57,8 +43,25 @@
         >
           删除
         </button>
-        <button v-else type="button" aria-label="歌单选项" @click="deleting = list.id">⋯</button>
-      </article>
+        <article
+          class="playlist-row"
+          @contextmenu.prevent="deleting = list.id"
+          @touchstart.passive="touch = [$event.touches[0].clientX, $event.touches[0].clientY]"
+          @touchend.passive="swipe($event, list.id)"
+          @touchcancel="touch = []"
+        >
+          <button class="playlist-open" type="button" @click="openPlaylist(list.id)">
+            <img v-if="cover(list)" :src="cover(list)" alt="" /><span v-else class="playlist-art">♫</span>
+            <span
+              ><strong>{{ list.name }}</strong
+              ><small
+                >{{ list.tracks.length }} 首歌曲{{ music.isRemotePlaylist(list.id) ? ' · 平台同步' : '' }}</small
+              ></span
+            >
+          </button>
+          <button type="button" aria-label="歌单选项" @click="deleting = deleting === list.id ? '' : list.id">⋯</button>
+        </article>
+      </div>
       <p v-if="!music.playlists.length">给喜欢的旋律一个名字，创建你的第一张歌单。</p>
     </template>
     <template v-else>
@@ -114,17 +117,17 @@
       <div
         v-for="(track, index) in selected.tracks.slice(0, visibleTracks)"
         :key="track.source + track.id"
-        class="playlist-song-swipe"
+        class="music-track-swipe deletable"
         :class="{ revealed: removingTrack === trackKey(track) }"
       >
         <button
           type="button"
-          class="playlist-song-remove"
+          class="music-track-delete-action"
           :tabindex="removingTrack === trackKey(track) ? 0 : -1"
           :aria-label="`从歌单移出：${track.title}`"
           @click="removeTrack(track)"
         >
-          移出歌单
+          移出
         </button>
         <article
           class="playlist-song"
@@ -199,8 +202,19 @@ let suppressClickUntil = 0;
 let songSwipe: { x: number; y: number; key: string } | null = null;
 let suppressSongClickUntil = 0;
 const trackKey = (track: Track) => `${track.source}:${track.id}`;
+function editPlaylist(list: { id: string; name: string; cover: string }) {
+  selectedId.value = list.id;
+  editName.value = list.name;
+  editCover.value = list.cover;
+  editing.value = true;
+  deleting.value = '';
+}
 function openPlaylist(id: string) {
   if (Date.now() < suppressClickUntil) return;
+  if (deleting.value === id) {
+    deleting.value = '';
+    return;
+  }
   selectedId.value = id;
   deleting.value = '';
 }
@@ -225,11 +239,16 @@ onBeforeUnmount(() => {
   music.playlistCover = '';
 });
 function swipe(event: TouchEvent, id: string) {
+  if (touch.value.length !== 2) return;
   const end = event.changedTouches[0];
   if (end.clientX - touch.value[0] < -45 && Math.abs(end.clientY - touch.value[1]) < 35) {
     deleting.value = id;
     suppressClickUntil = Date.now() + 400;
+  } else if (end.clientX - touch.value[0] > 45 && Math.abs(end.clientY - touch.value[1]) < 35) {
+    deleting.value = '';
+    suppressClickUntil = Date.now() + 400;
   }
+  touch.value = [];
 }
 function playSong(track: Track) {
   if (removingTrack.value === trackKey(track)) {

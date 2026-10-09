@@ -203,28 +203,6 @@
       </div>
       <p v-if="music.busy" class="music-feedback" role="status">正在寻找旋律…</p>
       <p v-if="music.error" class="music-feedback" role="alert">{{ music.error }}</p>
-      <div class="lyrics-tools" aria-label="歌词显示">
-        <button
-          type="button"
-          :aria-pressed="showTranslation"
-          aria-label="显示歌词翻译"
-          title="翻译"
-          @click="toggleAlternate('translation')"
-        >
-          <i class="fa-solid fa-language"></i><span>翻译</span>
-        </button>
-        <button
-          type="button"
-          :aria-pressed="showRomanization"
-          aria-label="显示歌词音译"
-          title="音译"
-          @click="toggleAlternate('romanization')"
-        >
-          <i class="fa-solid fa-font"></i><span>音译</span>
-        </button>
-        <span v-if="alternateBusy" role="status"><i class="fa-solid fa-spinner fa-spin"></i> 加载中</span>
-      </div>
-      <p v-if="alternateNotice" class="music-feedback" role="status">{{ alternateNotice }}</p>
       <button v-if="!followLyrics" class="lyrics-resume" type="button" @click="resumeLyrics">回到当前歌词</button>
       <div
         class="music-lyrics"
@@ -295,6 +273,34 @@
         ><button type="button" aria-label="显示播放列表" @click="music.queueOpen = true">
           <i class="fa-solid fa-list-ul"></i>
         </button>
+      </div>
+      <div class="lyrics-toolbar">
+        <p v-if="alternateNotice" class="lyrics-tool-notice" role="status">{{ alternateNotice }}</p>
+        <div class="lyrics-tools" role="group" aria-label="歌词显示">
+          <button
+            type="button"
+            :aria-pressed="showTranslation"
+            aria-label="歌词翻译"
+            title="翻译"
+            @click="toggleAlternate('translation')"
+          >
+            <span class="lyric-tool-glyph" aria-hidden="true">译</span
+            ><sup v-if="!showTranslation" aria-hidden="true">off</sup>
+          </button>
+          <button
+            type="button"
+            :aria-pressed="showRomanization"
+            aria-label="歌词音译"
+            title="音译"
+            @click="toggleAlternate('romanization')"
+          >
+            <span class="lyric-tool-glyph" aria-hidden="true">音</span
+            ><sup v-if="!showRomanization" aria-hidden="true">off</sup>
+          </button>
+          <span v-if="alternateBusy" class="lyrics-tool-loading" role="status" aria-label="正在加载附加歌词"
+            ><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i
+          ></span>
+        </div>
       </div>
     </template>
     <Teleport v-if="phoneSurface" :to="phoneSurface">
@@ -570,34 +576,6 @@ watch(favoritesOnly, () => (revealedTrack.value = ''));
 </script>
 
 <style scoped>
-.lyrics-tools {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 12px 0;
-}
-.lyrics-tools button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 14px;
-  border: 0;
-  border-radius: 18px;
-  font: inherit;
-  color: #6d7b91;
-  background: #eef2f8;
-  cursor: pointer;
-}
-.lyrics-tools button[aria-pressed='true'] {
-  color: #fff;
-  background: #5d80c4;
-}
-.lyrics-tools > span {
-  font-size: 13px;
-  color: #8893a4;
-}
 .music-lyrics p small {
   display: block;
   margin-top: 8px;

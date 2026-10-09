@@ -903,12 +903,6 @@
     font-size: 11px;
     opacity: 0.6;
   }
-  .playlist-delete {
-    padding: 14px !important;
-    border-radius: 12px;
-    background: #fae1e7 !important;
-    color: #c94f6c !important;
-  }
   .playlist-hero {
     margin: 14px -12px 0;
     min-height: 265px;
@@ -955,30 +949,6 @@
     background: transparent;
     transition: transform 180ms ease;
     touch-action: pan-y;
-  }
-  .playlist-song-swipe {
-    position: relative;
-    overflow: hidden;
-  }
-  .playlist-song-swipe.revealed .playlist-song {
-    transform: translateX(-72px);
-  }
-  .playlist-song-remove {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 72px;
-    border: 0;
-    background: #f8dce5;
-    color: #bd5f7e;
-    font-size: 11px;
-    font-weight: 700;
-    opacity: 0;
-    transition: opacity 120ms ease;
-  }
-  .playlist-song-swipe.revealed .playlist-song-remove {
-    opacity: 1;
   }
   .playlist-song > button:first-of-type {
     flex: 1;
@@ -1153,5 +1123,102 @@
   80%,
   100% {
     transform: translateX(min(0px, calc(-100% + 175px)));
+  }
+}
+
+// Music lists share the same reveal surface, action width and typography.
+#wave-phone-script-root .wave-device {
+  .music-track-swipe.editable.revealed > article {
+    transform: translateX(-124px);
+  }
+  .music-track-swipe > .music-track-edit-action {
+    right: 62px;
+    border-radius: 0;
+    background: #e5ecf8;
+    color: #5d7cab;
+  }
+  .music-track-swipe > .music-track-delete-action {
+    padding: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .music-track-swipe.revealed > .music-track-delete-action {
+    visibility: visible;
+    pointer-events: auto;
+  }
+  .lyrics-toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0 12px;
+  }
+  .lyrics-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 3px 14px;
+    border-radius: 30px;
+    background: #ffffff50;
+  }
+  .lyrics-tools button {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 38px;
+    padding: 0;
+    border: 0;
+    border-radius: 12px;
+    color: #8b94a8;
+    background: transparent;
+    font-size: 12px;
+    line-height: 1;
+  }
+  .lyrics-tools .lyric-tool-glyph {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border: 1.4px solid currentColor;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .lyrics-tools button sup {
+    position: absolute;
+    top: 1px;
+    right: 0;
+    font-size: 8px;
+    line-height: 1;
+  }
+  .lyrics-tools button[aria-pressed='true'] {
+    color: #5d80b9;
+    background: #dce6f466;
+  }
+  .lyrics-tools button:focus-visible {
+    outline: 2px solid #5d80b9;
+    outline-offset: 2px;
+  }
+  .lyrics-tool-loading {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    font-size: 11px;
+    color: #8293b2;
+  }
+  .lyrics-tool-notice {
+    margin: 0;
+    color: #8894a8;
+    font-size: 10px;
+    line-height: 1.5;
+    text-align: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .music-track-swipe > article,
+    .music-track-delete-action {
+      transition: none;
+    }
   }
 }
