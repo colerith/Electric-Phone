@@ -290,3 +290,325 @@
     color: #b5afce;
   }
 }
+
+// Nested controls keep the material of their app; media retain their original colors.
+#wave-phone-script-root .wave-phone-host .wave-device.theme-dark {
+  .function-settings-group {
+    background: #2a3445;
+    border-color: #3d495d;
+  }
+  .app-function-settings .function-setting-row {
+    background: #2a3445;
+    color: #dce5f2;
+    border-color: #3d495d;
+    box-shadow: none;
+  }
+  .function-setting-row strong {
+    color: #dce5f2;
+  }
+  .function-setting-row small {
+    color: #a6b6cd;
+  }
+  .function-setting-row > i {
+    color: #9cb7dd;
+  }
+  .function-settings-group .function-setting-row + .function-setting-row {
+    border-color: #3d495d;
+  }
+  .wave-content-delete,
+  .wave-clear-button,
+  .wave-clear-confirm .danger {
+    background: #45303e;
+    color: #e4a5bb;
+    border-color: #654355;
+    box-shadow: none;
+  }
+  .wave-content-delete:active,
+  .wave-clear-button:active {
+    background: #5b3b4d;
+  }
+  .module-limit-field > label,
+  .module-limit-field > span {
+    color: #c7d4e8;
+  }
+  .artwork-options button {
+    background: #2b3448;
+    color: #bfcee5;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  .artwork-options button[aria-pressed='true'] {
+    border-color: #89a9d5;
+    background: #35455f;
+  }
+  .artwork-options .default-artwork {
+    background: linear-gradient(135deg, #354d66, #554057);
+  }
+  .module-translation {
+    border-color: #494450;
+    color: #b8acbf;
+  }
+  .module-translation summary {
+    color: #b2b7dc;
+  }
+  .memo-paper {
+    background: #2a2833;
+    border-color: #47404f;
+  }
+  .memo-paper-title {
+    color: #c2b8dc;
+    border-color: #47404f;
+  }
+  .memo-paper-actions {
+    border-color: #47404f;
+  }
+  .space-app .space-notice-row {
+    border-color: #394355;
+  }
+  .space-notice-preview {
+    background: #303747;
+    color: #c0cbdc;
+  }
+  .space-notice-preview img {
+    display: block;
+  }
+  .space-app .space-notice-avatar {
+    background: #2d394c;
+  }
+
+  // Wallet: slate teal surfaces, jade income and warm neutral spending.
+  .wallet-page {
+    color: #d2dfdf;
+  }
+  .wallet-overview {
+    background: linear-gradient(120deg, #253d45, #293847);
+  }
+  .wallet-overview > strong {
+    color: #d4e7e3;
+  }
+  .wallet-overview > span,
+  .wallet-overview .wallet-account-name {
+    color: #a7bdc2;
+  }
+  .wallet-summary,
+  .wallet-statistics,
+  .wallet-record,
+  .wallet-add-form {
+    background: #25333e;
+    color: #d7e1e8;
+    border-color: #3b4a55;
+  }
+  .wallet-summary > div + div {
+    border-color: #40515a;
+  }
+  .wallet-summary small,
+  .wallet-record small,
+  .wallet-stat-note,
+  .wallet-pie-legend-row > small {
+    color: #a3b7c3;
+  }
+  .wallet-record strong,
+  .wallet-record > b,
+  .wallet-summary b {
+    color: #d8e2e8;
+  }
+  .wallet-page .income {
+    color: #90cdbb;
+  }
+  .wallet-category-icon {
+    color: color-mix(in srgb, var(--wallet-category-color) 75%, #e1e8f0);
+    background: color-mix(in srgb, var(--wallet-category-color) 20%, #25333e);
+  }
+  .wallet-bank-card {
+    --wallet-artwork-shade: #172b35ed;
+    --wallet-artwork-clear: #172b3530;
+    --wallet-artwork-start: #29444c;
+    --wallet-artwork-end: #3c3549;
+    border-color: #48606a;
+    color: #e1eeeb;
+  }
+  .wallet-bank-card > small {
+    color: #b8d0ce;
+  }
+  .wallet-tabs button,
+  .wallet-direction-filter button {
+    color: #afc1ce;
+    border-color: #3d4c58;
+  }
+  .wallet-tabs button[aria-pressed='true'],
+  .wallet-direction-filter button[aria-pressed='true'] {
+    background: #395469;
+    color: #deebf6;
+    border-color: #526e82;
+  }
+  .wallet-tabs button:last-child,
+  .wallet-account-actions > button {
+    background: #304753;
+    color: #c2dce5;
+    border-color: #48606b;
+  }
+  .wallet-account-actions > button:last-child {
+    background: #45333f;
+    color: #e0afbf;
+    border-color: #624452;
+  }
+  .wallet-search,
+  .wallet-add-form input {
+    background: #1e2c37;
+    color: #b6c9d9;
+    border-color: #3f5261;
+  }
+  .wallet-page .wallet-search input {
+    background: transparent;
+    color: #d7e4ec;
+  }
+  .wallet-donut-track {
+    stroke: #3b4953;
+  }
+  .wallet-donut-label text {
+    fill: #bdcdda;
+  }
+  .wallet-donut-caption {
+    fill: #a8bccb;
+  }
+  .wallet-donut-total {
+    fill: #e0eaf2;
+  }
+
+  .calendar-page .calendar-five-days button {
+    background: #2b3749;
+    border-color: #41516a;
+    color: #afc7ec;
+  }
+  .calendar-five-days small {
+    color: #a7b8d0;
+  }
+  .calendar-page .calendar-five-days button[aria-pressed='true'] {
+    background: #425e83;
+    border-color: #6b87ae;
+    color: #edf3fc;
+    box-shadow: none;
+  }
+  .calendar-five-days button[aria-pressed='true'] strong {
+    color: #edf3fc;
+  }
+
+  // Browser: cool slate chrome; brand SVGs have explicit night fills, never filters.
+  .browser-search-field,
+  .browser-library-filter {
+    background: #27364a;
+    border-color: #40526b;
+    box-shadow: none;
+  }
+  .browser-search-field input,
+  .browser-library-filter input {
+    background: transparent;
+    color: #d6e2f3;
+  }
+  .browser-search-field > i,
+  .browser-search-field button {
+    color: #b0c5e4;
+  }
+  .browser-quick-sites span,
+  .browser-favorites-grid span,
+  .browser-favorites-grid .browser-site-icon {
+    background: #29384b;
+    border-color: #40516a;
+    box-shadow: none;
+  }
+  .browser-quick-sites a,
+  .browser-quick-sites small {
+    color: #bacbe2 !important;
+  }
+  .browser-sections {
+    border-color: #39485d;
+  }
+  .browser-current-card,
+  .browser-result-card,
+  .browser-saved-row {
+    background: #263245;
+    color: #c8d6e8;
+  }
+  .browser-current-card p,
+  .browser-result-card p {
+    color: #a9bcd4;
+  }
+  .browser-toolbar {
+    background: #1c2738;
+    border-color: #39485d;
+    padding-bottom: 8px;
+  }
+  .browser-address {
+    background: #2b3c52;
+    color: #c3d7f0;
+  }
+  &.page-browse .wave-homebar {
+    background: #1c2738;
+  }
+
+  // Player: plum glass and graphite, without bright rims or inset white glow.
+  .dock-progress {
+    background: #3c4960;
+  }
+  .dock-progress i {
+    background: #8caad8;
+  }
+  .music-player-top span strong {
+    color: #bdc5df;
+  }
+  .music-player-top span small {
+    color: #9ba8c5;
+  }
+  .music-together {
+    background: #34344d;
+    border-color: #4c4964;
+    color: #d2cbe5;
+  }
+  .music-together small {
+    color: #b2afc8;
+    opacity: 1;
+  }
+  .together-avatars img,
+  .together-avatars > span {
+    border-color: #655e7b;
+    background: #393950;
+  }
+  .music-turntable {
+    background: linear-gradient(140deg, #34354e, #282839 70%, #3a3045);
+    border-color: #4a475f;
+    box-shadow:
+      0 12px 24px #11101d33,
+      inset 0 1px 0 #55516c;
+  }
+  .music-vinyl {
+    background: repeating-radial-gradient(circle, #242635 0 2px, #393b50 3px 4px, #2b2c40 5px 7px);
+    border-color: #565268;
+    box-shadow:
+      inset 0 0 20px #16162177,
+      0 8px 20px #11101d44;
+  }
+  .music-vinyl img {
+    border-color: #625771;
+  }
+  .music-needle stop:first-child {
+    stop-color: #50586b;
+  }
+  .music-needle stop:nth-child(2) {
+    stop-color: #a1adc1;
+  }
+  .music-needle stop:last-child {
+    stop-color: #656e84;
+  }
+  .music-needle circle {
+    fill: #6c738a;
+    stroke: #414959;
+  }
+  .music-needle circle + circle {
+    fill: #abb4c8;
+    stroke: none;
+  }
+  .music-needle rect:last-of-type {
+    fill: #9299ad;
+    stroke: #60677c;
+  }
+}

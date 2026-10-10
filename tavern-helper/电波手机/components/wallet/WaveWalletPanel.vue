@@ -194,8 +194,8 @@ const money = (amount: number | null) =>
 const totals = computed(() => walletTotals(page.value.transactions));
 const cardStyle = computed(() => ({
   backgroundImage: artworkUrl(props.artwork)
-    ? `linear-gradient(0deg, #ffffffdd, #ffffff00 85%), url("${artworkUrl(props.artwork).replaceAll('"', '%22')}")`
-    : 'linear-gradient(120deg, #dce6f2, #f1e6ec)',
+    ? `linear-gradient(0deg, var(--wallet-artwork-shade, #ffffffdd), var(--wallet-artwork-clear, #ffffff00) 85%), url("${artworkUrl(props.artwork).replaceAll('"', '%22')}")`
+    : 'linear-gradient(120deg, var(--wallet-artwork-start, #dce6f2), var(--wallet-artwork-end, #f1e6ec))',
 }));
 const categoryAppearance: Record<(typeof walletCategories)[number], { icon: string; color: string; tint: string }> = {
   工资: { icon: 'fa-briefcase', color: '#579c85', tint: '#e9f4ee' },
@@ -215,8 +215,8 @@ const categoryAppearance: Record<(typeof walletCategories)[number], { icon: stri
   其他: { icon: 'fa-ellipsis', color: '#969bb5', tint: '#edeef4' },
 };
 const categoryIconStyle = (category: (typeof walletCategories)[number]) => ({
-  color: categoryAppearance[category].color,
-  background: categoryAppearance[category].tint,
+  '--wallet-category-color': categoryAppearance[category].color,
+  '--wallet-category-tint': categoryAppearance[category].tint,
 });
 const filtered = computed(() =>
   page.value.transactions
@@ -308,6 +308,10 @@ function submit(): void {
 </script>
 
 <style scoped lang="scss">
+.wallet-category-icon {
+  color: var(--wallet-category-color);
+  background: var(--wallet-category-tint);
+}
 #wave-phone-script-root .wallet-direction-filter {
   display: flex;
   gap: 8px;

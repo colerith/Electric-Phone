@@ -180,8 +180,13 @@
 </template>
 <script setup lang="ts">
 import WaveModuleTranslation from '../shared/WaveModuleTranslation.vue';
-import { browserSiteIcons } from '../../services/apps/browser-site-icons';
+import { browserSiteIcons as lightSiteIcons, darkBrowserSiteIcons } from '../../services/apps/browser-site-icons';
 import { computed, ref, onBeforeUnmount } from 'vue';
+import { usePhoneStore } from '../../stores/phone';
+import { usePhoneTheme } from '../../services/core/theme';
+const phone = usePhoneStore();
+const theme = usePhoneTheme(() => phone.settings.theme);
+const browserSiteIcons = computed(() => (theme.value === 'dark' ? darkBrowserSiteIcons : lightSiteIcons));
 import { searchWeb, type WebResult } from '../../services/core/network';
 import {
   browserTarget,
@@ -218,14 +223,14 @@ const sections = [
   { id: 'history', name: '历史记录' },
   { id: 'bookmarks', name: '收藏夹' },
 ];
-const quickSites = [
-  { name: 'YouTube', url: 'https://www.youtube.com/', icon: browserSiteIcons.youtube },
-  { name: '哔哩哔哩', url: 'https://www.bilibili.com/', icon: browserSiteIcons.bilibili },
-  { name: 'Wikipedia', url: 'https://www.wikipedia.org/', icon: browserSiteIcons.wikipedia },
-  { name: 'GitHub', url: 'https://github.com/', icon: browserSiteIcons.github },
-  { name: 'Reddit', url: 'https://www.reddit.com/', icon: browserSiteIcons.reddit },
-  { name: 'X', url: 'https://x.com/', icon: browserSiteIcons.x },
-];
+const quickSites = computed(() => [
+  { name: 'YouTube', url: 'https://www.youtube.com/', icon: browserSiteIcons.value.youtube },
+  { name: '哔哩哔哩', url: 'https://www.bilibili.com/', icon: browserSiteIcons.value.bilibili },
+  { name: 'Wikipedia', url: 'https://www.wikipedia.org/', icon: browserSiteIcons.value.wikipedia },
+  { name: 'GitHub', url: 'https://github.com/', icon: browserSiteIcons.value.github },
+  { name: 'Reddit', url: 'https://www.reddit.com/', icon: browserSiteIcons.value.reddit },
+  { name: 'X', url: 'https://x.com/', icon: browserSiteIcons.value.x },
+]);
 const notes = computed(() => parseBrowseNotes(props.raw));
 const bookmarks = computed(() => props.bookmarks.filter(item => safeBrowserUrl(item.url)));
 const list = computed(() =>
