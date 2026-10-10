@@ -76,6 +76,7 @@ export async function synchronizeLibrary(
   progress: (done: number, total: number) => void,
   api = { lists: fetchAccountPlaylists, tracks: fetchAccountTracks },
   force = false,
+  beforePage: () => Promise<void> = () => new Promise(resolve => setTimeout(resolve, 16)),
 ): Promise<{ rows: SyncedPlaylist[]; failed: number }> {
   const origin = libraryKey(provider, base, userId);
   const lists = new Map<string, AccountPlaylist>();
@@ -83,6 +84,8 @@ export async function synchronizeLibrary(
   for (let page = 0; ; page++) {
     signal.throwIfAborted();
     if (page >= 200) throw Error('平台歌单分页异常，已保留已有歌单');
+    await beforePage();
+    signal.throwIfAborted();
     const result = await api.lists(provider, base, userId, offset, signal);
     for (const list of result.lists) lists.set(list.id, list);
     if (!result.more) break;
@@ -116,6 +119,8 @@ export async function synchronizeLibrary(
         for (let page = 0; ; page++) {
           signal.throwIfAborted();
           if (page >= 300) throw Error('歌曲分页异常');
+          await beforePage();
+          signal.throwIfAborted();
           const result = await api.tracks(provider, base, list, offset, signal);
           for (const track of result.tracks)
             tracks.set(`${track.source}:${track.id}`, { ...track, url: '', lyric: '' });
@@ -142,7 +147,8 @@ export async function synchronizeLibrary(
       await new Promise(resolve => setTimeout(resolve, 0));
     }
   }
-  await Promise.all([worker(), worker()]);
+  const mobile = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  await Promise.all(mobile ? [worker()] : [worker(), worker()]);
   signal.throwIfAborted();
   return { rows, failed };
 }
@@ -155,6 +161,10 @@ export type PlaylistOverride = {
 };
 export function applyPlaylistOverride(row: SyncedPlaylist, edit: PlaylistOverride = {}): SyncedPlaylist | null {
   if (edit.deleted) return null;
+  if (!edit.removed?.length && !edit.added?.length) {
+    if (edit.name === undefined && edit.cover === undefined) return row;
+    return { ...row, name: edit.name ?? row.name, cover: edit.cover ?? row.cover };
+  }
   const removed = new Set(edit.removed || []);
   const tracks = new Map(
     row.tracks.filter(t => !removed.has(`${t.source}:${t.id}`)).map(t => [`${t.source}:${t.id}`, t]),

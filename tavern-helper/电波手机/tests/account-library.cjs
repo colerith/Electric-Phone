@@ -51,6 +51,27 @@ const { synchronizeLibrary, libraryKey } = m.exports;
   assert.ok(peak <= 2);
   const row = first.rows[0],
     apply = m.exports.applyPlaylistOverride;
+  assert.equal(apply(row), row, 'unmodified playlists keep their identity without walking tracks');
+  assert.equal(apply(row, { name: 'renamed' }).tracks, row.tracks, 'metadata edits reuse track arrays');
+  global.matchMedia = () => ({ matches: true });
+  peak = 0;
+  let yields = 0;
+  await synchronizeLibrary(
+    'qq',
+    'https://api.example',
+    'mobile',
+    [],
+    controller.signal,
+    () => {},
+    api,
+    true,
+    async () => {
+      yields++;
+    },
+  );
+  assert.equal(peak, 1, 'touch devices fetch one playlist page at a time');
+  assert.equal(yields, 6, 'each list and track page yields before fetching');
+  delete global.matchMedia;
   assert.equal(apply(row, { name: '我的名字' }).name, '我的名字');
   assert.equal(apply(row, { deleted: true }), null);
   assert.equal(apply(row, { removed: ['account-qq:0'] }).tracks.length, 1);

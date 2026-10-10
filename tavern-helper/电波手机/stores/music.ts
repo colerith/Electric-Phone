@@ -79,13 +79,17 @@ export const useMusicStore = defineStore('wave-music', () => {
     );
   const isHidden = (track: Track) =>
     (phone.state.musicHiddenTracks[phone.state.activeCharKey] || []).includes(`${track.source}:${track.id}`);
+  const favoriteIndex = computed(() => {
+    const ids = new Set(phone.state.musicFavorites[phone.state.activeCharKey] || []);
+    const titles = new Set<string>();
+    for (const track of phone.state.musicCatalog[phone.state.activeCharKey] || [])
+      if (ids.has(`${track.source}:${track.id}`)) titles.add(JSON.stringify([track.title, track.artist]));
+    return { ids, titles };
+  });
   function isFavorite(track: Track) {
-    const ids = phone.state.musicFavorites[phone.state.activeCharKey] || [];
     return (
-      ids.includes(`${track.source}:${track.id}`) ||
-      (phone.state.musicCatalog[phone.state.activeCharKey] || []).some(
-        t => t.title === track.title && t.artist === track.artist && ids.includes(`${t.source}:${t.id}`),
-      )
+      favoriteIndex.value.ids.has(`${track.source}:${track.id}`) ||
+      favoriteIndex.value.titles.has(JSON.stringify([track.title, track.artist]))
     );
   }
   function favorite(track: Track) {
@@ -204,6 +208,13 @@ export const useMusicStore = defineStore('wave-music', () => {
         },
         undefined,
         force,
+        async () => {
+          // Playback resolution takes priority over background playlist pages.
+          do {
+            await new Promise(resolve => setTimeout(resolve, busy.value ? 100 : playing.value ? 80 : 16));
+            controller.signal.throwIfAborted();
+          } while (busy.value);
+        },
       );
       if (!stillCurrent()) return;
       remoteLibraries.value = { ...remoteLibraries.value, [key]: result.rows };
@@ -244,7 +255,7 @@ export const useMusicStore = defineStore('wave-music', () => {
     remoteLibraries.value = Object.fromEntries(
       Object.entries(remoteLibraries.value).filter(([key]) => active.has(key)),
     );
-    await Promise.all(jobs.map(job => job()));
+    for (const job of jobs) await job();
   }
 
   const daily = computed<Track[]>(() =>
@@ -326,8 +337,7 @@ export const useMusicStore = defineStore('wave-music', () => {
     const exists = rows.some(t => t.id === track.id && t.source === track.source);
     if (!exists) rows.push({ ...track, url: '', lyric: '' });
     if (feedback) inform(exists ? '已在播放列表中' : '已加入播放列表');
-    phone.rememberMusicTracks([track]);
-    phone.saveMusicLibrary();
+    if (!exists) phone.rememberMusicTracks([track]);
   }
   function removeQueue(index: number) {
     phone.state.musicQueues[queueKey.value]?.splice(index, 1);

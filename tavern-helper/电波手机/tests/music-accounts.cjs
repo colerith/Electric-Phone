@@ -114,6 +114,28 @@ const image = 'data:image/png;base64,AAAA';
   const collected = await service.fetchAccountPlaylists('qq', base, '2');
   assert.equal(collected.lists[0].owned, false, 'creator directory id does not imply ownership');
   assert.equal((await service.fetchAccountTracks('qq', base, collected.lists[0])).tracks[0].id, 'saved-track');
+  handler = () => ({
+    code: 200,
+    response: {
+      cdlist: [
+        {
+          dissname: '大歌单',
+          songlist: Array.from({ length: 1000 }, (_, i) => ({ songmid: `song-${i}`, songname: `歌曲 ${i}` })),
+        },
+      ],
+    },
+  });
+  let heartbeat = 0;
+  const timer = setInterval(() => heartbeat++, 1);
+  const large = await service.fetchAccountTracks('qq', base, collected.lists[0]);
+  clearInterval(timer);
+  assert.equal(large.tracks.length, 1000, 'chunked normalization keeps every track');
+  assert.equal(large.tracks[999].id, 'song-999');
+  assert(heartbeat >= 9, 'large responses yield to other event-loop work between chunks');
+  const parsing = new AbortController();
+  const cancelledParsing = service.fetchAccountTracks('qq', base, collected.lists[0], 0, parsing.signal);
+  setTimeout(() => parsing.abort(), 1);
+  await assert.rejects(cancelledParsing, e => e.name === 'AbortError');
   handler = () => ({ code: 200, response: { cdlist: [{ disstid: 'saved', songlist: [] }] } });
   await assert.rejects(service.fetchAccountTracks('qq', base, collected.lists[0]), /无法读取/);
   handler = () => ({ code: 803 });

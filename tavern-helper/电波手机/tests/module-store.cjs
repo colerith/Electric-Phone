@@ -57,6 +57,20 @@ const delta = {
   floors = [{ message_id: 1, role: 'assistant', message: serializeDelta(delta) }];
   await store.synchronize();
   assert.equal(store.syncError, '');
+  const globalsBeforeMusic = vars.global;
+  const musicTrack = require(base + '/services/music/music.ts').MusicTrackSchema.parse({
+    id: 'performance-test',
+    title: '测试歌曲',
+    artist: '歌手',
+    source: 'qq',
+    album: '',
+    cover: '',
+    lyricId: '',
+  });
+  store.rememberMusicTracks([musicTrack]);
+  assert.equal(vars.global, globalsBeforeMusic, 'music-only saves do not rewrite global wallet and roster data');
+  const { CHAT_VARIABLE_KEY } = require(base + '/schemas.ts');
+  assert.equal(vars.chat[CHAT_VARIABLE_KEY].musicCatalog[store.state.activeCharKey][0].id, musicTrack.id);
   assert.equal(store.activeThread.messages.length, 1);
   assert.equal(
     require(base + '/services/apps/memo.ts')

@@ -463,8 +463,17 @@ export async function fetchAccountTracks(
     rows = rowsOf(raw);
     more = raw.more === true || rows.length === 100;
   }
+  const tracks: Track[] = [];
+  for (let start = 0; start < rows.length; start += 100) {
+    if (start) await new Promise(resolve => setTimeout(resolve, 16));
+    signal?.throwIfAborted();
+    for (const row of rows.slice(start, start + 100)) {
+      const track = mapAccountTrack(row, provider, base);
+      if (track) tracks.push(track);
+    }
+  }
   return {
-    tracks: rows.map(row => mapAccountTrack(row, provider, base)).filter((t): t is Track => t !== null),
+    tracks,
     next: offset + rows.length,
     more,
   };

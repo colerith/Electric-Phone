@@ -1217,3 +1217,15 @@
     }
   }
 }
+
+// Touch devices retain the layered gradient without repainting an oversized blurred surface.
+@media (pointer: coarse) {
+  #wave-phone-script-root .wave-device.music-immersive::before {
+    inset: 0;
+    filter: none;
+    animation: none;
+  }
+  #wave-phone-script-root .wave-device .music-mini-player {
+    backdrop-filter: none;
+  }
+}

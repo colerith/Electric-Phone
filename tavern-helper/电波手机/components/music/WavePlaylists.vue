@@ -17,7 +17,7 @@
         </button>
       </form>
       <div
-        v-for="list in music.playlists"
+        v-for="list in music.playlists.slice(0, visibleLists)"
         :key="list.id"
         class="music-track-swipe deletable editable"
         :class="{ revealed: deleting === list.id }"
@@ -66,6 +66,9 @@
           <button type="button" aria-label="歌单选项" @click="deleting = deleting === list.id ? '' : list.id">⋯</button>
         </article>
       </div>
+      <button v-if="music.playlists.length > visibleLists" type="button" @click="visibleLists += 40">
+        显示更多歌单
+      </button>
       <p v-if="!music.playlists.length">给喜欢的旋律一个名字，创建你的第一张歌单。</p>
     </template>
     <template v-else>
@@ -157,7 +160,7 @@
           </button>
         </article>
       </div>
-      <button v-if="selected.tracks.length > visibleTracks" ref="moreTracks" type="button" @click="visibleTracks += 80">
+      <button v-if="selected.tracks.length > visibleTracks" ref="moreTracks" type="button" @click="visibleTracks += 40">
         显示更多歌曲
       </button>
       <p v-if="!selected.tracks.length">
@@ -186,20 +189,21 @@ const name = ref(''),
   editName = ref(''),
   editCover = ref(''),
   removingTrack = ref('');
-const visibleTracks = ref(80);
+const visibleLists = ref(40);
+const visibleTracks = ref(40);
 const moreTracks = ref<HTMLElement | null>(null);
 let trackObserver: IntersectionObserver | undefined;
 watch(moreTracks, element => {
   trackObserver?.disconnect();
   if (!element || typeof IntersectionObserver === 'undefined') return;
   trackObserver = new IntersectionObserver(entries => {
-    if (entries.some(entry => entry.isIntersecting)) visibleTracks.value += 80;
+    if (entries.some(entry => entry.isIntersecting)) visibleTracks.value += 40;
   });
   trackObserver.observe(element);
 });
 onBeforeUnmount(() => trackObserver?.disconnect());
 watch(selectedId, () => {
-  visibleTracks.value = 80;
+  visibleTracks.value = 40;
 });
 const touch = ref([0, 0]);
 let suppressClickUntil = 0;

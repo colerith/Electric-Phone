@@ -733,7 +733,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   }
   const listening = ref<{ charKey: string; title: string; artist: string; playing: boolean } | null>(null);
   function saveMusicLibrary() {
-    saveChat();
+    if (!context.value || !state.value.chatKey) return;
+    // Music changes do not alter wallet ledgers, group activity or the global character roster.
+    persistChatState(ChatStateSchema.parse(state.value));
   }
   function rememberMusicTracks(tracks: Track[]): void {
     const key = state.value.activeCharKey;
@@ -750,9 +752,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         seen.add(id);
         return true;
       })
-
-      .map(track => ({ ...track, url: '', lyric: '' }));
-    saveChat();
+      .map(track => (track.url || track.lyric ? { ...track, url: '', lyric: '' } : track));
+    saveMusicLibrary();
   }
   function setChatPreferences(value: ChatPreferences): void {
     const runtime = context.value;

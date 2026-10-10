@@ -232,6 +232,7 @@
             v-for="(line, index) in music.lyrics"
             :key="`${line.time}-${index}`"
             :ref="el => setLine(el, index)"
+            v-memo="[line, index === music.lyricIndex, showRomanization, showTranslation, romanization, translation]"
             :class="{ active: index === music.lyricIndex }"
             @click="music.seek(line.time)"
           >

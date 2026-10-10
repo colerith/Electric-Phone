@@ -13,7 +13,11 @@ function load(file, mocks = {}) {
   return module.exports;
 }
 const playback = load('services/music/music-playback.ts');
-const service = load('services/music/music.ts', { '../core/network': {}, '../apps/browser': {}, './music-backend': {} });
+const service = load('services/music/music.ts', {
+  '../core/network': {},
+  '../apps/browser': {},
+  './music-backend': {},
+});
 const raw = '歌曲名称：Here Comes the Sun\n歌手名称：The Beatles\n听歌感想：阳光还没出来。';
 assert.deepEqual(service.musicIntent(JSON.stringify({ note: '新的感想' })), {
   title: '',
@@ -41,6 +45,7 @@ function fixture(options = {}) {
   const resolved = [],
     played = [],
     queued = [];
+  let saves = 0;
   let audio,
     searches = 0;
   const phone = vue.reactive({
@@ -53,8 +58,12 @@ function fixture(options = {}) {
       musicFavorites: {},
       musicCatalog: {},
     },
-    rememberMusicTracks() {},
-    saveMusicLibrary() {},
+    rememberMusicTracks() {
+      saves++;
+    },
+    saveMusicLibrary() {
+      saves++;
+    },
     saveSettings() {},
     listening: null,
   });
@@ -82,12 +91,31 @@ function fixture(options = {}) {
   global.Audio = AudioMock;
   const scope = vue.effectScope();
   const { useMusicStore } = load('stores/music.ts', {
-    '../services/music/music-accounts': { accountProviders: [], cachedMusicAccount:()=>options.account },
-    '../services/music/music-backend': { musicBackend: vue.ref('missing'), checkMusicBackend:async()=>{} },
+    '../services/core/runtime': { isExtensionRuntime: true },
+    '../services/music/music-accounts': { accountProviders: [], cachedMusicAccount: () => options.account },
+    '../services/music/music-backend': { musicBackend: vue.ref('missing'), checkMusicBackend: async () => {} },
     '../services/music/account-library': {
-      applyPlaylistOverride: (row,edit={})=>edit.deleted?null:{...row,...edit}, readLibraryOverrides:async()=>({}), writeLibraryOverrides:async()=>{},
-      libraryKey: (p,b,id)=>JSON.stringify([p,b,id]), readLibrary:async()=>[], writeLibrary:async()=>{},
-      synchronizeLibrary:async()=>({rows:[{id:'remote',name:'同名歌单',cover:'',tracks:[track('remote')],remote:true,origin:JSON.stringify(['qq','https://api','user'])}],failed:0}),
+      applyPlaylistOverride: (row, edit = {}) => (edit.deleted ? null : { ...row, ...edit }),
+      readLibraryOverrides: async () => ({}),
+      writeLibraryOverrides: async () => {},
+      libraryCacheTime: () => 0,
+      LIBRARY_FRESH_MS: 300000,
+      libraryKey: (p, b, id) => JSON.stringify([p, b, id]),
+      readLibrary: async () => [],
+      writeLibrary: async () => {},
+      synchronizeLibrary: async () => ({
+        rows: [
+          {
+            id: 'remote',
+            name: '同名歌单',
+            cover: '',
+            tracks: [track('remote')],
+            remote: true,
+            origin: JSON.stringify(['qq', 'https://api', 'user']),
+          },
+        ],
+        failed: 0,
+      }),
     },
     pinia: { defineStore: (_id, setup) => () => vue.proxyRefs(scope.run(setup)) },
     vue,
@@ -120,6 +148,9 @@ function fixture(options = {}) {
     resolved,
     played,
     phone,
+    get saves() {
+      return saves;
+    },
     get audio() {
       return audio;
     },
@@ -130,21 +161,30 @@ function fixture(options = {}) {
   };
 }
 (async () => {
-  const library = fixture({account:{id:'user',name:'User'}});
+  const library = fixture({ account: { id: 'user', name: 'User' } });
   library.store.createPlaylist('同名歌单');
   const manual = library.phone.state.musicPlaylists.a[0];
-  await library.store.syncAccountLibrary('qq','https://api',{id:'user',name:'User'});
-  assert.equal(library.store.playlists.length,2);
-  assert.equal(library.phone.state.musicPlaylists.a[0],manual,'sync never overwrites manually created playlists');
-  assert.equal(library.phone.state.musicPlaylists.a.length,1,'remote library stays out of chat storage');
-  library.store.editPlaylist('remote','本地改名','local-cover');
-  await library.store.syncAccountLibrary('qq','https://api',{id:'user',name:'User'},true);
-  assert.equal(library.store.playlists.find(x=>x.id==='remote').name,'本地改名');
+  await library.store.syncAccountLibrary('qq', 'https://api', { id: 'user', name: 'User' });
+  assert.equal(library.store.playlists.length, 2);
+  assert.equal(library.phone.state.musicPlaylists.a[0], manual, 'sync never overwrites manually created playlists');
+  assert.equal(library.phone.state.musicPlaylists.a.length, 1, 'remote library stays out of chat storage');
+  library.store.editPlaylist('remote', '本地改名', 'local-cover');
+  await library.store.syncAccountLibrary('qq', 'https://api', { id: 'user', name: 'User' }, true);
+  assert.equal(library.store.playlists.find(x => x.id === 'remote').name, '本地改名');
   library.store.deletePlaylist('remote');
-  await library.store.syncAccountLibrary('qq','https://api',{id:'user',name:'User'},true);
-  assert.equal(library.store.playlists.length,1,'resync retains local deletion');
-  library.store.clearAccountLibrary('qq','https://api');
-  assert.equal(library.store.playlists.length,1,'logout hides remote playlists only');
+  await library.store.syncAccountLibrary('qq', 'https://api', { id: 'user', name: 'User' }, true);
+  assert.equal(library.store.playlists.length, 1, 'resync retains local deletion');
+  library.store.clearAccountLibrary('qq', 'https://api');
+  assert.equal(library.store.playlists.length, 1, 'logout hides remote playlists only');
+  library.store.enqueue(track('repeat'));
+  const saves = library.saves;
+  library.store.enqueue(track('repeat'));
+  assert.equal(library.saves, saves, 'selecting an existing queue track never saves the full chat again');
+  library.phone.state.musicCatalog.a = [track('liked')];
+  library.phone.state.musicFavorites.a = ['source-liked:liked'];
+  assert(library.store.isFavorite(track('another')), 'favorite title aliases remain supported');
+  library.phone.state.musicFavorites.a = [];
+  assert(!library.store.isFavorite(track('another')), 'favorite index reacts to edits');
   library.dispose();
   let f = fixture({
     resolve: async t => {
@@ -256,7 +296,12 @@ function fixture(options = {}) {
   f.dispose();
 
   let retrySearches = 0;
-  f = fixture({ search: async () => { retrySearches++; return []; } });
+  f = fixture({
+    search: async () => {
+      retrySearches++;
+      return [];
+    },
+  });
   await f.store.sync(raw, 'a');
   assert.match(f.store.error, /未找到歌曲/);
   assert.equal(f.store.searching, false);
