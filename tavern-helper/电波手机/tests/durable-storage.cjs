@@ -17,6 +17,8 @@ let vars = { global: {}, chat: {}, script: {} },
   failUpload = false,
   failRead = false;
 let onRead;
+let fullReads = 0,
+  headerReads = 0;
 let uploads = 0,
   settingsSaves = 0;
 Object.assign(global, {
@@ -44,6 +46,8 @@ Object.assign(global, {
       server.set(body.name, Buffer.from(body.data, 'base64').toString('utf8'));
       return Response.json({ path: '/files/' + body.name });
     }
+    if (init.headers?.Range) headerReads++;
+    else fullReads++;
     if (onRead) await onRead(url);
     if (failRead) return new Response('', { status: 503 });
     const value = server.get(url.split('/').at(-1));
@@ -145,6 +149,28 @@ function state(content) {
   storage = restart();
   await storage.preparePhoneChat(getRuntimeContext());
   assert.deepEqual(vars.chat[schema.CHAT_VARIABLE_KEY].threads.alice.messages, []);
+  // A burst of startup events must share one body download, even with two valid disk copies.
+  vars.chat = {};
+  storage = restart();
+  fullReads = headerReads = 0;
+  await Promise.all(Array.from({ length: 40 }, () => storage.preparePhoneChat(getRuntimeContext())));
+  assert.equal(fullReads, 1, 'only newest full body is downloaded');
+  assert.equal(headerReads, 2, 'one envelope probe per redundant copy');
+  assert.deepEqual(vars.chat[schema.CHAT_VARIABLE_KEY].threads.alice.messages, []);
+  // A transient first-load network failure recovers without a manual retry.
+  vars.chat = {};
+  storage = restart();
+  let interrupted = false;
+  onRead = () => {
+    if (!interrupted) {
+      interrupted = true;
+      throw Error('startup network reset');
+    }
+  };
+  await storage.preparePhoneChat(getRuntimeContext());
+  onRead = undefined;
+  assert(interrupted);
+  assert(vars.chat[schema.CHAT_VARIABLE_KEY]);
   // Corrupt latest snapshot falls back to previous valid snapshot.
   const chatFiles = [...server.entries()].filter(([name]) => !name.includes('global'));
   chatFiles.sort((a, b) => JSON.parse(b[1]).savedAt - JSON.parse(a[1]).savedAt);

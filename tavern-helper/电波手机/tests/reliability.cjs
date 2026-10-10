@@ -21,13 +21,17 @@ const { cachedParse } = require(base + '/services/core/local-cache.ts');
 const { generatePhoneReply, testSecondaryApi, stopPhoneGeneration } = require(
   base + '/services/generation/generation.ts',
 );
+let floorReads = 0;
 let chat = 'one',
   vars = { global: {}, script: {}, chat: {} };
 Object.assign(global, {
   SillyTavern: { name1: 'User', getCurrentChatId: () => chat, characterId: '1' },
   getCharData: () => ({ name: 'Alice' }),
   getCharAvatarPath: () => '',
-  getChatMessages: () => [],
+  getChatMessages: () => {
+    floorReads++;
+    return [];
+  },
   getVariables: ({ type }) => vars[type],
   replaceVariables: (v, { type }) => (vars[type] = v),
   stopGenerationById: async () => true,
@@ -56,6 +60,10 @@ async function run() {
     assert.equal(store.syncError, '', 'global roster must not brick every new chat');
     assert.equal(store.isReady, true);
   }
+  const beforeBurst = floorReads;
+  await Promise.all(Array.from({ length: 40 }, () => store.synchronize()));
+  await new Promise(resolve => setTimeout(resolve, 220));
+  assert(floorReads - beforeBurst <= 2, 'a burst must not rebuild the entire chat 40 times');
   let records = [
     {
       key: JSON.stringify(['card', 'chat']),
@@ -78,12 +86,15 @@ async function run() {
         close() {},
         transaction() {
           const tx = {
-            objectStore: () => ({
-              getAll: () => request(records),
+            objectStore: name => ({
+              get: key => request(records.find(r => r.key === key)),
+              getAll: () => request(records.map(({ value, signature, ...summary }) => summary)),
               delete: key => {
-                records = records.filter(r => r.key !== key);
+                if (name === 'records') records = records.filter(r => r.key !== key);
               },
-              put: row => records.push(row),
+              put: row => {
+                if (name === 'records') records.push(row);
+              },
             }),
           };
           queueMicrotask(() => tx.oncomplete?.());

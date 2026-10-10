@@ -10,17 +10,35 @@ type CacheRecord = {
 };
 function openCache(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('wave-phone-parse-cache', 1);
-    request.onupgradeneeded = () => request.result.createObjectStore('records', { keyPath: 'key' });
+    const request = indexedDB.open('wave-phone-parse-cache', 2);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      // This is derived parse output, not saved chat data. Rebuild the old unindexed cache.
+      if (db.objectStoreNames.contains('records')) db.deleteObjectStore('records');
+      db.createObjectStore('records', { keyPath: 'key' });
+      db.createObjectStore('metadata', { keyPath: 'key' });
+    };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 }
-async function records(): Promise<CacheRecord[]> {
+async function records(): Promise<Omit<CacheRecord, 'value' | 'signature'>[]> {
   const db = await openCache();
   try {
     return await new Promise((resolve, reject) => {
-      const request = db.transaction('records').objectStore('records').getAll();
+      const request = db.transaction('metadata').objectStore('metadata').getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+async function readRecord(key: string): Promise<CacheRecord | undefined> {
+  const db = await openCache();
+  try {
+    return await new Promise((resolve, reject) => {
+      const request = db.transaction('records').objectStore('records').get(key);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -32,10 +50,18 @@ async function mutate(remove: string[], record?: CacheRecord) {
   const db = await openCache();
   try {
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction('records', 'readwrite');
+      const tx = db.transaction(['records', 'metadata'], 'readwrite');
       const store = tx.objectStore('records');
-      remove.forEach(key => store.delete(key));
-      if (record) store.put(record);
+      const metadata = tx.objectStore('metadata');
+      remove.forEach(key => {
+        store.delete(key);
+        metadata.delete(key);
+      });
+      if (record) {
+        store.put(record);
+        const { value: _value, signature: _signature, ...summary } = record;
+        metadata.put(summary);
+      }
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error);
@@ -61,11 +87,11 @@ export async function cachedParse<T>(
   validate?: (value: unknown) => T,
 ): Promise<T> {
   const key = JSON.stringify([card, chat]);
-  let list: CacheRecord[] = [];
+  let list: Omit<CacheRecord, 'value' | 'signature'>[] = [];
   try {
     list = await records();
-    const existing = list.find(item => item.key === key && item.signature === signature);
-    if (existing) {
+    const existing = await readRecord(key);
+    if (existing?.signature === signature) {
       const validated = validate ? validate(existing.value) : (existing.value as T);
       const oldest = list.filter(item => item.card === card).sort((a, b) => a.time - b.time);
       let size = oldest.reduce((sum, item) => sum + item.size, 0);

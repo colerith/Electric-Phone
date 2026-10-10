@@ -41,6 +41,7 @@ const pending = new Map<string, Snapshot>();
 const slots = new Map<string, number>();
 const loaded = new Set<string>();
 const snapshots = new Map<string, Snapshot>();
+const reads = new Map<string, Promise<Snapshot | undefined>>();
 let flushing: Promise<void> | undefined;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let globalLoading: Promise<void> | undefined;
@@ -89,43 +90,125 @@ function filename(scope: string, slot: number): string {
   for (const byte of new TextEncoder().encode(scope)) hash = BigInt.asUintN(64, (hash ^ BigInt(byte)) * 1099511628211n);
   return `wave-phone-v1-${scope === 'global' ? 'global' : hash.toString(16)}-${slot}.json`;
 }
+// Large legacy archives can contain inline images. Keep one body in flight per scope,
+// and inspect only the small envelope before choosing which redundant copy to load.
 async function request(url: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(url, { ...init, signal: AbortSignal.timeout(15000), credentials: 'same-origin' });
+  return fetch(url, { ...init, signal: AbortSignal.timeout(120000), credentials: 'same-origin' });
 }
-async function readServer(scope: string): Promise<Snapshot | undefined> {
-  const results = await Promise.allSettled(
-    [0, 1].map(async slot => {
-      let response: Response;
-      try {
-        response = await request(`/user/files/${filename(scope, slot)}`, { cache: 'no-store' });
-      } catch {
-        throw new StorageUnavailableError('无法连接酒馆服务器，未覆盖存档');
-      }
-      if (response.status === 404) return undefined;
-      if (!response.ok) throw new StorageUnavailableError(`读取服务器存档失败 (${response.status})`);
-      const raw = await response.json();
-      if (Number(raw?.version) > 1) throw new StorageUnavailableError('服务器存档来自更高版本，请先更新电波手机');
-      const snapshot = SnapshotSchema.parse(raw);
-      if (snapshot.scope !== scope) throw Error('服务器存档归属不匹配');
-      validate(snapshot);
-      return { snapshot, slot };
-    }),
-  );
-  const valid = results.flatMap(result => (result.status === 'fulfilled' && result.value ? [result.value] : []));
-  valid.sort((a, b) => b.snapshot.savedAt - a.snapshot.savedAt);
-  const failure = results.find(result => result.status === 'rejected');
-  const unavailable = results.find(
-    result => result.status === 'rejected' && result.reason instanceof StorageUnavailableError,
-  );
-  if (unavailable?.status === 'rejected') throw unavailable.reason;
-  if (!valid.length && failure?.status === 'rejected') throw failure.reason;
-  if (failure) phoneStorageStatus.recovery = '一份服务器存档无法读取，已使用另一份有效存档。';
-  if (valid[0]) {
-    slots.set(scope, valid[0].slot);
-    snapshots.set(scope, valid[0].snapshot);
+async function retryRead<T>(read: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await read();
+    } catch (error) {
+      if (attempt >= 2 || !(error instanceof StorageUnavailableError)) throw error;
+      await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+    }
   }
+}
+function releaseOtherSnapshots(scope: string): void {
+  // Global + current chat only. Unsaved chats remain protected in pending.
+  for (const key of snapshots.keys()) {
+    if (scope !== 'global' && key !== 'global' && key !== scope) {
+      snapshots.delete(key);
+      loaded.delete(key);
+      slots.delete(key);
+    }
+  }
+}
+function remember(scope: string, snapshot: Snapshot, slot: number): void {
+  releaseOtherSnapshots(scope);
+  slots.set(scope, slot);
+  snapshots.set(scope, snapshot);
+}
+async function readSlot(scope: string, slot: number, headerOnly: boolean): Promise<Snapshot | number | undefined> {
+  return retryRead(async () => {
+    let response: Response;
+    try {
+      response = await request(`/user/files/${filename(scope, slot)}`, {
+        cache: 'no-store',
+        ...(headerOnly ? { headers: { Range: 'bytes=0-1023' } } : {}),
+      });
+    } catch {
+      throw new StorageUnavailableError('无法连接酒馆服务器，自动重试后仍未恢复；未覆盖存档');
+    }
+    if (response.status === 404) return undefined;
+    if (!response.ok) throw new StorageUnavailableError(`读取服务器存档失败 (${response.status})`);
+    let raw: unknown;
+    try {
+      if (headerOnly) {
+        const reader = response.body?.getReader();
+        if (!reader) return -1;
+        let prefix = '';
+        const decoder = new TextDecoder();
+        try {
+          while (prefix.length < 1024) {
+            const chunk = await reader.read();
+            if (chunk.done) break;
+            prefix += decoder.decode(chunk.value.subarray(0, 1024 - prefix.length), { stream: true });
+            if (/"data"\s*:/.test(prefix)) break;
+          }
+        } finally {
+          await reader.cancel(); // Also stops a server that ignores Range and responds 200.
+        }
+        const boundary = prefix.search(/,\s*"data"\s*:/);
+        if (boundary < 0) return -1; // Legacy envelope: inspect the full file below.
+        try {
+          const envelope = JSON.parse(prefix.slice(0, boundary) + '}');
+          return envelope.identifier === WAVE_PHONE_IDENTIFIER &&
+            envelope.scope === scope &&
+            envelope.version === 1 &&
+            Number.isFinite(envelope.savedAt)
+            ? envelope.savedAt
+            : -1;
+        } catch {
+          return -1;
+        }
+      }
+      raw = await response.json();
+    } catch (error) {
+      if (error instanceof SyntaxError) throw error;
+      throw new StorageUnavailableError('读取服务器存档超时或中断，未覆盖存档');
+    }
+    if (Number((raw as { version?: number })?.version) > 1)
+      throw new StorageUnavailableError('服务器存档来自更高版本，请先更新电波手机');
+    const snapshot = SnapshotSchema.parse(raw);
+    if (snapshot.scope !== scope) throw Error('服务器存档归属不匹配');
+    validate(snapshot);
+    return snapshot;
+  });
+}
+async function readServerUncached(scope: string): Promise<Snapshot | undefined> {
+  releaseOtherSnapshots(scope);
+  const headers = await Promise.all([0, 1].map(async slot => ({ slot, revision: await readSlot(scope, slot, true) })));
+  const candidates = headers
+    .filter(item => item.revision !== undefined)
+    .sort((a, b) => Number(b.revision) - Number(a.revision));
+  const knownOrder = candidates.every(item => Number(item.revision) >= 0);
+  let selected: { snapshot: Snapshot; slot: number } | undefined;
+  let failure: unknown;
+  for (const { slot } of candidates) {
+    try {
+      const snapshot = (await readSlot(scope, slot, false)) as Snapshot | undefined;
+      if (snapshot && (!selected || snapshot.savedAt > selected.snapshot.savedAt)) selected = { snapshot, slot };
+      if (selected && knownOrder) break;
+    } catch (error) {
+      // A missing/unreachable latest copy cannot safely be replaced with an older one.
+      if (error instanceof StorageUnavailableError) throw error;
+      failure = error;
+    }
+  }
+  if (!selected && failure) throw failure;
+  if (failure) phoneStorageStatus.recovery = '一份服务器存档无法读取，已使用另一份有效存档。';
+  if (selected) remember(scope, selected.snapshot, selected.slot);
   loaded.add(scope);
-  return valid[0]?.snapshot;
+  return selected?.snapshot;
+}
+function readServer(scope: string): Promise<Snapshot | undefined> {
+  const existing = reads.get(scope);
+  if (existing) return existing;
+  const reading = readServerUncached(scope).finally(() => reads.delete(scope));
+  reads.set(scope, reading);
+  return reading;
 }
 function report(error: unknown): void {
   phoneStorageStatus.error = error instanceof Error ? error.message : '服务器保存失败';
@@ -254,9 +337,29 @@ export async function preparePhoneStorage(): Promise<void> {
 }
 
 /** Recover only this card/chat. Failed reads stop initialization instead of creating an empty replacement. */
-export async function preparePhoneChat(context: RuntimeContext): Promise<void> {
+const chatPreparations = new Map<string, Promise<void>>();
+export function preparePhoneChat(context: RuntimeContext): Promise<void> {
+  const scope = chatScope(context);
+  const existing = chatPreparations.get(scope);
+  if (existing) return existing;
+  const preparing = restorePhoneChat(context).finally(() => chatPreparations.delete(scope));
+  chatPreparations.set(scope, preparing);
+  return preparing;
+}
+async function restorePhoneChat(context: RuntimeContext): Promise<void> {
   if (!supported()) return;
   const scope = chatScope(context);
+  const known = pending.get(scope) || snapshots.get(scope);
+  if (loaded.has(scope)) {
+    const variables = getVariables({ type: 'chat' });
+    const raw = variables[CHAT_VARIABLE_KEY];
+    if (
+      raw?.cardKey === context.cardKey &&
+      raw?.chatKey === context.chatKey &&
+      Number(variables.wave_phone_saved_at || 0) >= (known?.savedAt || 0)
+    )
+      return;
+  }
   const server = pending.get(scope) || (loaded.has(scope) ? snapshots.get(scope) : await readServer(scope));
   const current = getRuntimeContext();
   if (!current || chatScope(current) !== scope) return;
@@ -312,7 +415,7 @@ export async function flushPhoneStorage(drain = true): Promise<void> {
       const result = await response.json();
       if (typeof result.path !== 'string' || !result.path) throw Error('服务器未确认存档路径');
       slots.set(scope, slot);
-      snapshots.set(scope, snapshot);
+      remember(scope, snapshot, slot);
       phoneStorageStatus.savedAt = snapshot.savedAt;
       if (pending.get(scope) === snapshot) pending.delete(scope);
       phoneStorageStatus.pending = pending.size;

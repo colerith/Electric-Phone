@@ -1,4 +1,3 @@
-import { batchPhoneStorage } from '../services/core/durable-storage';
 import { applyGroupManagement } from '../services/chat/group-management';
 import { registerChatTime } from '../services/core/chat-time';
 import { startHeartbeat } from '../services/core/heartbeat';
@@ -22,6 +21,7 @@ import { generateImage, imageSubjectRequest } from '../services/image/generate';
 import { resolveReplyMedia } from '../services/chat/media-settings';
 import { displaySpeechText } from '../services/chat/speech-tags';
 import {
+  batchPhoneStorage,
   readPhoneGlobals,
   writePhoneGlobals,
   writePhoneChat,
@@ -1391,7 +1391,25 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   function contentToast(text: string): void {
     if (settings.value.notifications.toastEnabled && typeof toastr !== 'undefined') toastr.info(text, '电波手机');
   }
-  async function synchronize(): Promise<void> {
+  let syncRunning: Promise<void> | undefined;
+  let syncQueued = false;
+  let syncDisposed = false;
+  function synchronize(): Promise<void> {
+    if (syncDisposed) return Promise.resolve();
+    if (syncRunning) {
+      syncQueued = true;
+      return syncRunning;
+    }
+    syncRunning = synchronizeOnce().finally(() => {
+      syncRunning = undefined;
+      if (syncQueued && !syncDisposed) {
+        syncQueued = false;
+        scheduleSync();
+      }
+    });
+    return syncRunning;
+  }
+  async function synchronizeOnce(): Promise<void> {
     if (context.value && state.value.cardKey === context.value.cardKey) {
       const groups = Object.values(state.value.identities).filter(identity => identity.source === 'local_group');
       if (groups.length) {
@@ -1408,6 +1426,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (!runtime) {
         isReady.value = false;
         syncError.value = '等待角色卡与聊天初始化';
+        scheduleSync(1500);
         return;
       }
 
@@ -1953,7 +1972,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
 
   function scheduleSync(delay = 160): void {
     // Do not postpone indefinitely while streaming emits repeated update events.
-    if (syncTimer) return;
+    if (syncTimer || syncDisposed) return;
     syncTimer = window.setTimeout(() => {
       syncTimer = 0;
       void synchronize();
@@ -2019,8 +2038,16 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       tavern_events.MESSAGE_SWIPED,
       tavern_events.MESSAGE_DELETED,
       tavern_events.GENERATION_ENDED,
+      tavern_events.GENERATION_STOPPED,
     ] as const;
-    events.forEach(eventName => offEvents.push(eventOn(eventName, () => scheduleSync())));
+    events.forEach(eventName =>
+      offEvents.push(
+        eventOn(eventName, () => {
+          // Stream updates can arrive for every token. Merge once after completion/stop.
+          if (!hostGenerating) scheduleSync();
+        }),
+      ),
+    );
     offEvents.push(
       eventOn(tavern_events.CHAT_CHANGED, () => {
         hostGenerating = false;
@@ -2055,6 +2082,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   }
 
   async function initialize(): Promise<void> {
+    syncDisposed = false;
     settings.value = readScriptSettings();
     characterProfiles.value = readCharacterProfiles();
     isOpen.value = settings.value.openOnLoad;
@@ -2149,6 +2177,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   }
 
   function dispose(): void {
+    syncDisposed = true;
+    syncQueued = false;
     disposeHeartbeat?.();
     disposeHeartbeat = undefined;
     void flushPhoneStorage().catch(() => {});
