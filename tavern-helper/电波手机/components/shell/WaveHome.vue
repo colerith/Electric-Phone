@@ -152,7 +152,7 @@
               @click="$emit('open', app.id)"
             >
               <span
-                ><img :src="phone.settings.appearance.iconImages[app.id] || appIcons[app.id]" alt="" /><b
+                ><img :src="appIcons[app.id]" alt="" /><b
                   v-if="app.id === 'messages' && unread"
                   class="ios-unread-badge"
                   >{{ unread > 99 ? '99+' : unread }}</b
@@ -172,7 +172,7 @@
             :aria-label="phone.settings.appearance.iconNames.settings || '设置'"
             @click="$emit('settings')"
           >
-            <span><img :src="phone.settings.appearance.iconImages.settings || appIcons.settings" alt="" /></span>
+            <span><img :src="appIcons.settings" alt="" /></span>
           </button>
           <button
             class="ios-app-icon"
@@ -180,7 +180,7 @@
             :aria-label="phone.settings.appearance.iconNames.appearance || '外观'"
             @click="$emit('appearance')"
           >
-            <span><img :src="phone.settings.appearance.iconImages.appearance || appIcons.appearance" alt="" /></span>
+            <span><img :src="appIcons.appearance" alt="" /></span>
           </button>
           <button
             class="ios-app-icon"
@@ -189,7 +189,7 @@
             title="推特 · 开发中"
             @click="showTwitterPlaceholder"
           >
-            <span><img :src="phone.settings.appearance.iconImages.twitter || appIcons.twitter" alt="" /></span>
+            <span><img :src="appIcons.twitter" alt="" /></span>
           </button>
           <button
             type="button"
@@ -197,7 +197,7 @@
             :aria-label="phone.settings.appearance.iconNames.presets || '预设'"
             @click="$emit('presets')"
           >
-            <span><img :src="phone.settings.appearance.iconImages.presets || presetIcon" alt="" /></span>
+            <span><img :src="appIcons.presets" alt="" /></span>
           </button>
         </nav>
       </div>
@@ -220,8 +220,7 @@ function showTwitterPlaceholder() {
   toastr.info('推特暂为占位，敬请期待');
 }
 import { computed, ref, watch, onMounted } from 'vue';
-import { presetIcon } from '../../assets/icons/preset-icon';
-import { appIcons } from '../../assets/icons/app-icons';
+import { useAppIcons } from '../../assets/icons/themed-icons';
 import { usePhoneStore } from '../../stores/phone';
 import { useSystemClockStore } from '../../stores/system-clock';
 import { resolveAnniversaryCharacter, anniversaryDateFor } from '../../services/core/anniversary';
@@ -242,6 +241,10 @@ const props = defineProps<{
 }>();
 defineEmits<{ open: [id: AppId]; settings: []; appearance: []; presets: [] }>();
 const phone = usePhoneStore();
+const appIcons = useAppIcons(
+  () => phone.settings.theme,
+  () => phone.settings.appearance.iconImages,
+);
 const systemClock = useSystemClockStore();
 const music = useMusicStore();
 const page = defineModel<number>('page', { default: 0 });

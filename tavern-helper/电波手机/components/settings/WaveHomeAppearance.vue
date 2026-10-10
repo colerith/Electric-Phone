@@ -126,7 +126,7 @@
       <div class="wave-settings-title">应用图标与名称</div>
       <p>自定义桌面与 Dock 图标；还原可恢复该应用的默认图标和名称。</p>
       <div v-for="app in editableApps" :key="app.id" class="appearance-icon-row">
-        <img :src="appearance.iconImages[app.id] || (app.id === 'presets' ? presetIcon : appIcons[app.id])" alt="" />
+        <img :src="appIcons[app.id]" alt="" />
         <label
           ><span>{{ app.name }}名称</span
           ><input v-model="appearance.iconNames[app.id]" :placeholder="app.name" :aria-label="`${app.name}图标名称`"
@@ -170,11 +170,14 @@ import {
   anniversaryDateFor,
 } from '../../services/core/anniversary';
 import { displayIdentityName } from '../../services/core/identity';
-import { presetIcon } from '../../assets/icons/preset-icon';
-import { appIcons } from '../../assets/icons/app-icons';
+import { useAppIcons } from '../../assets/icons/themed-icons';
 import WaveImageUpload from '../shared/WaveImageUpload.vue';
 const props = defineProps<{ apps: Array<{ id: string; name: string }> }>();
 const phone = usePhoneStore();
+const appIcons = useAppIcons(
+  () => phone.settings.theme,
+  () => phone.settings.appearance.iconImages,
+);
 const themeOptions = [
   { value: 'system', label: '系统', icon: 'fa-solid fa-circle-half-stroke' },
   { value: 'light', label: '日间', icon: 'fa-regular fa-sun' },

@@ -1,0 +1,56 @@
+{
+  "tool": "OpenAI built-in imagegen",
+  "created": "2026-10-10",
+  "reference": "Existing matching light app icons",
+  "delivery": "256px WebP, alpha preserved; no recoloring or filters",
+  "assets": [
+    {
+      "file": "status.webp",
+      "prompt": "Create a production app icon, a matching NIGHT version of this exact 3D faceted heart with delicate ECG line. Preserve silhouette and soft elegant glass craftsmanship. Smoky rose quartz and plum translucent heart, subdued pewter ECG, tiny controlled pink reflections. No white rim, no white halo, no white base, no rectangular background. Legible on navy background. Centered object occupies 85% of square canvas. Transparent exterior. No letters. Single icon."
+    },
+    {
+      "file": "appearance.webp",
+      "prompt": "Create one matching NIGHT app icon from reference: smoky mauve ceramic artist palette with midnight blue and rose paint. Preserve reference silhouette, 3D sculpted craftsmanship and viewing angle. Refined muted jewel colors, restrained metallic reflections. Transparent background, NO white square, NO tile, NO white outline or halo. Object centered at 85% square width, isolated transparent exterior. No lettering. This belongs to a coordinated elegant dark desktop icon family."
+    },
+    {
+      "file": "browse.webp",
+      "prompt": "Create one matching NIGHT app icon from reference: miniature globe with deep ocean teal water, muted copper land, gunmetal stand. Preserve reference silhouette, 3D sculpted craftsmanship and viewing angle. Refined muted jewel colors, restrained metallic reflections. Transparent background, NO white square, NO tile, NO white outline or halo. Object centered at 85% square width, isolated transparent exterior. No lettering. This belongs to a coordinated elegant dark desktop icon family."
+    },
+    {
+      "file": "settings.webp",
+      "prompt": "Create one matching NIGHT app icon from reference: gunmetal gear with sapphire blue glass center. Preserve reference silhouette, 3D sculpted craftsmanship and viewing angle. Refined muted jewel colors, restrained metallic reflections. Transparent background, NO white square, NO tile, NO white outline or halo. Object centered at 85% square width, isolated transparent exterior. No lettering. This belongs to a coordinated elegant dark desktop icon family."
+    },
+    {
+      "file": "calendar.webp",
+      "prompt": "Generate a coordinated NIGHT app icon, matching the reference object and angle: miniature ring-bound desk calendar, midnight teal paper, dusty plum header, muted blue and rose date squares, antique bronze rings, no numbers. Elegant soft 3D collectible miniature, detailed materials, restrained reflections, muted jewel tones. Transparent exterior, no white background, NO square tile, NO white rim or halo. Centered isolated object fills 85% of square. No lettering, no labels."
+    },
+    {
+      "file": "messages.webp",
+      "prompt": "Generate a coordinated NIGHT app icon, matching the reference object and angle: two overlapping rounded glass speech bubbles, one smoky sapphire and one dusty plum, dark pewter edges. Elegant soft 3D collectible miniature, detailed materials, restrained reflections, muted jewel tones. Transparent exterior, no white background, NO square tile, NO white rim or halo. Centered isolated object fills 85% of square. No lettering, no labels."
+    },
+    {
+      "file": "memo.webp",
+      "prompt": "Generate a coordinated NIGHT app icon, matching the reference object and angle: folded dark warm taupe envelope with antique brass wax seal and elegant midnight blue fountain pen. Elegant soft 3D collectible miniature, detailed materials, restrained reflections, muted jewel tones. Transparent exterior, no white background, NO square tile, NO white rim or halo. Centered isolated object fills 85% of square. No lettering, no labels."
+    },
+    {
+      "file": "wallet.webp",
+      "prompt": "Generate a coordinated NIGHT app icon, matching the reference object and angle: petrol blue leather kiss-lock coin purse with antique bronze clasp. Elegant soft 3D collectible miniature, detailed materials, restrained reflections, muted jewel tones. Transparent exterior, no white background, NO square tile, NO white rim or halo. Centered isolated object fills 85% of square. No lettering, no labels."
+    },
+    {
+      "file": "zone.webp",
+      "prompt": "Generate one coordinated NIGHT app icon matching reference silhouette and angle: open ring-bound diary, muted warm charcoal pages, blue leather cover, small pressed silver-blue botanical sprig on left page, dusty rose ribbon, pewter rings. Elegant soft 3D miniature, tactile detailed materials, restrained reflections, distinct muted jewel tones. Transparent exterior, NO white background, NO white square tile, NO white rim or halo. Centered isolated object fills 85% of square. No text or labels."
+    },
+    {
+      "file": "music.webp",
+      "prompt": "Generate one coordinated NIGHT app icon matching reference silhouette and angle: over-ear headphones, midnight blue headband, burgundy leather cushions, dark brushed titanium earcups, copper detailing. Elegant soft 3D miniature, tactile detailed materials, restrained reflections, distinct muted jewel tones. Transparent exterior, NO white background, NO white square tile, NO white rim or halo. Centered isolated object fills 85% of square. No text or labels."
+    },
+    {
+      "file": "twitter.webp",
+      "prompt": "Generate one coordinated NIGHT app icon matching reference silhouette and angle: rounded bird silhouette matching reference, smoky sapphire glass with subtle violet blush, dark pewter edging. Elegant soft 3D miniature, tactile detailed materials, restrained reflections, distinct muted jewel tones. Transparent exterior, NO white background, NO white square tile, NO white rim or halo. Centered isolated object fills 85% of square. No text or labels."
+    },
+    {
+      "file": "presets.webp",
+      "prompt": "Generate one coordinated NIGHT app icon matching reference silhouette and angle: three stacked rounded rectangular control cards, charcoal violet ceramic, three horizontal sliders with sapphire glass knobs, tiny copper sparkle. Elegant soft 3D miniature, tactile detailed materials, restrained reflections, distinct muted jewel tones. Transparent exterior, NO white background, NO white square tile, NO white rim or halo. Centered isolated object fills 85% of square. No text or labels."
+    }
+  ]
+}

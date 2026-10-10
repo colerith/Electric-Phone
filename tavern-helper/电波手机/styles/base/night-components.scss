@@ -1,0 +1,292 @@
+// Component-specific night materials. Keep photographs and user artwork untouched.
+#wave-phone-script-root .wave-phone-host .wave-device.theme-dark {
+  .home-appearance-editor .appearance-wallpaper-row > button,
+  .home-appearance-editor .appearance-icon-row > button {
+    background: #303d53;
+    color: #c4d6f2;
+    border-color: #40516b;
+    box-shadow: none;
+  }
+  .home-appearance-editor .appearance-icon-row > button:last-child {
+    background: transparent;
+    color: #acbacf;
+    border-color: #39465b;
+  }
+  .appearance-wallpaper-preview {
+    background: linear-gradient(145deg, #2c3b51, #43374b);
+    border-color: #405069;
+  }
+  .home-appearance-editor button:hover:not(:disabled) {
+    border-color: #6d87b0;
+  }
+  // A twilight keepsake, a warm paper note and a graphite music player.
+  .ios-anniversary-widget {
+    background: linear-gradient(115deg, #2b4059, #383953 55%, #49374c);
+    border-color: #4a485e;
+    color: #e0dced;
+    box-shadow: 0 8px 24px #090e1924;
+  }
+  .anniversary-copy > strong {
+    color: #dfd7f4;
+  }
+  .anniversary-copy > span {
+    color: #d1c8e2;
+  }
+  .anniversary-copy > small {
+    color: #b8b6cd;
+  }
+  .anniversary-avatar,
+  .anniversary-avatar + .anniversary-avatar {
+    background: #393c52;
+    border-color: #66617c;
+    box-shadow: none;
+  }
+  .anniversary-headphones stop {
+    stop-color: #aaa0c4;
+  }
+  .anniversary-headphones rect {
+    fill: #aaa0c4;
+  }
+  .ios-note-widget {
+    background: repeating-linear-gradient(0deg, #302c36 0px, #302c36 23px, #443d49 24px);
+    color: #e0d5d7;
+    border-color: #51444e;
+    box-shadow: 0 7px 20px #100b1520;
+  }
+  .ios-note-widget small {
+    color: #bbabb7;
+  }
+  .ios-note-widget strong {
+    color: #e0d5d7;
+  }
+  .ios-note-widget > span {
+    background: #4e3c50;
+    color: #dfc2d5;
+  }
+  .ios-note-widget > span:last-child {
+    background: #3a414d;
+    color: #c0cedd;
+  }
+  .ios-ipod-widget {
+    background: linear-gradient(145deg, #363b46, #242932);
+    border-color: #535a69;
+    box-shadow:
+      inset 0 1px 0 #535b6a,
+      0 8px 18px #090d1524;
+  }
+  .ios-ipod-widget .ipod-screen {
+    background: #172b2e;
+    border-color: #49595c;
+    color: #c5e2da;
+    box-shadow: inset 0 2px 6px #070f1455;
+  }
+  .ipod-screen small {
+    color: #9fbdb5;
+  }
+  .ios-ipod-widget .ipod-wheel {
+    background: linear-gradient(145deg, #3c424c, #2b3039);
+    box-shadow:
+      inset 0 0 0 1px #515967,
+      0 2px 5px #080c1630;
+  }
+  .ios-ipod-widget .ipod-wheel button {
+    color: #b8c2d1;
+  }
+  .ios-ipod-widget .ipod-center {
+    background: linear-gradient(145deg, #535b68, #3c4350);
+    border-color: #667182;
+  }
+  .ios-app-icon > span {
+    border-color: transparent;
+    background: linear-gradient(145deg, #303849, #242b3a);
+    box-shadow: 0 3px 8px #090c1729;
+  }
+  .ios-icon-status > span,
+  .ios-icon-zone > span,
+  .ios-icon-music > span {
+    background: linear-gradient(145deg, #393244, #292b3b);
+  }
+  .ios-icon-wallet > span,
+  .ios-icon-browse > span {
+    background: linear-gradient(145deg, #293e44, #232f38);
+  }
+  .ios-home-dock {
+    border-color: #414958;
+    box-shadow: inset 0 1px 0 #414958;
+  }
+  // Close and jump controls must not retain translucent white disks.
+  .extra-modal header button,
+  button[aria-label^='关闭'],
+  .wave-close-control {
+    background: var(--wave-close-bg);
+    color: var(--wave-close-color);
+    border-color: #455269;
+    box-shadow: none;
+  }
+  .chat-bottom-jump,
+  .chat-bottom-jump:hover,
+  .chat-page > .chat-unread-jump {
+    background: #303d51;
+    color: #c3d5ee;
+    border-color: #4b6080;
+    opacity: 1;
+    box-shadow: 0 3px 12px #080e1933;
+  }
+  .chat-bottom-jump:hover {
+    background: #3c4c65;
+  }
+  .message-row {
+    --message-primary: #a2bce3;
+    --message-soft: #2d405a;
+    --message-border: #49658a;
+    --message-ink: #e0e7f2;
+    --message-shadow: #090e1926;
+  }
+  .message-row.user {
+    --message-primary: #ddb0cb;
+    --message-soft: #463448;
+    --message-border: #76506a;
+    --message-ink: #eddfeb;
+  }
+  .message-row .chat-avatar {
+    border-color: #526a8a;
+    box-shadow: none;
+  }
+  .message-row.user .chat-avatar {
+    border-color: #80637b;
+  }
+  &.page-conversation .composer,
+  &.page-conversation .extras-panel,
+  .message-multi-toolbar,
+  .composer-context {
+    background: #222b39 !important; // Legacy composer background also uses !important.
+  }
+  .wave-translation-bubble {
+    border-color: #7b93b259;
+    color: #bccce2;
+  }
+  .message-row.user .wave-translation-bubble {
+    border-color: #ab84a25c;
+    color: #d5bfd1;
+  }
+  .wave-translation-toggle {
+    color: #b9c9df;
+    opacity: 1;
+  }
+  .wave-message-voice > button:first-child {
+    background: #536f9c;
+    color: #f0f4fc;
+  }
+  .message-row.user .wave-message-voice > button:first-child {
+    background: #80627d;
+  }
+  .wave-message-voice .wave-voice-summary {
+    color: #cedbed !important;
+  }
+  .message-row.user .wave-voice-summary {
+    color: #e2cfe0 !important;
+  }
+  .wave-message-voice .wave-voice-transcript > p {
+    color: #c5d0e1;
+    border-color: #7187a344;
+  }
+  // A warm payment material with distinct received/closed states.
+  .message-row .wave-message-content .wave-message-transfer {
+    --transfer-ink: #e9c997;
+    --transfer-muted: #c0aa8d;
+    --transfer-line: #665441;
+    --transfer-badge: #514332;
+    background: linear-gradient(135deg, #3c332c, #322c29);
+    border-color: var(--transfer-line);
+    color: var(--transfer-ink);
+    box-shadow: 0 5px 14px #120d091f;
+  }
+  .message-row .wave-message-content .wave-message-transfer.transfer-received {
+    --transfer-ink: #b6d6c6;
+    --transfer-muted: #a2bdad;
+    --transfer-line: #425f51;
+    --transfer-badge: #344e41;
+    background: linear-gradient(135deg, #2d3c34, #27322f);
+  }
+  .message-row .wave-message-content .wave-message-transfer:is(.transfer-refunded, .transfer-expired) {
+    --transfer-ink: #c6bcc4;
+    --transfer-muted: #a99fa8;
+    --transfer-line: #514852;
+    --transfer-badge: #413942;
+    background: #302c33;
+    opacity: 1;
+  }
+  .wave-message-transfer .wave-transfer-amount > strong {
+    color: var(--transfer-ink);
+  }
+  .wave-message-transfer > p {
+    color: var(--transfer-muted);
+  }
+  .wave-message-transfer .wave-transfer-state {
+    border-color: var(--transfer-line);
+  }
+  .wave-message-transfer .wave-transfer-state > b,
+  .wave-message-transfer:is(.transfer-received, .transfer-refunded, .transfer-expired) .wave-transfer-state > b {
+    background: var(--transfer-badge);
+    color: var(--transfer-ink);
+  }
+  .wave-transfer-state > i {
+    background: var(--transfer-line);
+  }
+  // Map streets and blocks are drawn UI, so recolor them instead of filtering media.
+  .wave-message-location {
+    border-color: #3c5459;
+    background: #25363b;
+    box-shadow: 0 5px 14px #07131930;
+  }
+  .wave-location-map {
+    background: #1c3034;
+  }
+  .wave-location-map .road {
+    background: #486066;
+    box-shadow: 0 0 0 1px #56707440;
+  }
+  .wave-location-map .map-block {
+    background: #2b4348;
+  }
+  .wave-location-map .upright-location-pin path {
+    fill: #ce8eab;
+    stroke: #724d67;
+  }
+  .wave-location-map .upright-location-pin circle {
+    fill: #f0d2df;
+  }
+  .wave-location-copy strong {
+    color: #d5e4e4;
+  }
+  .wave-location-copy small {
+    color: #acbfc1;
+  }
+  .wave-location-copy > i {
+    color: #acc8ce;
+  }
+  .wave-message-link,
+  .wave-message-call {
+    background: #2c2d40;
+    border-color: #4a465f;
+    color: #d9d6e8;
+    box-shadow: 0 5px 14px #0d0d1b2a;
+  }
+  .wave-message-link > span,
+  .wave-message-call > span {
+    background: #42374f;
+    color: #d7b4cf;
+  }
+  .wave-message-link strong,
+  .wave-message-call strong,
+  .wave-message-call > b {
+    color: #ddd9ee;
+  }
+  .wave-message-link small,
+  .wave-message-call small {
+    color: #aba7c2;
+  }
+  .wave-message-link > i {
+    color: #b5afce;
+  }
+}
