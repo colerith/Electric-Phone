@@ -37,7 +37,7 @@ export async function fetchBuiltinLyricTracks(
   const empty = { lyric: '', translation: '', romanization: '' };
   if (musicBackend.value === 'idle') await checkMusicBackend();
   if (musicBackend.value !== 'ready' || signal?.aborted) return empty;
-  let source = track.source.replace(/^(account-|gd-|vkeys-|meting-)/, '');
+  let source = track.source.replace(/^(account-|builtin-|gd-|vkeys-|meting-)/, '');
   if (source === 'tencent') source = 'qq';
   if (!['netease', 'qq', 'kugou'].includes(source)) source = 'other';
   const response = await fetch('/api/plugins/electric-phone-music/lyrics', {

@@ -55,12 +55,93 @@
       </ul>
     </article>
 
+    <article class="credits-card thanks-card">
+      <div class="credits-card-heading">
+        <span class="credits-icon"><i class="fa-solid fa-code-branch"></i></span>
+        <div>
+          <small>OPEN SOURCE</small>
+          <div class="wave-settings-title">开源项目与素材</div>
+        </div>
+      </div>
+      <p>感谢以下项目。第三方代码与素材遵循各自许可证，上方自有内容使用约定不限制它们原有的授权。</p>
+      <ul>
+        <li v-for="project in projects" :key="project.url">
+          <a :href="project.url" target="_blank" rel="noopener noreferrer"
+            >{{ project.name }} <i class="fa-solid fa-arrow-up-right-from-square"></i
+          ></a>
+          <span> · {{ project.license }}</span
+          ><br />{{ project.note }}
+        </li>
+      </ul>
+    </article>
     <p class="credits-version">电波手机 · v{{ WAVE_PHONE_RELEASE_VERSION }}</p>
   </section>
 </template>
 
 <script setup lang="ts">
 import { WAVE_PHONE_RELEASE_VERSION } from '../../schemas';
+const projects = [
+  {
+    name: 'Folia',
+    url: 'https://github.com/chthollyphile/folia-major',
+    license: 'AGPL-3.0',
+    note: '音乐账号、多平台搜索、聚合检索及翻译／音译歌词的实现参考；电波手机按现有接口独立适配。',
+  },
+  {
+    name: 'NeteaseCloudMusicApi Enhanced',
+    url: 'https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced',
+    license: 'MIT',
+    note: '网易云登录、个人歌单、搜索与歌词接口。',
+  },
+  {
+    name: 'QQ Music API',
+    url: 'https://github.com/yakult-green-tea/qq-music-api',
+    license: 'MIT',
+    note: 'QQ 音乐扫码登录、歌单及账号播放接口。',
+  },
+  {
+    name: 'KuGouMusicApi',
+    url: 'https://github.com/MakcRe/KuGouMusicApi',
+    license: 'MIT',
+    note: '酷狗登录、歌单、搜索与歌词接口。',
+  },
+  {
+    name: 'GDStudio / VKeys / Meting',
+    url: 'https://github.com/metowolf/Meting',
+    license: '接口服务按各自使用条款 · Meting MIT',
+    note: '原有音乐聚合搜索的公开音源；接口可用性由各服务维护。',
+  },
+  {
+    name: 'AMLL TTML DB',
+    url: 'https://github.com/Steve-xmh/amll-ttml-db',
+    license: '以项目与各歌词条目的授权为准',
+    note: 'TTML 原文、翻译与音译歌词的补充来源。',
+  },
+  {
+    name: 'DiceBear',
+    url: 'https://www.dicebear.com/licenses/',
+    license: '生成器 MIT · 本地素材 CC0 / CC BY 4.0',
+    note: '240 张世界用户头像与 72 张匿名头像。使用 Lisa Wischofsky、The Visual Team、vijay verma、Davis Uche、Micah Lanier、Zoish、Pablo Stanley、Draftbit 与 DiceBear 的作品；已组合配色并转为 WebP，逐项来源与许可随头像库附带。',
+  },
+  {
+    name: '头像素材署名清单',
+    url: 'https://github.com/colerith/Electric-Phone/blob/main/assets/avatars/v1/ATTRIBUTION.md',
+    license: '逐风格作者、原作链接与许可',
+    note: '查看每种头像的原作来源、使用许可与加工说明。',
+  },
+  {
+    name: '酒馆扩展模板',
+    url: 'https://github.com/StageDog/tavern_extension_template',
+    license: '部署结构参考',
+    note: '酒馆前端扩展的目录与部署方式。',
+  },
+  {
+    name: 'SillyTavern / Tavern Helper',
+    url: 'https://github.com/N0VI028/JS-Slash-Runner',
+    license: '各项目原许可证',
+    note: '酒馆运行环境、脚本接口与扩展桥接。',
+  },
+];
 </script>
 
 <style scoped lang="scss">

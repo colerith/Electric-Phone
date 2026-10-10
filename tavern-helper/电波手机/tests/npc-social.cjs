@@ -107,8 +107,8 @@ const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments
   });
   assert.notEqual(momentContentSignature(signatureState), emptySignature, 'comments must count as authored content');
   assert.deepEqual(
-    new Set(Array.from({ length: 32 }, (_, index) => spaceAvatarStyle(`pool-${index}`))),
-    new Set(['notionists', 'bottts-neutral']),
+    new Set(Array.from({ length: 256 }, (_, index) => spaceAvatarStyle(`pool-${index}`))),
+    new Set(['adventurer','bigEars','croodles','funEmoji','lorelei','micah','notionists','openPeeps','personas','pixelArt','shapes','thumbs']),
   );
   await phone.synchronize();
   phone.state.moments.settings = {
@@ -154,7 +154,7 @@ const wrap = batch => '<wave_moments>' + JSON.stringify(batch) + '</wave_moments
   assert.equal(author.textContent, '小林');
   assert.match(
     document.querySelector('.moment-author-avatar img').src,
-    /https:\/\/api\.dicebear\.com\/10\.x\/(?:notionists|bottts-neutral)\/svg/,
+    /\/assets\/avatars\/v1\/world\/[\w-]+\.webp/,
   );
   document.querySelector('.moment-meta button[aria-pressed]').click();
   await tick();

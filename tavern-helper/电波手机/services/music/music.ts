@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { checkMusicBackend, musicBackend, builtinMusicBase } from './music-backend';
 import { fetchJson, fetchText } from '../core/network';
 import { safeBrowserUrl } from '../apps/browser';
 export const MusicTrackSchema = z.object({
@@ -25,7 +26,17 @@ export const musicProviders = [
   { id: 'vkeys-netease', label: 'VKeys · 网易云', base: 'https://api.vkeys.cn/v2/music', platform: 'netease' },
   { id: 'meting-kugou', label: 'Meting · 酷狗', base: 'https://api.i-meto.com/meting/api', platform: 'kugou' },
 ];
-export const musicPlatform = (source: string) => musicProviders.find(p => p.id === source)?.platform || source;
+export const builtinMusicProviders = ['netease', 'qq', 'kugou'].map((platform, index) => ({
+  id: `builtin-${platform}`,
+  label: `酒馆音乐 · ${['网易云', 'QQ 音乐', '酷狗'][index]}`,
+  base: '',
+  platform,
+}));
+musicProviders.push(...builtinMusicProviders);
+export const musicPlatform = (source: string) => {
+  const platform = musicProviders.find(p => p.id === source)?.platform || source;
+  return platform === 'qq' ? 'tencent' : platform;
+};
 export const musicSourceLabel = (source: string) =>
   musicProviders.find(p => p.id === source)?.label ||
   (
@@ -50,7 +61,19 @@ export async function searchMusic(
   signal?: AbortSignal,
   progress?: SearchProgress,
 ): Promise<Track[]> {
-  const providers = source === 'aggregate' ? musicProviders : musicProviders.filter(p => p.id === source);
+  if (source === 'aggregate' || source.startsWith('builtin-')) {
+    if (musicBackend.value === 'idle') await checkMusicBackend();
+    abortIfNeeded(signal);
+    if (source.startsWith('builtin-') && musicBackend.value !== 'ready')
+      throw new Error('请安装或更新酒馆音乐后端插件，并重启酒馆服务器');
+  }
+  const providers =
+    source === 'aggregate'
+      ? [
+          ...builtinMusicProviders.filter(() => musicBackend.value === 'ready'),
+          ...musicProviders.filter(p => !p.id.startsWith('builtin-')),
+        ]
+      : musicProviders.filter(p => p.id === source);
   if (!providers.length) return searchSingle(query, base, source, signal);
   const result: Track[] = [],
     states: string[] = [];
@@ -59,12 +82,26 @@ export async function searchMusic(
     abortIfNeeded(signal);
     progress?.([...result], `正在查询 ${provider.label}（${states.length + 1}/${providers.length}）`);
     try {
-      const rows =
-        provider.id === 'meting-kugou'
+      const rows = provider.id.startsWith('builtin-')
+        ? await (
+            await import('./music-accounts')
+          ).searchAccountMusic(
+            query,
+            provider.platform as 'netease' | 'qq' | 'kugou',
+            builtinMusicBase(provider.platform),
+            signal,
+          )
+        : provider.id === 'meting-kugou'
           ? await searchMeting(query, signal)
           : await searchSingle(query, provider.base, provider.platform, signal);
       abortIfNeeded(signal);
-      const mapped = rows.slice(0, 5).map(track => ({ ...track, source: provider.id, apiBase: provider.base }));
+      const mapped = rows
+        .slice(0, 5)
+        .map(track => ({
+          ...track,
+          source: provider.id,
+          apiBase: provider.id.startsWith('builtin-') ? builtinMusicBase(provider.platform) : provider.base,
+        }));
       result.push(...mapped);
       succeeded++;
       states.push(`${provider.label} ${mapped.length} 首`);
@@ -202,6 +239,12 @@ async function searchSingle(query: string, base: string, source: string, signal?
     }));
 }
 export async function resolveTrack(track: Track, base: string, signal?: AbortSignal): Promise<Track> {
+  if (track.source.startsWith('builtin-')) {
+    const resolved = await (
+      await import('./music-accounts')
+    ).resolveAccountTrack({ ...track, source: track.source.replace('builtin-', 'account-') }, signal, true);
+    return { ...resolved, source: track.source };
+  }
   if (track.source.startsWith('account-')) return (await import('./music-accounts')).resolveAccountTrack(track, signal);
   if (track.source === 'meting-kugou') return resolveMeting(track, signal);
   const provider = musicProviders.find(p => p.id === track.source);

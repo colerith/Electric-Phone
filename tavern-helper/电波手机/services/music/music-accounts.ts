@@ -468,11 +468,43 @@ export async function fetchAccountTracks(
     more,
   };
 }
-export async function resolveAccountTrack(track: Track, signal?: AbortSignal): Promise<Track> {
+/** Search adapters use the existing scoped session and never write to platform libraries. */
+export async function searchAccountMusic(
+  query: string,
+  provider: MusicAccountProvider,
+  base: string,
+  signal?: AbortSignal,
+): Promise<Track[]> {
+  const keyword = query.trim().slice(0, 200);
+  if (!keyword) return [];
+  const raw = await request(
+    provider,
+    base,
+    provider === 'netease' ? '/cloudsearch' : provider === 'qq' ? '/getSearchByKey' : '/search',
+    provider === 'netease'
+      ? { keywords: keyword, limit: 20, offset: 0 }
+      : provider === 'qq'
+        ? { key: keyword, limit: 20, page: 1 }
+        : { keywords: keyword, pagesize: 20, page: 1 },
+    signal,
+  );
+  const data = payload(raw);
+  const rows =
+    provider === 'netease'
+      ? raw.result?.songs
+      : provider === 'qq'
+        ? raw.response?.data?.song?.list
+        : (data?.lists ?? data?.info ?? data?.songs);
+  if (!Array.isArray(rows)) throw new MusicAccountError('搜索未返回有效的歌曲列表，请更新音乐后端后重试');
+  return rows
+    .map((row: any) => mapAccountTrack(row, provider, base))
+    .filter((row: Track | null): row is Track => !!row);
+}
+export async function resolveAccountTrack(track: Track, signal?: AbortSignal, allowGuest = false): Promise<Track> {
   const provider = track.source.replace('account-', '') as MusicAccountProvider,
     base = track.apiBase || '';
   if (!accountProviders.some(p => p.id === provider) || !base) throw new MusicAccountError('音乐账号来源无效');
-  if (!read(provider, base).cookie) throw new MusicAccountError('请先在音乐设置中登录对应平台', 401);
+  if (!allowGuest && !read(provider, base).cookie) throw new MusicAccountError('请先在音乐设置中登录对应平台', 401);
   const raw = await request(
     provider,
     base,

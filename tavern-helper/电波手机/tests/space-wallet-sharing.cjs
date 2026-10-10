@@ -533,7 +533,7 @@ function snapshot(name) {
   assert(!document.querySelector('.space-hole-post').textContent.includes('匿名的我'));
   const anonymousImages = [...document.querySelectorAll('.space-anonymous-avatar img')];
   assert(anonymousImages.length >= 2);
-  assert(anonymousImages.every(img => /\/10\.x\/(?:notionists|bottts-neutral)\/svg\?seed=wave-hole-/.test(img.src)));
+  assert(anonymousImages.every(img => /\/assets\/avatars\/v1\/anonymous\/[\w-]+\.webp/.test(img.src)));
   assert.equal(anonymousImages[0].src, anonymousImages[1].src);
   snapshot('space-hole');
   phone.publishTreeHole('可以删除的测试动态');

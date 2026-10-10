@@ -13,7 +13,7 @@ function load(file, mocks = {}) {
   return module.exports;
 }
 const playback = load('services/music/music-playback.ts');
-const service = load('services/music/music.ts', { '../core/network': {}, '../apps/browser': {} });
+const service = load('services/music/music.ts', { '../core/network': {}, '../apps/browser': {}, './music-backend': {} });
 const raw = '歌曲名称：Here Comes the Sun\n歌手名称：The Beatles\n听歌感想：阳光还没出来。';
 assert.deepEqual(service.musicIntent(JSON.stringify({ note: '新的感想' })), {
   title: '',

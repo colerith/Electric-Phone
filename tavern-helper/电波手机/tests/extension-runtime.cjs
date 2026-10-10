@@ -114,7 +114,10 @@ const tick = () => new Promise(r => setImmediate(r));
   window.toastr = { warning() {}, error() {}, info() {} };
   const errors = [];
   window.addEventListener('error', e => errors.push(e.error));
-  window.eval(fs.readFileSync(path.resolve(workspace ? 'dist/wave-extension/index.js' : 'dist/index.js'), 'utf8'));
+  // jsdom eval has no ES-module loader. Supply the host module URL for this bootstrap fixture.
+  // The actual unchanged artifact is also smoke-tested as a browser module.
+  const artifact = fs.readFileSync(path.resolve(workspace ? 'dist/wave-extension/index.js' : 'dist/index.js'), 'utf8');
+  window.eval(artifact.replaceAll('import.meta.url', JSON.stringify('http://localhost/scripts/extensions/third-party/Electric-Phone/dist/index.js')));
   await new Promise(r => setTimeout(r, 100));
   assert.equal(window.Vue, undefined, 'Vue is bundled, not injected into host globals');
   assert.ok(document.querySelector('#wave-phone-extension-settings button'), 'recovery entry exists without helper');

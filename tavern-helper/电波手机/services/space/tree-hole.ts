@@ -7,7 +7,7 @@ import {
 } from './moments';
 import type { Identity } from '../../schemas';
 import { TranslationSchema } from '../generation/module-settings';
-import { spaceAvatarUrl } from './npc-avatar';
+import { anonymousLibraryAvatarUrl } from './npc-avatar';
 import { z } from 'zod';
 export const TreeHoleCommentSchema = z.object({
   id: z.string(),
@@ -61,9 +61,9 @@ export function dailyTopic(day: string, scope: string): string {
   return topics[(hash >>> 0) % topics.length];
 }
 
-/** Stable anonymous avatar drawn from the shared Notionists + Bottts Neutral pool. */
+/** Stable anonymous avatar from the local, separate default-avatar pool. */
 export function anonymousAvatarUrl(seed: string): string {
-  return spaceAvatarUrl(`wave-hole-${seed}`);
+  return anonymousLibraryAvatarUrl(seed);
 }
 
 const foodFlavors = [

@@ -148,7 +148,7 @@
         @update:model-value="value => $emit('service', 'musicSource', value)"
       />
       <p v-if="musicSource === 'aggregate'" class="function-settings-footnote">
-        依次查询 GDStudio 网易云、VKeys QQ、VKeys 网易云、Meting 酷狗，每源最多 5 首；单源失败自动跳过。
+        优先查询已连接酒馆音乐插件的网易云、QQ、酷狗，再查询 GDStudio、VKeys、Meting；每源最多 5 首，单源失败自动跳过。
       </p>
       <label v-if="musicSource === 'netease' || musicSource === 'tencent'" class="service-preference"
         >音源接口<input
