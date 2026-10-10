@@ -169,3 +169,23 @@
 #wave-phone-script-root .wave-overlay {
   backdrop-filter: none;
 }
+
+// Fade scrolling playback content into the immersive canvas above the home indicator.
+#wave-phone-script-root .wave-phone-host .wave-device.music-immersive {
+  --music-footer-surface: #e5edf6;
+  &.theme-dark { --music-footer-surface: #202d3c; }
+  .wave-homebar {
+    isolation: isolate;
+    background: transparent !important;
+    border: 0;
+    box-shadow: none;
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -36px 0 0;
+      z-index: -1;
+      pointer-events: none;
+      background: linear-gradient(to bottom, transparent, var(--music-footer-surface) 42px);
+    }
+  }
+}
