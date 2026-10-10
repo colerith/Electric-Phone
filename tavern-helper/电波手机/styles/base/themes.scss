@@ -1,0 +1,486 @@
+// Theme surfaces are scoped to the phone; media and user artwork are never inverted.
+#wave-phone-script-root .wave-device {
+  color-scheme: light;
+  .appearance-theme-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .appearance-theme-options > button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    min-height: 78px;
+    padding: 15px 6px;
+    border: 1px solid var(--wave-line);
+    border-radius: 14px;
+    background: var(--wave-tint);
+    color: var(--wave-muted);
+    font-size: 12px;
+  }
+  .appearance-theme-options > button > i {
+    font-size: 20px;
+  }
+  .appearance-theme-options > button[aria-pressed='true'] {
+    border-color: var(--wave-blue);
+    color: var(--wave-blue-strong);
+    box-shadow: inset 0 0 0 1px var(--wave-blue);
+  }
+  .appearance-theme-options > button:focus-visible {
+    outline: 2px solid var(--wave-blue);
+    outline-offset: 3px;
+  }
+}
+#wave-phone-script-root .wave-phone-host .wave-device.theme-dark {
+  color-scheme: dark;
+  --wave-surface: #171d28;
+  --wave-card: #222b39;
+  --wave-tint: #2b3545;
+  --wave-paper: #222b39ed;
+  --wave-ink: #e0e7f2;
+  --wave-muted: #9ba9bd;
+  --wave-navy: #b4c8eb;
+  --wave-primary-bg: #48699d;
+  --wave-blue: #91b0e2;
+  --wave-blue-strong: #a6c1ec;
+  --wave-pink: #e9a4bc;
+  --wave-pink-soft: #422e3e;
+  --wave-line: #a4b8d124;
+  --settings-text: var(--wave-ink);
+  --settings-muted: var(--wave-muted);
+  --settings-accent: var(--wave-blue);
+  --settings-line: var(--wave-line);
+  --settings-control: var(--wave-tint);
+  --wave-close-bg: #303c50;
+  --wave-close-color: #b7c6dd;
+  color: var(--wave-ink);
+  border-color: #30394c;
+  background: linear-gradient(150deg, #273047, #171d2b 65%, #262237);
+  box-shadow:
+    0 24px 65px #0008,
+    inset 0 0 0 1px #91a7cd24;
+  &.page-home {
+    background-color: #171d28;
+  }
+  .wave-statusbar,
+  .wave-status-time,
+  .wave-appbar,
+  .wave-appbar strong {
+    color: var(--wave-ink);
+  }
+  .wave-appbar > button,
+  .appbar-space-left > button {
+    background: #ffffff09;
+    color: var(--wave-blue);
+  }
+  .wave-inner-rim {
+    box-shadow: inset 0 0 0 1px #a1b6d522;
+  }
+  .wave-homebar > span {
+    background: #8995ac;
+  }
+  input:not([type='checkbox']):not([type='range']):not([type='color']),
+  textarea,
+  select {
+    color: var(--wave-ink);
+    background-color: var(--wave-tint);
+    border-color: var(--wave-line);
+    caret-color: var(--wave-blue);
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: #8998ae;
+    opacity: 1;
+  }
+  .wave-select-menu {
+    color: var(--wave-ink);
+    background: var(--wave-card);
+    border-color: var(--wave-line);
+    box-shadow: 0 12px 30px #0005;
+  }
+  .wave-select-menu [role='option']:hover,
+  .wave-select-menu [aria-selected='true'] {
+    background: var(--wave-tint);
+  }
+  .wave-toggle-control {
+    background: #46536a !important;
+  }
+  .wave-toggle-control[aria-checked='true'] {
+    background: #7394ca !important;
+  }
+  .wave-slider {
+    --slider-track: #3b465c;
+    --slider-fill: #90addb;
+  }
+  .wave-slider-track {
+    background: #3b465c;
+  }
+  .wave-slider-track > i {
+    background: #90addb;
+  }
+  .wave-slider-track > b {
+    background: #abc2e9;
+    border-color: #2b3545;
+  }
+  .primary-action,
+  .settings-save-wide {
+    background: #48699d;
+    color: #f3f6ff;
+  }
+  .settings-actions button,
+  .system-action,
+  .home-appearance-editor > button {
+    background: var(--wave-tint);
+    color: var(--wave-blue);
+  }
+  .extra-modal,
+  .music-library-sheet,
+  .wave-upload-dialog,
+  .space-delete-dialog,
+  .gallery-sheet,
+  .sticker-add-dialog,
+  .share-sheet,
+  .wave-forward-sheet {
+    background: var(--wave-card);
+    color: var(--wave-ink);
+    border-color: var(--wave-line);
+  }
+  .extra-modal header,
+  .music-library-sheet header {
+    color: var(--wave-ink);
+    border-color: var(--wave-line);
+  }
+  .wave-loading .wave-loading-emblem {
+    background: #ffffff08;
+  }
+  .wave-loading > strong {
+    color: var(--wave-ink);
+  }
+  .wave-loading .wave-loading-description,
+  .wave-loading .wave-loading-details {
+    color: var(--wave-muted);
+  }
+  .wave-loading .wave-resync-button {
+    background: var(--wave-tint);
+    color: var(--wave-blue);
+    border-color: var(--wave-line);
+  }
+  // Messaging and conversation controls.
+  .message-row .wave-message-text,
+  .message-bubble,
+  .wave-message-voice {
+    background: #2d405a;
+    color: var(--wave-ink);
+    border-color: #49658a;
+  }
+  .message-row.user .wave-message-text,
+  .message-row.user .message-bubble,
+  .message-row.user .wave-message-voice {
+    background: #463448;
+    color: #eddfeb;
+    border-color: #76506a;
+  }
+  .message-row .chat-avatar,
+  .composer,
+  .composer-tools,
+  .group-observer-bar {
+    background: var(--wave-card);
+    color: var(--wave-ink);
+  }
+  .message-translation,
+  .wave-translation,
+  .wave-message-translation {
+    color: #b1bfd2;
+    border-color: var(--wave-line);
+  }
+  .message-system,
+  .chat-time,
+  .message-timestamp {
+    color: var(--wave-muted);
+  }
+  // Space composer overrides its former local light-only palette.
+  .moment-composer {
+    --settings-text: #e0e7f2;
+    --settings-muted: #9ba9bd;
+    --settings-accent: #91b0e2;
+    --settings-control: #2b3545;
+    --settings-line: #a4b8d124;
+    --wave-card: #222b39;
+    --wave-tint: #2b3545;
+    color: var(--wave-ink);
+    background: var(--wave-card);
+  }
+  &.space-composing,
+  &.space-composing .wave-statusbar,
+  &.space-composing .wave-homebar {
+    background: var(--wave-card) !important;
+    color: var(--wave-ink);
+    --wave-navy: #b4c8eb;
+    --wave-primary-bg: #48699d;
+  }
+  .moment-compose-body input,
+  .moment-compose-body textarea,
+  .moment-compose-body .wave-select-trigger {
+    background: var(--wave-tint);
+    color: var(--wave-ink);
+  }
+  .zone-post,
+  .space-hole {
+    color: var(--wave-ink);
+  }
+  .space-comment-main,
+  .moment-person-link {
+    color: var(--wave-ink);
+  }
+  .space-comment time,
+  .space-inline-translation,
+  .moment-comment-actions {
+    color: var(--wave-muted);
+  }
+  .space-top-tabs button,
+  .zone-profile-actions button {
+    color: var(--wave-muted);
+  }
+  .space-top-tabs button[aria-pressed='true'] {
+    color: var(--wave-blue);
+    background: var(--wave-card);
+  }
+  // Music uses a dark lavender canvas, keeping artwork and needle textures intact.
+  &.music-immersive {
+    background: linear-gradient(145deg, #232d44, #302940 55%, #202d3c);
+  }
+  &.music-immersive::before {
+    opacity: 0.16;
+  }
+  .wave-music-player,
+  .music-track-title,
+  .music-track-meta,
+  .music-track-meta strong {
+    color: var(--wave-ink);
+  }
+  .music-search,
+  .music-play,
+  .music-bottom-dock,
+  .music-mini-player,
+  .home-now-playing,
+  .music-library-sheet,
+  .playlist-create input {
+    background: var(--wave-card);
+    color: var(--wave-ink);
+  }
+  .music-search input,
+  .music-search button,
+  .playlist-browser input {
+    color: var(--wave-ink);
+  }
+  .music-home-tabs button,
+  .playlist-browser > p,
+  .music-results small,
+  .music-track-meta small {
+    color: var(--wave-muted);
+  }
+  .music-home-tabs button[aria-pressed='true'] {
+    background: var(--wave-card);
+    color: var(--wave-ink);
+  }
+  .music-controls button {
+    color: var(--wave-ink);
+  }
+  .music-controls .music-play {
+    background: #ffffff0d;
+    box-shadow: 0 7px 20px #0002;
+  }
+  .music-turntable {
+    background: linear-gradient(145deg, #ffffff04, #ffffff12);
+  }
+  .music-vinyl {
+    background: repeating-radial-gradient(circle, #a0abc11a 0 2px, #10172730 3px 5px);
+  }
+  .music-lyrics p {
+    color: #a3afc5;
+  }
+  .music-lyrics p.active {
+    color: #b5cdf5;
+    background: linear-gradient(90deg, transparent, #a8c0ec0c, transparent);
+    text-shadow: none;
+  }
+  .music-lyrics p small {
+    color: #93a4c0;
+  }
+  .music-lyrics p.active small {
+    color: #b1c1db;
+  }
+  .lyrics-mode-row .lyrics-mode-button {
+    color: #a9c2ec;
+    background: transparent;
+  }
+  .lyrics-mode-row .lyrics-mode-button.is-off {
+    color: #8b9ab3;
+  }
+  .lyrics-resume {
+    background: var(--wave-tint) !important;
+    color: var(--wave-blue);
+  }
+  .music-account-actions button,
+  .music-account-list-heading button,
+  .playlist-create button {
+    background: var(--wave-tint);
+    color: var(--wave-blue);
+  }
+  .music-account-actions .is-danger,
+  .music-track-swipe > .music-track-delete-action {
+    background: #482f40;
+    color: #edacc3;
+  }
+  .music-track-swipe > .music-track-edit-action {
+    background: #2d3d58;
+    color: #aac6f1;
+  }
+  .playlist-song,
+  .music-results article {
+    border-color: var(--wave-line);
+  }
+  .playlist-song strong,
+  .playlist-open strong {
+    color: var(--wave-ink);
+  }
+  .playlist-edit {
+    background: var(--wave-card);
+  }
+  // Browser and calendar had independent fixed light surfaces.
+  .wave-browser,
+  .calendar-page {
+    background: var(--wave-surface);
+    color: var(--wave-ink);
+  }
+  .browser-library-filter,
+  .browser-toolbar,
+  .calendar-weather-card,
+  .calendar-days-card,
+  .calendar-timeline-card,
+  .weather-location-current,
+  .weather-location-results button {
+    background: var(--wave-card);
+    color: var(--wave-ink);
+  }
+  .browser-address,
+  .browser-quick-sites a > span,
+  .calendar-page .calendar-five-days button,
+  .calendar-timeline-event > div {
+    background: var(--wave-tint);
+  }
+  .browser-quick-sites a,
+  .browser-quick-sites small {
+    color: var(--wave-ink) !important;
+  }
+  .browser-result-card > a,
+  .browser-saved-row a,
+  .calendar-weather-main > strong,
+  .calendar-weather-card > header > button:first-child {
+    color: var(--wave-blue);
+  }
+  .browser-result-card p,
+  .calendar-timeline-event p {
+    color: #b0bfd4;
+  }
+  .calendar-page .calendar-five-days button[aria-pressed='true'] {
+    background: #48699d;
+    color: white;
+  }
+  .calendar-timeline-event.important > div {
+    background: #3b2f40;
+    border-color: #6a4258;
+  }
+  .calendar-timeline-node::before {
+    background: #43516a;
+  }
+  .calendar-timeline-node::after {
+    border-color: var(--wave-card);
+  }
+  .memo-paper-title,
+  .status-vital-number,
+  .status-organ-heading strong {
+    color: var(--wave-blue);
+  }
+  .wave-home .wave-hero,
+  .wave-desktop {
+    color: var(--wave-ink);
+  }
+  .moment-compose-body,
+  .moment-compose-bar,
+  .browser-current-card,
+  .browser-result-card {
+    background: var(--wave-card);
+    color: var(--wave-ink);
+  }
+  .music-bottom-dock button,
+  .music-bottom-dock .dock-track strong {
+    color: var(--wave-ink);
+  }
+  .music-bottom-dock .dock-track small {
+    color: var(--wave-muted);
+  }
+  .group-observer-bar > button {
+    background: var(--wave-tint);
+    color: var(--wave-blue);
+  }
+  .wave-appbar .appbar-tools button {
+    background: var(--wave-card);
+    color: var(--wave-blue);
+  }
+  .extras-panel,
+  .extras-panel button,
+  .settings-hub-grid > button,
+  .toggle-row,
+  .wave-upload-file,
+  .wave-upload-actions button,
+  .wave-crop-controls,
+  .message-forward-list > button,
+  .message-forward-heading > button,
+  .composer-context,
+  .wave-message-call,
+  .wave-message-location,
+  .wave-message-content .wave-message-quote {
+    background: var(--wave-card);
+    color: var(--wave-ink);
+    border-color: var(--wave-line);
+  }
+  .message-select-control {
+    background: var(--wave-tint) !important;
+    border-color: var(--wave-line);
+  }
+  .message-select-control[aria-checked='true'] {
+    background: #678bc4 !important;
+    color: white;
+  }
+  .wave-message-media.image-card,
+  .album-photo,
+  .album-toggle {
+    background: var(--wave-card);
+    color: var(--wave-ink);
+  }
+  .message-row .wave-message-content .wave-message-transfer,
+  .wave-message-red-packet > footer {
+    background: #3a332e;
+    color: #e8cfa8;
+  }
+  .ios-ipod-widget {
+    background: linear-gradient(145deg, #3c4659, #242c3a);
+    color: var(--wave-ink);
+  }
+  .ios-ipod-widget .ipod-wheel {
+    background: linear-gradient(145deg, #485265, #323b4c);
+    color: var(--wave-ink);
+  }
+  .ios-home-dock {
+    background: #232d3dbb;
+  }
+  .settings-card,
+  .calendar-weather-card,
+  .calendar-days-card,
+  .calendar-timeline-card {
+    border-color: var(--wave-line);
+  }
+}

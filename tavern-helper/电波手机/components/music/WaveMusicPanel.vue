@@ -240,7 +240,8 @@
           :aria-busy="alternateBusy"
           @click="cycleLyricMode"
         >
-          <span class="lyrics-mode-icon" aria-hidden="true"><i :class="lyricMode.icon"></i></span>
+          <span class="lyrics-mode-icon" aria-hidden="true">{{ lyricMode.glyph }}</span
+          ><sup aria-hidden="true">{{ lyricMode.enabled ? 'on' : 'off' }}</sup>
         </button>
       </div>
       <div class="music-progress">
@@ -347,10 +348,10 @@ defineEmits<{ settings: [] }>();
 const music = useMusicStore(),
   phone = usePhoneStore();
 const lyricModes = [
-  { label: '翻译打开', icon: 'fa-solid fa-language', enabled: true },
-  { label: '翻译关闭', icon: 'fa-solid fa-language', enabled: false },
-  { label: '音译打开', icon: 'fa-solid fa-font', enabled: true },
-  { label: '音译关闭', icon: 'fa-solid fa-font', enabled: false },
+  { label: '翻译打开', glyph: '译', enabled: true },
+  { label: '翻译关闭', glyph: '译', enabled: false },
+  { label: '音译打开', glyph: '音', enabled: true },
+  { label: '音译关闭', glyph: '音', enabled: false },
 ] as const;
 const lyricModeIndex = ref(3);
 const lyricMode = computed(() => lyricModes[lyricModeIndex.value]);

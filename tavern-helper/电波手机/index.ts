@@ -113,3 +113,4 @@ import './styles/apps/space.scss';
 import './styles/apps/presets.scss';
 import './styles/base/compatibility.scss';
 import './styles/base/select-unified.scss';
+import './styles/base/themes.scss';

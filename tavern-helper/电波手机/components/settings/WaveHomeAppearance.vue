@@ -1,6 +1,24 @@
 <template>
   <div class="home-appearance-editor">
     <section class="settings-card appearance-group">
+      <div class="wave-settings-title">主题</div>
+      <div class="appearance-theme-options" role="group" aria-label="主题模式">
+        <button
+          v-for="item in themeOptions"
+          :key="item.value"
+          type="button"
+          :aria-pressed="phone.settings.theme === item.value"
+          @click="
+            phone.settings.theme = item.value;
+            phone.saveSettings();
+          "
+        >
+          <i :class="item.icon" aria-hidden="true"></i><span>{{ item.label }}</span>
+        </button>
+      </div>
+      <p>跟随系统自动切换日间与夜间；修改后立即生效。</p>
+    </section>
+    <section class="settings-card appearance-group">
       <div class="wave-settings-title">打开入口方式</div>
       <p>可同时开启多个入口；默认只显示快速回复栏按钮。</p>
       <div class="system-toggle-row">
@@ -157,6 +175,11 @@ import { appIcons } from '../../assets/icons/app-icons';
 import WaveImageUpload from '../shared/WaveImageUpload.vue';
 const props = defineProps<{ apps: Array<{ id: string; name: string }> }>();
 const phone = usePhoneStore();
+const themeOptions = [
+  { value: 'system', label: '系统', icon: 'fa-solid fa-circle-half-stroke' },
+  { value: 'light', label: '日间', icon: 'fa-regular fa-sun' },
+  { value: 'dark', label: '夜间', icon: 'fa-regular fa-moon' },
+] as const;
 const appearance = computed(() => phone.settings.appearance);
 const showElectric = computed({
   get: () => !appearance.value.hideElectric,

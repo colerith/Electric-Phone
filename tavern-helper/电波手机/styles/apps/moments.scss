@@ -6,7 +6,7 @@
     margin-bottom: 0;
   }
   .messenger-filters button[aria-selected='true'] {
-    background: var(--wave-navy, #294774);
+    background: var(--wave-primary-bg, var(--wave-navy, #294774));
     color: #fff;
   }
   .messenger-dock button[aria-current] {
@@ -649,7 +649,7 @@
     color: var(--settings-text);
   }
   .moments-view .settings-save-wide {
-    background: var(--wave-navy);
+    background: var(--wave-primary-bg, var(--wave-navy));
     color: #fff;
     min-height: 42px;
     padding: 10px 12px;

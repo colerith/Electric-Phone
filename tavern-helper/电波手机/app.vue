@@ -7,7 +7,7 @@
         class="wave-device"
         :style="[deviceStyle, playlistSurfaceStyle, momentsSurfaceStyle]"
         :class="[
-          `theme-${store.settings.theme}`,
+          `theme-${resolvedTheme}`,
           `page-${store.currentPage}`,
           {
             'is-subpage': store.currentPage !== 'home',
@@ -1225,6 +1225,7 @@
 </template>
 
 <script setup lang="ts">
+import { usePhoneTheme } from './services/core/theme';
 import _ from 'lodash';
 
 import WaveCloseButton from './components/shared/WaveCloseButton.vue';
@@ -1690,6 +1691,7 @@ const homeAgenda = computed(() => {
 });
 const currentApp = computed(() => apps.find(app => app.id === store.currentPage));
 const activeSettingsSection = computed(() => settingsSections.find(section => section.id === settingsSection.value));
+const resolvedTheme = usePhoneTheme(() => store.settings.theme);
 const deviceStyle = computed<Record<string, string>>(() => {
   const fontFamilies = {
     system: "Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif",

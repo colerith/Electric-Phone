@@ -455,7 +455,7 @@
   }
   .settings-actions > .primary-action,
   .settings-save-wide {
-    background: var(--wave-navy, #204075);
+    background: var(--wave-primary-bg, var(--wave-navy, #204075));
     color: #fff;
     border-color: transparent;
   }

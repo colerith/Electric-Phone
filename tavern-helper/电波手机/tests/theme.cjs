@@ -1,0 +1,22 @@
+const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict'), ts = require('typescript');
+const { JSDOM } = require('jsdom');
+const dom = new JSDOM('');
+global.window = dom.window; global.document = dom.window.document;
+const listeners = new Set();
+const media = {matches:false,media:'(prefers-color-scheme: dark)',addEventListener:(_e,cb)=>listeners.add(cb),removeEventListener:(_e,cb)=>listeners.delete(cb)};
+window.matchMedia = () => media;
+const vue = require('vue');
+const file = path.resolve('src/util/酒馆助手脚本/电波手机/services/core/theme.ts');
+const code = ts.transpileModule(fs.readFileSync(file,'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const mod = {exports:{}}; new Function('require','module','exports',code)(require,mod,mod.exports);
+(async()=>{
+ const scope=vue.effectScope(), preference=vue.ref('system');
+ const theme=scope.run(()=>mod.exports.usePhoneTheme(()=>preference.value));
+ await vue.nextTick(); assert.equal(theme.value,'light');
+ media.matches=true; for(const cb of listeners)cb(media); await vue.nextTick(); assert.equal(theme.value,'dark');
+ preference.value='light'; assert.equal(theme.value,'light','explicit day ignores dark system');
+ preference.value='dark'; media.matches=false; for(const cb of listeners)cb(media); await vue.nextTick(); assert.equal(theme.value,'dark');
+ preference.value='system'; assert.equal(theme.value,'light','return to system uses latest preference');
+ scope.stop(); assert.equal(listeners.size,0,'system listener cleaned on unmount');
+ console.log('PASS: system theme changes, manual overrides, return to system, cleanup');
+})().catch(error=>{console.error(error);process.exitCode=1;});
