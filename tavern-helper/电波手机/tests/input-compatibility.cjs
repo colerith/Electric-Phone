@@ -36,12 +36,12 @@ const { bindPhoneViewport } = require('../services/core/viewport.ts');
   ];
   const settings = { worldbooks: { books: {}, entries: {} }, basic: { excludedTags: [] } };
   assert((await collectManagedWorldbooks(settings, 'hello')).includes('匹配内容'));
-  assert.equal(normalizeApiBase('https://example.com/'), 'https://example.com/v1');
+  assert.equal(normalizeApiBase('https://example.com/'), 'https://example.com');
   assert.equal(normalizeApiBase('https://example.com/proxy/v1/chat/completions'), 'https://example.com/proxy/v1');
   assert.equal(normalizeApiBase('https://example.com/v1/models'), 'https://example.com/v1');
   const api = { provider: 'openai', apiurl: 'https://example.com', key: 'test', timeoutMs: 1000 };
   global.fetch = async url => {
-    assert.equal(url, 'https://example.com/v1/models');
+    assert.equal(url, 'https://example.com/models');
     return new Response('<!doctype html><html>login</html>', { headers: { 'content-type': 'text/html' } });
   };
   await assert.rejects(fetchApiModels(api), /网页（HTML）/);
@@ -74,6 +74,18 @@ const { bindPhoneViewport } = require('../services/core/viewport.ts');
   input.value = '中文输入';
   input.dispatchEvent(new win.Event('input', { bubbles: true }));
   assert.equal(input.value, '中文输入');
+  await new Promise(r => setTimeout(r, 330));
+  const scrollsBefore = scrolls;
+  let styleWrites = 0;
+  const originalSet = root.style.setProperty.bind(root.style);
+  root.style.setProperty = (...args) => {
+    styleWrites++;
+    originalSet(...args);
+  };
+  for (let i = 0; i < 100; i++) viewport.dispatchEvent(new win.Event('scroll'));
+  await new Promise(r => setTimeout(r, 40));
+  assert.equal(styleWrites, 0, 'unchanged viewport scrolling does not rewrite layout variables');
+  assert.equal(scrolls, scrollsBefore, 'scrolling does not force focused input back into view');
   release();
   dom.window.close();
   console.log(

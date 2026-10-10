@@ -115,3 +115,5 @@ import './styles/base/compatibility.scss';
 import './styles/base/select-unified.scss';
 import './styles/base/themes.scss';
 import './styles/base/night-components.scss';
+
+import './styles/base/surface-transitions.scss';

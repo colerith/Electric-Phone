@@ -136,3 +136,33 @@ export async function cachedParse<T>(
   }
   return value;
 }
+
+/** Hash each floor independently: no giant JSON copy of the entire conversation in memory or IndexedDB. */
+let fingerprintScope = '';
+let floorFingerprints = new Map<number, { text: string; hash: string }>();
+export async function chatParseSignature(
+  scope: string,
+  floors: Pick<ChatMessage, 'message_id' | 'message'>[],
+): Promise<string> {
+  // LAN HTTP pages may not expose WebCrypto; preserve the exact legacy cache key there.
+  if (!globalThis.crypto?.subtle)
+    return 'wave-only-delta-v3-raw:' + JSON.stringify(floors.map(f => [f.message_id, f.message]));
+  if (fingerprintScope !== scope) {
+    fingerprintScope = scope;
+    floorFingerprints.clear();
+  }
+  const previous = floorFingerprints;
+  const next = new Map<number, { text: string; hash: string }>();
+  const tokens: string[] = [];
+  for (const floor of floors) {
+    let entry = previous.get(floor.message_id);
+    if (!entry || entry.text !== floor.message) {
+      const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(floor.message)));
+      entry = { text: floor.message, hash: Array.from(hash, byte => byte.toString(16).padStart(2, '0')).join('') };
+    }
+    next.set(floor.message_id, entry);
+    tokens.push(`${floor.message_id}:${entry.hash}`);
+  }
+  if (fingerprintScope === scope) floorFingerprints = next;
+  return 'wave-only-delta-v3:' + tokens.join('|');
+}

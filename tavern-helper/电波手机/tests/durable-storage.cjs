@@ -124,6 +124,13 @@ function state(content) {
   await storage.preparePhoneChat(getRuntimeContext());
   assert.equal(vars.global[schema.SCRIPT_VARIABLE_KEY].data.api.key, 'test-key');
   assert.equal(vars.chat[schema.CHAT_VARIABLE_KEY].threads.alice.messages[0].content, '服务器保留消息');
+  // A second browser boot with Tavern-restored variables only probes revision headers.
+  storage = restart();
+  fullReads = headerReads = 0;
+  await storage.preparePhoneStorage();
+  await storage.preparePhoneChat(getRuntimeContext());
+  assert.equal(fullReads, 0, 'matching local revisions avoid downloading snapshot bodies');
+  assert.equal(headerReads, 4, 'both global/chat redundant revisions are verified');
   // Saving fails visibly, preserves the last disk snapshot and retains the new write for retry.
   failUpload = true;
   storage.writePhoneChat(state('重试后的新消息'));
@@ -256,7 +263,9 @@ function state(content) {
   storage = restart();
   SillyTavern.extensionSettings = {};
   const legacy = 'data:image/png;base64,' + btoa('legacy resource migration');
-  vars.global = { [schema.SCRIPT_VARIABLE_KEY]: wrap(schema.ScriptSettingsSchema.parse({ appearance: { coverWallpaper: legacy } })) };
+  vars.global = {
+    [schema.SCRIPT_VARIABLE_KEY]: wrap(schema.ScriptSettingsSchema.parse({ appearance: { coverWallpaper: legacy } })),
+  };
   // Use an existing schema-defined resource field.
   vars.global[schema.SCRIPT_VARIABLE_KEY].data.appearance.coverWallpaper = legacy;
   const oldGlobals = structuredClone(vars.global);

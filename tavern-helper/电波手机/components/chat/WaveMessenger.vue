@@ -342,6 +342,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import { readWorldbookEntries, type ReadableWorldbookEntry } from '../../services/generation/worldbook-reader';
 import { identityAvatarStyle as avatarStyle } from '../../services/core/avatar';
 import { computed, inject, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
@@ -461,7 +462,7 @@ function chooseEntry(value: string) {
   selectedEntry.value = value;
   fillWorldbookCharacter();
 }
-const worldbookEntries = ref<WorldbookEntry[]>([]);
+const worldbookEntries = ref<ReadableWorldbookEntry[]>([]);
 const loadingBook = ref(false);
 let bookRequest = 0;
 let importContext = '';
@@ -475,7 +476,7 @@ async function loadWorldbookEntries() {
   notice.value = '';
   loadingBook.value = true;
   try {
-    const entries = await getWorldbook(selectedBook.value);
+    const entries = await readWorldbookEntries(selectedBook.value);
     if (request !== bookRequest || dialog.value !== 'worldbook') return;
     worldbookEntries.value = entries;
     if (!entries.length) notice.value = '这本世界书没有可导入的条目。';

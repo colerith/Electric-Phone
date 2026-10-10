@@ -1,0 +1,148 @@
+// Additive surface fixes: maintain distinct plum image tools and blue-gray music controls.
+#wave-phone-script-root .wave-phone-host .wave-device.theme-dark {
+  --settings-card: var(--wave-card);
+  --wave-text: var(--wave-ink);
+  .music-accounts {
+    background: #252e40;
+    color: #dce5f3;
+    border: 0;
+    .music-account-heading,
+    .music-account-profile strong {
+      color: #dce5f3;
+    }
+    small,
+    .music-account-hint {
+      color: #aebbd0;
+      opacity: 1;
+    }
+    .music-account-actions button {
+      background: #354159;
+      color: #bdd0ef;
+      border: 0;
+      box-shadow: none;
+    }
+    .music-account-actions .is-danger {
+      background: #4b3244;
+      color: #edafc4;
+    }
+  }
+  .music-search {
+    background: #242f40;
+    border: 1px solid #3b4b64;
+    box-shadow: none;
+  }
+  .music-search input,
+  .music-search button {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    color: #d5e1f2;
+  }
+  .wave-image-settings {
+    --settings-card: #2b2b3d;
+    color: #e0ddeb;
+    .image-section,
+    &.image-section {
+      background: #2b2b3d;
+      border-color: #444157;
+      box-shadow: none;
+    }
+    .image-heading strong,
+    label {
+      color: #e0ddeb;
+    }
+    small,
+    .image-help,
+    .image-empty {
+      color: #b9b3ca;
+      opacity: 1;
+    }
+    .image-count {
+      background: #3d3951;
+      color: #cfc3e5;
+    }
+    .image-reference,
+    .vibe-card {
+      background: #262535;
+      border-color: #474156;
+    }
+    input:not([type='range']):not([type='checkbox']),
+    textarea {
+      background: #222332;
+      border-color: #494358;
+      color: #e0ddeb;
+    }
+    button:not([role='switch']):not(.wave-select-trigger):not([role='option']) {
+      background: #3c374e;
+      border-color: #514960;
+      color: #d7cae9;
+      box-shadow: none;
+    }
+    .image-primary {
+      background: #665376;
+      color: #fff;
+    }
+    .image-actions.image-profile-actions {
+      border-color: #494357;
+    }
+  }
+  .settings-save-wide {
+    border-color: transparent;
+    box-shadow: none;
+  }
+}
+#wave-phone-script-root .wave-phone-host .wave-device {
+  .settings-save-wide {
+    border: 0;
+    box-sizing: border-box;
+    max-width: 100%;
+    margin-top: 18px;
+  }
+  // Footer backgrounds end at the same surface as the reserved home-indicator space.
+  :is(.browser-toolbar, .messenger-bottom, .space-bottom, .group-observer-bar, .message-multi-toolbar) {
+    background: linear-gradient(to bottom, transparent, var(--wave-surface, #f2f4f8) 24px) !important;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    padding-top: 24px;
+  }
+  &.page-conversation :is(.composer, .composer-context) {
+    background: linear-gradient(to bottom, transparent, var(--wave-surface, #f2f4f8) 18px) !important;
+    border: 0;
+    box-shadow: none;
+    padding-top: 18px;
+  }
+  &.page-conversation::after,
+  &.page-messages::after {
+    background: var(--wave-surface, #f2f4f8);
+  }
+  &:not(.page-home):not(.music-immersive):not(.playlist-immersive) .wave-homebar {
+    isolation: isolate;
+    border: 0;
+    box-shadow: none;
+    background: transparent !important;
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -24px 0 0;
+      z-index: -1;
+      pointer-events: none;
+      background: linear-gradient(to bottom, transparent, var(--wave-surface, #f2f4f8) 28px);
+    }
+  }
+  .music-bottom-dock {
+    backdrop-filter: none;
+  }
+  .music-track-swipe {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 76px;
+  }
+  .message-unit:not(:has(.message-actions-popover)):not(:focus-within) {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 140px;
+  }
+}
+// Avoid continuously filtering the full Tavern canvas beneath a scrolling phone.
+#wave-phone-script-root .wave-overlay {
+  backdrop-filter: none;
+}

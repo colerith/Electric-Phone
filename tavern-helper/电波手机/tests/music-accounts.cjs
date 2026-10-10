@@ -14,7 +14,11 @@ function load() {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const module = { exports: {} };
-  new Function('require', 'module', 'exports', code)(id => id === './music-backend' ? { isBuiltinMusicBase: () => false } : require(id), module, module.exports);
+  new Function('require', 'module', 'exports', code)(
+    id => (id === './music-backend' ? { isBuiltinMusicBase: () => false } : require(id)),
+    module,
+    module.exports,
+  );
   return module.exports;
 }
 let service = load(),
@@ -98,6 +102,20 @@ const image = 'data:image/png;base64,AAAA';
     assert.match((await service.resolveAccountTrack(songs.tracks[0])).url, /^https:\/\/media/);
     assert.equal(service.cachedMusicAccount(provider, 'https://different.example'), undefined);
   }
+  handler = route =>
+    route.endsWith('/user/playlist')
+      ? { code: 200, playlist: [{ id: 'saved', dirId: 36, name: '收藏歌单', songnum: 1 }] }
+      : {
+          code: 200,
+          response: {
+            cdlist: [{ dissname: '收藏歌单', songlist: [{ songmid: 'saved-track', songname: '收藏歌曲' }] }],
+          },
+        };
+  const collected = await service.fetchAccountPlaylists('qq', base, '2');
+  assert.equal(collected.lists[0].owned, false, 'creator directory id does not imply ownership');
+  assert.equal((await service.fetchAccountTracks('qq', base, collected.lists[0])).tracks[0].id, 'saved-track');
+  handler = () => ({ code: 200, response: { cdlist: [{ disstid: 'saved', songlist: [] }] } });
+  await assert.rejects(service.fetchAccountTracks('qq', base, collected.lists[0]), /无法读取/);
   handler = () => ({ code: 803 });
   await assert.rejects(service.checkMusicQr('netease', base, 'missing-cookie'), /登录态/);
   let deviceAttempts = 0;

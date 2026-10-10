@@ -48,7 +48,10 @@
       </section>
       <section class="image-subsection" aria-label="角色参考图">
         <div class="image-heading">
-          <strong>参考图</strong><span class="image-count">{{ config.references.length }} / 8</span>
+          <strong>参考图</strong
+          ><span class="image-count"
+            >{{ config.references.filter(item => item.enabled).length }} 启用 / {{ config.references.length }} 张</span
+          >
         </div>
         <div class="image-actions"><button type="button" @click="loadBaibai">读取柏宝绘参考图</button></div>
         <div v-if="vibes.length" class="image-import-row">
@@ -60,9 +63,7 @@
           </button>
         </div>
         <div class="image-heading">
-          <button type="button" :disabled="config.references.length >= 8" @click="editingReference = 'new'">
-            ＋ 本地图片 / 地址
-          </button>
+          <button type="button" @click="editingReference = 'new'">＋ 本地图片 / 地址</button>
         </div>
         <p v-if="!config.references.length" class="image-help">
           还没有参考图，可添加本地图片、图片地址，或读取柏宝绘参考图。
@@ -159,7 +160,7 @@ async function importReference() {
     const reference = await importBaibaiReference(selectedVibe.value);
     if (key !== contextKey.value) return;
     const refs = config.value.references.filter(r => r.id !== reference.id);
-    if (refs.length >= 8) throw Error('每个角色最多 8 张参考图');
+    if (refs.filter(row => row.enabled).length >= 8) reference.enabled = false;
     update({ references: [...refs, reference] });
     status.value = '参考图已复制到手机配置，可随备份迁移';
   } catch (e) {
@@ -169,12 +170,13 @@ async function importReference() {
   }
 }
 function addReference(value: { avatar: string }) {
-  if (value.avatar && config.value.references.length < 8)
+  if (value.avatar)
     update({
       references: [
         ...config.value.references,
         ImageReferenceSchema.parse({
           id: crypto.randomUUID(),
+          enabled: config.value.references.filter(row => row.enabled).length < 8,
           image: value.avatar,
           name: `参考图 ${config.value.references.length + 1}`,
         }),

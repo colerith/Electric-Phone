@@ -1,13 +1,16 @@
+import { isExtensionRuntime } from '../services/core/runtime';
 import {
   applyPlaylistOverride,
   readLibraryOverrides,
   writeLibraryOverrides,
   type PlaylistOverride,
   libraryKey,
+  libraryCacheTime,
+  LIBRARY_FRESH_MS,
   readLibrary,
   writeLibrary,
   synchronizeLibrary,
-  type SyncedPlaylist
+  type SyncedPlaylist,
 } from '../services/music/account-library';
 import { shallowRef, computed, onScopeDispose, ref, watch } from 'vue';
 import {
@@ -186,9 +189,22 @@ export const useMusicStore = defineStore('wave-music', () => {
         libraryOverrides.value = { ...libraryOverrides.value, [key]: await readLibraryOverrides(key) };
       if (!stillCurrent()) return;
       remoteLibraries.value = { ...remoteLibraries.value, [key]: cached };
-      const result = await synchronizeLibrary(provider, base, account.id, cached, controller.signal, (done, total) => {
-        librarySyncStatus.value = `正在同步 ${account.name} 的歌单 ${done}/${total}`;
-      });
+      if (!force && Date.now() - libraryCacheTime(key) < LIBRARY_FRESH_MS) {
+        librarySyncStatus.value = `已加载 ${cached.length} 张缓存歌单，可手动刷新`;
+        return;
+      }
+      const result = await synchronizeLibrary(
+        provider,
+        base,
+        account.id,
+        cached,
+        controller.signal,
+        (done, total) => {
+          librarySyncStatus.value = `正在同步 ${account.name} 的歌单 ${done}/${total}`;
+        },
+        undefined,
+        force,
+      );
       if (!stillCurrent()) return;
       remoteLibraries.value = { ...remoteLibraries.value, [key]: result.rows };
       await writeLibrary(key, result.rows);
@@ -208,13 +224,12 @@ export const useMusicStore = defineStore('wave-music', () => {
     return promise;
   }
   async function syncAccountLibraries() {
-    if (musicBackend.value === 'idle') await checkMusicBackend();
+    if (musicBackend.value === 'idle') void checkMusicBackend();
     const active = new Set<string>();
     const jobs: (() => Promise<void>)[] = [];
     for (const provider of accountProviders) {
       const base =
-        phone.settings.musicAccountApis[provider.id] ||
-        (musicBackend.value === 'ready' ? builtinMusicBase(provider.id) : '');
+        phone.settings.musicAccountApis[provider.id] || (isExtensionRuntime ? builtinMusicBase(provider.id) : '');
       if (!base) continue;
       try {
         const account = cachedMusicAccount(provider.id, base);
@@ -229,7 +244,7 @@ export const useMusicStore = defineStore('wave-music', () => {
     remoteLibraries.value = Object.fromEntries(
       Object.entries(remoteLibraries.value).filter(([key]) => active.has(key)),
     );
-    for (const job of jobs) await job();
+    await Promise.all(jobs.map(job => job()));
   }
 
   const daily = computed<Track[]>(() =>

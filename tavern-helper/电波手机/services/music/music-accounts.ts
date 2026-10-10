@@ -372,7 +372,7 @@ export async function fetchAccountPlaylists(
       ...(row.dirId !== undefined ? { dirId: Number(row.dirId) } : {}),
       owned:
         provider === 'qq'
-          ? row.dirId !== undefined && row.dirName !== undefined
+          ? row.dirName !== undefined
           : provider === 'netease'
             ? String(row.creator?.userId ?? row.userId ?? '') === userId
             : String(row.create_userid ?? row.list_create_userid ?? row.creator?.userid ?? row.userid ?? '') === userId,
@@ -448,7 +448,8 @@ export async function fetchAccountTracks(
   if (provider === 'qq' && !list.owned) {
     const raw = await request(provider, base, '/getSongListDetail', { disstid: list.id }, signal);
     const detail = raw.response?.cdlist?.[0];
-    if (!Array.isArray(detail?.songlist)) throw new MusicAccountError('无法读取该歌单，可能为非公开歌单');
+    if (!String(detail?.dissname || '').trim() || !Array.isArray(detail?.songlist))
+      throw new MusicAccountError('无法读取该歌单，可能为非公开歌单');
     rows = detail.songlist;
   } else {
     const path = provider === 'qq' ? '/user/playlist-detail' : '/playlist/track/all';

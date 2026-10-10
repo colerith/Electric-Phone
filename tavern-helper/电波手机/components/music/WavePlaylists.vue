@@ -51,7 +51,11 @@
           @touchcancel="touch = []"
         >
           <button class="playlist-open" type="button" @click="openPlaylist(list.id)">
-            <img v-if="cover(list)" :src="cover(list)" alt="" /><span v-else class="playlist-art">♫</span>
+            <img v-if="cover(list)" loading="lazy" decoding="async" :src="cover(list)" alt="" /><span
+              v-else
+              class="playlist-art"
+              >♫</span
+            >
             <span
               ><strong>{{ list.name }}</strong
               ><small

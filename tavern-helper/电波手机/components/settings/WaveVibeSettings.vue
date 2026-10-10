@@ -8,9 +8,12 @@
       与角色参考图叠加使用，合计最多启用 8 张。强度控制影响程度，信息提取度控制从原图提取的信息量。
     </p>
     <div class="image-actions">
-      <button type="button" :disabled="modelValue.length >= 8" @click="editorOpen = true">＋ 参考图片</button>
-      <button type="button" :disabled="modelValue.length >= 8" @click="fileInput?.click()">导入 Vibe 文件</button>
-      <button type="button" @click="loadBaibai">读取柏宝绘</button>
+      <button type="button" :disabled="busy" @click="editorOpen = true">＋ 参考图片</button>
+      <button type="button" :disabled="busy" @click="fileInput?.click()">导入 Vibe 文件</button>
+      <button type="button" :disabled="busy" @click="loadBaibai">读取柏宝绘</button>
+      <button v-if="baibaiList.length" type="button" :disabled="busy" @click="importAll">
+        导入全部 {{ baibaiList.length }} 张
+      </button>
     </div>
     <input ref="fileInput" class="vibe-file-input" type="file" accept=".naiv4vibe,.json" @change="readFile" />
     <div v-if="baibaiList.length" class="image-import-row">
@@ -149,7 +152,7 @@ function number(id: string, field: 'strength' | 'informationExtracted', event: E
 }
 function add(value: ImageReference) {
   const rows = props.modelValue.filter(v => v.id !== value.id);
-  if (rows.length >= 8) throw Error('每套配置最多保存 8 张 Vibe');
+  if (rows.filter(v => v.enabled).length >= 8) value = { ...value, enabled: false };
   emit('update:modelValue', [...rows, value]);
   status.value = '已添加 Vibe';
 }
@@ -167,7 +170,9 @@ function addImage(value: { avatar: string }) {
 function loadBaibai() {
   baibaiList.value = baibaiReferences();
   baibaiId.value = baibaiList.value[0]?.id || '';
-  status.value = baibaiList.value.length ? '选择要导入的 Vibe' : '柏宝绘中暂无已保存的 Vibe';
+  status.value = baibaiList.value.length
+    ? `读取到 ${baibaiList.value.length} 张，可选择导入或全部导入`
+    : '柏宝绘中暂无已保存的 Vibe';
 }
 async function importSelected() {
   if (!baibaiId.value || busy.value) return;
@@ -178,6 +183,38 @@ async function importSelected() {
     if (token === revision) add(value);
   } catch (e) {
     if (token === revision) status.value = e instanceof Error ? e.message : '导入失败';
+  } finally {
+    busy.value = false;
+  }
+}
+async function importAll() {
+  if (busy.value) return;
+  busy.value = true;
+  const token = revision;
+  const rows = [...props.modelValue];
+  let imported = 0,
+    failed = 0;
+  try {
+    for (const item of baibaiList.value) {
+      if (token !== revision) return;
+      try {
+        const value = await importBaibaiReference(item.id);
+        if (token !== revision) return;
+        const index = rows.findIndex(row => row.id === value.id);
+        if (index >= 0) value.enabled = rows[index].enabled;
+        else if (rows.filter(row => row.enabled).length >= 8) value.enabled = false;
+        if (index >= 0) rows[index] = value;
+        else rows.push(value);
+        imported++;
+      } catch {
+        failed++;
+      }
+      status.value = `正在导入 ${imported + failed}/${baibaiList.value.length}`;
+    }
+    if (token === revision) {
+      emit('update:modelValue', rows);
+      status.value = `已导入 ${imported} 张${failed ? `，${failed} 张读取失败，可单独重试` : ''}；超过 8 张的参考图保留为未启用`;
+    }
   } finally {
     busy.value = false;
   }

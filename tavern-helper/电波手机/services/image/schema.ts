@@ -41,7 +41,7 @@ export const ImageProfileSchema = z.object({
   cfgRescale: z.number().min(0).max(1).prefault(0),
   seed: z.number().int().min(0).max(4294967295).prefault(0),
   normalizeRefStrength: z.boolean().prefault(true),
-  vibes: z.array(ImageReferenceSchema).max(8).prefault([]),
+  vibes: z.array(ImageReferenceSchema).prefault([]),
   quality: z.enum(['auto', 'low', 'medium', 'high', 'xhigh', 'max']).prefault('auto'),
 });
 export const ImageServicesSchema = z
@@ -57,7 +57,7 @@ export const CharacterImageSchema = z
     enabled: z.boolean().prefault(false),
     profileId: z.string().prefault(''),
     prefix: z.string().prefault(''),
-    references: z.array(ImageReferenceSchema).max(8).prefault([]),
+    references: z.array(ImageReferenceSchema).prefault([]),
   })
   .prefault({});
 export type ImageProfile = z.infer<typeof ImageProfileSchema>;

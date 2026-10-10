@@ -49,12 +49,23 @@
           <button class="music-feature" type="button" @click="playTrack(music.recommendations[0] || music.daily[0])">
             <small>FOR YOU</small><strong>{{ music.recommendations[0]?.title || '今日心动' }}</strong
             ><span>{{ music.recommendations[0]?.artist || '让旋律替你收藏这一刻' }}</span
-            ><img v-if="music.recommendations[0]?.cover" :src="music.recommendations[0].cover" alt="" /><i
-              class="fa-solid fa-circle-play"
-            ></i>
+            ><img
+              v-if="music.recommendations[0]?.cover"
+              loading="lazy"
+              decoding="async"
+              :src="music.recommendations[0].cover"
+              alt=""
+            /><i class="fa-solid fa-circle-play"></i>
           </button>
           <article class="music-feature radio-feature" :class="{ 'has-cover': radioCover }">
-            <img v-if="radioCover" :src="radioCover" alt="" @error="failedRadioCover = radioCover" />
+            <img
+              v-if="radioCover"
+              loading="lazy"
+              decoding="async"
+              :src="radioCover"
+              alt=""
+              @error="failedRadioCover = radioCover"
+            />
             <small>PRIVATE RADIO</small><strong :title="intent.title">{{ intent.title || '角色电台' }}</strong>
             <span :title="intent.artist">{{ intent.artist || '搜索此刻想听的声音' }}</span>
             <p v-if="intent.note" class="music-radio-note">{{ intent.note }}</p>
@@ -117,7 +128,9 @@
               @pointerup="endTrackSwipe"
               @pointercancel="trackSwipe = null"
             >
-              <img v-if="track.cover" :src="track.cover" alt="" /><span v-else class="music-cover-placeholder"
+              <img v-if="track.cover" loading="lazy" decoding="async" :src="track.cover" alt="" /><span
+                v-else
+                class="music-cover-placeholder"
                 ><i class="fa-solid fa-music"></i></span
               ><button type="button" :disabled="music.busy" @click="playTrack(track)">
                 <strong>{{ track.title }}</strong
@@ -148,10 +161,13 @@
       <WaveTogether :user-avatar="userAvatar" :character-avatar-style="characterAvatarStyle" />
       <div class="music-turntable">
         <div class="music-vinyl" :class="{ spinning: music.playing }">
-          <img v-if="music.current?.cover" :src="music.current.cover" alt="专辑封面" /><i
-            v-else
-            class="fa-solid fa-music"
-          ></i>
+          <img
+            v-if="music.current?.cover"
+            loading="lazy"
+            decoding="async"
+            :src="music.current.cover"
+            alt="专辑封面"
+          /><i v-else class="fa-solid fa-music"></i>
         </div>
         <svg class="music-needle" viewBox="0 0 72 260" aria-hidden="true">
           <defs>

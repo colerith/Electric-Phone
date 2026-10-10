@@ -5,6 +5,9 @@ export function bindPhoneViewport(root: HTMLElement): () => void {
   const viewport = view.visualViewport;
   let focusTimer = 0;
   let frame = 0;
+  let updateFrame = 0;
+  let lastGeometry = '';
+  let lastSize = '';
   const revealInput = () => {
     frame = 0;
     const active = root.ownerDocument.activeElement as HTMLElement | null;
@@ -37,6 +40,10 @@ export function bindPhoneViewport(root: HTMLElement): () => void {
     const panelWidth = mobile && portrait ? width : 390;
     const panelHeight = mobile && portrait ? height : 790;
     const scale = mobile && portrait ? 1 : Math.max(0, Math.min(1, (width - gap * 2) / 390, (height - gap * 2) / 790));
+    const size = `${width}:${height}`;
+    const geometry = `${size}:${viewport?.offsetLeft || 0}:${viewport?.offsetTop || 0}:${mobile}:${portrait}`;
+    if (geometry === lastGeometry) return;
+    lastGeometry = geometry;
     root.style.setProperty('--wave-viewport-width', `${width}px`);
     root.style.setProperty('--wave-viewport-height', `${height}px`);
     root.style.setProperty('--wave-viewport-left', `${viewport?.offsetLeft || 0}px`);
@@ -45,19 +52,28 @@ export function bindPhoneViewport(root: HTMLElement): () => void {
     root.style.setProperty('--wave-panel-height', `${panelHeight}px`);
     root.style.setProperty('--wave-panel-scale', String(scale));
     root.classList.toggle('wave-mobile-viewport', mobile);
-    scheduleReveal();
+    if (size !== lastSize) scheduleReveal();
+    lastSize = size;
+  };
+  const queueUpdate = () => {
+    if (!updateFrame)
+      updateFrame = view.requestAnimationFrame(() => {
+        updateFrame = 0;
+        update();
+      });
   };
   root.addEventListener('focusin', onFocus);
   update();
-  view.addEventListener('resize', update);
-  viewport?.addEventListener('resize', update);
-  viewport?.addEventListener('scroll', update);
+  view.addEventListener('resize', queueUpdate);
+  viewport?.addEventListener('resize', queueUpdate);
+  viewport?.addEventListener('scroll', queueUpdate, { passive: true });
   return () => {
     root.removeEventListener('focusin', onFocus);
     view.clearTimeout(focusTimer);
     if (frame) view.cancelAnimationFrame(frame);
-    view.removeEventListener('resize', update);
-    viewport?.removeEventListener('resize', update);
-    viewport?.removeEventListener('scroll', update);
+    if (updateFrame) view.cancelAnimationFrame(updateFrame);
+    view.removeEventListener('resize', queueUpdate);
+    viewport?.removeEventListener('resize', queueUpdate);
+    viewport?.removeEventListener('scroll', queueUpdate);
   };
 }

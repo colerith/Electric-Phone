@@ -16,7 +16,9 @@
         <div class="moments-cover-person">
           <strong>{{ userName }}</strong
           ><button type="button" class="moments-avatar" aria-label="修改我的头像" @click="editImage('avatar')">
-            <img v-if="userAvatar" :src="userAvatar" alt="" /><span v-else>{{ userName.slice(0, 1) }}</span>
+            <img v-if="userAvatar" loading="lazy" decoding="async" :src="userAvatar" alt="" /><span v-else>{{
+              userName.slice(0, 1)
+            }}</span>
           </button>
         </div>
       </div>
@@ -40,7 +42,9 @@
       ></button>
       <div class="moments-me-profile">
         <button type="button" class="moments-avatar" aria-label="编辑个人资料" @click="openProfile">
-          <img v-if="userAvatar" :src="userAvatar" alt="" /><span v-else>{{ userName.slice(0, 1) }}</span>
+          <img v-if="userAvatar" loading="lazy" decoding="async" :src="userAvatar" alt="" /><span v-else>{{
+            userName.slice(0, 1)
+          }}</span>
         </button>
         <div>
           <strong>{{ userName }}</strong
@@ -78,9 +82,13 @@
       <section class="settings-card system-settings-card moments-form space-settings-card">
         <div class="wave-settings-title">手机资料</div>
         <button type="button" class="moments-profile-avatar" @click="editImage('draftAvatar')">
-          <img v-if="profileDraft.avatar || userAvatar" :src="profileDraft.avatar || userAvatar" alt="" /><span
-            >修改头像</span
-          ></button
+          <img
+            v-if="profileDraft.avatar || userAvatar"
+            loading="lazy"
+            decoding="async"
+            :src="profileDraft.avatar || userAvatar"
+            alt=""
+          /><span>修改头像</span></button
         ><label>昵称<input v-model="profileDraft.nickname" maxlength="40" :placeholder="userName" /></label
         ><label>账号<input v-model="profileDraft.account" maxlength="40" placeholder="设置你的手机账号" /></label
         ><label
@@ -356,6 +364,8 @@
           >
             <img
               v-if="avatarFor(post.authorKey, post.authorName || post.id)"
+              loading="lazy"
+              decoding="async"
               :src="avatarFor(post.authorKey, post.authorName || post.id)"
               :style="avatarCropFor(post.authorKey)"
               alt=""
@@ -391,9 +401,9 @@
           <div v-if="post.images.length" class="moment-media-grid" :class="{ single: post.images.length === 1 }">
             <button v-for="(media, index) in post.images" :key="index" type="button" @click="openGallery(post, index)">
               <img
+                v-if="media.kind === 'image'"
                 loading="lazy"
                 decoding="async"
-                v-if="media.kind === 'image'"
                 :src="media.url"
                 :alt="media.description || '空间动态图片'"
               /><span v-else
@@ -486,6 +496,8 @@
               >
                 <img
                   v-if="avatarFor(comment.authorKey, comment.authorName || comment.id)"
+                  loading="lazy"
+                  decoding="async"
                   :src="avatarFor(comment.authorKey, comment.authorName || comment.id)"
                   :style="avatarCropFor(comment.authorKey)"
                   alt=""
@@ -616,9 +628,9 @@
             <div v-for="(media, index) in draft.images" :key="index">
               <button type="button" @click="preview = media">
                 <img
+                  v-if="media.kind === 'image'"
                   loading="lazy"
                   decoding="async"
-                  v-if="media.kind === 'image'"
                   :src="media.url"
                   :alt="media.description || '图片'"
                 /><span v-else>{{ media.description }}</span></button
@@ -747,7 +759,13 @@
               {{ descriptionAi ? `添加 ${descriptionCount} 张 AI 图片` : '添加图片' }}
             </button></template
           ><template v-else-if="preview"
-            ><img v-if="preview.kind === 'image'" :src="preview.url" :alt="preview.description || '图片预览'" />
+            ><img
+              v-if="preview.kind === 'image'"
+              loading="lazy"
+              decoding="async"
+              :src="preview.url"
+              :alt="preview.description || '图片预览'"
+            />
             <p v-else>{{ preview.description }}</p></template
           >
         </section>

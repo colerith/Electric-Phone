@@ -185,6 +185,38 @@ async function readServerUncached(scope: string): Promise<Snapshot | undefined> 
     .filter(item => item.revision !== undefined)
     .sort((a, b) => Number(b.revision) - Number(a.revision));
   const knownOrder = candidates.every(item => Number(item.revision) >= 0);
+  // Read only the two tiny revision headers when Tavern already restored this exact snapshot.
+  // Never assume a local revision is newer: unknown formats and mismatches still use the server body.
+  if (knownOrder && candidates.length) {
+    const newest = candidates[0];
+    const cached = scope === 'global' ? settings() : undefined;
+    const local = getVariables({ type: scope === 'global' ? 'global' : 'chat' });
+    const options =
+      scope === 'global'
+        ? [
+            { data: cached?.globals, savedAt: cached?.savedAt },
+            { data: globalsOnly(local), savedAt: local.wave_phone_global_saved_at },
+          ]
+        : [{ data: local[CHAT_VARIABLE_KEY], savedAt: local.wave_phone_saved_at }];
+    for (const option of options) {
+      if (!option.data || Number(option.savedAt) !== newest.revision) continue;
+      const snapshot: Snapshot = {
+        identifier: WAVE_PHONE_IDENTIFIER,
+        version: 1,
+        scope,
+        savedAt: Number(option.savedAt),
+        data: option.data,
+      };
+      try {
+        validate(snapshot);
+      } catch {
+        continue;
+      }
+      remember(scope, snapshot, newest.slot);
+      loaded.add(scope);
+      return snapshot;
+    }
+  }
   let selected: { snapshot: Snapshot; slot: number } | undefined;
   let failure: unknown;
   for (const { slot } of candidates) {

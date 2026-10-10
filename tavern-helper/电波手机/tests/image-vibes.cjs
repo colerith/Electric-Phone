@@ -59,6 +59,30 @@ const signal = new AbortController().signal;
   );
   assert.equal(calls[0].body.information_extracted, 0.8, 'changed extraction must re-encode the original');
   assert(calls[0].url.endsWith('/encode-vibe'));
+  const legacyVibes = Array.from({ length: 10 }, (_, i) => ({
+    id: String(i),
+    name: 'Vibe ' + i,
+    enabled: i < 8,
+    strength: 0.6,
+    image: '/9j/2Q==',
+    encodings: { 'nai-diffusion-4-full': { encoding: btoa('encoding ' + i), infoExtracted: 0.35 } },
+  }));
+  global.SillyTavern.extensionSettings = { baibai_image: { nai: { vibes: legacyVibes } } };
+  global.window = { parent: { location: { href: 'http://localhost/', origin: 'http://localhost' } } };
+  const beforeVibes = JSON.stringify(legacyVibes);
+  const bai = require(base + '/services/image/baibai.ts');
+  assert.equal(bai.baibaiReferences().length, 10);
+  const importedAll = [];
+  for (const item of bai.baibaiReferences()) importedAll.push(await bai.importBaibaiReference(item.id));
+  assert.equal(ImageProfileSchema.parse({ id: 'ten', vibes: importedAll }).vibes.length, 10);
+  assert.equal(importedAll[0].informationExtracted, 0.35);
+  assert.equal(importedAll[9].enabled, false);
+  assert(
+    importedAll.every(item => item.image.startsWith('/user/files/')),
+    'raw JPEG Base64 is externalized, never mistaken for a file path',
+  );
+  assert(!JSON.stringify(importedAll).includes(';base64,'));
+  assert.equal(JSON.stringify(legacyVibes), beforeVibes, 'BaiBai source remains unchanged');
   console.log('PASS Vibe import, enable, merge/dedup, normalization, matching cache and extraction invalidation');
 })().catch(e => {
   console.error(e);

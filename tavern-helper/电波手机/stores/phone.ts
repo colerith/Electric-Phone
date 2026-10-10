@@ -105,7 +105,7 @@ import {
 } from '../services/generation/narrative-context';
 import { installPhoneRegexes, registerFollowGeneration } from '../services/generation/follow-generation';
 import { stripInlineCards } from '../services/generation/module-protocol';
-import { cachedParse } from '../services/core/local-cache';
+import { cachedParse, chatParseSignature } from '../services/core/local-cache';
 import { isCardExcluded, stripExcludedTags } from '../services/generation/context-controls';
 import { logDiagnostic } from '../services/core/diagnostics';
 import { describeRequestError, redactDiagnostic, type RequestStage } from '../services/core/request-error';
@@ -1504,8 +1504,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         ? await cachedParse(
             runtime.cardKey,
             runtime.chatKey,
-            'wave-only-delta-v2:' +
-              JSON.stringify(assistantMessages.map(message => [message.message_id, message.message])),
+            await chatParseSignature(JSON.stringify([runtime.cardKey, runtime.chatKey]), assistantMessages),
             settings.value.basic.cacheLimitMb,
             parse,
             validatePhoneBlocks,

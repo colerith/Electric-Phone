@@ -105,6 +105,12 @@ function snapshot(name) {
   await vue.nextTick();
   assert.equal(phone.settings.imageServices.profiles[0].width, 1024);
   assert(document.body.textContent.includes('参数超出范围'));
+  width.value = '1000';
+  width.dispatchEvent(new Event('input', { bubbles: true }));
+  width.dispatchEvent(new Event('change', { bubbles: true }));
+  await vue.nextTick();
+  assert(document.body.textContent.includes('64 的倍数'));
+  assert.equal(phone.settings.imageServices.profiles[0].width, 1024);
   width.value = '832';
   width.dispatchEvent(new Event('input', { bubbles: true }));
   width.dispatchEvent(new Event('change', { bubbles: true }));
@@ -139,11 +145,60 @@ function snapshot(name) {
   extraction.dispatchEvent(new Event('change', { bubbles: true }));
   await vue.nextTick();
   assert.equal(phone.settings.imageServices.profiles[0].vibes[0].informationExtracted, 0.35);
+  const singleReferences = bridge.baibaiReferences;
+  const singleImport = bridge.importBaibaiReference;
+  bridge.baibaiReferences = () => Array.from({ length: 10 }, (_, i) => ({ id: `batch-${i}`, name: `参考 ${i}` }));
+  bridge.importBaibaiReference = async id =>
+    require(base + '/services/image/schema.ts').ImageReferenceSchema.parse({
+      id,
+      name: id,
+      image: '/user/files/reference.png',
+    });
+  click('读取柏宝绘');
+  await vue.nextTick();
+  click('导入全部 10 张');
+  await new Promise(r => setImmediate(r));
+  await vue.nextTick();
+  assert.equal(phone.settings.imageServices.profiles[0].vibes.length, 11, 'batch import retains all references');
+  assert.equal(phone.settings.imageServices.profiles[0].vibes.filter(v => v.enabled).length, 8);
+  assert.equal(phone.settings.imageServices.profiles[0].vibes[0].enabled, false, 'existing toggle is preserved');
+  bridge.baibaiReferences = singleReferences;
+  bridge.importBaibaiReference = singleImport;
   snapshot('image-settings');
   click('＋ GPT Image');
   await vue.nextTick();
   assert.equal(phone.settings.imageServices.profiles.length, 2);
   assert(document.body.textContent.includes('gpt-image-2.5-sunburst'));
+  const address = document.querySelector('input[type="url"]');
+  address.value = 'invalid-address';
+  address.dispatchEvent(new Event('input', { bubbles: true }));
+  address.dispatchEvent(new Event('change', { bubbles: true }));
+  await vue.nextTick();
+  assert.equal(phone.settings.imageServices.profiles[1].baseUrl, '');
+  assert(document.body.textContent.includes('完整的 HTTP(S) 地址'));
+  address.value = 'https://proxy.example/api/v1/images/edits';
+  address.dispatchEvent(new Event('input', { bubbles: true }));
+  address.dispatchEvent(new Event('change', { bubbles: true }));
+  await vue.nextTick();
+  assert(document.body.textContent.includes('https://proxy.example/api/v1/images/generations'));
+  let finishModels, modelSignal;
+  global.fetch = (_url, init) => {
+    modelSignal = init.signal;
+    return new Promise(resolve => {
+      finishModels = resolve;
+    });
+  };
+  click('拉取模型列表');
+  await vue.nextTick();
+  assert(document.body.textContent.includes('取消读取'));
+  click('＋ NovelAI');
+  await vue.nextTick();
+  assert(modelSignal.aborted, 'switching profiles aborts pending model requests');
+  finishModels(new Response(JSON.stringify({ data: [{ id: 'stale-proxy-model' }] })));
+  await new Promise(r => setImmediate(r));
+  await vue.nextTick();
+  assert(!document.body.textContent.includes('stale-proxy-model'));
+  assert(!document.body.textContent.includes('已读取接口模型'));
   app.unmount();
   phone.context = { cardKey: 'test-card', chatKey: 'test-chat', cardName: 'Alice', avatar: '', isGroup: false };
   phone.state.activeCharKey = 'alice';

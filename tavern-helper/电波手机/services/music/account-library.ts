@@ -6,10 +6,22 @@ import {
   type AccountPlaylist,
 } from './music-accounts';
 import type { Track } from './music';
-export type SyncedPlaylist = { id: string; name: string; cover: string; tracks: Track[]; origin: string; remote: true };
+export type SyncedPlaylist = {
+  id: string;
+  name: string;
+  cover: string;
+  tracks: Track[];
+  origin: string;
+  remote: true;
+  syncedAt?: number;
+  remoteCount?: number;
+};
 export const libraryKey = (provider: MusicAccountProvider, base: string, accountId: string) =>
   JSON.stringify([provider, accountBase(base), accountId]);
 const memory = new Map<string, SyncedPlaylist[]>();
+const cacheTimes = new Map<string, number>();
+export const libraryCacheTime = (key: string) => cacheTimes.get(key) || 0;
+export const LIBRARY_FRESH_MS = 5 * 60 * 1000;
 function database(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('wave-phone-music-library-v1', 1);
@@ -27,8 +39,10 @@ export async function readLibrary(key: string): Promise<SyncedPlaylist[]> {
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     }).finally(() => db.close());
-    const rows = Array.isArray(result)
-      ? result.filter(row => row?.origin === key && row.remote === true && Array.isArray(row.tracks))
+    const stored = Array.isArray(result) ? result : result?.rows;
+    cacheTimes.set(key, result?.version === 2 ? Number(result.syncedAt) || 0 : 0);
+    const rows = Array.isArray(stored)
+      ? stored.filter(row => row?.origin === key && row.remote === true && Array.isArray(row.tracks))
       : [];
     memory.set(key, rows);
     return rows;
@@ -38,11 +52,13 @@ export async function readLibrary(key: string): Promise<SyncedPlaylist[]> {
 }
 export async function writeLibrary(key: string, rows: SyncedPlaylist[]): Promise<void> {
   memory.set(key, rows);
+  const syncedAt = Date.now();
+  cacheTimes.set(key, syncedAt);
   try {
     const db = await database();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction('libraries', 'readwrite');
-      tx.objectStore('libraries').put(rows, key);
+      tx.objectStore('libraries').put({ version: 2, rows, syncedAt }, key);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error);
@@ -59,6 +75,7 @@ export async function synchronizeLibrary(
   signal: AbortSignal,
   progress: (done: number, total: number) => void,
   api = { lists: fetchAccountPlaylists, tracks: fetchAccountTracks },
+  force = false,
 ): Promise<{ rows: SyncedPlaylist[]; failed: number }> {
   const origin = libraryKey(provider, base, userId);
   const lists = new Map<string, AccountPlaylist>();
@@ -67,13 +84,14 @@ export async function synchronizeLibrary(
     signal.throwIfAborted();
     if (page >= 200) throw Error('平台歌单分页异常，已保留已有歌单');
     const result = await api.lists(provider, base, userId, offset, signal);
-    for (const list of result.lists) if (list.owned === true) lists.set(list.id, list);
+    for (const list of result.lists) lists.set(list.id, list);
     if (!result.more) break;
     if (result.next <= offset) throw Error('平台歌单分页没有推进，已保留已有歌单');
     offset = result.next;
   }
   const source = [...lists.values()];
   const rows = new Array<SyncedPlaylist>(source.length);
+  const previousById = new Map(previous.filter(row => row.origin === origin).map(row => [row.id, row]));
   let next = 0,
     done = 0,
     failed = 0;
@@ -84,7 +102,14 @@ export async function synchronizeLibrary(
       const index = next++,
         list = source[index];
       const id = `account:${origin}:${list.id}`;
-      const old = previous.find(row => row.id === id && row.origin === origin);
+      const old = previousById.get(id);
+      // A short freshness window avoids re-fetching unchanged lists during repeated opens.
+      // Track counts alone are not a revision: expired and explicitly refreshed lists always read all pages.
+      if (!force && old?.syncedAt && Date.now() - old.syncedAt < LIBRARY_FRESH_MS && old.remoteCount === list.count) {
+        rows[index] = { ...old, name: list.name, cover: list.cover };
+        progress(++done, source.length);
+        continue;
+      }
       try {
         const tracks = new Map<string, Track>();
         let offset = 0;
@@ -98,7 +123,16 @@ export async function synchronizeLibrary(
           if (result.next <= offset) throw Error('歌曲分页没有推进');
           offset = result.next;
         }
-        rows[index] = { id, origin, remote: true, name: list.name, cover: list.cover, tracks: [...tracks.values()] };
+        rows[index] = {
+          id,
+          origin,
+          remote: true,
+          name: list.name,
+          cover: list.cover,
+          tracks: [...tracks.values()],
+          syncedAt: Date.now(),
+          remoteCount: list.count,
+        };
       } catch (e) {
         signal.throwIfAborted();
         failed++;

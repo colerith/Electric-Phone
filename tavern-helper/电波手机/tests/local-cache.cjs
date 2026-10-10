@@ -8,15 +8,26 @@ require.extensions['.ts'] = (m, f) =>
     }).outputText,
     f,
   );
-const { indexedDB, IDBObjectStore } = require('fake-indexeddb');
+const { indexedDB, IDBObjectStore } = require(
+  require.resolve('fake-indexeddb', { paths: [require('node:path').resolve('.wave-publish/Electric-Phone')] }),
+);
 global.indexedDB = indexedDB;
 const originalGetAll = IDBObjectStore.prototype.getAll;
 IDBObjectStore.prototype.getAll = function (...args) {
   assert.equal(this.name, 'metadata', 'never materialize all cached chat bodies');
   return originalGetAll.apply(this, args);
 };
-const { cachedParse, cacheStats, clearParseCache } = require('../services/core/local-cache.ts');
+const { cachedParse, cacheStats, clearParseCache, chatParseSignature } = require('../services/core/local-cache.ts');
 (async () => {
+  const floors = [
+    { message_id: 0, message: '🌙'.repeat(100000) },
+    { message_id: 1, message: 'second' },
+  ];
+  const signature = await chatParseSignature('one', floors);
+  assert(signature.length < 200, 'signature never stores complete floor content');
+  assert.equal(await chatParseSignature('one', floors), signature);
+  assert.notEqual(await chatParseSignature('one', [...floors].reverse()), signature);
+  assert.notEqual(await chatParseSignature('one', [{ ...floors[0], message: 'edited' }, floors[1]]), signature);
   const value = { large: 'x'.repeat(256 * 1024) };
   for (let i = 0; i < 20; i++) await cachedParse('card' + i, 'chat', 'v1', 1, () => value);
   assert.equal((await cacheStats()).count, 20);

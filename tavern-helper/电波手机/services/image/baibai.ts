@@ -113,7 +113,7 @@ async function localVibe(key: string): Promise<unknown> {
   });
 }
 export async function importBaibaiReference(id: string): Promise<ImageReference> {
-  const vibe = baibaiSettings().nai?.vibes?.find((v: BaiRecord) => v.id === id);
+  const vibe = baibaiSettings().nai?.vibes?.find((v: BaiRecord) => String(v.id) === id);
   if (!vibe) throw Error('该参考图已不存在，请重新读取列表');
   let data: BaiRecord = vibe;
   if (typeof vibe.dataPath === 'string' && vibe.dataPath) {
@@ -129,11 +129,20 @@ export async function importBaibaiReference(id: string): Promise<ImageReference>
   }
   if (!data) throw Error('参考图数据不存在');
   const image = typeof data.image === 'string' ? data.image : '';
+  const extraction = Object.values(data.encodings || {}).find(
+    (entry: any) => typeof entry?.infoExtracted === 'number',
+  ) as { infoExtracted: number } | undefined;
   const parsed = ImageReferenceSchema.parse({
     id: `baibai-${id}`,
     name: vibe.name,
     strength: vibe.strength,
-    image: image ? (image.startsWith('data:') ? image : `data:image/png;base64,${image}`) : '',
+    enabled: typeof vibe.enabled === 'boolean' ? vibe.enabled : true,
+    informationExtracted: extraction?.infoExtracted ?? 1,
+    image: image
+      ? /^(?:data:|https?:|\/?user\/files\/|\/characters\/)/.test(image)
+        ? image
+        : `data:image/${image.startsWith('/9j/') ? 'jpeg' : 'png'};base64,${image}`
+      : '',
     encodings: data.encodings,
   });
   if (!parsed.image && !Object.keys(parsed.encodings).length) throw Error('参考图缺少原图和编码数据');

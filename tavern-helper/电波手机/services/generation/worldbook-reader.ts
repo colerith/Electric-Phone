@@ -35,7 +35,11 @@ export async function readWorldbookEntries(name: string): Promise<ReadableWorldb
   try {
     entries = await getWorldbook(name);
   } catch (error) {
-    if (!/toLocaleLowerCase|toLowerCase/.test(String(error)))
+    if (
+      !/toLocaleLowerCase|toLowerCase|InvalidCharacter|Latin.?1|Unicode|surrogate|URIError|URI malformed|Invalid regular expression|outside of the Latin1/i.test(
+        String(error),
+      )
+    )
       throw Error(`读取世界书「${name}」失败：${String(error)}`);
     const raw = await SillyTavern.loadWorldInfo(name);
     if (!raw?.entries || typeof raw.entries !== 'object')
@@ -60,7 +64,7 @@ export async function readWorldbookEntries(name: string): Promise<ReadableWorldb
           },
         };
       });
-    logDiagnostic('世界书读取兼容', `「${name}」已通过原始条目读取，过滤非文本关键词；未改写世界书`);
+    logDiagnostic('世界书读取兼容', `「${name}」已通过原始条目读取，保留 Unicode 文本并过滤非文本关键词；未改写世界书`);
   }
   if (!Array.isArray(entries)) throw Error(`世界书「${name}」未返回条目列表`);
   return entries.flatMap((entry): ReadableWorldbookEntry[] => {
