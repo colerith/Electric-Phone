@@ -82,6 +82,12 @@
 import { WAVE_PHONE_RELEASE_VERSION } from '../../schemas';
 const projects = [
   {
+    name: '柏宝绘 · ST-BaiBai-Image',
+    url: 'https://github.com/baibai-git/ST-BaiBai-Image',
+    license: '以原仓库授权为准',
+    note: '参考资源文件与元信息分离的存储思路；电波手机独立实现文件去重、旧资源转存与二进制备份，未复制其代码。',
+  },
+  {
     name: 'Folia',
     url: 'https://github.com/chthollyphile/folia-major',
     license: 'AGPL-3.0',

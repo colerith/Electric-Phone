@@ -222,13 +222,13 @@ const fileSize = computed(() => {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 });
 
-function exportBackup(modules: BackupModule[]): void {
+async function exportBackup(modules: BackupModule[]): Promise<void> {
   busy.value = true;
   failed.value = false;
   notice.value = '';
   try {
     phone.saveSettings();
-    const { filename, blob } = createPhoneBackup(modules);
+    const { filename, blob } = await createPhoneBackup(modules);
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;

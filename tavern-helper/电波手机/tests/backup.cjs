@@ -1,3 +1,4 @@
+require('./resource-server.cjs');
 const fs = require('fs'),
   path = require('path'),
   assert = require('node:assert/strict'),
@@ -54,7 +55,7 @@ const wrap = data => ({
       migratedChats: [chatKey],
     },
   });
-  const exported = createPhoneBackup();
+  const exported = await createPhoneBackup();
   assert(exported.filename.endsWith('.zip'));
   const file = new File([await exported.blob.arrayBuffer()], exported.filename, { type: 'application/zip' });
   variables.global[schemas.SCRIPT_VARIABLE_KEY] = wrap({});
@@ -63,14 +64,14 @@ const wrap = data => ({
   const restored = await importPhoneBackup(file);
   assert.equal(restored.chatImported, true);
   assert.equal(variables.global.wave_phone_character_defaults.data[cardKey].walletBook.accounts.user.opening.CNY, 123);
-  assert.equal(variables.global.wave_phone_character_defaults.data[cardKey].artwork.alice.zone, cover);
+  assert.equal(await (await fetch(variables.global.wave_phone_character_defaults.data[cardKey].artwork.alice.zone)).text(), 'backup cover bytes');
   assert.equal(variables.global[schemas.SCRIPT_VARIABLE_KEY].data.api.key, 'secret');
   assert.equal(variables.chat[schemas.CHAT_VARIABLE_KEY].activeCharKey, 'alice');
 
   const { unzipSync, zipSync, strFromU8, strToU8 } = require('fflate');
   const { unpackBackupAssets } = require(base + '/services/core/backup-assets.ts');
   const archiveFiles = unzipSync(new Uint8Array(await file.arrayBuffer()));
-  const legacyJson = unpackBackupAssets(
+  const legacyJson = await unpackBackupAssets(
     JSON.parse(strFromU8(archiveFiles['backup.json'])),
     archiveFiles,
     50 * 1024 * 1024,
@@ -108,7 +109,7 @@ const wrap = data => ({
     messages: [{ id: 'private', sender: 'char', content: '私密聊天内容', createdAt: now }],
   });
   state.snapshots.bob = schemas.AppSnapshotSchema.parse({ memo: '{"notes":[]}', sourceMessageIds: [4] });
-  const modular = createPhoneBackup(['messages', 'history', 'memo']);
+  const modular = await createPhoneBackup(['messages', 'history', 'memo']);
   const modularFile = new File([await modular.blob.arrayBuffer()], 'modules.zip');
   const data = JSON.parse(strFromU8(unzipSync(new Uint8Array(await modularFile.arrayBuffer()))['backup.json']));
   assert.deepEqual(await inspectPhoneBackup(modularFile), ['messages', 'history', 'memo']);

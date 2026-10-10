@@ -1,3 +1,4 @@
+import { externalizeResources } from '../core/resource-storage';
 import { ImageProfileSchema, ImageReferenceSchema, type ImageProfile, type ImageReference } from './schema';
 
 type BaiRecord = Record<string, any>;
@@ -136,5 +137,5 @@ export async function importBaibaiReference(id: string): Promise<ImageReference>
     encodings: data.encodings,
   });
   if (!parsed.image && !Object.keys(parsed.encodings).length) throw Error('参考图缺少原图和编码数据');
-  return parsed;
+  return externalizeResources(parsed);
 }

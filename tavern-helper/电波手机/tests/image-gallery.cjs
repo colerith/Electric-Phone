@@ -1,3 +1,4 @@
+require('./resource-server.cjs');
 const fs = require('fs'),
   path = require('path'),
   assert = require('node:assert/strict'),
@@ -87,7 +88,7 @@ const { nextTick } = require('vue');
   await store.runImageAction(target, draft, 'generate', new AbortController().signal);
   let asset = store.getImageAsset(target);
   assert.equal(asset.versions.length, 2);
-  assert.equal(selectedImage(asset).url, 'data:image/png;base64,BAUG');
+  assert.match(selectedImage(asset).url, /^\/user\/files\/wave-resource-/);
   assert.match(payload.prompt, /no (people|humans)|不含人物|without people/i);
   require(base + '/services/generation/generation.ts').generateImageCaption = async () => '雨停了，街道还映着灯光。';
   await store.runImageAction(target, asset, 'caption', new AbortController().signal);
@@ -107,7 +108,7 @@ const { nextTick } = require('vue');
   await assert.rejects(store.runImageAction(target, before, 'generate', new AbortController().signal), /正在生成/);
   cancel.abort();
   resolve(new Response(JSON.stringify({ data: [{ b64_json: 'BwgJ' }] })));
-  await pending;
+  await assert.rejects(pending, { name: 'AbortError' });
   assert.equal(store.getImageAsset(target).versions.length, 2);
   const deleting = store.runImageAction(target, store.getImageAsset(target), 'generate', new AbortController().signal);
   thread.messages = [];

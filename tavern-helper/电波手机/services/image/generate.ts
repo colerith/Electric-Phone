@@ -1,3 +1,4 @@
+import { storeResource, resourceEncoding } from '../core/resource-storage';
 import { unzipSync } from 'fflate';
 import { IMAGE_MODELS, type ImageProfile, type CharacterImage } from './schema';
 import { klona } from 'klona';
@@ -29,28 +30,47 @@ export function imageSubjectRequest(profile: ImageProfile, character: CharacterI
 export function imageApiRoot(profile: ImageProfile): string {
   const raw =
     profile.baseUrl.trim() || (profile.provider === 'novelai' ? 'https://image.novelai.net' : 'https://api.openai.com');
-  const url = new URL(raw);
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw Error('生图 API 地址格式不正确，请填写完整的 HTTP(S) 地址');
+  }
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash)
     throw Error('生图 API 地址应为不含密码或查询参数的 HTTP(S) 地址');
-  return raw.replace(/\/+$/, '').replace(/\/(?:v1(?:\/images\/(?:generations|edits))?|ai(?:\/generate-image)?)$/, '');
+  const suffix =
+    profile.provider === 'novelai'
+      ? /\/ai(?:\/(?:generate-image|encode-vibe|models))?$/
+      : /\/(?:v1(?:\/(?:images\/(?:generations|edits)|models))?|images\/(?:generations|edits))$/;
+  return raw.replace(/\/+$/, '').replace(suffix, '');
 }
-export async function fetchImageModels(profile: ImageProfile): Promise<string[]> {
+/** Validate drafts without requiring credentials until a request is actually made. */
+export function validateImageProfile(profile: ImageProfile, requireCredentials = false): void {
+  imageApiRoot(profile);
+  if (profile.provider === 'novelai' && (profile.width % 64 || profile.height % 64))
+    throw Error('NovelAI 的宽高需为 64 的倍数');
+  if (requireCredentials) {
+    if (!profile.apiKey.trim()) throw Error('请在图像生成配置中填写密钥');
+    if (!profile.model.trim()) throw Error('请填写生图模型');
+  }
+}
+export async function fetchImageModels(profile: ImageProfile, signal?: AbortSignal): Promise<string[]> {
   const response = await fetch(
     `${imageApiRoot(profile)}/${profile.provider === 'novelai' ? 'ai/models' : 'v1/models'}`,
     {
       headers: profile.apiKey.trim() ? { Authorization: `Bearer ${profile.apiKey.trim()}` } : {},
-      signal: AbortSignal.timeout(15000),
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
     },
   );
   if (!response.ok) throw Error(`模型接口返回 ${response.status}；可继续使用内置模型或手动填写`);
   const data = await response.json();
-  const rows: unknown[] = Array.isArray(data) ? data : data.data || data.models || [];
+  const rows: unknown = Array.isArray(data) ? data : (data?.data ?? data?.models);
+  if (!Array.isArray(rows)) throw Error('模型列表格式无法识别；可手动填写模型 ID');
   const models = rows
-    .map((r: any) => (typeof r === 'string' ? r : r.id || r.name))
-    .filter(
-      (id): id is string =>
-        typeof id === 'string' && (profile.provider === 'novelai' ? /nai-diffusion/.test(id) : /image/.test(id)),
-    );
+    .map(r => (typeof r === 'string' ? r : r && typeof r === 'object' ? r.id || r.name : undefined))
+    // Proxies may expose aliases that contain neither "image" nor "nai-diffusion".
+    .filter((id): id is string => typeof id === 'string' && Boolean(id.trim()))
+    .map(id => id.trim());
   if (!models.length) throw Error('接口未返回生图模型；已保留内置列表');
   return [...new Set([...models, ...IMAGE_MODELS[profile.provider]])];
 }
@@ -134,8 +154,7 @@ export async function generateImage(
   signal: AbortSignal,
 ): Promise<string> {
   if (!character.enabled) throw Error('请先启用当前角色的生图');
-  if (!profile.apiKey.trim()) throw Error('请在图像生成配置中填写密钥');
-  if (!profile.model.trim()) throw Error('请填写生图模型');
+  validateImageProfile(profile, true);
   const root = imageApiRoot(profile);
   const headers = { Authorization: `Bearer ${profile.apiKey.trim()}` };
   if (profile.provider === 'novelai') {
@@ -164,7 +183,10 @@ export async function generateImage(
           throw Error('NovelAI 未返回有效参考图编码');
         encoding = bytesBase64(bytes);
       }
-      body.parameters.reference_image_multiple_cached.push({ cache_secret_key: crypto.randomUUID(), data: encoding });
+      body.parameters.reference_image_multiple_cached.push({
+        cache_secret_key: crypto.randomUUID(),
+        data: await resourceEncoding(encoding, signal),
+      });
       body.parameters.reference_strength_multiple.push(reference.strength);
     }
     const totalStrength = body.parameters.reference_strength_multiple.reduce((sum, value) => sum + value, 0);
@@ -185,20 +207,26 @@ export async function generateImage(
     });
     const entry = Object.entries(files).find(([name]) => /\.(png|webp|jpe?g)$/i.test(name));
     if (!entry) throw Error('NovelAI 未返回图片');
-    return `data:image/${/\.png$/i.test(entry[0]) ? 'png' : /\.webp$/i.test(entry[0]) ? 'webp' : 'jpeg'};base64,${bytesBase64(entry[1])}`;
+    return storeResource(
+      new Blob([entry[1]], {
+        type: `image/${/\.png$/i.test(entry[0]) ? 'png' : /\.webp$/i.test(entry[0]) ? 'webp' : 'jpeg'}`,
+      }),
+      signal,
+    );
   }
   const input = imagePrompt(profile, character, prompt);
+  const references = character.references.filter(reference => reference.enabled !== false && reference.strength > 0);
   const size = `${profile.width}x${profile.height}`;
   let body: BodyInit;
   let requestHeaders: Record<string, string> = headers;
-  if (character.references.length) {
+  if (references.length) {
     const form = new FormData();
     form.set('model', profile.model);
     form.set('prompt', input);
     form.set('size', size);
     form.set('quality', profile.quality);
     form.set('n', '1');
-    for (const [index, reference] of character.references.entries()) {
+    for (const [index, reference] of references.entries()) {
       const blob = await imageBlob(reference.image, signal);
       form.append('image[]', blob, `reference-${index}.${blob.type.split('/')[1]}`);
     }
@@ -208,7 +236,7 @@ export async function generateImage(
     requestHeaders = { ...headers, 'Content-Type': 'application/json' };
   }
   const response = await checked(
-    await fetch(`${root}/v1/images/${character.references.length ? 'edits' : 'generations'}`, {
+    await fetch(`${root}/v1/images/${references.length ? 'edits' : 'generations'}`, {
       method: 'POST',
       headers: requestHeaders,
       body,
@@ -217,10 +245,11 @@ export async function generateImage(
   );
   const data = await response.json();
   const result = data.data?.[0];
-  if (typeof result?.b64_json === 'string' && result.b64_json) return `data:image/png;base64,${result.b64_json}`;
+  if (typeof result?.b64_json === 'string' && result.b64_json)
+    return storeResource(`data:image/png;base64,${result.b64_json}`, signal);
   if (typeof result?.url === 'string' && /^https?:\/\//.test(result.url)) {
     const blob = await imageBlob(result.url, signal);
-    return `data:${blob.type};base64,${bytesBase64(new Uint8Array(await blob.arrayBuffer()))}`;
+    return storeResource(blob, signal);
   }
   throw Error('GPT Image 未返回图片');
 }

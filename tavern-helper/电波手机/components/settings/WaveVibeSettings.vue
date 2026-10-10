@@ -190,7 +190,7 @@ async function readFile(event: Event) {
   const token = revision;
   try {
     if (file.size > 20 * 1024 * 1024) throw Error('Vibe 文件不能超过 20MB');
-    const value = parseVibeFile(await file.text());
+    const value = await parseVibeFile(await file.text());
     if (token === revision) add(value);
   } catch (e) {
     if (token === revision) status.value = e instanceof Error ? e.message : 'Vibe 文件读取失败';

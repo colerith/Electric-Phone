@@ -44,7 +44,7 @@ module.exports = async () => {
     output: {
       path: path.join(__dirname, workspace ? 'dist/wave-extension' : 'dist'),
       filename: 'index.js',
-      publicPath: '',
+      publicPath: 'auto',
       clean: false,
     },
     resolve: {
@@ -68,7 +68,7 @@ module.exports = async () => {
         },
         { test: /\.s[ac]ss$/, use: ['style-loader', { loader: 'css-loader', options: { url: false } }, 'sass-loader'] },
         { test: /\.css$/, use: ['style-loader', { loader: 'css-loader', options: { url: false } }] },
-        { test: /\.(png|jpe?g|gif|webp|svg|woff2?|mp3|wav)$/i, type: 'asset/inline' },
+        { test: /\.(png|jpe?g|gif|webp|svg|woff2?|mp3|wav)$/i, type: 'asset/resource', generator: { filename: 'media/[contenthash][ext]' } },
       ],
     },
     plugins: [

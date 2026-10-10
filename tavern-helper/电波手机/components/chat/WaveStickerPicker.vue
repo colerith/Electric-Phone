@@ -192,6 +192,7 @@
 </template>
 
 <script setup lang="ts">
+import { storeResource } from '../../services/core/resource-storage';
 import emojiData from '@emoji-mart/data/sets/15/native.json';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import WaveSelect from '../shared/WaveSelect.vue';
@@ -468,20 +469,13 @@ function addSingle(): void {
 async function importFiles(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement;
   const files = [...(input.files || [])].filter(file => file.type.startsWith('image/'));
-  const entries = await Promise.all(
-    files.map(
-      file =>
-        new Promise<{ name: string; url: string }>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.addEventListener('load', () =>
-            resolve({ name: file.name.replace(/\.[^.]+$/, ''), url: String(reader.result || '') }),
-          );
-          reader.addEventListener('error', () => reject(reader.error));
-          reader.readAsDataURL(file);
-        }),
-    ),
-  );
-  addImported(entries);
+  const entries: { name: string; url: string }[] = [];
+  try {
+    for (const file of files) entries.push({ name: file.name.replace(/\.[^.]+$/, ''), url: await storeResource(file) });
+    addImported(entries);
+  } catch (error) {
+    emit('notify', error instanceof Error ? error.message : '资源上传失败');
+  }
   input.value = '';
 }
 async function exportVisible(): Promise<void> {

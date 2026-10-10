@@ -169,6 +169,7 @@
 </template>
 
 <script setup lang="ts">
+import { storeResource } from '../../services/core/resource-storage';
 import { avatarCropStyle } from '../../services/core/avatar';
 import { computed, ref, watch, nextTick, onBeforeUnmount, inject } from 'vue';
 import WaveSlider from './WaveSlider.vue';
@@ -346,28 +347,30 @@ function endCropDrag(event: PointerEvent): void {
   cropDrag = null;
 }
 
-function compressImage(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(Error('无法读取图片文件。'));
-    reader.onload = () => {
-      const image = new Image();
+async function compressImage(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
       image.onerror = () => reject(Error('图片格式无法识别。'));
-      image.onload = () => {
-        const maxSide = props.maxSide;
-        const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(image.width * scale));
-        canvas.height = Math.max(1, Math.round(image.height * scale));
-        const context = canvas.getContext('2d');
-        if (!context) return reject(Error('浏览器无法处理图片。'));
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', props.quality));
-      };
-      image.src = String(reader.result || '');
-    };
-    reader.readAsDataURL(file);
-  });
+      image.src = url;
+    });
+    const scale = Math.min(1, props.maxSide / Math.max(image.width, image.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.width * scale));
+    canvas.height = Math.max(1, Math.round(image.height * scale));
+    const context = canvas.getContext('2d');
+    if (!context) throw Error('浏览器无法处理图片。');
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(value => (value ? resolve(value) : reject(Error('图片处理失败'))), 'image/jpeg', props.quality),
+    );
+    canvas.width = canvas.height = 0;
+    return await storeResource(blob);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 async function readFile(event: Event): Promise<void> {
@@ -392,10 +395,16 @@ async function readFile(event: Event): Promise<void> {
   }
 }
 
-function confirm(): void {
-  const value = draftValue.value.trim();
+async function confirm(): Promise<void> {
+  let value = draftValue.value.trim();
   if (!isAllowedImageSource(value)) {
     errorText.value = '请输入酒馆内部头像地址、http/https 图片地址，或从本地选择图片。';
+    return;
+  }
+  try {
+    value = await storeResource(value);
+  } catch (error) {
+    errorText.value = error instanceof Error ? error.message : String(error);
     return;
   }
   aiOpened.value = false;

@@ -3354,8 +3354,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         relationshipToUser: row.relationship,
         actorType: 'npc',
         source: 'local_contact',
-        avatar: /^data:image\//.test(row.avatar) ? row.avatar : '',
-        avatarCustomized: /^data:image\//.test(row.avatar),
+        avatar: /^(?:\/user\/files\/|https?:\/\/)/.test(row.avatar) ? row.avatar : '',
+        avatarCustomized: /^(?:\/user\/files\/|https?:\/\/)/.test(row.avatar),
         createdAt: nowIso(),
         updatedAt: nowIso(),
       });

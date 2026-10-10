@@ -1,3 +1,4 @@
+require('./resource-server.cjs');
 const fs = require('fs'),
   path = require('path'),
   assert = require('node:assert/strict'),
@@ -99,18 +100,21 @@ dom.window.HTMLAnchorElement.prototype.click = () => {};
   }
   await tick();
   click('导出备份');
+  for (let i = 0; i < 100 && !exported; i++) await new Promise(resolve => setTimeout(resolve, 10));
   await tick();
   assert(exported);
   const file = new File([await exported.arrayBuffer()], 'messages.zip');
   assert.deepEqual(await inspectPhoneBackup(file), ['messages']);
+  exported = undefined;
   click('全量导出备份');
+  for (let i = 0; i < 100 && !exported; i++) await new Promise(resolve => setTimeout(resolve, 10));
   await tick();
   assert.deepEqual(
     await inspectPhoneBackup(new File([await exported.arrayBuffer()], 'all.zip')).then(items => items.length),
     12,
   );
   if (process.env.WAVE_QA_HTML) fs.writeFileSync(process.env.WAVE_QA_HTML, document.querySelector('#app').innerHTML);
-  const selected = createPhoneBackup(['messages', 'history']);
+  const selected = await createPhoneBackup(['messages', 'history']);
   const input = document.querySelector('input[type=file]');
   Object.defineProperty(input, 'files', { value: [new File([await selected.blob.arrayBuffer()], 'two-modules.zip')] });
   input.dispatchEvent(new Event('change', { bubbles: true }));

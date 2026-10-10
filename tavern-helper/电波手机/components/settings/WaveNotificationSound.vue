@@ -35,6 +35,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import { storeResource } from '../../services/core/resource-storage';
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import WaveToggle from '../shared/WaveToggle.vue';
@@ -106,12 +107,7 @@ async function upload(event: Event) {
     return;
   }
   try {
-    const data = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(Error('文件读取失败'));
-      reader.onload = () => resolve(String(reader.result).replace(/^data:[^;]*;/, `data:${mime};`));
-      reader.readAsDataURL(file);
-    });
+    const data = await storeResource(new Blob([file], { type: mime }));
     if (id !== uploadId) return;
     config.value.customSound = data;
     config.value.customSoundName = file.name;

@@ -1,3 +1,4 @@
+const resourceServer = require('./resource-server.cjs');
 const fs = require('node:fs'),
   assert = require('node:assert/strict'),
   ts = require('typescript');
@@ -250,6 +251,30 @@ function state(content) {
   failUpload = false;
   await storage.flushPhoneStorage();
   assert.equal(storage.readPhoneGlobals()[schema.SCRIPT_VARIABLE_KEY].data.api.model, 'imported-model');
+  // Migrate legacy resources before any new state is committed, preserving originals on failure.
+  server.clear();
+  storage = restart();
+  SillyTavern.extensionSettings = {};
+  const legacy = 'data:image/png;base64,' + btoa('legacy resource migration');
+  vars.global = { [schema.SCRIPT_VARIABLE_KEY]: wrap(schema.ScriptSettingsSchema.parse({ appearance: { coverWallpaper: legacy } })) };
+  // Use an existing schema-defined resource field.
+  vars.global[schema.SCRIPT_VARIABLE_KEY].data.appearance.coverWallpaper = legacy;
+  const oldGlobals = structuredClone(vars.global);
+  resourceServer.failNext = true;
+  await assert.rejects(storage.preparePhoneStorage(), /落盘失败/);
+  assert.deepEqual(vars.global, oldGlobals);
+  await storage.preparePhoneStorage();
+  const newPath = vars.global[schema.SCRIPT_VARIABLE_KEY].data.appearance.coverWallpaper;
+  assert.match(newPath, /^\/user\/files\/wave-resource-/);
+  assert.equal(resourceServer.files.get(newPath).toString(), 'legacy resource migration');
+  const oldChat = state('legacy image');
+  oldChat.threads.alice.messages[0].payload = { url: legacy };
+  vars.chat = { [schema.CHAT_VARIABLE_KEY]: oldChat };
+  await storage.preparePhoneChat(getRuntimeContext());
+  assert.equal(vars.chat[schema.CHAT_VARIABLE_KEY].threads.alice.messages[0].payload.url, newPath);
+  assert(!JSON.stringify(vars).includes(';base64,'));
+  assert.throws(() => storage.writePhoneChat(oldChat), /Base64/);
+  await storage.flushPhoneStorage();
   console.log(
     'PASS: server recovery without browser state, two snapshots, retry, deliberate deletion, corrupt data and chat-switch isolation.',
   );

@@ -1,3 +1,4 @@
+import { externalizeResources, assertExternalResources } from './resource-storage';
 import isEqual from 'lodash/isEqual';
 import { klona } from 'klona';
 import { reactive } from 'vue';
@@ -216,6 +217,7 @@ function report(error: unknown): void {
 }
 function queue(scope: string, data: Record<string, unknown>): number {
   if (!supported()) return Date.now();
+  assertExternalResources(data);
   const previous = pending.get(scope) || snapshots.get(scope);
   if (previous && isEqual(previous.data, data)) return previous.savedAt;
   const savedAt = Math.max(
@@ -324,6 +326,13 @@ export async function preparePhoneStorage(): Promise<void> {
       phoneStorageStatus.savedAt = candidates[0].savedAt;
       void Promise.resolve(SillyTavern.saveSettingsDebounced()).catch(report);
     }
+    const original = globalsOnly(readPhoneGlobals());
+    const migrated = await externalizeResources(original);
+    if (migrated !== original) {
+      writePhoneGlobals({ ...readPhoneGlobals(), ...migrated });
+      await flushPhoneStorage();
+      phoneStorageStatus.recovery = '旧资源已转存为独立文件，存档仅保留路径。';
+    }
   })()
     .catch(error => {
       loaded.delete('global');
@@ -342,7 +351,21 @@ export function preparePhoneChat(context: RuntimeContext): Promise<void> {
   const scope = chatScope(context);
   const existing = chatPreparations.get(scope);
   if (existing) return existing;
-  const preparing = restorePhoneChat(context).finally(() => chatPreparations.delete(scope));
+  const preparing = restorePhoneChat(context)
+    .then(async () => {
+      if (!supported() || chatScope(getRuntimeContext() || { cardKey: '', chatKey: '' }) !== scope) return;
+      const before = getVariables({ type: 'chat' });
+      const original = before[CHAT_VARIABLE_KEY];
+      if (!original) return;
+      const migrated = await externalizeResources(original);
+      if (migrated === original) return;
+      if (chatScope(getRuntimeContext() || { cardKey: '', chatKey: '' }) !== scope) return;
+      if (getVariables({ type: 'chat' }).wave_phone_saved_at !== before.wave_phone_saved_at)
+        throw Error('资源转存期间聊天存档已变化，请重试同步');
+      writePhoneChat(migrated);
+      await flushPhoneStorage();
+    })
+    .finally(() => chatPreparations.delete(scope));
   chatPreparations.set(scope, preparing);
   return preparing;
 }

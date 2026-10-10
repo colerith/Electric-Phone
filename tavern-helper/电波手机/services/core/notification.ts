@@ -4,7 +4,7 @@ import { notificationSounds } from './notification-assets';
 let audio: HTMLAudioElement | undefined;
 export function notificationUrl(settings: ScriptSettings['notifications']): string {
   if (settings.soundId === 'custom') {
-    if (!/^(https?:\/\/|data:audio\/)/i.test(settings.customSound)) throw Error('请上传音频或填写有效音频链接。');
+    if (!/^(https?:\/\/|\/user\/files\/|data:audio\/)/i.test(settings.customSound)) throw Error('请上传音频或填写有效音频链接。');
     return settings.customSound;
   }
   return (notificationSounds.find(s => s.id === settings.soundId) || notificationSounds[0]).url;

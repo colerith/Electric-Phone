@@ -1,3 +1,4 @@
+require('./resource-server.cjs');
 const fs = require('fs'),
   path = require('path'),
   ts = require('typescript'),
@@ -16,7 +17,7 @@ const { activeNovelAiReferences, generateImage } = require(base + '/services/ima
 const { zipSync } = require('fflate');
 const signal = new AbortController().signal;
 (async () => {
-  const imported = parseVibeFile(
+  const imported = await parseVibeFile(
     JSON.stringify({
       identifier: 'novelai-vibe-transfer',
       name: 'Style',
@@ -26,7 +27,7 @@ const signal = new AbortController().signal;
   );
   assert.equal(imported.informationExtracted, 0.4);
   assert.equal(imported.strength, 0.75);
-  assert.throws(() => parseVibeFile('{}'), /naiv4vibe/);
+  await assert.rejects(parseVibeFile('{}'), /naiv4vibe/);
   const disabled = ImageReferenceSchema.parse({ id: 'disabled', enabled: false });
   const profile = ImageProfileSchema.parse({ id: 'nai', apiKey: 'test', vibes: [imported, disabled] });
   const character = CharacterImageSchema.parse({ enabled: true, references: [{ ...imported, id: 'character' }] });

@@ -117,6 +117,7 @@ const tick = () => new Promise(r => setImmediate(r));
   // jsdom eval has no ES-module loader. Supply the host module URL for this bootstrap fixture.
   // The actual unchanged artifact is also smoke-tested as a browser module.
   const artifact = fs.readFileSync(path.resolve(workspace ? 'dist/wave-extension/index.js' : 'dist/index.js'), 'utf8');
+  assert.doesNotMatch(artifact, /data:(?:image|audio|font)\/[^,;]+;base64,[A-Za-z0-9+/]{128}/, 'bundle must not embed Base64 media');
   window.eval(artifact.replaceAll('import.meta.url', JSON.stringify('http://localhost/scripts/extensions/third-party/Electric-Phone/dist/index.js')));
   await new Promise(r => setTimeout(r, 100));
   assert.equal(window.Vue, undefined, 'Vue is bundled, not injected into host globals');

@@ -1,3 +1,4 @@
+require('./resource-server.cjs');
 const fs = require('fs'),
   path = require('path'),
   assert = require('node:assert/strict'),
@@ -57,9 +58,9 @@ const profiles = require(base + '/schemas.ts');
   global.fetch = async () => new Response(JSON.stringify({ data: [{ b64_json: 'AQID' }] }));
   await store.generateCharacterImage('reading', new AbortController().signal);
   assert.equal(store.activeThread.messages.at(-1).type, 'image');
-  assert.equal(store.activeThread.messages.at(-1).payload.url, 'data:image/png;base64,AQID');
+  assert.match(store.activeThread.messages.at(-1).payload.url, /^\/user\/files\/wave-resource-/);
   assert.equal(store.activeThread.messages.at(-1).sender, 'char');
-  const backup = createPhoneBackup(['general', 'messages', 'history']);
+  const backup = await createPhoneBackup(['general', 'messages', 'history']);
   store.setCharacterImage(CharacterImageSchema.parse({}));
   await importPhoneBackup(new File([await backup.blob.arrayBuffer()], backup.filename));
   const savedProfiles = vars.global[profiles.PROFILE_VARIABLE_KEY].data;

@@ -1225,6 +1225,7 @@
 </template>
 
 <script setup lang="ts">
+import { storeResource } from './services/core/resource-storage';
 import { usePhoneTheme } from './services/core/theme';
 import _ from 'lodash';
 
@@ -1423,21 +1424,12 @@ async function selectPhotos(event: Event): Promise<void> {
   const element = event.target as HTMLInputElement;
   try {
     const files = Array.from(element.files || []).slice(0, 9);
-    const photos = await Promise.all(
-      files.map(
-        file =>
-          new Promise<{ url: string; description: string }>((resolve, reject) => {
-            if (!file.type.startsWith('image/') || file.size > 8 * 1024 * 1024) {
-              reject(new Error('请选择 8MB 以内的图片'));
-              return;
-            }
-            const reader = new FileReader();
-            reader.onload = () => resolve({ url: String(reader.result), description: file.name });
-            reader.onerror = () => reject(new Error('图片读取失败'));
-            reader.readAsDataURL(file);
-          }),
-      ),
-    );
+    const photos: { url: string; description: string }[] = [];
+    for (const file of files) {
+      if (!file.type.startsWith('image/') || file.size > 8 * 1024 * 1024)
+        throw Error('请选择 8MB 以内的图片');
+      photos.push({ url: await storeResource(file), description: file.name });
+    }
     selectedPhotos.value = photos;
   } catch (error) {
     toastr.error(String(error));

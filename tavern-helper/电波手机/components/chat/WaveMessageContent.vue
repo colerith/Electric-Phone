@@ -575,7 +575,7 @@ const stickerUrl = computed(() => {
   const value = payloadString('stickerUrl') || payloadString('url');
   const markedSticker =
     props.message.type === 'emoji' || payloadString('emojiType') === 'sticker' || Boolean(payloadString('stickerUrl'));
-  return markedSticker && (/^https?:\/\//i.test(value) || value.startsWith('data:image/')) ? value : '';
+  return markedSticker && (/^https?:\/\//i.test(value) || value.startsWith('data:image/') || value.startsWith('/user/files/')) ? value : '';
 });
 const safeLinkUrl = computed(() => {
   const value = payloadString('url');

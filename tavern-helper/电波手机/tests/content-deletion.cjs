@@ -1,3 +1,4 @@
+require('./resource-server.cjs');
 const fs = require('fs'),
   path = require('path'),
   assert = require('node:assert/strict'),
@@ -77,7 +78,7 @@ const delta = content => ({
     ['memo-2'],
   );
   const { createPhoneBackup, importPhoneBackup } = require(base + '/services/core/backup.ts');
-  const backup = createPhoneBackup(['memo']);
+  const backup = await createPhoneBackup(['memo']);
   const archive = new File([await backup.blob.arrayBuffer()], 'memo.zip');
   phone.clearAppContent('memo');
   await phone.synchronize();

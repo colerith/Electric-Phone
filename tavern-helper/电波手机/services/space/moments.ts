@@ -18,7 +18,7 @@ export const MomentMediaSchema = z
     imageProfileId: z.string().optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.kind === 'image' && !/^(https?:\/\/|data:image\/(?:png|jpeg|webp|gif);base64,)/i.test(value.url))
+    if (value.kind === 'image' && !/^(https?:\/\/|\/user\/files\/|data:image\/(?:png|jpeg|webp|gif);base64,)/i.test(value.url))
       ctx.addIssue({ code: 'custom', message: '图片地址无效' });
     if (value.kind === 'description' && !value.description.trim())
       ctx.addIssue({ code: 'custom', message: '请填写图片描述' });

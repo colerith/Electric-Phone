@@ -1,0 +1,20 @@
+const fs=require('node:fs'),ts=require('typescript'),assert=require('node:assert/strict');
+require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,f);
+const server=require('./resource-server.cjs');
+const {storeResource,externalizeResources,resourceEncoding,assertExternalResources}=require('../services/core/resource-storage.ts');
+(async()=>{
+ const data='data:image/png;base64,'+btoa('same pixels');
+ const [one,two]=await Promise.all([storeResource(data),storeResource(data)]);
+ assert.equal(one,two);assert.equal(server.uploads,1);assert.equal(server.files.get(one).toString(),'same pixels');
+ const original={cover:data, nested:JSON.stringify({image:data}), refs:{encodings:{v5:{encoding:btoa('vibe binary')}}}};
+ const migrated=await externalizeResources(original);
+ assert.equal(migrated.cover,one);assert.equal(JSON.parse(migrated.nested).image,one);
+ assert.equal(await resourceEncoding(migrated.refs.encodings.v5.encoding),btoa('vibe binary'));
+ assertExternalResources(migrated);assert.throws(()=>assertExternalResources(original),/Base64/);
+ assert.equal(original.cover,data,'migration is copy-on-write');
+ assert.strictEqual(await externalizeResources(migrated),migrated,'idempotent migration');
+ server.failNext=true;const failed={image:'data:image/png;base64,'+btoa('upload failure')};
+ await assert.rejects(externalizeResources(failed),/落盘失败/);assert(failed.image.startsWith('data:'),'failed upload leaves old data untouched');
+ const controller=new AbortController();controller.abort();await assert.rejects(storeResource(new Blob(['cancel']),controller.signal));
+ console.log('PASS binary upload, in-flight dedup, nested JSON migration, on-demand Vibe, idempotency, failure preservation, abort and persistence guard');
+})().catch(e=>{console.error(e);process.exitCode=1});

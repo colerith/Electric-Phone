@@ -1,3 +1,4 @@
+require('./resource-server.cjs');
 const fs = require('fs'),
   path = require('path'),
   assert = require('node:assert/strict'),
@@ -57,8 +58,23 @@ const json = data => new Response(JSON.stringify(data), { headers: { 'Content-Ty
   global.fetch = async () => json({ data: [{ id: 'gpt-image-future' }, { id: 'text-model' }] });
   const fetched = await fetchImageModels(openai);
   assert(
-    fetched.includes('gpt-image-future') && fetched.includes(IMAGE_MODELS.openai[0]) && !fetched.includes('text-model'),
+    fetched.includes('gpt-image-future') && fetched.includes(IMAGE_MODELS.openai[0]) && fetched.includes('text-model'),
   );
+  global.fetch = async () => json({ models: [null, {}, ' proxy-art ', { name: 'proxy-art' }] });
+  assert.equal((await fetchImageModels(openai)).filter(id => id === 'proxy-art').length, 1);
+  global.fetch = async () => json({ data: { id: 'bad-format' } });
+  await assert.rejects(fetchImageModels(openai), /格式/);
+  for (const suffix of ['/v1', '/v1/models/', '/v1/images/generations', '/v1/images/edits', '/images/generations'])
+    assert.equal(
+      imageApiRoot({ ...openai, baseUrl: `https://proxy.example/api${suffix}` }),
+      'https://proxy.example/api',
+    );
+  for (const suffix of ['/ai', '/ai/models', '/ai/generate-image/', '/ai/encode-vibe'])
+    assert.equal(
+      imageApiRoot({ ...nai, baseUrl: `https://proxy.example/prefix${suffix}` }),
+      'https://proxy.example/prefix',
+    );
+  assert.throws(() => imageApiRoot({ ...openai, baseUrl: 'proxy.example' }), /完整/);
   global.fetch = async () => new Response('', { status: 404 });
   await assert.rejects(fetchImageModels(nai), /404/);
   assert(IMAGE_MODELS.novelai.includes('nai-diffusion-5-full'));
@@ -93,7 +109,7 @@ const json = data => new Response(JSON.stringify(data), { headers: { 'Content-Ty
     calls.push({ url, init });
     return json({ data: [{ b64_json: 'cGl4ZWw=' }] });
   };
-  assert.equal(await generateImage(openai, character, 'reading', signal), 'data:image/png;base64,cGl4ZWw=');
+  assert.match(await generateImage(openai, character, 'reading', signal), /^\/user\/files\/wave-resource-/);
   assert.equal(calls[0].url, 'https://api.openai.com/v1/images/generations');
   assert.equal(JSON.parse(calls[0].init.body).prompt, 'red hair, reading');
   calls = [];
@@ -101,24 +117,37 @@ const json = data => new Response(JSON.stringify(data), { headers: { 'Content-Ty
     calls.push({ url, init });
     if (url.startsWith('data:'))
       return new Response(new Uint8Array([1, 2]), { headers: { 'Content-Type': 'image/png' } });
-    return json({ data: [{ b64_json: 'image' }] });
+    return json({ data: [{ b64_json: 'AQID' }] });
   };
   const reference = { id: 'ref', name: 'ref', image: 'data:image/png;base64,AQ==', strength: 0.6, encodings: {} };
   await generateImage(openai, { ...character, references: [reference] }, 'reading', signal);
-  assert.equal(calls[1].url, 'https://api.openai.com/v1/images/edits');
-  assert(calls[1].init.body instanceof FormData);
-  assert(calls[1].init.body.get('image[]') instanceof Blob);
-  assert(!calls[1].init.headers['Content-Type']);
+  assert.equal(calls[0].url, 'https://api.openai.com/v1/images/edits');
+  assert(calls[0].init.body instanceof FormData);
+  assert(calls[0].init.body.get('image[]') instanceof Blob);
+  assert(!calls[0].init.headers['Content-Type']);
+  calls = [];
+  await generateImage(
+    openai,
+    {
+      ...character,
+      references: [
+        { ...reference, enabled: false },
+        { ...reference, strength: 0 },
+      ],
+    },
+    'reading',
+    signal,
+  );
+  assert.equal(calls.length, 1, 'disabled references must not be fetched');
+  assert.equal(calls[0].url, 'https://api.openai.com/v1/images/generations');
+  assert.equal(JSON.parse(calls[0].init.body).prompt, 'red hair, reading');
   calls = [];
   global.fetch = async (url, init) => {
     calls.push({ url, init });
     return new Response(zipSync({ 'image_0.png': new Uint8Array([1, 2, 3]) }));
   };
   const encoded = { ...reference, image: '', encodings: { v5curated: { encoding: 'encoded', infoExtracted: 1 } } };
-  assert.equal(
-    await generateImage(nai, { ...character, references: [encoded] }, 'reading', signal),
-    'data:image/png;base64,AQID',
-  );
+  assert.match(await generateImage(nai, { ...character, references: [encoded] }, 'reading', signal), /^\/user\/files\/wave-resource-/);
   assert.equal(calls.length, 1);
   const submitted = JSON.parse(calls[0].init.body);
   assert.equal(submitted.parameters.reference_image_multiple_cached[0].data, 'encoded');

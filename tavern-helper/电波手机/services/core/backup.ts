@@ -1,7 +1,8 @@
+import { externalizeResources } from './resource-storage';
 import { readPhoneGlobals, writePhoneGlobals, writePhoneChat, flushPhoneStorage } from './durable-storage';
 import { modularize, importModules, ModularBackupSchema, BACKUP_MODULES, type BackupModule } from './backup-modules';
 import { CHARACTER_DEFAULTS_KEY, CharacterDefaultsSchema } from './character-defaults';
-import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
+import { strFromU8, strToU8, unzipSync, zip } from 'fflate';
 import { klona } from 'klona';
 import { z } from 'zod';
 import {
@@ -23,8 +24,8 @@ import { packBackupAssets, unpackBackupAssets } from './backup-assets';
 
 const BACKUP_FORMAT = 'wave-phone-backup';
 const BACKUP_FORMAT_VERSION = 1;
-const MAX_ZIP_BYTES = 20 * 1024 * 1024;
-const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
+const MAX_ZIP_BYTES = 256 * 1024 * 1024;
+const MAX_BACKUP_BYTES = 512 * 1024 * 1024;
 
 type StorageEnvelope = { identifier: string; version: number; data: unknown };
 
@@ -71,7 +72,7 @@ function timestampName(): string {
   return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 }
 
-export function createPhoneBackup(selected?: BackupModule[]): { filename: string; blob: Blob } {
+export async function createPhoneBackup(selected?: BackupModule[]): Promise<{ filename: string; blob: Blob }> {
   const globalVariables = readPhoneGlobals();
   const chatVariables = getVariables({ type: 'chat' }) || {};
   const runtime = getRuntimeContext();
@@ -91,32 +92,35 @@ export function createPhoneBackup(selected?: BackupModule[]): { filename: string
     },
     chat: chatVariables[CHAT_VARIABLE_KEY] || null,
   });
-  const packed = packBackupAssets(selected ? modularize(backup, selected) : backup);
-  const archive = zipSync(
-    {
-      ...packed.files,
-      'backup.json': strToU8(JSON.stringify(packed.data, null, 2) + '\n'),
-      'README.txt': strToU8(
-        '格式 v3：backup.json 为 UTF-8 缩进文本；图片等内嵌资源保存在 assets/，相同资源只保存一份。请保留整个 ZIP 导入，并使用支持 v3 的电波手机版本。\n\n' +
-          (selected
-            ? `电波手机分模块备份：${BACKUP_MODULES.filter(item => selected.includes(item.id))
-                .map(item => item.name)
-                .join(
-                  '、',
-                )}。导入时可再次选择需要的模块。${selected.includes('general') ? '包含 API 配置，请勿公开分享含有密钥的备份。' : ''}`
-            : '电波手机完整备份。包含设置、API 配置、角色与用户资料，以及导出时的当前聊天数据。请勿公开分享包含密钥的备份文件。'),
-      ),
-    },
-    { level: 6 },
+  const packed = await packBackupAssets(selected ? modularize(backup, selected) : backup);
+  const archive = await new Promise<Uint8Array>((resolve, reject) =>
+    zip(
+      {
+        ...packed.files,
+        'backup.json': strToU8(JSON.stringify(packed.data, null, 2) + '\n'),
+        'README.txt': strToU8(
+          '格式 v4：backup.json 为 UTF-8 缩进文本；图片、音频及参考编码以二进制保存在 assets/，相同资源只保存一份。请保留整个 ZIP 导入，并使用支持 v4 的电波手机版本。\n\n' +
+            (selected
+              ? `电波手机分模块备份：${BACKUP_MODULES.filter(item => selected.includes(item.id))
+                  .map(item => item.name)
+                  .join(
+                    '、',
+                  )}。导入时可再次选择需要的模块。${selected.includes('general') ? '包含 API 配置，请勿公开分享含有密钥的备份。' : ''}`
+              : '电波手机完整备份。包含设置、API 配置、角色与用户资料，以及导出时的当前聊天数据。请勿公开分享包含密钥的备份文件。'),
+        ),
+      },
+      { level: 0 },
+      (error, bytes) => (error ? reject(error) : resolve(bytes)),
+    ),
   );
   return {
     filename: `wave-phone-backup-${timestampName()}.zip`,
-    blob: new Blob([archive], { type: 'application/zip' }),
+    blob: new Blob([archive as Uint8Array<ArrayBuffer>], { type: 'application/zip' }),
   };
 }
 
-async function readBackupFile(file: File): Promise<unknown> {
-  if (file.size > MAX_ZIP_BYTES) throw Error('备份 ZIP 不能超过 20MB');
+async function readBackupFile(file: File, persist = true): Promise<unknown> {
+  if (file.size > MAX_ZIP_BYTES) throw Error('备份 ZIP 不能超过 256MB');
   let files: ReturnType<typeof unzipSync>;
   try {
     let expandedBytes = 0;
@@ -139,7 +143,7 @@ async function readBackupFile(file: File): Promise<unknown> {
   } catch {
     throw Error('backup.json 不是有效的 JSON');
   }
-  const restored = unpackBackupAssets(raw, files, MAX_BACKUP_BYTES);
+  const restored = await unpackBackupAssets(raw, files, MAX_BACKUP_BYTES, persist);
   return migrateLegacyBackupNamespace(restored);
 }
 
@@ -173,7 +177,7 @@ function migrateLegacyBackupNamespace(raw: unknown): unknown {
 }
 
 export async function inspectPhoneBackup(file: File): Promise<BackupModule[]> {
-  const raw = await readBackupFile(file);
+  const raw = await readBackupFile(file, false);
   if ((raw as { formatVersion?: number })?.formatVersion === 2)
     return Object.keys(ModularBackupSchema.parse(raw).modules) as BackupModule[];
   PhoneBackupSchema.parse(raw);
@@ -185,7 +189,7 @@ export async function importPhoneBackup(
   selected?: BackupModule[],
   afterApply?: () => Promise<void>,
 ): Promise<{ chatImported: boolean; message: string }> {
-  const raw = await readBackupFile(file);
+  const raw = await externalizeResources(await readBackupFile(file));
   if ((raw as { formatVersion?: number })?.formatVersion === 2) {
     const result = importModules(raw, selected);
     await afterApply?.();
