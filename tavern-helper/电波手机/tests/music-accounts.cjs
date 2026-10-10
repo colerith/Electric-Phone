@@ -104,7 +104,10 @@ const image = 'data:image/png;base64,AAAA';
   }
   handler = route =>
     route.endsWith('/user/playlist')
-      ? { code: 200, playlist: [{ id: 'saved', dirId: 36, name: '收藏歌单', songnum: 1 }] }
+      ? {
+          code: 200,
+          playlist: [{ id: 'saved', dirId: 36, name: '收藏歌单', songnum: 1, picurl: 'https://example.com/cover.jpg' }],
+        }
       : {
           code: 200,
           response: {
@@ -112,7 +115,13 @@ const image = 'data:image/png;base64,AAAA';
           },
         };
   const collected = await service.fetchAccountPlaylists('qq', base, '2');
+  assert.equal(service.mapAccountTrack({ id: 123, mid: 'stable-mid', title: 'Song' }, 'qq', base).songId, '123');
   assert.equal(collected.lists[0].owned, false, 'creator directory id does not imply ownership');
+  assert.equal(
+    collected.lists[0].cover,
+    'https://example.com/cover.jpg',
+    'collected QQ playlists use lowercase picurl',
+  );
   assert.equal((await service.fetchAccountTracks('qq', base, collected.lists[0])).tracks[0].id, 'saved-track');
   handler = () => ({
     code: 200,

@@ -30,9 +30,10 @@ export function ttmlToLrc(xml: string, track: 'original' | 'translation' | 'roma
     .join('\n');
 }
 export async function fetchBuiltinLyricTracks(
-  track: { id: string; source: string; title: string; artist: string },
+  track: { id: string; source: string; title: string; artist: string; songId?: string; songMid?: string },
   signal?: AbortSignal,
   alternates = false,
+  alternate: 'translation' | 'romanization' = 'translation',
 ): Promise<{ lyric: string; translation: string; romanization: string }> {
   const empty = { lyric: '', translation: '', romanization: '' };
   if (musicBackend.value === 'idle') await checkMusicBackend();
@@ -47,7 +48,9 @@ export async function fetchBuiltinLyricTracks(
     body: JSON.stringify({
       source,
       alternates,
-      id: track.id.slice(0, 200),
+      alternate,
+      songId: source === 'qq' && /^\d{1,16}$/.test(track.songId || track.id) ? track.songId || track.id : '',
+      id: (track.songMid || track.id).slice(0, 200),
       title: track.title.slice(0, 200),
       artist: track.artist.slice(0, 200),
     }),

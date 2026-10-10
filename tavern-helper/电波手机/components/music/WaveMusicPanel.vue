@@ -378,7 +378,7 @@ const alternateBusy = ref(false);
 const translation = ref<ReturnType<typeof parseLrc>>([]),
   romanization = ref<ReturnType<typeof parseLrc>>([]);
 let alternateController: AbortController | undefined;
-let alternateLoaded = false;
+const alternateLoaded = new Set<string>();
 function alternateAt(rows: ReturnType<typeof parseLrc>, time: number) {
   let low = 0,
     high = rows.length;
@@ -392,21 +392,27 @@ function alternateAt(rows: ReturnType<typeof parseLrc>, time: number) {
   return result.join(' ');
 }
 async function loadAlternates() {
-  if (!music.current || alternateLoaded || alternateBusy.value) return;
+  const mode = showRomanization.value ? 'romanization' : 'translation';
+  if (!music.current || alternateLoaded.has(mode) || alternateBusy.value) return;
   alternateController?.abort();
   const controller = new AbortController();
   alternateController = controller;
   alternateBusy.value = true;
   try {
-    const result = await fetchBuiltinLyricTracks(music.current, controller.signal, true);
+    const result = await fetchBuiltinLyricTracks(music.current, controller.signal, true, mode);
     if (controller.signal.aborted) return;
-    translation.value = parseLrc(result.translation);
-    romanization.value = parseLrc(result.romanization);
-    alternateLoaded = true;
+    if (result[mode] && parseLrc(result.lyric).length) music.current.lyric = result.lyric;
+    if (result.translation) translation.value = parseLrc(result.translation);
+    if (result.romanization) romanization.value = parseLrc(result.romanization);
+    if (result[mode]) alternateLoaded.add(mode);
   } catch {
     // Keep the original lyrics; a later enabled mode retries failed requests.
   } finally {
-    if (alternateController === controller) alternateBusy.value = false;
+    if (alternateController === controller) {
+      alternateBusy.value = false;
+      if (lyricMode.value.enabled && (showRomanization.value ? 'romanization' : 'translation') !== mode)
+        void loadAlternates();
+    }
   }
 }
 function cycleLyricMode() {
@@ -418,7 +424,7 @@ watch(
   () => {
     alternateController?.abort();
     alternateBusy.value = false;
-    alternateLoaded = false;
+    alternateLoaded.clear();
     translation.value = [];
     romanization.value = [];
     if (showTranslation.value || showRomanization.value) void loadAlternates();

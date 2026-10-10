@@ -367,7 +367,9 @@ export async function fetchAccountPlaylists(
             : (row.global_collection_id ?? row.globalCollectionId ?? row.specialid ?? row.id ?? ''),
       ),
       name: String(row.name || row.dirName || row.dissname || row.listname || row.specialname || '未命名歌单'),
-      cover: safeUrl(row.coverImgUrl || row.bigpicUrl || row.picUrl || row.pic || row.img || row.image),
+      cover: safeUrl(
+        row.coverImgUrl || row.bigpicUrl || row.picUrl || row.picurl || row.coverUrl || row.pic || row.img || row.image,
+      ),
       count: Number(row.trackCount ?? row.songNum ?? row.songnum ?? row.count ?? row.song_count ?? 0),
       ...(row.dirId !== undefined ? { dirId: Number(row.dirId) } : {}),
       owned:
@@ -432,6 +434,9 @@ export function mapAccountTrack(row: any, provider: MusicAccountProvider, base: 
         (album.mid ? `https://y.gtimg.cn/music/photo_new/T002R300x300M000${album.mid}.jpg` : ''),
     ),
     lyricId: id,
+    ...(provider === 'qq' && /^\d+$/.test(String(row.id ?? row.songid ?? ''))
+      ? { songId: String(row.id ?? row.songid) }
+      : {}),
     source: `account-${provider}`,
     apiBase: accountBase(base),
   };

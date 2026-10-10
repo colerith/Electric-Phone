@@ -17,6 +17,7 @@ export const MusicTrackSchema = z.object({
   mediaUrl: z.string().optional(),
   lyricUrl: z.string().optional(),
   songMid: z.string().optional(),
+  songId: z.string().optional(),
 });
 export type Track = z.infer<typeof MusicTrackSchema>;
 export const defaultMusicApi = 'https://api.vkeys.cn/v2/music';
@@ -95,13 +96,11 @@ export async function searchMusic(
           ? await searchMeting(query, signal)
           : await searchSingle(query, provider.base, provider.platform, signal);
       abortIfNeeded(signal);
-      const mapped = rows
-        .slice(0, 5)
-        .map(track => ({
-          ...track,
-          source: provider.id,
-          apiBase: provider.id.startsWith('builtin-') ? builtinMusicBase(provider.platform) : provider.base,
-        }));
+      const mapped = rows.slice(0, 5).map(track => ({
+        ...track,
+        source: provider.id,
+        apiBase: provider.id.startsWith('builtin-') ? builtinMusicBase(provider.platform) : provider.base,
+      }));
       result.push(...mapped);
       succeeded++;
       states.push(`${provider.label} ${mapped.length} 首`);
