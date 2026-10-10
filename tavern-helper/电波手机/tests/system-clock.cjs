@@ -70,6 +70,18 @@ const markup = text =>
     clockLabels(resolveClock(Schema.parse({ timeZone: 'America/New_York' }), Date.UTC(2026, 6, 1, 12), '')).time,
     '08:00',
   );
+  const NativeFormatter = Intl.DateTimeFormat;
+  let formatterAllocations = 0;
+  Intl.DateTimeFormat = function (...args) {
+    formatterAllocations++;
+    return new NativeFormatter(...args);
+  };
+  try {
+    for (let i = 0; i < 100; i++) resolveClock(Schema.parse({ timeZone: 'Europe/Paris' }), now + i * 1000, '');
+    assert.equal(formatterAllocations, 2, 'one validation + one reusable ICU formatter across 100 ticks');
+  } finally {
+    Intl.DateTimeFormat = NativeFormatter;
+  }
   assert.equal(parseCivilTime('2018/7/3 22:30 (周二)'), Date.UTC(2018, 6, 3, 22, 30));
   for (const bad of ['2025/2/29 10:00', '2018/7/3 25:00', '2018/7/3 18:30 → 2018/7/3 22:30', '这里没有时间'])
     assert.equal(parseCivilTime(bad), null);
@@ -126,6 +138,40 @@ const markup = text =>
   phone.saveSettings();
   const { SCRIPT_VARIABLE_KEY } = require(base + '/schemas.ts');
   assert.equal(vars.global[SCRIPT_VARIABLE_KEY].data.basic.systemClock.customTime, '2000-12-31T23:59');
+  // Unchanged phone history is not parsed by each one-second clock refresh.
+  let historyReads = 0;
+  SillyTavern.chat = [
+    {
+      is_user: false,
+      get mes() {
+        historyReads++;
+        return '<wave_time>2028/1/20 19:30</wave_time>';
+      },
+    },
+    { is_user: true, mes: 'hello' },
+  ];
+  phone.settings.basic.systemClock.source = 'phone';
+  await tick();
+  const baseline = historyReads;
+  for (let i = 0; i < 100; i++) clock.refresh(false);
+  assert.equal(historyReads, baseline, 'idle ticks reuse story time instead of reparsing chat');
+  assert.equal(clock.labels.time, '19:30');
+  now += 30001;
+  clock.refresh(false);
+  assert(historyReads > baseline, 'bounded fallback still checks edits to older messages');
+  phone.settings.basic.systemClock.source = 'timezone';
+  await tick();
+  const queryAll = document.querySelectorAll.bind(document);
+  let bbsReads = 0;
+  document.querySelectorAll = selector => {
+    if (selector === '.bbs-state-val') bbsReads++;
+    return queryAll(selector);
+  };
+  bbs.innerHTML = markup('2040/1/1 10:00');
+  for (let i = 0; i < 10; i++) clock.refresh(false);
+  await tick();
+  assert.equal(bbsReads, 0, 'non-BaiBai mode does not observe or query BaiBai DOM');
+  document.querySelectorAll = queryAll;
   phone.settings.basic.systemClock.source = 'baibai';
   await tick();
   clock.stop();

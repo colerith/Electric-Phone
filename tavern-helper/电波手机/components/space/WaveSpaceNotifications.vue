@@ -233,9 +233,7 @@ function time(item: SpaceNotice) {
   margin-right: 6px;
 }
 .space-notice-preview {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+  display: block;
   flex: 0 0 52px;
   width: 52px;
   height: 52px;
@@ -247,8 +245,14 @@ function time(item: SpaceNotice) {
   line-height: 1.7;
 }
 .space-notice-preview > span {
-  display: block;
-  padding: 3px 5px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 6px 5px;
+  padding: 0;
+  text-indent: 0;
+  overflow-wrap: anywhere;
 }
 .space-notice-preview img {
   width: 100%;

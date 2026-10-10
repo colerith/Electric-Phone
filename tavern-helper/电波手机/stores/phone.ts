@@ -2005,6 +2005,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       return;
     const now = Date.now(),
       interval = Math.max(60000, config.cooldownMinutes * 60000);
+    if (now - heartbeatAttemptAt < interval) return;
     const day = treeHoleDay();
     const holeLast = state.value.treeHole[day]?.activity?.lastRequestAt || heartbeatStartedAt;
     const spaceLast = state.value.moments.lastRequestAt || heartbeatStartedAt;
@@ -2012,7 +2013,18 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     heartbeatAttemptAt = now;
     try {
       if (now - spaceLast >= interval) await generateMoments(undefined, undefined, true);
-      if (`${context.value?.cardKey}::${context.value?.chatKey}` !== scope || !config.heartbeatEnabled) return;
+      if (
+        syncDisposed ||
+        !isReady.value ||
+        `${context.value?.cardKey}::${context.value?.chatKey}` !== scope ||
+        !state.value.moments.settings.heartbeatEnabled ||
+        !settings.value.api.enabled ||
+        hostGenerating ||
+        moduleGenerating.value ||
+        zoneGenerating.value ||
+        Object.values(state.value.threads).some(thread => thread.generating)
+      )
+        return;
       if (now - holeLast >= interval) await refreshTreeHole(day, undefined, undefined, true);
     } catch (error) {
       logDiagnostic('空间定时互动', String(error));
@@ -2158,11 +2170,24 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     );
     await synchronize();
     disposeHeartbeat?.();
-    disposeHeartbeat = startHeartbeat(heartbeat);
+    let stopClock: (() => void) | undefined;
+    const stopHeartbeatWatch = watch(
+      () => isReady.value && settings.value.api.enabled && state.value.moments.settings.heartbeatEnabled,
+      enabled => {
+        stopClock?.();
+        stopClock = enabled ? startHeartbeat(heartbeat) : undefined;
+      },
+      { immediate: true },
+    );
+    disposeHeartbeat = () => {
+      stopHeartbeatWatch();
+      stopClock?.();
+    };
     saveSettings();
   }
 
   function cancelLiveSends(): void {
+    momentImageController?.abort();
     replyImageControllers.forEach(controller => controller.abort());
     activeSends.clear();
     syncDeferred = false;
@@ -5010,33 +5035,43 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   // Only structured requests belonging to new posts are eligible; existing uploads remain untouched.
   let momentImagesBusy = false,
     momentImagesQueued = false;
+  let momentImageController: AbortController | undefined;
   const imageQueueTick = ref(0);
+  // Retain references, not a serialized copy of zone snapshots (which may contain images).
+  const imageQueueInputs = computed<(string | number | boolean | undefined)[]>(previous => {
+    const next = [
+      imageQueueTick.value,
+      isReady.value,
+      context.value?.cardKey,
+      context.value?.chatKey,
+      state.value.moments.settings.imageMode,
+      state.value.moments.settings.imageProfileId,
+      JSON.stringify(state.value.moments.posts.map(p => p.id)),
+      JSON.stringify(state.value.moments.events.map(e => e.requestId)),
+      ...Object.entries(state.value.snapshots).flatMap(([key, snapshot]) => [key, snapshot.zone]),
+    ];
+    return previous &&
+      previous.length === next.length &&
+      next.every((value, index) => Object.is(value, previous[index]))
+      ? previous
+      : next;
+  });
   watch(
-    () =>
-      JSON.stringify([
-        imageQueueTick.value,
-        isReady.value,
-        context.value?.cardKey,
-        context.value?.chatKey,
-        state.value.moments.settings.imageMode,
-        state.value.moments.settings.imageProfileId,
-        state.value.moments.posts.map(p => p.id),
-        state.value.moments.events.map(e => e.requestId),
-        Object.entries(state.value.snapshots).map(([key, snapshot]) => [key, snapshot.zone]),
-      ]),
+    imageQueueInputs,
     async () => {
       if (momentImagesBusy) {
         momentImagesQueued = true;
         return;
       }
-      if (!context.value || !isReady.value) return;
+      if (syncDisposed || !context.value || !isReady.value) return;
       const profileId = state.value.moments.settings.imageProfileId;
       momentImagesBusy = true;
       const runtime = { ...context.value };
       try {
         for (const post of momentsFeed.value.posts) {
           for (let index = 0; index < post.images.length; index++) {
-            if (context.value?.cardKey !== runtime.cardKey || context.value.chatKey !== runtime.chatKey) return;
+            if (syncDisposed || context.value?.cardKey !== runtime.cardKey || context.value.chatKey !== runtime.chatKey)
+              return;
             const media = post.images[index],
               target: ImageTarget = { kind: 'moment', postId: post.id, index };
             if (
@@ -5048,13 +5083,15 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             const asset = getImageAsset(target);
             if (!asset) continue;
             asset.profileId = media.imageProfileId || profileId;
-            const controller = new AbortController(),
-              timer = setTimeout(() => controller.abort(), 240000);
+            const controller = new AbortController();
+            momentImageController = controller;
+            const timer = setTimeout(() => controller.abort(), 240000);
             try {
               await runImageAction(target, asset, 'generate', controller.signal);
             } catch (e) {
               logDiagnostic('空间生图', String(e));
               if (
+                !syncDisposed &&
                 controller.signal.aborted &&
                 context.value?.cardKey === runtime.cardKey &&
                 context.value.chatKey === runtime.chatKey &&
@@ -5064,12 +5101,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
               }
             } finally {
               clearTimeout(timer);
+              if (momentImageController === controller) momentImageController = undefined;
             }
           }
         }
       } finally {
         momentImagesBusy = false;
-        if (momentImagesQueued) {
+        if (momentImagesQueued && !syncDisposed) {
           momentImagesQueued = false;
           imageQueueTick.value++;
         }

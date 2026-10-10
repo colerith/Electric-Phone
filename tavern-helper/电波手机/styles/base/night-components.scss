@@ -612,3 +612,94 @@
     stroke: #60677c;
   }
 }
+
+// Inline actions remain lightweight in both palettes.
+#wave-phone-script-root .wave-phone-host .wave-device {
+  .space-app .moment-secondary-actions .wave-content-delete,
+  .space-app .space-hole-actions .wave-content-delete,
+  .space-app .hole-comment-actions .wave-content-delete {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 3px 0;
+    min-width: 0;
+  }
+  .app-function-settings > .function-settings-footnote {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    text-align: left;
+    text-indent: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+#wave-phone-script-root .wave-phone-host .wave-device.theme-dark {
+  .wave-message-content .wave-message-media.image-card {
+    background: #2d2b35;
+    border-color: #514953;
+    box-shadow: 0 5px 15px #09091030;
+  }
+  .wave-polaroid-caption,
+  .wave-photo-caption-text {
+    color: #c8bdca;
+  }
+  .polaroid-stamp,
+  .polaroid-stamp time {
+    color: #a99aad;
+  }
+  .message-unit .message-actions-popover {
+    background: #293446;
+    border-color: #45536a;
+    box-shadow: 0 12px 28px #070c1840;
+  }
+  .message-unit .message-actions-pointer {
+    background: #293446;
+    border-color: #45536a;
+  }
+  .message-action-grid.primary-row {
+    border-color: #45536a;
+  }
+  .message-action-grid button {
+    color: #bccbdd;
+  }
+  .message-action-grid button > i {
+    color: #a7bcdb;
+  }
+  .message-action-grid button:disabled {
+    opacity: 0.45;
+  }
+  .wave-image-settings.character-image-settings {
+    background: #2d2c40;
+    color: #dbd7e8;
+    border-color: #4b455f;
+    box-shadow: none;
+    .image-subsection + .image-subsection {
+      border-color: #4b455f;
+    }
+    .image-heading strong,
+    label {
+      color: #dbd7e8;
+    }
+    .image-help,
+    .image-empty,
+    small {
+      color: #b2acc7;
+      opacity: 1;
+    }
+    .image-count {
+      background: #413c55;
+      color: #c8bedf;
+    }
+    button:not([role='switch']):not(.wave-select-trigger):not([role='option']) {
+      background: #3a364d;
+      border-color: #57506a;
+      color: #cbbfdf;
+    }
+    textarea {
+      background: #242434;
+      border-color: #49435d;
+      color: #d6cfe4;
+    }
+  }
+}

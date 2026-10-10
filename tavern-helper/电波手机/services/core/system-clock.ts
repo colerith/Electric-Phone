@@ -43,6 +43,25 @@ export function validTimeZone(zone: string): boolean {
     return false;
   }
 }
+// Intl formatters allocate native ICU state; reuse a small bounded pool across clock ticks.
+const clockFormatters = new Map<string, Intl.DateTimeFormat>();
+function clockFormatter(zone: string): Intl.DateTimeFormat {
+  const cached = clockFormatters.get(zone);
+  if (cached) return cached;
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: validTimeZone(zone) ? zone : 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  if (clockFormatters.size >= 8) clockFormatters.delete(clockFormatters.keys().next().value!);
+  clockFormatters.set(zone, formatter);
+  return formatter;
+}
 export function resolveClock(settings: SystemClockSettings, now: number, storyTime: string): number | null {
   if (settings.source === 'phone') return parseCivilTime(storyTime || settings.storyInitialTime);
   if (settings.source === 'baibai') return parseCivilTime(storyTime);
@@ -54,16 +73,7 @@ export function resolveClock(settings: SystemClockSettings, now: number, storyTi
   }
   if (settings.timeZone === 'offset') return now + settings.offsetMinutes * 60000;
   const zone = settings.timeZone === 'iana' ? settings.customZone : settings.timeZone;
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: validTimeZone(zone) ? zone : 'Asia/Shanghai',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(now);
+  const parts = clockFormatter(zone).formatToParts(now);
   const field = (key: string) => parts.find(part => part.type === key)?.value;
   return parseCivilTime(
     `${field('year')}-${field('month')}-${field('day')} ${field('hour')}:${field('minute')}:${field('second')}`,

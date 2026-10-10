@@ -40,6 +40,18 @@ export const useSystemClockStore = defineStore('wave-system-clock', () => {
   const cache = new Map<string, string>();
   const apiTimes = new Map<string, string>();
   let lastApiRead = 0;
+  let lastPhoneScan = 0;
+  let phoneRows: unknown,
+    phoneTail: unknown,
+    phoneTailText: unknown,
+    phoneLength = -1;
+  function syncObserver() {
+    unobserve?.();
+    unobserve =
+      host && phone.settings.basic.systemClock.source === 'baibai'
+        ? observeBaiBaiTime(host, () => refresh())
+        : undefined;
+  }
   function currentNamespace() {
     const card = SillyTavern.groupId ? `group:${SillyTavern.groupId}` : `character:${SillyTavern.characterId ?? ''}`;
     return `${card}::${SillyTavern.getCurrentChatId() || ''}`;
@@ -53,15 +65,34 @@ export const useSystemClockStore = defineStore('wave-system-clock', () => {
       namespace = next;
       storyTime.value = cache.get(next) || '';
       lastApiRead = 0;
+      lastPhoneScan = 0;
     }
     if (phone.settings.basic.systemClock.source === 'phone') {
+      const rows = SillyTavern.chat,
+        tail = rows?.at(-1);
+      // Keep a bounded fallback for edits to old floors without rescanning unchanged history each second.
+      if (
+        !force &&
+        lastPhoneScan &&
+        now.value - lastPhoneScan < 30000 &&
+        rows === phoneRows &&
+        rows?.length === phoneLength &&
+        tail === phoneTail &&
+        tail?.mes === phoneTailText
+      )
+        return;
+      lastPhoneScan = now.value;
+      phoneRows = rows;
+      phoneLength = rows?.length ?? -1;
+      phoneTail = tail;
+      phoneTailText = tail?.mes;
       storyTime.value = readPhoneChatTime();
       status.value = storyTime.value ? '已同步本聊天时间戳 · 不自动走时' : '尚无有效时间戳，可设置起始时间后继续聊天';
       return;
     }
+    if (phone.settings.basic.systemClock.source !== 'baibai') return;
     const dom = readBaiBaiTime(host.document);
     if (dom) lastDom = dom;
-    if (phone.settings.basic.systemClock.source !== 'baibai') return;
     if (!SillyTavern.getCurrentChatId()) {
       storyTime.value = '';
       status.value = '请先打开角色聊天';
@@ -101,7 +132,7 @@ export const useSystemClockStore = defineStore('wave-system-clock', () => {
     stop();
     host = target as BaiBaiHost;
     refresh();
-    unobserve = observeBaiBaiTime(host, () => refresh());
+    syncObserver();
     timer = setInterval(() => refresh(false), 1000);
   }
   function stop() {
@@ -110,7 +141,13 @@ export const useSystemClockStore = defineStore('wave-system-clock', () => {
     unobserve?.();
     unobserve = undefined;
     host = null;
+    phoneRows = phoneTail = phoneTailText = undefined;
+    lastDom = blocked = null;
+    cache.clear();
+    apiTimes.clear();
   }
+  watch(() => phone.settings.basic.systemClock.source, syncObserver);
+  onScopeDispose(stop);
   watch(
     () => phone.settings.basic.systemClock,
     () => refresh(),

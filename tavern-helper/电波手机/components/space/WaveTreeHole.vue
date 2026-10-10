@@ -279,7 +279,8 @@ function tick() {
     timer = setTimeout(tick, Math.max(1, next - now.value));
   }
 }
-watch(() => phone.state.treeHole, tick, { deep: true });
+// Only the displayed day affects the next reveal time; do not traverse the full archive.
+watch(() => phone.state.treeHole[day.value], tick, { deep: true });
 onMounted(() => {
   tick();
   document.addEventListener('visibilitychange', tick);
