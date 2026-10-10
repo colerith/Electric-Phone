@@ -96,27 +96,6 @@ function installEntry() {
     document.getElementById('extensions_settings') ||
     document.body
   ).append(panel);
-  const menu = document.getElementById('extensionsMenu');
-  if (menu) {
-    const entry = document.createElement('div');
-    entry.id = 'wave-phone-extension-menu';
-    entry.className = 'list-group-item flex-container flexGap5';
-    entry.tabIndex = 0;
-    entry.setAttribute('role', 'button');
-    const icon = document.createElement('i');
-    icon.className = 'fa-solid fa-mobile-screen-button extensionsMenuExtensionButton';
-    const label = document.createElement('span');
-    label.textContent = '电波手机';
-    entry.append(icon, label);
-    entry.onclick = () => void start(true);
-    entry.onkeydown = event => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        void start(true);
-      }
-    };
-    menu.append(entry);
-  }
   const deadline = Date.now() + 30000;
   const waitForHelper = () => {
     if (disposed) return;

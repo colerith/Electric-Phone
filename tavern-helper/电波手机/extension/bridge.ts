@@ -45,8 +45,26 @@ export function getScriptButtons() {
 }
 export function replaceScriptButtons(value: typeof buttons) {
   buttons = value.map(b => ({ ...b }));
-  const entry = document.getElementById('wave-phone-extension-menu');
-  if (entry) entry.style.display = buttons.some(b => b.visible) ? '' : 'none';
+  const id = 'wave-phone-quick-reply';
+  let entry = document.getElementById(id);
+  if (!buttons.some(b => b.visible)) {
+    entry?.remove();
+    return;
+  }
+  if (entry) return;
+  const form = document.getElementById('send_form');
+  if (!form) return;
+  entry = document.createElement('div');
+  entry.id = id;
+  entry.className = 'flex-container flexGap5';
+  entry.style.cssText = 'width:100%;flex-wrap:wrap;';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'menu_button';
+  button.textContent = '📱 电波手机';
+  button.onclick = () => hostContext().eventSource.emit(getButtonEvent(button.textContent || ''));
+  entry.append(button);
+  form.prepend(entry);
 }
 export function legacyScripts(): any[] {
   const found: any[] = [];

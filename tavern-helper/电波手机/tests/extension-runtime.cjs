@@ -101,7 +101,7 @@ const tick = () => new Promise(r => setImmediate(r));
   await tick();
   assert.equal(initialized, 1);
   assert.equal(opened, 1);
-  document.querySelector('#wave-phone-extension-menu').click();
+  document.querySelector('#wave-phone-extension-settings button').click();
   await tick();
   assert.equal(initialized, 1);
   assert.equal(opened, 2);

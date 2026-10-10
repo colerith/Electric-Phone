@@ -14,7 +14,7 @@ import './styles/base/refinements.scss';
 import './styles/apps/calendar.scss';
 import { usePhoneStore } from './stores/phone';
 import { bindPhoneViewport } from './services/core/viewport';
-import { PHONE_QUICK_REPLY_BUTTON, syncPhoneQuickReply } from './services/core/entry-buttons';
+import { PHONE_QUICK_REPLY_BUTTON, syncPhoneQuickReply, syncPhoneMenu } from './services/core/entry-buttons';
 
 const ROOT_ID = 'wave-phone-script-root';
 let activePinia: Pinia | null = null;
@@ -26,6 +26,8 @@ let releaseViewport: (() => void) | null = null;
 export function cleanup(): void {
   stopEntryWatch?.();
   stopEntryWatch = null;
+  syncPhoneMenu(false, openPhone);
+  syncPhoneQuickReply(false);
   releaseViewport?.();
   releaseViewport = null;
   buttonEvent?.stop();
@@ -67,14 +69,19 @@ export async function initialize(): Promise<void> {
 
   const store = usePhoneStore(pinia);
   stopEntryWatch = watch(
-    () => [store.settings.appearance.quickReplyEntry, store.settings.appearance.floatingEntry],
-    ([quickReply, floating]) => {
+    () => [
+      store.settings.appearance.quickReplyEntry,
+      store.settings.appearance.floatingEntry,
+      store.settings.appearance.extensionMenuEntry,
+    ],
+    ([quickReply, floating, menu]) => {
       // Recover old/imported settings that otherwise leave no way into the phone.
-      if (!quickReply && !floating) {
-        store.settings.appearance.floatingEntry = true;
+      if (!quickReply && !floating && !menu) {
+        store.settings.appearance.quickReplyEntry = true;
         store.saveSettings();
       }
-      syncPhoneQuickReply(quickReply);
+      syncPhoneQuickReply(quickReply || (!floating && !menu));
+      syncPhoneMenu(menu, openPhone);
     },
     { immediate: true },
   );

@@ -26,23 +26,25 @@
         <WaveToggle
           v-model="appearance.floatingEntry"
           aria-label="显示电波手机悬浮球"
-          :disabled="appearance.floatingEntry && !appearance.quickReplyEntry"
+          :disabled="appearance.floatingEntry && !appearance.quickReplyEntry && !appearance.extensionMenuEntry"
           @update:model-value="phone.saveSettings()"
         />
       </div>
       <div class="system-toggle-row">
-        <span
-          ><strong>{{ isExtensionRuntime ? '扩展菜单入口' : '注入快速回复栏' }}</strong
-          ><small>{{
-            isExtensionRuntime
-              ? '在酒馆扩展菜单中显示电波手机；扩展设置中始终保留入口'
-              : '显示酒馆助手的「📱 电波手机」脚本按钮'
-          }}</small></span
-        >
+        <span><strong>扩展程序菜单</strong><small>在酒馆扩展程序菜单中显示电波手机</small></span>
+        <WaveToggle
+          v-model="appearance.extensionMenuEntry"
+          aria-label="显示扩展程序菜单入口"
+          :disabled="appearance.extensionMenuEntry && !appearance.floatingEntry && !appearance.quickReplyEntry"
+          @update:model-value="phone.saveSettings()"
+        />
+      </div>
+      <div class="system-toggle-row">
+        <span><strong>快速回复栏</strong><small>在输入框上方显示「📱 电波手机」按钮</small></span>
         <WaveToggle
           v-model="appearance.quickReplyEntry"
-          aria-label="注入快速回复栏"
-          :disabled="appearance.quickReplyEntry && !appearance.floatingEntry"
+          aria-label="显示快速回复栏入口"
+          :disabled="appearance.quickReplyEntry && !appearance.floatingEntry && !appearance.extensionMenuEntry"
           @update:model-value="phone.saveSettings()"
         />
       </div>
@@ -158,7 +160,6 @@
   </div>
 </template>
 <script setup lang="ts">
-import { isExtensionRuntime } from '../../services/core/runtime';
 import { computed, ref } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import WaveToggle from '../shared/WaveToggle.vue';

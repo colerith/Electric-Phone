@@ -189,3 +189,21 @@
     }
   }
 }
+
+#wave-phone-script-root .wave-phone-host .wave-device.theme-dark {
+  .wave-crop-caption button,
+  .wave-avatar-size-preview {
+    background: var(--wave-tint);
+    border-color: var(--wave-line);
+    color: var(--wave-ink);
+  }
+  .wave-avatar-size-preview > span {
+    background: var(--wave-card);
+    border-color: var(--wave-line);
+    color: var(--wave-muted);
+    box-shadow: none;
+  }
+  .wave-avatar-size-preview > small {
+    color: var(--wave-muted);
+  }
+}
