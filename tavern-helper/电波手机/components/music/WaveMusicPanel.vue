@@ -352,7 +352,7 @@ import { computed, ref, watch, nextTick, inject, onBeforeUnmount } from 'vue';
 import { useMusicStore } from '../../stores/music';
 import { usePhoneStore } from '../../stores/phone';
 import { musicIntent, musicSourceLabel, parseLrc, type Track } from '../../services/music/music';
-import { fetchBuiltinLyricTracks } from '../../services/music/music-lyrics';
+import { fetchBuiltinLyricTracks, hasAlternateText } from '../../services/music/music-lyrics';
 import WaveSlider from '../shared/WaveSlider.vue';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
 const phoneSurface = inject(phoneSurfaceKey, ref(null));
@@ -402,8 +402,9 @@ async function loadAlternates() {
     const result = await fetchBuiltinLyricTracks(music.current, controller.signal, true, mode);
     if (controller.signal.aborted) return;
     if (result[mode] && parseLrc(result.lyric).length) music.current.lyric = result.lyric;
-    if (result.translation) translation.value = parseLrc(result.translation);
-    if (result.romanization) romanization.value = parseLrc(result.romanization);
+    if (result.translation) translation.value = parseLrc(result.translation).filter(row => hasAlternateText(row.text));
+    if (result.romanization)
+      romanization.value = parseLrc(result.romanization).filter(row => hasAlternateText(row.text));
     if (result[mode]) alternateLoaded.add(mode);
   } catch {
     // Keep the original lyrics; a later enabled mode retries failed requests.

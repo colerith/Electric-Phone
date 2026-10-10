@@ -1,7 +1,30 @@
-// Additive surface fixes: maintain distinct plum image tools and blue-gray music controls.
+// Additive surface fixes: use shared settings surfaces and readable music controls.
 #wave-phone-script-root .wave-phone-host .wave-device.theme-dark {
   --settings-card: var(--wave-card);
   --wave-text: var(--wave-ink);
+  .music-library-heading > strong,
+  .music-player-top strong {
+    color: #c3d4ef;
+  }
+  .music-results article > button > strong,
+  .playlist-song strong,
+  .queue-song strong {
+    color: #dce5f2;
+  }
+  .music-library-heading > small,
+  .music-results article > button > small,
+  .playlist-song small,
+  .queue-song small,
+  .music-player-top small {
+    color: #a2afc3;
+    opacity: 1;
+  }
+  .music-results article > button:disabled {
+    opacity: 0.7;
+  }
+  &.page-music .wave-appbar > strong {
+    color: #e1e7f3;
+  }
   .music-accounts {
     background: #252e40;
     color: #dce5f3;
@@ -39,51 +62,51 @@
     color: #d5e1f2;
   }
   .wave-image-settings {
-    --settings-card: #2b2b3d;
-    color: #e0ddeb;
+    --settings-card: var(--wave-card);
+    color: var(--settings-text);
     .image-section,
     &.image-section {
-      background: #2b2b3d;
-      border-color: #444157;
+      background: var(--wave-card);
+      border-color: transparent;
       box-shadow: none;
     }
     .image-heading strong,
     label {
-      color: #e0ddeb;
+      color: var(--settings-text);
     }
     small,
     .image-help,
     .image-empty {
-      color: #b9b3ca;
+      color: var(--settings-muted);
       opacity: 1;
     }
     .image-count {
-      background: #3d3951;
-      color: #cfc3e5;
+      background: var(--settings-control);
+      color: var(--settings-accent);
     }
     .image-reference,
     .vibe-card {
-      background: #262535;
-      border-color: #474156;
+      background: var(--wave-card);
+      border-color: var(--settings-line);
     }
     input:not([type='range']):not([type='checkbox']),
     textarea {
-      background: #222332;
-      border-color: #494358;
-      color: #e0ddeb;
+      background: var(--wave-card);
+      border-color: var(--settings-line);
+      color: var(--settings-text);
     }
     button:not([role='switch']):not(.wave-select-trigger):not([role='option']) {
-      background: #3c374e;
-      border-color: #514960;
-      color: #d7cae9;
+      background: var(--settings-control);
+      border-color: var(--settings-line);
+      color: var(--settings-text);
       box-shadow: none;
     }
     .image-primary {
-      background: #665376;
+      background: var(--wave-primary-bg);
       color: #fff;
     }
     .image-actions.image-profile-actions {
-      border-color: #494357;
+      border-color: var(--settings-line);
     }
   }
   .settings-save-wide {

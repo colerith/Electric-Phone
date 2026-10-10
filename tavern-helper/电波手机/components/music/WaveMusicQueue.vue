@@ -5,9 +5,7 @@
         <header>
           <strong
             >正在播放 <small>{{ music.queue.length }}</small></strong
-          ><button type="button" aria-label="关闭播放列表" @click="music.queueOpen = false">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
+          ><WaveCloseButton label="关闭播放列表" @close="music.queueOpen = false" />
         </header>
         <div class="queue-toolbar">
           <button type="button" :aria-expanded="modesOpen" @click="modesOpen = !modesOpen">
@@ -83,6 +81,7 @@
 </template>
 <script setup lang="ts">
 import { inject, ref, watch, nextTick } from 'vue';
+import WaveCloseButton from '../shared/WaveCloseButton.vue';
 import { useMusicStore } from '../../stores/music';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
 import type { PlaybackMode } from '../../services/music/music-queue';

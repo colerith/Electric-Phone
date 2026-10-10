@@ -1,4 +1,7 @@
 import { musicBackend, checkMusicBackend } from './music-backend';
+export function hasAlternateText(text: string): boolean {
+  return Boolean(text.trim()) && !/^[/／\s]+$/.test(text);
+}
 export function ttmlToLrc(xml: string, track: 'original' | 'translation' | 'romanization' = 'original'): string {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
   if (doc.getElementsByTagName('parsererror').length) return '';

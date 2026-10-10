@@ -52,3 +52,7 @@ assert.equal(
   console.error(e);
   process.exitCode = 1;
 });
+assert.equal(m.exports.hasAlternateText('//'), false);
+assert.equal(m.exports.hasAlternateText(' ／ ／ '), false);
+assert.equal(m.exports.hasAlternateText('  '), false);
+assert.equal(m.exports.hasAlternateText('真的译文 / 分句'), true);
