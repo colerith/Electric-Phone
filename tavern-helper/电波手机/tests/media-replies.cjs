@@ -139,6 +139,34 @@ const gen = require(base + '/services/generation/generation.ts');
       ),
     /生图/,
   );
+  const disabled = { ...effective, voice: { min: 0, max: 0 }, image: { min: 0, max: 0 } };
+  const fallback = [
+    {
+      sender: 'char',
+      type: 'voice',
+      content: '',
+      payload: { transcript: '[sighs] 晚安', actorKey: 'alice', audioUrl: '/old.wav', duration: 3 },
+    },
+  ];
+  media.validateReplyMedia(fallback, disabled);
+  assert.equal(fallback[0].type, 'text');
+  assert.equal(fallback[0].content, '晚安');
+  assert.deepEqual(fallback[0].payload, { actorKey: 'alice' });
+  const textOnly = [{ sender: 'char', type: 'voice', content: '你好', payload: {} }];
+  media.validateReplyMedia(textOnly, disabled);
+  assert.equal(textOnly[0].content, '你好');
+  const enabledVoice = [{ sender: 'char', type: 'voice', content: '你好', payload: {} }];
+  media.validateReplyMedia(enabledVoice, { ...disabled, voice: { min: 0, max: 1 } });
+  assert.equal(enabledVoice[0].type, 'voice');
+  assert.throws(
+    () => media.validateReplyMedia([...enabledVoice, ...enabledVoice], { ...disabled, voice: { min: 0, max: 1 } }),
+    /语音/,
+  );
+  assert(
+    require(base + '/prompts/media.ts')
+      .mediaCountRules(disabled)
+      .includes('[语音已关闭]'),
+  );
   // Real store pipeline: use the selected provider, never feed a face into an object request, do not repeat on sync.
   store.settings.imageServices = imageServices;
   store.settings.voiceServices = VoiceServicesSchema.parse({});

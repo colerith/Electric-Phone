@@ -1,3 +1,4 @@
+import { displaySpeechText } from './speech-tags';
 import { z } from 'zod';
 import { ImageSubjectSchema } from '../image/library';
 import type { VoiceServices, CharacterVoice } from './speech';
@@ -21,10 +22,26 @@ export const ImageRequestSchema = z.object({
   prompt: z.string().trim().min(1).max(12000),
 });
 export function validateReplyMedia(
-  messages: { sender: string; type: string; payload: Record<string, unknown> }[],
+  messages: { sender: string; type: string; content?: string; payload: Record<string, unknown> }[],
   media?: ReplyMedia,
 ) {
   if (!media) return;
+  // Disabled synthesis must not invalidate an otherwise usable model reply.
+  if (media.voice.max === 0) {
+    for (const message of messages) {
+      if (message.type !== 'voice') continue;
+      const transcript = typeof message.payload.transcript === 'string' ? message.payload.transcript.trim() : '';
+      const text = transcript || message.content || '';
+      if (!text.trim()) throw Error('语音已关闭，但返回的语音消息没有可转换的文字');
+      message.type = 'text';
+      message.content = displaySpeechText(text, message.content);
+      message.payload = Object.fromEntries(
+        Object.entries(message.payload).filter(([key]) =>
+          ['actorKey', 'actor_key', 'actorName', 'quotedMessageId'].includes(key),
+        ),
+      );
+    }
+  }
   const voices = messages.filter(message => message.sender === 'char' && message.type === 'voice').length;
   const images = messages.filter(message => message.payload.imageRequest !== undefined);
   if (voices < media.voice.min || voices > media.voice.max)

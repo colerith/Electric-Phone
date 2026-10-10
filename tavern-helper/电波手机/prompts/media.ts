@@ -96,7 +96,7 @@ export function mediaEntryApplies(entry: PresetItem, media?: ReplyMedia) {
 }
 export function mediaCountRules(media?: ReplyMedia) {
   if (!media) return '';
-  return `[本轮媒体协议] voice 必须 ${media.voice.min}–${media.voice.max} 条；生图 imageRequest 必须 ${media.image.min}–${media.image.max} 张，均计入总消息数。imageRequest 仅可在 char 的 image 消息 payload 内，包含 subject（character/user/other_character/scene/object）与非空 prompt。character 才可使用当前角色外貌与参考图；user 使用用户资料里的外貌；content 与 payload.description 必须是自然简短的配文，不是英文标签或生图指令。scene/object 必须不含人物。禁止提供模型、服务地址或密钥。没有生图权限时不得输出 imageRequest。`;
+  return `${media.voice.max === 0 ? '[语音已关闭] 本轮禁止输出 type=voice；需要说的话使用 type=text，台词写入 content，不附加语音表演标签或语音 payload。历史语音消息与示例不代表本轮拥有语音权限。\n' : ''}[本轮媒体协议] voice 必须 ${media.voice.min}–${media.voice.max} 条；生图 imageRequest 必须 ${media.image.min}–${media.image.max} 张，均计入总消息数。imageRequest 仅可在 char 的 image 消息 payload 内，包含 subject（character/user/other_character/scene/object）与非空 prompt。character 才可使用当前角色外貌与参考图；user 使用用户资料里的外貌；content 与 payload.description 必须是自然简短的配文，不是英文标签或生图指令。scene/object 必须不含人物。禁止提供模型、服务地址或密钥。没有生图权限时不得输出 imageRequest。`;
 }
 
 export function spaceImageRules(mode: 'description' | 'ai', max: number, provider?: 'novelai' | 'openai') {
