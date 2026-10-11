@@ -63,16 +63,20 @@
               @pointercancel="endCropDrag"
             >
               <img v-if="draftValue" :src="draftValue" :alt="`${label}预览`" :style="draftTransform" />
-              <slot v-else name="fallback"
-                ><span><i class="fa-solid fa-image"></i></span
-              ></slot>
+              <span v-else class="wave-upload-placeholder">
+                <slot name="fallback"
+                  ><i :class="purpose === 'avatar' ? 'fa-solid fa-user-astronaut' : 'fa-solid fa-image'"></i
+                ></slot>
+              </span>
               <i v-if="purpose === 'avatar'" class="wave-crop-frame" aria-hidden="true"></i>
             </div>
 
             <div v-if="purpose === 'avatar'" class="wave-avatar-size-preview" aria-label="小头像效果预览">
               <span v-for="size in previewSizes" :key="size" :style="{ width: `${size}px`, height: `${size}px` }">
                 <img v-if="draftValue" :src="draftValue" alt="" :style="draftTransform" />
-                <slot v-else name="fallback"><i class="fa-solid fa-user"></i></slot>
+                <span v-else class="wave-upload-placeholder">
+                  <slot name="fallback"><i class="fa-solid fa-user-astronaut"></i></slot>
+                </span>
               </span>
               <small>24 / 40 / 58 px 实际显示效果</small>
             </div>

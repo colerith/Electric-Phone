@@ -207,3 +207,31 @@
     box-shadow: none;
   }
 }
+
+// Empty avatar previews use the same centered placeholder at every size.
+#wave-phone-script-root .wave-device .wave-image-modal {
+  .wave-upload-preview.avatar-preview {
+    background: var(--wave-card, #e8eef7);
+    color: var(--wave-muted, #7b8eab);
+  }
+  .wave-upload-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--wave-muted, #7b8eab);
+    line-height: 1;
+    pointer-events: none;
+    > i {
+      display: block;
+      width: auto;
+      height: auto;
+      margin: 0;
+      line-height: 1;
+    }
+  }
+  .wave-avatar-size-preview .wave-upload-placeholder {
+    font-size: 14px;
+  }
+}
