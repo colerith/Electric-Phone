@@ -1,4 +1,5 @@
 import type { ScriptSettings, Provider } from '../../schemas';
+import { logDiagnostic } from './diagnostics';
 export const providerDefaults: Partial<Record<Provider, string>> = {
   siliconflow: 'https://api.siliconflow.cn/v1',
   deepseek: 'https://api.deepseek.com/v1',
@@ -138,6 +139,16 @@ export function fitContext(
     }
     if (!changed) break;
   }
-  if (total() > budget) throw Error('上下文预算不足以容纳手机规则和本轮输入，请增大上下文长度或减少最大回复长度。');
+  const parts = result.map((p, i) =>
+    typeof p === 'string'
+      ? `第 ${i + 1} 段：酒馆原生条目 ${p}（未计入估算）`
+      : `第 ${i + 1} 段（${p.role}）：约 ${estimateTokens(p.content) + 8} tokens，${p.content.length} 字符`,
+  );
+  const detail = `上下文上限 ${api.contextLength} − 回复预留 ${api.maxTokens} = 输入预算 ${budget} tokens；裁剪历史后显式输入约 ${total()} tokens；本轮输入约 ${estimateTokens(userInput)} tokens。\n${parts.join('\n')}\n以上为本地估算，不包含酒馆原生历史、世界书等后续展开内容。`;
+  logDiagnostic('上下文用量', detail);
+  if (total() > budget)
+    throw Error(
+      `上下文预算不足，超出约 ${total() - budget} tokens。\n${detail}\n请在 API 设置增大上下文长度或减少最大回复长度，或缩短占用较大的提示词段落。`,
+    );
   return result;
 }

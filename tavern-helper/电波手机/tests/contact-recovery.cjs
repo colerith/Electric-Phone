@@ -22,7 +22,7 @@ const { generatePhoneReply, testSecondaryApi } = require(base + '/services/gener
 let chat = 'one',
   vars = { global: {}, script: {}, chat: {} };
 Object.assign(global, {
-  SillyTavern: { name1: 'User', getCurrentChatId: () => chat, characterId: '1' },
+  SillyTavern: { name1: 'User', getCurrentChatId: () => chat, characterId: '1', getContext: () => ({ substituteParams: text => text }) },
   getCharData: () => ({ name: 'Alice' }),
   getCharAvatarPath: () => '',
   getChatMessages: () => [],

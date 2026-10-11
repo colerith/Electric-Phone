@@ -29,15 +29,17 @@
         {{ name }}
       </button>
     </div>
-    <label v-if="draft.actorType === 'npc'" class="chat-setting-block"
-      >NPC 人设<textarea
+    <label class="chat-setting-block"
+      >角色人设<textarea
         v-model="draft.npcProfile"
         rows="6"
         placeholder="身份、经历、性格、说话方式，以及与我的关系…"
-        aria-label="NPC 人设"
+        aria-label="角色人设"
       />
     </label>
-    <p class="chat-settings-note">关系与备注独立保存；NPC 人设用于私聊和朋友圈，头像可在上方修改。</p>
+    <p class="chat-settings-note">
+      关系与备注独立保存；主要角色和 NPC 均优先使用此处人设进行私聊和朋友圈生成，头像可在上方修改。
+    </p>
     <p v-if="error" role="alert">{{ error }}</p>
   </section>
   <WaveCrossChatSettings v-if="phone.activeIdentity?.source !== 'local_group'" />

@@ -17,8 +17,7 @@ export function actorContext(identity: Identity) {
     name: identity.name,
     actorType: identity.actorType || 'main',
     relationshipToUser: identity.relationshipToUser || '未设置',
-    profile:
-      identity.actorType === 'npc' ? identity.npcProfile || identity.about || '未提供，保持未知' : identity.about || '',
+    profile: identity.npcProfile || identity.about || '未提供，保持未知',
   };
 }
 export function clearThreadHistory(thread: Thread, mode: 'display' | 'context', floor: number) {

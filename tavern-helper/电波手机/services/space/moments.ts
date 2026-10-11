@@ -258,7 +258,7 @@ export function planMoments(
       key: identity.charKey,
       name: identity.name,
       knownNames: identity.nameAliases || [],
-      about: identity.actorType === 'npc' ? identity.npcProfile || identity.about || '' : identity.about || '',
+      about: identity.npcProfile || identity.about || '',
       relationshipToUser: identity.relationshipToUser || '',
       npc: identity.actorType === 'npc',
     }));
@@ -412,7 +412,7 @@ export function planMomentReply(
         key: actorKey,
         name: identity.name,
         knownNames: identity.nameAliases || [],
-        about: identity.actorType === 'npc' ? identity.npcProfile || identity.about || '' : identity.about || '',
+        about: identity.npcProfile || identity.about || '',
         relationshipToUser: identity.relationshipToUser || '',
         npc: identity.actorType === 'npc',
       }

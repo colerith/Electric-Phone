@@ -1,3 +1,4 @@
+import { expandTavernMacros } from '../core/tavern-macros';
 import { sampleImageCounts } from '../space/image-plan';
 import { parseJsonResponse } from './json-response';
 import { validateCommentLanguages } from '../space/comment-language';
@@ -106,6 +107,7 @@ async function requestConfigured<T>(
   userInput: string,
   parse: (raw: string) => T,
   namespace?: {
+    identity?: Identity;
     treeHoleTopic?: string;
     cardKey: string;
     chatKey: string;
@@ -157,13 +159,22 @@ async function requestConfigured<T>(
       namespace && namespace.treeHoleTopic === undefined
         ? await prepareContext(settings, namespace.thread?.historyFloorCutoff ?? -1, namespace.historyBeforeFloor)
         : undefined;
+    if (overrides && namespace?.identity?.source !== 'local_group') {
+      const profile = namespace?.identity?.npcProfile?.trim() || namespace?.identity?.about?.trim();
+      if (profile) overrides.char_description = expandTavernMacros(profile);
+    }
     contextStep = '清理手机提示词';
     const filtered = prompts.map(prompt =>
       typeof prompt === 'string'
         ? prompt
-        : { ...prompt, content: stripExcludedTags(prompt.content, settings.basic.excludedTags) },
+        : { ...prompt, content: expandTavernMacros(stripExcludedTags(prompt.content, settings.basic.excludedTags)) },
     );
-    userInput = stripExcludedTags(userInput, settings.basic.excludedTags);
+    userInput = expandTavernMacros(stripExcludedTags(userInput, settings.basic.excludedTags));
+    if (settings.debugEnabled) {
+      diagnostics.prompt = JSON.stringify({ ordered_prompts: filtered, overrides, user_input: userInput }, null, 2);
+      diagnostics.response = '';
+      diagnostics.requestTime = new Date().toLocaleString();
+    }
     contextStep = '计算上下文预算';
     const ordered = fitContext(filtered, userInput, settings.api);
     contextStep = '';
@@ -433,13 +444,27 @@ export async function previewPhoneRequest(input: GenerationInput) {
   const prompts = conversationPrompts(input).map(prompt =>
     typeof prompt === 'string'
       ? prompt
-      : { ...prompt, content: stripExcludedTags(prompt.content, input.settings.basic.excludedTags) },
+      : {
+          ...prompt,
+          content: expandTavernMacros(stripExcludedTags(prompt.content, input.settings.basic.excludedTags)),
+        },
   );
-  const userInput = stripExcludedTags(input.latestUserText, input.settings.basic.excludedTags);
+  const userInput = expandTavernMacros(stripExcludedTags(input.latestUserText, input.settings.basic.excludedTags));
+  const overrides = await prepareContext(input.settings);
+  const profile = input.identity.npcProfile?.trim() || input.identity.about?.trim();
+  if (profile && input.identity.source !== 'local_group') overrides.char_description = expandTavernMacros(profile);
+  let ordered = prompts;
+  let budgetError = '';
+  try {
+    ordered = fitContext(prompts, userInput, input.settings.api);
+  } catch (error) {
+    budgetError = error instanceof Error ? error.message : String(error);
+  }
   return {
-    ordered_prompts: fitContext(prompts, userInput, input.settings.api),
-    overrides: await prepareContext(input.settings),
+    ordered_prompts: ordered,
+    overrides,
     user_input: userInput,
+    ...(budgetError ? { context_budget_error: budgetError } : {}),
   };
 }
 

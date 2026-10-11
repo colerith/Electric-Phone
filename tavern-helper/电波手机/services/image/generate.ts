@@ -1,3 +1,4 @@
+import { expandTavernMacros } from '../core/tavern-macros';
 import { storeResource, resourceEncoding } from '../core/resource-storage';
 import { unzipSync } from 'fflate';
 import { IMAGE_MODELS, type ImageProfile, type CharacterImage } from './schema';
@@ -87,7 +88,7 @@ export function activeNovelAiReferences(profile: ImageProfile, character: Charac
 }
 export function imagePrompt(profile: ImageProfile, character: CharacterImage, prompt: string): string {
   if (!prompt.trim()) throw Error('请填写本次画面描述');
-  return [profile.prefix.trim(), character.prefix.trim(), prompt.trim()].filter(Boolean).join(', ');
+  return expandTavernMacros([profile.prefix.trim(), character.prefix.trim(), prompt.trim()].filter(Boolean).join(', '));
 }
 export function novelAiBody(profile: ImageProfile, character: CharacterImage, prompt: string) {
   if (profile.width % 64 || profile.height % 64) throw Error('NovelAI 的宽高需为 64 的倍数');

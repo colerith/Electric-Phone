@@ -183,7 +183,7 @@
         <div class="wave-settings-title">运行日志</div>
         <button class="system-action" type="button" @click="diagnostics.logs.splice(0)">清空日志</button>
         <p v-if="!diagnostics.logs.length">暂无日志</p>
-        <p v-for="(log, index) in diagnostics.logs" :key="index">
+        <p v-for="(log, index) in diagnostics.logs" :key="index" style="white-space: pre-wrap; overflow-wrap: anywhere">
           {{ log.time }} · {{ log.event }}<br />{{ log.detail }}
         </p>
       </section>

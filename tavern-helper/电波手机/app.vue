@@ -923,7 +923,7 @@
                     <i class="fa-solid fa-chevron-right"></i>
                   </button>
                 </div>
-                <p class="settings-storage-mark">电波手机 · {{ WAVE_PHONE_RELEASE_VERSION }} © 2026</p>
+                <WaveExtensionUpdate />
               </template>
 
               <div v-else class="settings-detail">
@@ -1225,6 +1225,7 @@
 </template>
 
 <script setup lang="ts">
+import WaveExtensionUpdate from './components/settings/WaveExtensionUpdate.vue';
 import { storeResource } from './services/core/resource-storage';
 import { usePhoneTheme } from './services/core/theme';
 import _ from 'lodash';
@@ -1287,13 +1288,7 @@ import WaveNotificationSound from './components/settings/WaveNotificationSound.v
 import { playSoundEvent, stopNotification, type SoundEvent } from './services/core/notification';
 import { useMusicStore } from './stores/music';
 import WaveToggle from './components/shared/WaveToggle.vue';
-import {
-  WAVE_PHONE_RELEASE_VERSION,
-  type AppId,
-  type Identity,
-  type PhoneMessage,
-  type StickerLibrary,
-} from './schemas';
+import { type AppId, type Identity, type PhoneMessage, type StickerLibrary } from './schemas';
 import type { SendMessageInput } from './stores/phone';
 import WaveApiSettings from './components/settings/WaveApiSettings.vue';
 import WaveBackupSettings from './components/settings/WaveBackupSettings.vue';
@@ -1426,8 +1421,7 @@ async function selectPhotos(event: Event): Promise<void> {
     const files = Array.from(element.files || []).slice(0, 9);
     const photos: { url: string; description: string }[] = [];
     for (const file of files) {
-      if (!file.type.startsWith('image/') || file.size > 8 * 1024 * 1024)
-        throw Error('请选择 8MB 以内的图片');
+      if (!file.type.startsWith('image/') || file.size > 8 * 1024 * 1024) throw Error('请选择 8MB 以内的图片');
       photos.push({ url: await storeResource(file), description: file.name });
     }
     selectedPhotos.value = photos;
