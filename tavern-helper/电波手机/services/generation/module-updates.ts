@@ -93,7 +93,11 @@ export function mergeLimitedModule(
   if (app === 'memo') {
     const old = parseMemoData(current),
       next = MemoDataSchema.parse(patch);
-    return JSON.stringify({ notes: merge(old.notes, next.notes), doodles: merge(old.doodles, next.doodles) });
+    return JSON.stringify({
+      notes: merge(old.notes, next.notes),
+      doodles: merge(old.doodles, next.doodles),
+      latestDoodleIds: next.doodles.length ? next.doodles.map(item => item.id) : old.latestDoodleIds,
+    });
   }
   if (app === 'calendar')
     return JSON.stringify({
@@ -108,9 +112,11 @@ export function mergeLimitedModule(
 export function moduleSnapshot<T extends { memo: string; zone: string; calendar: string; browse: string }>(
   snapshot: T,
 ): T {
+  const memo = parseMemoData(snapshot.memo);
+  const latestIds = new Set(memo.latestDoodleIds ?? memo.doodles.slice(-1).map(item => item.id));
   return {
     ...snapshot,
-    memo: JSON.stringify(parseMemoData(snapshot.memo)),
+    memo: JSON.stringify({ notes: memo.notes, doodles: memo.doodles.filter(item => latestIds.has(item.id)) }),
     zone: JSON.stringify(parseZonePage(snapshot.zone)),
     calendar: JSON.stringify({ events: parseCalendar(snapshot.calendar) }),
     browse: JSON.stringify({ notes: parseBrowseNotes(snapshot.browse) }),

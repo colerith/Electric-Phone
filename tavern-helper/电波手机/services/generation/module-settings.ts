@@ -34,6 +34,7 @@ export const GeneratedItemSchema = z.object({
   translation: TranslationSchema.optional(),
 });
 export const MemoDataSchema = z.object({
+  latestDoodleIds: z.array(z.string()).optional(),
   notes: z.array(GeneratedItemSchema).default([]),
   doodles: z.array(GeneratedItemSchema.extend({ interpretation: z.string().default('') })).default([]),
 });

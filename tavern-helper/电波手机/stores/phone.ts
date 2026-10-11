@@ -619,6 +619,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const ids = new Set(deleted.memo);
       const memo = parseMemoData(snapshot.memo);
       snapshot.memo = JSON.stringify({
+        ...memo,
         notes: memo.notes.filter(item => !ids.has(`note:${item.id}`)),
         doodles: memo.doodles.filter(item => !ids.has(`doodle:${item.id}`)),
       });

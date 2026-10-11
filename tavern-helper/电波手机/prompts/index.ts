@@ -995,7 +995,7 @@ export const BUILTIN_PRESET_ENTRIES: readonly PresetEntry[] = [
     kind: 'custom',
     scope: 'chat',
     content:
-      '[电波手机·备忘更新]\n只记录 target_char 确实想记住、准备执行或反复惦记的事项。便签应像角色私下写给自己看的备忘，不写剧情摘要、人物档案或面向 User 的说明。\n\n便签要求：\n- 一次更新通常生成 3–5 条 notes，但新增数量必须服从本轮 moduleSettings.memo.maxNew；maxNew 小于 3 时按实际上限生成，maxNew 为 0 时不得新增。\n- 每条必须是具体、详细的计划或带有角色口吻的碎碎念，content 不少于 30 个中文字符；不得用一句空泛结论敷衍。\n- title 使用简短、具体的备忘标题，content 写清准备怎么做、顾虑、细节或反复惦记的原因。角色应保留自己的生活事项，不让全部内容都围绕 User。\n- 完成、取消、延期或修订已有事项时必须继承旧 id，禁止通过更换标题制造重复便签。\n\n随性涂鸦要求：\n- 新增数量服从 moduleSettings.memo.maxDoodles；每张涂鸦使用独立 id。\n- content 必须是与当前剧情中的场景、角色情绪、具体物件或关键台词强相关的“ASCII Art + emoji”即兴涂鸦，可使用歪斜线条、箭头、旁注、拟声词和少量 emoji 点缀。\n- 保留图案所需的空格与换行；严禁反引号和 Markdown 代码块，严禁 ```text；严禁套用小猫、兔子等常见模板，禁止脱离剧情，禁止加入大量文字说明。\n- interpretation 用简短自然的话解释画的是什么以及它与当前剧情的关联，不做过度心理诊断。\n\n输出结构：memo={notes:[{id,title,content,translation?}],doodles:[{id,title,content,interpretation,translation?}]}。双语按本轮设置将译文放在 translation={language,title,content}，不得混入原文。无合理更新时返回空 patch。',
+      '[电波手机·备忘更新]\n只记录 target_char 确实想记住、准备执行或反复惦记的事项。便签应像角色私下写给自己看的备忘，不写剧情摘要、人物档案或面向 User 的说明。\n\n便签要求：\n- 一次更新通常生成 3–5 条 notes，但新增数量必须服从本轮 moduleSettings.memo.maxNew；maxNew 小于 3 时按实际上限生成，maxNew 为 0 时不得新增。\n- 每条必须是具体、详细的计划或带有角色口吻的碎碎念，content 不少于 30 个中文字符；不得用一句空泛结论敷衍。\n- title 使用简短、具体的备忘标题，content 写清准备怎么做、顾虑、细节或反复惦记的原因。角色应保留自己的生活事项，不让全部内容都围绕 User。\n- 完成、取消、延期或修订已有事项时必须继承旧 id，禁止通过更换标题制造重复便签。\n\n随性涂鸦要求：\n- 新增数量服从 moduleSettings.memo.maxDoodles；每张涂鸦使用独立 id。\n- content 必须是与当前剧情中的场景、角色情绪、具体物件或关键台词强相关的“ASCII Art + emoji”即兴涂鸦，以字符线条、轮廓、空间布局为主体，emoji 只作少量视觉点缀；可灵活组合歪斜线条、箭头、局部放大、运动轨迹、划掉重画的痕迹、简短旁注与拟声词，像角色随手画在纸边的即兴小画，不要机械凑齐所有元素。文字只能是极短标签或拟声词，不写完整句子、标语、说明段落，也不把对话排成图画；具体解释放入 interpretation。每次从当前剧情重新选择视觉焦点、视角和构图，避免固定模板与重复符号堆砌。历史涂鸦仅供辨别已画过的内容，不得复刻其轮廓、布局或只替换文字与 emoji。\n- 保留图案所需的空格与换行；严禁反引号和 Markdown 代码块，严禁 ```text；严禁套用小猫、兔子等常见模板，禁止脱离剧情，禁止加入大量文字说明。\n- interpretation 用简短自然的话解释画的是什么以及它与当前剧情的关联，不做过度心理诊断。\n\n输出结构：memo={notes:[{id,title,content,translation?}],doodles:[{id,title,content,interpretation,translation?}]}。双语按本轮设置将译文放在 translation={language,title,content}，不得混入原文。无合理更新时返回空 patch。',
   },
   {
     order: 94,
@@ -1531,7 +1531,7 @@ export function buildModulePrompt(
 export function moduleGenerationRules(input: PhonePromptInput, apps: readonly string[]): string {
   const settings = ModuleSettingsSchema.parse(input.moduleSettings || {});
   const contracts: Record<LimitedApp, string> = {
-    memo: 'memo={notes:[{id,title,content,translation?}],doodles:[{id,title,content,interpretation,translation?}]}。涂鸦 content 保存 ASCII 图案原始换行和空格；interpretation 是文字解析，translation.content 仅翻译解析，禁止翻译或破坏图案。notes 和 doodles 的新增额度分别计算。',
+    memo: 'memo={notes:[{id,title,content,translation?}],doodles:[{id,title,content,interpretation,translation?}]}。涂鸦采用以图形为主的 ASCII Art + emoji 即兴混合画，短旁注与拟声词仅作点缀，禁止长句与大段文字；每次更换视觉焦点和构图，不能照抄所提供的最新一层历史涂鸦。content 保存 ASCII 图案原始换行和空格；interpretation 是文字解析，translation.content 仅翻译解析，禁止翻译或破坏图案。notes 和 doodles 的新增额度分别计算。',
     zone: `zone={profile?:{username,handle,title,titleColor,badges,tags,signature,location},posts:[{id,title,content,date,category,images:[],likes,comments:[{id,authorKey,author,content,createdAt,parentId,replyToAuthorKey,replyToAuthor,translation?}],translation?}]}。保留原空间协议和资料，只限制新增动态，不把旧动态的评论回复算作新动态。${zoneIdentityContext(input)}\n${postTagsPrompt} ${compactProfileBadgePrompt(parseZonePage(input.appSnapshot.zone).profile)} 首次设计个人资料时补全称号、颜色和徽章；以后保留既有选择，除非明确要求修改。${COMMENT_LANGUAGE_RULE} 本轮已提供的评论者独立语言配置：${JSON.stringify(
       Object.fromEntries(
         Object.entries(input.actorLanguagePreferences || {})
