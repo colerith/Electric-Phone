@@ -10,13 +10,21 @@
       :disabled="busy"
       @click="available ? update() : check()"
     >
-      <i
-        :class="
-          busy ? 'fa-solid fa-spinner fa-spin' : available ? 'fa-solid fa-arrow-down' : 'fa-solid fa-rotate-right'
-        "
+      <svg
+        class="version-icon"
+        :class="{ 'is-spinning': busy }"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
         aria-hidden="true"
-      ></i>
-      {{ busy ? '处理中…' : available ? '更新' : '检查更新' }}
+      >
+        <path v-if="available && !busy" d="M12 4v12m-5-5 5 5 5-5M5 20h14" />
+        <path v-else d="M20 7v5h-5M19.2 7a8 8 0 1 0 .2 9M20 12l-3-4" />
+      </svg>
+      <span class="version-action-text">{{ busy ? '处理中…' : available ? '更新' : '检查更新' }}</span>
     </button>
     <small v-if="status" class="version-status" role="status">{{ status }}</small>
   </div>
@@ -89,72 +97,93 @@ onMounted(check);
 </script>
 <style scoped>
 #wave-phone-script-root .wave-device .wave-version-update {
-  display: flex;
-  flex-wrap: wrap;
+  --version-pink-bg: #f9e7ee;
+  --version-pink-line: #f0ccd9;
+  --version-pink-text: #a95475;
+  display: grid;
+  grid-template-columns: auto auto;
   align-items: center;
   justify-content: center;
-  gap: 7px 10px;
-  padding: 14px 12px 20px;
-  color: var(--wave-muted, #737e90);
+  gap: 9px 16px;
+  padding: 18px 8px 24px;
+  color: var(--wave-muted, #7d7b86);
   font-size: 11px;
   line-height: 1.5;
 }
 #wave-phone-script-root .wave-device .version-label {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  margin: 0;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 400;
+  line-height: 16px;
+  white-space: nowrap;
 }
 #wave-phone-script-root .wave-device .version-number {
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: var(--wave-tint, #eaf0f8);
-  color: var(--wave-muted, #737e90);
+  margin: 0;
+  padding: 0;
+  background: transparent;
   font-size: 10px;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
+  opacity: 0.8;
 }
 #wave-phone-script-root .wave-device .version-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
+  box-sizing: border-box;
+  height: 30px;
   min-height: 30px;
   width: auto;
   margin: 0;
-  padding: 5px 10px;
-  border: 1px solid var(--wave-line, #dae3ef);
-  border-radius: 9px;
-  background: var(--wave-card, #fff);
-  color: var(--wave-blue-strong, #4e70a9);
-  box-shadow: none;
+  padding: 0 11px;
+  border: 1px solid var(--version-pink-line);
+  border-radius: 999px;
+  background: var(--version-pink-bg);
+  color: var(--version-pink-text);
+  box-shadow: inset 0 1px 0 #ffffff70;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: 14px;
   white-space: nowrap;
   cursor: pointer;
   transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
+    filter 0.15s ease,
     transform 0.15s ease;
 }
 #wave-phone-script-root .wave-device .version-action.has-update {
-  border-color: transparent;
-  background: var(--wave-blue, #6385bd);
+  border-color: #d68ba7;
+  background: #d990ac;
   color: #fff;
 }
-#wave-phone-script-root .wave-device .version-action i {
-  font-size: 10px;
+#wave-phone-script-root .wave-device .version-action .version-icon {
+  display: block;
+  flex: 0 0 12px;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  padding: 0;
+}
+#wave-phone-script-root .wave-device .version-action-text {
+  display: block;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  line-height: 14px;
 }
 #wave-phone-script-root .wave-device .version-action:hover:not(:disabled) {
-  filter: brightness(0.96);
+  filter: brightness(0.97);
 }
 #wave-phone-script-root .wave-device .version-action:active:not(:disabled) {
   transform: translateY(1px);
 }
 #wave-phone-script-root .wave-device .version-action:focus-visible {
-  outline: 2px solid var(--wave-blue, #6385bd);
+  outline: 2px solid #d990ac;
   outline-offset: 3px;
 }
 #wave-phone-script-root .wave-device .version-action:disabled {
@@ -162,13 +191,35 @@ onMounted(check);
   cursor: wait;
 }
 #wave-phone-script-root .wave-device .version-status {
+  grid-column: 1 / -1;
   width: 100%;
+  max-width: 260px;
+  justify-self: center;
   margin: 0;
-  color: var(--wave-muted, #737e90);
+  color: var(--wave-muted, #7d7b86);
   font-size: 10px;
   font-weight: 400;
   line-height: 1.6;
   text-align: center;
   overflow-wrap: anywhere;
+  opacity: 0.8;
+}
+#wave-phone-script-root .wave-device.theme-dark .wave-version-update {
+  --version-pink-bg: #3d2a36;
+  --version-pink-line: #684253;
+  --version-pink-text: #edb2c9;
+}
+.is-spinning {
+  animation: version-spin 1s linear infinite;
+}
+@keyframes version-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-spinning {
+    animation: none;
+  }
 }
 </style>
