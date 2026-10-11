@@ -1,8 +1,5 @@
 <template>
   <div class="wave-version-update">
-    <span class="version-label"
-      >电波手机 <span class="version-number">v{{ WAVE_PHONE_RELEASE_VERSION }}</span></span
-    >
     <button
       class="version-action"
       :class="{ 'has-update': available }"
@@ -10,23 +7,19 @@
       :disabled="busy"
       @click="available ? update() : check()"
     >
-      <svg
+      <i
         class="version-icon"
-        :class="{ 'is-spinning': busy }"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+        :class="
+          busy ? 'fa-solid fa-spinner fa-spin' : available ? 'fa-solid fa-arrow-down' : 'fa-solid fa-rotate-right'
+        "
         aria-hidden="true"
-      >
-        <path v-if="available && !busy" d="M12 4v12m-5-5 5 5 5-5M5 20h14" />
-        <path v-else d="M20 7v5h-5M19.2 7a8 8 0 1 0 .2 9M20 12l-3-4" />
-      </svg>
+      ></i>
       <span class="version-action-text">{{ busy ? '处理中…' : available ? '更新' : '检查更新' }}</span>
     </button>
-    <small v-if="status" class="version-status" role="status">{{ status }}</small>
+    <span class="version-label"
+      >v{{ WAVE_PHONE_RELEASE_VERSION }} <span class="version-date">（2026.10.11）</span></span
+    >
+    <small v-if="status && status !== '已是最新版本'" class="version-status" role="status">{{ status }}</small>
   </div>
 </template>
 <script setup lang="ts">
@@ -97,76 +90,58 @@ onMounted(check);
 </script>
 <style scoped>
 #wave-phone-script-root .wave-device .wave-version-update {
-  --version-pink-bg: #f9e7ee;
-  --version-pink-line: #f0ccd9;
-  --version-pink-text: #a95475;
-  display: grid;
-  grid-template-columns: auto auto;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 9px 16px;
-  padding: 18px 8px 24px;
-  color: var(--wave-muted, #7d7b86);
-  font-size: 11px;
-  line-height: 1.5;
-}
-#wave-phone-script-root .wave-device .version-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 16px;
-  white-space: nowrap;
-}
-#wave-phone-script-root .wave-device .version-number {
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  font-size: 10px;
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.8;
+  gap: 10px;
+  padding: 20px 12px 28px;
+  color: var(--wave-muted, #8e8790);
+  font-family: inherit;
 }
 #wave-phone-script-root .wave-device .version-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 6px;
   box-sizing: border-box;
-  height: 30px;
-  min-height: 30px;
-  width: auto;
+  min-width: 106px;
+  height: 32px;
+  min-height: 32px;
   margin: 0;
-  padding: 0 11px;
-  border: 1px solid var(--version-pink-line);
+  padding: 0 16px;
+  border: 1px solid var(--wave-line, #e1d6dc);
   border-radius: 999px;
-  background: var(--version-pink-bg);
-  color: var(--version-pink-text);
-  box-shadow: inset 0 1px 0 #ffffff70;
+  background: var(--wave-card, #fff);
+  color: var(--wave-muted, #8e8790);
+  box-shadow: none;
   font-family: inherit;
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 14px;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 16px;
   white-space: nowrap;
   cursor: pointer;
   transition:
-    filter 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease,
     transform 0.15s ease;
 }
-#wave-phone-script-root .wave-device .version-action.has-update {
-  border-color: #d68ba7;
-  background: #d990ac;
-  color: #fff;
+#wave-phone-script-root .wave-device .version-action.has-update,
+#wave-phone-script-root .wave-device .version-action:hover:not(:disabled) {
+  border-color: #ddb2c2;
+  color: #b17089;
+  background: color-mix(in srgb, var(--wave-card, #fff) 90%, #efbfd0);
 }
 #wave-phone-script-root .wave-device .version-action .version-icon {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 12px;
   width: 12px;
-  height: 12px;
+  height: 16px;
   margin: 0;
   padding: 0;
+  font-size: 10px;
+  line-height: 1;
 }
 #wave-phone-script-root .wave-device .version-action-text {
   display: block;
@@ -174,10 +149,34 @@ onMounted(check);
   padding: 0;
   color: inherit;
   font: inherit;
-  line-height: 14px;
+  line-height: 16px;
 }
-#wave-phone-script-root .wave-device .version-action:hover:not(:disabled) {
-  filter: brightness(0.97);
+#wave-phone-script-root .wave-device .version-label {
+  display: block;
+  margin: 0;
+  padding: 0;
+  color: var(--wave-muted, #8e8790);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+  text-align: center;
+  opacity: 0.75;
+}
+#wave-phone-script-root .wave-device .version-date {
+  font: inherit;
+  color: inherit;
+}
+#wave-phone-script-root .wave-device .version-status {
+  max-width: 260px;
+  margin: 0;
+  color: var(--wave-muted, #8e8790);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.6;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 #wave-phone-script-root .wave-device .version-action:active:not(:disabled) {
   transform: translateY(1px);
@@ -187,39 +186,7 @@ onMounted(check);
   outline-offset: 3px;
 }
 #wave-phone-script-root .wave-device .version-action:disabled {
-  opacity: 0.65;
+  opacity: 0.6;
   cursor: wait;
-}
-#wave-phone-script-root .wave-device .version-status {
-  grid-column: 1 / -1;
-  width: 100%;
-  max-width: 260px;
-  justify-self: center;
-  margin: 0;
-  color: var(--wave-muted, #7d7b86);
-  font-size: 10px;
-  font-weight: 400;
-  line-height: 1.6;
-  text-align: center;
-  overflow-wrap: anywhere;
-  opacity: 0.8;
-}
-#wave-phone-script-root .wave-device.theme-dark .wave-version-update {
-  --version-pink-bg: #3d2a36;
-  --version-pink-line: #684253;
-  --version-pink-text: #edb2c9;
-}
-.is-spinning {
-  animation: version-spin 1s linear infinite;
-}
-@keyframes version-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .is-spinning {
-    animation: none;
-  }
 }
 </style>
