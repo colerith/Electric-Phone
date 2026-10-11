@@ -80,6 +80,8 @@ export function formatPhoneMessage(
 ): string {
   if (message.withdrawn) return '[已撤回消息]';
   const p = (key: string) => printable(message.payload[key]);
+  if (message.payload.interaction === 'message_reaction')
+    return `[消息回应事件，仅作互动记录，不是用户发言] ${message.content}（目标消息 ID：${p('targetMessageId')}）`;
   if (message.payload.interaction === 'poke')
     return `[拍一拍] ${p('actorName') || (message.sender === 'user' ? 'User' : 'Char')} 戳了戳 ${p('targetName') || message.content}`;
   const content = splitElectric(message.content).body;

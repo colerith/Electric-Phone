@@ -502,8 +502,9 @@
                         'selection-anchor': selectionAnchorId === message.id,
                         'has-favorite': message.favorite,
                         'is-poke':
-                          ['poke', 'group_management'].includes(String(message.payload.interaction)) &&
-                          !message.withdrawn,
+                          ['poke', 'group_management', 'message_reaction'].includes(
+                            String(message.payload.interaction),
+                          ) && !message.withdrawn,
                       },
                     ]"
                     @contextmenu.prevent="openMessageMenu(message)"
@@ -563,7 +564,10 @@
                       :char-name="displayIdentityName(store.activeIdentity)"
                     />
                     <div
-                      v-else-if="message.payload.interaction === 'group_management' && !message.withdrawn"
+                      v-else-if="
+                        ['group_management', 'message_reaction'].includes(String(message.payload.interaction)) &&
+                        !message.withdrawn
+                      "
                       class="wave-poke-notice wave-group-notice"
                     >
                       {{ message.content }}

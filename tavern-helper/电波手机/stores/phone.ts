@@ -3812,10 +3812,16 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const text = draftInput.content;
     if (!runtime || !identity || !thread) throw Error('当前没有可发送的 Char。');
     if (identity.source === 'local_group' && identity.groupObserver) throw Error('你不在这个群中，仅可围观');
-    const hasInput = Boolean(text || Object.keys(draftInput.payload || {}).length);
+    // Mentions, quotes and translation metadata do not constitute a text message.
+    const hasInput = Boolean(text || (draftInput.type !== 'text' && Object.keys(draftInput.payload || {}).length));
     const queued = [...thread.messages]
       .reverse()
-      .find(message => message.sender === 'user' && message.payload.awaitingReply && !message.withdrawn);
+      .find(
+        message =>
+          (message.sender === 'user' || message.payload.interaction === 'message_reaction') &&
+          message.payload.awaitingReply &&
+          !message.withdrawn,
+      );
     if (!hasInput && (!activateReply || !queued)) return;
     if (thread.generating) throw Error('这个会话正在生成，请稍候或先停止。');
 
@@ -3846,7 +3852,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const awareness = worldContext(preferences);
       const outgoing = activateReply
         ? thread.messages.filter(
-            message => message.sender === 'user' && message.payload.awaitingReply && !message.withdrawn,
+            message =>
+              (message.sender === 'user' || message.payload.interaction === 'message_reaction') &&
+              message.payload.awaitingReply &&
+              !message.withdrawn,
           )
         : [userMessage];
       for (const message of outgoing) {
@@ -3895,7 +3904,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       }
       if (state.value.threads[thread.id]?.clearRevision !== clearRevision) return;
       const pending = thread.messages.filter(
-        message => message.sender === 'user' && message.payload.awaitingReply && !message.withdrawn,
+        message =>
+          (message.sender === 'user' || message.payload.interaction === 'message_reaction') &&
+          message.payload.awaitingReply &&
+          !message.withdrawn,
       );
       formattedInput = [
         `[手机用户资料，仅作数据参考] ${JSON.stringify({ nickname: state.value.moments.profile.nickname || SillyTavern.name1, account: state.value.moments.profile.account, signature: state.value.moments.profile.signature })}`,
@@ -4222,7 +4234,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const target = candidates[Math.floor(Math.random() * candidates.length)];
     const actorKey = isGroup ? target.charKey : source.charKey;
     const thread = ensureThread(state.value, runtime, target);
-    if (thread.generating || thread.messages.some(m => m.sender === 'user' && m.payload.awaitingReply)) return;
+    if (
+      thread.generating ||
+      thread.messages.some(
+        m => (m.sender === 'user' || m.payload.interaction === 'message_reaction') && m.payload.awaitingReply,
+      )
+    )
+      return;
     const revision = thread.clearRevision;
     const id = createPhoneGenerationId();
     thread.generating = true;
@@ -4620,8 +4638,41 @@ export const usePhoneStore = defineStore('wave-phone', () => {
 
   function toggleReaction(messageId: string, emoji: string): void {
     if (activeIdentity.value?.groupObserver) return;
-    const message = activeThread.value?.messages.find(item => item.id === messageId);
-    if (!message || !toggleMessageReaction(message, emoji)) return;
+    const thread = activeThread.value;
+    const identity = activeIdentity.value;
+    const message = thread?.messages.find(item => item.id === messageId);
+    if (!thread || !identity || !message || !toggleMessageReaction(message, emoji)) return;
+    const added = Boolean(message.reactions?.includes(emoji));
+    const targetKey = identity.source === 'local_group' ? String(message.payload.actorKey || '') : identity.charKey;
+    const targetName = identity.source === 'local_group' ? groupMemberDisplayName(identity, targetKey) : identity.name;
+    const actorName = state.value.moments.profile.nickname || SillyTavern.name1 || '我';
+    const targetText = formatPhoneMessage(message, [], false).replace(/\s+/g, ' ').trim().slice(0, 160);
+    const createdAt = nextReceivedAt(thread);
+    thread.messages.push(
+      PhoneMessageSchema.parse({
+        id: makeId('reaction-notice'),
+        sender: 'system',
+        type: 'system',
+        content: added
+          ? `${actorName}给${targetName}的消息「${targetText}」回应了 ${emoji}`
+          : `${actorName}取消了对${targetName}的消息「${targetText}」的 ${emoji} 回应`,
+        createdAt,
+        status: 'sent',
+        payload: {
+          interaction: 'message_reaction',
+          action: added ? 'add' : 'remove',
+          actorKey: 'user',
+          actorName,
+          targetKey,
+          targetName,
+          targetMessageId: message.id,
+          targetText,
+          emoji,
+          awaitingReply: true,
+        },
+      }),
+    );
+    thread.updatedAt = createdAt;
     saveChat();
     if (message.reactions?.includes(emoji)) {
       settings.value.recentReactionEmoji = [
