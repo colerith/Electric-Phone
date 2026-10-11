@@ -126,37 +126,42 @@
     max-width: 100%;
     margin-top: 18px;
   }
-  // Footer backgrounds end at the same surface as the reserved home-indicator space.
-  :is(.browser-toolbar, .messenger-bottom, .space-bottom, .group-observer-bar, .message-multi-toolbar) {
-    background: linear-gradient(to bottom, transparent, var(--wave-surface, #f2f4f8) 24px) !important;
+  // Immersive toolbars reveal the page canvas instead of painting a second surface.
+  :is(.browser-toolbar, .messenger-bottom, .space-bottom, .group-observer-bar, .message-multi-toolbar),
+  &.page-conversation :is(.composer, .composer-context) {
+    background: transparent !important;
     border: 0;
     box-shadow: none;
     backdrop-filter: none;
-    padding-top: 24px;
-  }
-  &.page-conversation :is(.composer, .composer-context) {
-    background: linear-gradient(to bottom, transparent, var(--wave-surface, #f2f4f8) 18px) !important;
-    border: 0;
-    box-shadow: none;
-    padding-top: 18px;
   }
   &.page-conversation::after,
   &.page-messages::after {
-    background: var(--wave-surface, #f2f4f8);
+    background: transparent;
   }
-  &:not(.page-home):not(.music-immersive):not(.playlist-immersive) .wave-homebar {
-    isolation: isolate;
+  &:not(.page-home) .wave-homebar {
     border: 0;
     box-shadow: none;
     background: transparent !important;
     &::before {
-      content: '';
-      position: absolute;
-      inset: -24px 0 0;
-      z-index: -1;
-      pointer-events: none;
-      background: linear-gradient(to bottom, transparent, var(--wave-surface, #f2f4f8) 28px);
+      content: none;
     }
+  }
+  // Fade the scrolling cards themselves; no opaque overlay seam above the home bar.
+  &.footer-card-view .wave-screen {
+    mask-image: linear-gradient(
+      to bottom,
+      #000 0,
+      #000 calc(100% - 52px),
+      rgba(0, 0, 0, 0.9) calc(100% - 38px),
+      rgba(0, 0, 0, 0.55) calc(100% - 23px),
+      rgba(0, 0, 0, 0.16) calc(100% - 9px),
+      transparent 100%
+    );
+  }
+  &.space-composing,
+  &.space-composing .wave-statusbar,
+  &.space-composing .wave-homebar {
+    background: var(--wave-card, #fff) !important;
   }
   .music-bottom-dock {
     backdrop-filter: none;
@@ -173,26 +178,6 @@
 // Avoid continuously filtering the full Tavern canvas beneath a scrolling phone.
 #wave-phone-script-root .wave-overlay {
   backdrop-filter: none;
-}
-
-// Fade scrolling playback content into the immersive canvas above the home indicator.
-#wave-phone-script-root .wave-phone-host .wave-device.music-immersive {
-  --music-footer-surface: #e5edf6;
-  &.theme-dark { --music-footer-surface: #202d3c; }
-  .wave-homebar {
-    isolation: isolate;
-    background: transparent !important;
-    border: 0;
-    box-shadow: none;
-    &::before {
-      content: '';
-      position: absolute;
-      inset: -36px 0 0;
-      z-index: -1;
-      pointer-events: none;
-      background: linear-gradient(to bottom, transparent, var(--music-footer-surface) 42px);
-    }
-  }
 }
 
 #wave-phone-script-root .wave-phone-host .wave-device.theme-dark {

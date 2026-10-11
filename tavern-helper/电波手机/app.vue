@@ -12,6 +12,9 @@
           {
             'is-subpage': store.currentPage !== 'home',
             'is-observing-group': store.currentPage === 'conversation' && observingGroup,
+            'footer-card-view':
+              store.currentPage !== 'zone' &&
+              (appSettingsOpen || !['home', 'conversation', 'messages', 'browse'].includes(store.currentPage)),
             'space-composing': store.currentPage === 'zone' && space?.isComposing,
             'music-immersive': store.currentPage === 'music' && music.view === 'player' && !appSettingsOpen,
             'music-is-playing': music.playing,
@@ -141,7 +144,9 @@
                 aria-label="搜索聊天或联系人"
                 :aria-expanded="messenger?.searchOpen || false"
                 @click="messenger?.toggleSearch()"
-              ><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
+              >
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+              </button>
               <button
                 v-if="store.currentPage === 'messages' && !appSettingsOpen && messenger?.headerIcon"
                 data-messenger-plus
@@ -1977,7 +1982,14 @@ const {
 const loadingOlderMessages = ref(false);
 let conversationEntry = 0;
 watch(
-  () => [store.isOpen, store.currentPage, store.activeThread?.id, threadElement.value, allThreadMessages.value.length === 0] as const,
+  () =>
+    [
+      store.isOpen,
+      store.currentPage,
+      store.activeThread?.id,
+      threadElement.value,
+      allThreadMessages.value.length === 0,
+    ] as const,
   async ([open, page, , element]) => {
     const entry = ++conversationEntry;
     if (!open || page !== 'conversation' || !element) return;

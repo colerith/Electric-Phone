@@ -15,6 +15,7 @@
     <template v-if="account">
       <form
         v-if="mode !== 'app'"
+        ref="accountForm"
         class="wallet-account-group wallet-account-form"
         :class="
           mode === 'mine'
@@ -54,7 +55,7 @@
               placeholder="选填"
           /></label>
         </div>
-        <button type="submit" class="settings-save-wide">保存账户</button>
+        <button v-if="mode !== 'settings'" type="submit" class="settings-save-wide">保存账户</button>
         <p v-if="feedback" role="status" class="chat-settings-note">{{ feedback }}</p>
       </form>
       <section v-if="mode === 'settings'" class="chat-settings-group system-settings-card wallet-account-group">
@@ -126,6 +127,7 @@
 </template>
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
+import { useSettingsForm } from '../../services/core/settings-forms';
 import { usePhoneStore } from '../../stores/phone';
 import { identityAvatarStyle } from '../../services/core/avatar';
 import { accountWallet, currencies } from '../../services/wallet/wallet-accounts';
@@ -148,6 +150,7 @@ function accountAvatar(id: string): string {
       : '';
 }
 const balanceTouched = ref(false);
+const accountForm = ref<HTMLFormElement | null>(null);
 const selectedId = ref(''),
   feedback = ref('');
 const accounts = computed(() => phone.walletAccounts.filter(a => props.mode !== 'mine' || a.ownerType !== 'char'));
@@ -172,6 +175,7 @@ const sharedOptions = computed(() => [
     .map(a => ({ value: a.id, label: a.name })),
 ]);
 const currencyOptions = currencies.map(value => ({ value, label: value }));
+let markWalletSaved = () => {};
 const draft = reactive({ name: '', currency: 'CNY', balance: '', bankName: '', cardLabel: '', cardLastFour: '' });
 watch(
   () => [phone.state.activeCharKey, props.mode, accounts.value.map(a => a.id).join('|'), phone.walletSelectedAccountId],
@@ -211,6 +215,7 @@ watch(
     });
     feedback.value = '';
     balanceTouched.value = false;
+    markWalletSaved();
   },
   { immediate: true },
 );
@@ -222,8 +227,19 @@ watch(
       draft.balance = accountWallet(phone.state.walletBook, { ...account.value, currency }).balance?.toString() || '';
   },
 );
-function save(): void {
-  if (!account.value) return;
+const walletForm = useSettingsForm(
+  () => ({ draft: { ...draft }, balanceTouched: balanceTouched.value }),
+  save,
+  () => props.mode === 'settings' && Boolean(account.value),
+  value => {
+    Object.assign(draft, value.draft);
+    balanceTouched.value = value.balanceTouched;
+  },
+);
+markWalletSaved = walletForm.markSaved;
+function save(): boolean {
+  if (!account.value) return true;
+  if (accountForm.value && !accountForm.value.reportValidity()) return false;
   try {
     phone.saveWalletAccount(account.value.id, {
       ...draft,
@@ -234,8 +250,11 @@ function save(): void {
         : accountWallet(phone.state.walletBook, { ...account.value, currency: draft.currency }).balance,
     });
     feedback.value = '账户已保存';
+    walletForm.markSaved();
+    return true;
   } catch (error) {
     feedback.value = error instanceof Error ? error.message : String(error);
+    return false;
   }
 }
 function createShared(): void {
