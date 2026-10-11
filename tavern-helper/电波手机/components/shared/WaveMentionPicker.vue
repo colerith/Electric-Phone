@@ -19,11 +19,13 @@
         @mousedown.prevent
         @click.stop="choose(person)"
       >
-        <span>@{{ person.name }}</span
-        ><small v-if="person.remark">{{ person.remark }}</small>
+        <span class="mention-symbol" aria-hidden="true">@</span>
+        <span class="mention-details">
+          <span class="mention-name">{{ person.name }}</span>
+          <small v-if="person.remark && person.remark !== person.name" class="mention-remark">{{ person.remark }}</small>
+        </span>
       </button>
-      <small v-if="!matches.length">没有匹配的联系人</small>
-      <button type="button" @click.stop="close">取消</button>
+      <small v-if="!matches.length" class="mention-empty">没有匹配的联系人</small>
     </div>
   </div>
 </template>
@@ -102,48 +104,92 @@ async function choose(person: Identity) {
   min-width: 0;
   width: 100%;
 }
-.wave-mention-menu {
+#wave-phone-script-root .wave-device .wave-mention-menu {
   position: absolute;
   z-index: 40;
-  bottom: 100%;
+  bottom: calc(100% + 8px);
   left: 0;
   width: 100%;
-  max-height: 220px;
+  max-height: 210px;
   overflow-y: auto;
-  border-radius: 14px;
-  background: var(--wave-surface, #fff);
+  overscroll-behavior: contain;
+  border: 1px solid var(--wave-line, #e8e5e9);
+  border-radius: 16px;
+  background: var(--wave-card, #fff);
   color: var(--wave-text, #26354d);
-  box-shadow: 0 4px 24px #0003;
-  padding: 8px;
+  box-shadow: 0 3px 12px #20232a12;
+  padding: 5px;
   box-sizing: border-box;
+  scrollbar-width: thin;
 }
 #wave-phone-script-root .wave-device .wave-mention-menu button {
   display: flex;
-  gap: 8px;
+  gap: 9px;
   align-items: center;
   width: 100%;
-  padding: 10px;
+  min-height: 40px;
+  height: auto;
+  margin: 0;
+  padding: 7px 9px;
   border: 0;
+  border-radius: 11px;
   background: transparent;
+  box-shadow: none;
   color: inherit;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.4;
   text-align: left;
   white-space: normal;
-  overflow-wrap: anywhere;
   cursor: pointer;
+  transition: background 0.15s ease;
 }
 #wave-phone-script-root .wave-device .wave-mention-menu button[aria-selected='true'],
 #wave-phone-script-root .wave-device .wave-mention-menu button:hover {
-  background: #6385bd22;
+  background: #c78ca51a;
 }
-.wave-mention-menu small {
-  opacity: 0.7;
+#wave-phone-script-root .wave-device .wave-mention-menu .mention-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 27px;
+  height: 27px;
+  border-radius: 9px;
+  background: #c78ca51a;
+  color: #b77792;
+  font-size: 14px;
+  line-height: 1;
+}
+#wave-phone-script-root .wave-device .wave-mention-menu .mention-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+#wave-phone-script-root .wave-device .wave-mention-menu .mention-name {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+#wave-phone-script-root .wave-device .wave-mention-menu .mention-remark,
+#wave-phone-script-root .wave-device .wave-mention-menu .mention-empty {
+  color: var(--wave-muted, #8e8790);
+  font-size: 10px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+#wave-phone-script-root .wave-device .wave-mention-menu .mention-empty {
+  display: block;
+  padding: 12px;
+  text-align: center;
 }
 .wave-mention-field :slotted(textarea),
 .wave-mention-field :slotted(input) {
   width: 100%;
   box-sizing: border-box;
 }
-.is-inline .wave-mention-menu {
+#wave-phone-script-root .wave-device .is-inline .wave-mention-menu {
   position: static;
   margin-top: 8px;
 }

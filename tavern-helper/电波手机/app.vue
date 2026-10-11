@@ -792,7 +792,7 @@
                       ref="composerInput"
                       :value="store.activeThread?.draft || ''"
                       rows="1"
-                      placeholder="输入讯号，@ 艾特联系人…"
+                      placeholder="输入讯号…"
                       @compositionstart="composerComposing = true"
                       @compositionend="composerComposing = false"
                       @input="onDraft"

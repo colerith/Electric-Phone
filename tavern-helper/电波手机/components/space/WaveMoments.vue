@@ -635,7 +635,7 @@
               v-model="draft.content"
               maxlength="5000"
               rows="5"
-              placeholder="这一刻的想法…输入 @ 艾特联系人"
+              placeholder="这一刻的想法…"
               aria-label="空间动态文本"
             ></textarea>
           </WaveMentionPicker>
