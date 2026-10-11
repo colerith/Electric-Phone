@@ -25,7 +25,7 @@ export function readPhoneChatTime(skipLastAssistant = false): string {
   }
   return '';
 }
-export function registerChatTime(getSettings: () => SystemClockSettings) {
+export function registerChatTime(getSettings: () => SystemClockSettings, canInject: () => boolean = () => true) {
   let release: (() => void) | undefined;
   let requested = false;
   const clear = () => {
@@ -35,6 +35,10 @@ export function registerChatTime(getSettings: () => SystemClockSettings) {
   };
   function refresh(type = 'normal', notify = false) {
     clear();
+    if (!canInject()) {
+      chatTimeStatus.value = '当前角色卡已排除或不可用，不注入手机提示词';
+      return;
+    }
     const settings = getSettings();
     if (settings.source !== 'phone') {
       chatTimeStatus.value = '未启用电波手机聊天时间戳';
@@ -72,12 +76,16 @@ ${parseCivilTime(anchor) !== null ? `此前剧情结束时间基准：${anchor}�
     }
   }
   const stopWatch = watch(
-    () => [getSettings().source, getSettings().storyInitialTime],
+    () => [getSettings().source, getSettings().storyInitialTime, canInject()],
     () => refresh(),
-    { immediate: true },
+    { immediate: true, flush: 'sync' },
   );
   const events = [
     eventOn(tavern_events.GENERATION_AFTER_COMMANDS, (type, _options, dry) => {
+      if (!canInject()) {
+        clear();
+        return;
+      }
       if (dry) return;
       if (!['normal', 'continue', 'swipe', 'regenerate'].includes(type || 'normal')) {
         clear();

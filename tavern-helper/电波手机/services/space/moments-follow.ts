@@ -1,3 +1,4 @@
+import { watchEffect } from 'vue';
 import type { ChatPreferences } from '../chat/chat-preferences';
 import { buildTreeHolePrompt, presetMomentsRules, buildMomentsPrompt } from '../../prompts';
 import { planMoments, type MomentsState, type MomentPost, type MomentPlan } from './moments';
@@ -18,15 +19,23 @@ export function registerMomentsFollow(
   } | null,
   savePlan: (plan: MomentPlan) => void,
   anonymous = false,
+  canInject: () => boolean = () => true,
 ) {
   let release: (() => void) | null = null;
   const clear = () => {
     release?.();
     release = null;
   };
+  const stopWatch = watchEffect(
+    () => {
+      if (!canInject()) clear();
+    },
+    { flush: 'sync' },
+  );
   const events = [
     eventOn(tavern_events.GENERATION_AFTER_COMMANDS, (type, _options, dry) => {
       clear();
+      if (!canInject()) return;
       if (dry || !['normal', 'continue', 'swipe', 'regenerate'].includes(type)) return;
       try {
         const input = getInput();
@@ -84,6 +93,7 @@ export function registerMomentsFollow(
     eventOn(tavern_events.CHAT_CHANGED, clear),
   ];
   return () => {
+    stopWatch();
     clear();
     events.forEach(event => event.stop());
   };

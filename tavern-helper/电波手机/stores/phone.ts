@@ -2105,7 +2105,11 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     }
     registerEvents();
     disposeChatTime?.();
-    disposeChatTime = registerChatTime(() => settings.value.basic.systemClock);
+    const canInjectPhonePrompts = () => {
+      const current = getRuntimeContext();
+      return !isCardExcluded(settings.value, current?.cardName || '') && Boolean(current);
+    };
+    disposeChatTime = registerChatTime(() => settings.value.basic.systemClock, canInjectPhonePrompts);
     disposeFollow = registerFollowGeneration(
       moduleInput,
       () =>
@@ -2113,6 +2117,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         zoneGenerating.value ||
         Object.values(state.value.threads).some(thread => thread.generating),
       captureModulePolicy,
+      canInjectPhonePrompts,
     );
     disposeMoments = registerMomentsFollow(
       () => {
@@ -2137,6 +2142,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         state.value.moments.lastRequestAt = plan.createdAt;
         saveMoments();
       },
+      false,
+      canInjectPhonePrompts,
     );
     disposeTreeHole = registerMomentsFollow(
       () => {
@@ -2167,6 +2174,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         saveChat();
       },
       true,
+      canInjectPhonePrompts,
     );
     await synchronize();
     disposeHeartbeat?.();

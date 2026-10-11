@@ -1,3 +1,4 @@
+import { watchEffect } from 'vue';
 import { CHAT_TIME_PATTERN } from '../core/chat-time';
 import { TREE_HOLE_PATTERN } from '../space/tree-hole';
 import { sampleImageCounts } from '../space/image-plan';
@@ -162,6 +163,7 @@ export function registerFollowGeneration(
   getInput: () => { settings: ScriptSettings; input: PhonePromptInput; chatReference?: string } | null,
   isManualBusy: () => boolean,
   onRequest?: (settings: ScriptSettings, type: string) => void,
+  canInject: () => boolean = () => true,
 ): () => void {
   let injection: { uninject: () => void } | null = null;
   let generationContext = '';
@@ -179,10 +181,17 @@ export function registerFollowGeneration(
     generationContext = '';
     request = null;
   };
+  const stopWatch = watchEffect(
+    () => {
+      if (!canInject()) clear();
+    },
+    { flush: 'sync' },
+  );
   const events = [
     eventOn(tavern_events.GENERATION_AFTER_COMMANDS, (type, _options, dryRun) => {
       try {
         clear();
+        if (!canInject()) return;
         if (dryRun || !['normal', 'continue', 'swipe', 'regenerate'].includes(type) || isManualBusy()) return;
         const runtime = getInput();
         if (!runtime || isCardExcluded(runtime.settings, runtime.input.cardName)) return;
@@ -280,6 +289,7 @@ export function registerFollowGeneration(
     eventOn(tavern_events.CHAT_CHANGED, clear),
   ];
   return () => {
+    stopWatch();
     clear();
     events.forEach(event => event.stop());
   };
