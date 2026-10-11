@@ -12,7 +12,7 @@ const musicStore = fs.readFileSync(path.join(root, 'stores/music.ts'), 'utf8');
 const settingsStyle = fs.readFileSync(path.join(root, 'styles/settings/settings.scss'), 'utf8');
 const musicStyle = fs.readFileSync(path.join(root, 'styles/apps/music-refinements.scss'), 'utf8');
 
-assert.match(schemas, /contextLength:[\s\S]*?prefault\(100000\)/);
+assert.match(schemas, /contextLength:[\s\S]*?prefault\(2000000\)/);
 assert.match(schemas, /maxTokens:[\s\S]*?prefault\(30000\)/);
 assert.match(schemas, /showStatusBar: z\.boolean\(\)\.prefault\(true\)/);
 assert.match(app, /v-if="store\.settings\.appearance\.showStatusBar" class="wave-status-time"/);

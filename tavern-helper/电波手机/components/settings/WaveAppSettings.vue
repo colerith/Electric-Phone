@@ -126,16 +126,33 @@
           v-model="phone.settings.neteaseApi"
           type="url"
           @change="phone.saveSettings()"
-        /><small>NeteaseCloudMusicApi 兼容地址；登录态由服务端管理。</small></label
+        /><small>默认优先使用酒馆音乐插件；自定义地址支持 NeteaseCloudMusicApi。</small></label
       >
       <label class="service-preference"
         >QQ 推荐与歌词服务<input
           v-model="phone.settings.qqMusicApi"
           type="url"
-          placeholder="QQMusicApi 兼容地址"
+          placeholder="留空使用酒馆音乐插件"
           @change="phone.saveSettings()"
-        /><small>支持 jsososo/QQMusicApi，服务需允许跨域。未登录时获取新歌精选。</small></label
+        /><small>留空使用酒馆音乐插件的 QQ 新歌精选；自定义地址支持 jsososo/QQMusicApi。</small></label
       >
+      <div class="music-service-reset">
+        <button
+          v-if="!restoreMusicConfirm"
+          type="button"
+          class="music-restore-button"
+          @click="restoreMusicConfirm = true"
+        >
+          <i class="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i><span>恢复默认地址</span>
+        </button>
+        <div v-else class="music-restore-confirm" role="group" aria-label="恢复音乐服务默认地址">
+          <p>仅恢复上方两个服务地址，保留登录账号、歌单和其他设置。</p>
+          <div>
+            <button type="button" @click="restoreMusicConfirm = false">取消</button
+            ><button type="button" class="confirm" @click="restoreMusicDefaults">确认恢复</button>
+          </div>
+        </div>
+      </div>
       <div class="function-section-heading"><b>音乐服务</b><small>搜索 · 封面 · 歌词</small></div>
       <WaveSelect
         :model-value="musicSource"
@@ -230,6 +247,7 @@ import WaveChatPreferences from '../chat/WaveChatPreferences.vue';
 import WaveGroupSettings from '../chat/WaveGroupSettings.vue';
 
 import { ref } from 'vue';
+import { ScriptSettingsSchema } from '../../schemas';
 import { musicProviders } from '../../services/music/music';
 import { usePhoneStore } from '../../stores/phone';
 import WaveCharacterImage from '../chat/WaveCharacterImage.vue';
@@ -264,6 +282,14 @@ const emit = defineEmits<{
 }>();
 const avatarOpen = ref(false);
 const clearConfirm = ref(false);
+const restoreMusicConfirm = ref(false);
+function restoreMusicDefaults(): void {
+  const defaults = ScriptSettingsSchema.parse({});
+  phone.settings.neteaseApi = defaults.neteaseApi;
+  phone.settings.qqMusicApi = defaults.qqMusicApi;
+  phone.saveSettings();
+  restoreMusicConfirm.value = false;
+}
 const clearableApps = ['status', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'];
 function saveAvatar(value: { avatar: string; zoom: number; offsetX: number; offsetY: number }) {
   phone.updateActiveIdentityProfile({
@@ -287,3 +313,58 @@ function save(): boolean {
 }
 defineExpose({ save });
 </script>
+
+<style scoped>
+#wave-phone-script-root .wave-device .music-service-reset {
+  display: flex;
+  justify-content: flex-end;
+  margin: 4px 0 20px;
+}
+#wave-phone-script-root .wave-device .music-restore-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  padding: 7px 12px;
+  border: 1px solid #c78ca538;
+  border-radius: 12px;
+  background: #c78ca514;
+  color: #b77792;
+  font-size: 11px;
+  line-height: 1.5;
+  box-shadow: none;
+  cursor: pointer;
+}
+#wave-phone-script-root .wave-device .music-restore-confirm {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--wave-line);
+  border-radius: 14px;
+  background: var(--wave-card);
+}
+#wave-phone-script-root .wave-device .music-restore-confirm p {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: var(--wave-muted);
+  line-height: 1.6;
+}
+#wave-phone-script-root .wave-device .music-restore-confirm > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+#wave-phone-script-root .wave-device .music-restore-confirm button {
+  width: auto;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--wave-surface);
+  color: var(--wave-text);
+  font-size: 11px;
+  cursor: pointer;
+}
+#wave-phone-script-root .wave-device .music-restore-confirm button.confirm {
+  background: #b77792;
+  color: white;
+}
+</style>

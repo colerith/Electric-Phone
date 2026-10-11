@@ -1,3 +1,5 @@
+import { musicBackend, checkMusicBackend, builtinMusicBase, isBuiltinMusicBase } from './music-backend';
+import { fetchBuiltinRecommendations, mapAccountTrack } from './music-accounts';
 import { fetchBuiltinLyrics } from './music-lyrics';
 import * as OpenCC from 'opencc-js/t2cn';
 import { fetchJson } from '../core/network';
@@ -46,7 +48,26 @@ export async function fetchRecommendations(
 ) {
   source = musicPlatform(source) === 'tencent' ? 'tencent' : 'netease';
   const base = source === 'tencent' ? qq : netease;
-  if (!base.trim()) throw new Error('未配置推荐服务');
+  const automatic = !base.trim() || base === 'https://netease-cloud-music-wheat.vercel.app';
+  if (automatic || isBuiltinMusicBase(base)) {
+    if (musicBackend.value === 'idle') await checkMusicBackend();
+    if (musicBackend.value === 'ready') {
+      const provider = source === 'tencent' ? 'qq' : 'netease';
+      const builtinBase = builtinMusicBase(provider);
+      try {
+        const result = await fetchBuiltinRecommendations(provider, builtinBase, personalized, signal);
+        const tracks = result.rows.slice(0, 30).flatMap((raw: any) => {
+          const track = mapAccountTrack(raw.song || raw, provider, builtinBase);
+          return track ? [{ ...track, source: `builtin-${provider}` }] : [];
+        });
+        if (!tracks.length) throw Error('推荐列表为空');
+        return { tracks, label: result.label };
+      } catch (error) {
+        if (signal?.aborted || !base.trim() || isBuiltinMusicBase(base)) throw error;
+      }
+    }
+  }
+  if (!base.trim()) throw new Error('请安装或更新酒馆音乐插件并重启酒馆，或填写自定义推荐服务地址');
   if (personalized)
     try {
       const data = await fetchJson(

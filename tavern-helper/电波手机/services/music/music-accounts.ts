@@ -545,3 +545,24 @@ export async function resolveAccountTrack(track: Track, signal?: AbortSignal, al
   if (!url) throw new MusicAccountError('该账号暂无此歌曲的播放权限或音源不可用');
   return { ...track, url };
 }
+
+export async function fetchBuiltinRecommendations(
+  provider: 'qq' | 'netease',
+  base: string,
+  personalized: boolean,
+  signal?: AbortSignal,
+) {
+  if (provider === 'netease' && personalized) {
+    try {
+      const data = await request(provider, base, '/recommend/songs', {}, signal);
+      const rows = data.data?.dailySongs || data.dailySongs || data.recommend;
+      if (Array.isArray(rows) && rows.length) return { rows, label: '今日推荐' };
+    } catch (error) {
+      if (signal?.aborted) throw error;
+    }
+  }
+  const data = await request(provider, base, provider === 'qq' ? '/new/songs' : '/personalized/newsong', {}, signal);
+  const rows = provider === 'qq' ? data.data?.list || data.list : data.result;
+  if (!Array.isArray(rows) || !rows.length) throw Error('推荐列表为空，请更新酒馆音乐插件后重试');
+  return { rows, label: provider === 'qq' ? 'QQ 音乐 · 新歌精选' : '网易云 · 新歌精选' };
+}

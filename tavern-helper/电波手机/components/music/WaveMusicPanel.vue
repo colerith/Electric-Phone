@@ -370,7 +370,13 @@ const lyricModes = [
   { label: '音译打开', glyph: '音', enabled: true },
   { label: '音译关闭', glyph: '音', enabled: false },
 ] as const;
-const lyricModeIndex = ref(3);
+const lyricModeIndex = computed({
+  get: () => phone.settings.musicLyricMode,
+  set: value => {
+    phone.settings.musicLyricMode = value;
+    phone.saveSettings();
+  },
+});
 const lyricMode = computed(() => lyricModes[lyricModeIndex.value]);
 const showTranslation = computed(() => lyricModeIndex.value === 0);
 const showRomanization = computed(() => lyricModeIndex.value === 2);
@@ -430,6 +436,7 @@ watch(
     romanization.value = [];
     if (showTranslation.value || showRomanization.value) void loadAlternates();
   },
+  { immediate: true },
 );
 onBeforeUnmount(() => alternateController?.abort());
 const collecting = ref<Track | null>(null),
