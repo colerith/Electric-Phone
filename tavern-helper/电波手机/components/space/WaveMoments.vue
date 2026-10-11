@@ -801,6 +801,7 @@
           : ''
       "
       :model-value="imageValue"
+      :fallback="imageTarget === 'avatar' || imageTarget === 'draftAvatar' ? userAvatar : ''"
       :label="imageTarget === 'cover' ? '空间动态封面' : imageTarget === 'post' ? '空间动态图片' : '我的头像'"
       @cancel="imageTarget = ''"
       @confirm="applyImage"
