@@ -578,3 +578,17 @@
   margin-top: 0;
   margin-bottom: 8px;
 }
+
+#wave-phone-script-root .wave-device .messenger-search-top {
+  flex: 0 0 auto;
+  padding: 8px 16px 12px;
+  background: var(--wave-surface);
+}
+#wave-phone-script-root .wave-device .messenger-search-top .messenger-search {
+  margin: 0;
+  box-sizing: border-box;
+}
+
+#wave-phone-script-root .wave-device .messenger-app:has(> .messenger-search-top) {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}

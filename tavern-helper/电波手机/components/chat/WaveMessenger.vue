@@ -1,5 +1,11 @@
 <template>
   <section ref="root" class="messenger-app">
+    <div v-if="searchOpen && (tab === 'messages' || tab === 'contacts') && !momentsSubpage" class="messenger-search-top">
+      <label class="messenger-search">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <input ref="searchInput" v-model="query" type="search" :placeholder="tab === 'contacts' ? '搜索联系人' : '搜索聊天'" :aria-label="tab === 'contacts' ? '搜索联系人' : '搜索聊天'" @keydown.esc.prevent="closeSearch" />
+      </label>
+    </div>
     <div class="messenger-scroll">
       <div v-if="tab === 'messages'" class="messenger-profile">
         <span class="messenger-avatar large"
@@ -153,13 +159,6 @@
       />
     </div>
     <div v-if="!momentsSubpage" class="messenger-bottom">
-      <label v-if="tab === 'messages' || tab === 'contacts'" class="messenger-search"
-        ><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i
-        ><input
-          v-model="query"
-          :placeholder="tab === 'contacts' ? '搜索联系人' : '搜索聊天'"
-          :aria-label="tab === 'contacts' ? '搜索联系人' : '搜索聊天'"
-      /></label>
       <nav class="messenger-dock" aria-label="消息应用导航">
         <button
           v-for="item in tabs"
@@ -396,6 +395,19 @@ const tab = ref<Tab>('messages'),
 const root = ref<HTMLElement | null>(null),
   dialogElement = ref<HTMLElement | null>(null),
   dialog = ref<Dialog | null>(null);
+const searchOpen = ref(false);
+const searchInput = ref<HTMLInputElement | null>(null);
+function closeSearch(): void {
+  searchOpen.value = false;
+  query.value = '';
+}
+async function toggleSearch(): Promise<void> {
+  if (searchOpen.value) { closeSearch(); return; }
+  menuOpen.value = false;
+  searchOpen.value = true;
+  await nextTick();
+  searchInput.value?.focus();
+}
 const groupObserver = ref(false);
 const groupOwner = ref('user');
 const ownerOptions = computed(() => [
@@ -750,6 +762,8 @@ async function toggleMenu() {
   }
 }
 defineExpose({
+  toggleSearch,
+  searchOpen,
   toggleMenu,
   menuOpen,
   isSubpage: momentsSubpage,

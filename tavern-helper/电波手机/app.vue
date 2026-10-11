@@ -137,6 +137,13 @@
               </button>
               <button
                 v-if="store.currentPage === 'messages' && !appSettingsOpen && messenger?.headerIcon"
+                type="button"
+                aria-label="搜索聊天或联系人"
+                :aria-expanded="messenger?.searchOpen || false"
+                @click="messenger?.toggleSearch()"
+              ><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
+              <button
+                v-if="store.currentPage === 'messages' && !appSettingsOpen && messenger?.headerIcon"
                 data-messenger-plus
                 type="button"
                 :aria-label="messenger?.headerLabel || '新增聊天或联系人'"
