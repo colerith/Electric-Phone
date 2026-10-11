@@ -230,6 +230,9 @@ const headerTitle = computed(() =>
       : { char: '角色空间', world: '世界', hole: '匿名树洞', me: '我的空间' }[tab.value],
 );
 const isComposing = computed(() => Boolean(moments.value?.isComposing));
+const isPostDetail = computed(
+  () => !notificationsOpen.value && tab.value !== 'hole' && !isComposing.value && Boolean(moments.value?.isPostDetail),
+);
 const unreadCount = computed(
   () =>
     phone.spaceNotificationItems.filter(
@@ -239,5 +242,5 @@ const unreadCount = computed(
         !phone.state.spaceNotifications.dismissed.includes(item.id),
     ).length,
 );
-defineExpose({ tab, back, headerTitle, isComposing, openNotifications, unreadCount });
+defineExpose({ tab, back, headerTitle, isComposing, isPostDetail, openNotifications, unreadCount });
 </script>

@@ -13,8 +13,9 @@
             'is-subpage': store.currentPage !== 'home',
             'is-observing-group': store.currentPage === 'conversation' && observingGroup,
             'footer-card-view':
-              store.currentPage !== 'zone' &&
-              (appSettingsOpen || !['home', 'conversation', 'messages', 'browse'].includes(store.currentPage)),
+              (store.currentPage === 'zone' && space?.isPostDetail) ||
+              (store.currentPage !== 'zone' &&
+                (appSettingsOpen || !['home', 'conversation', 'messages', 'browse'].includes(store.currentPage))),
             'space-composing': store.currentPage === 'zone' && space?.isComposing,
             'music-immersive': store.currentPage === 'music' && music.view === 'player' && !appSettingsOpen,
             'music-is-playing': music.playing,

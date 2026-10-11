@@ -1366,6 +1366,7 @@ watch(
   },
 );
 const isComposing = computed(() => composing.value);
+const isPostDetail = computed(() => Boolean(openedCommentPost.value));
 const canPublish = computed(() => !viewingPerson.value && props.view === 'me' && panel.value === 'own');
 defineExpose({
   openPost: openCommentPost,
@@ -1373,6 +1374,7 @@ defineExpose({
   openProfile,
   back,
   isSubpage,
+  isPostDetail,
   subpageTitle,
   canPublish,
   isComposing,
