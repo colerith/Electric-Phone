@@ -426,38 +426,4 @@ function time(value: number) {
   flex: 1;
   min-width: 0;
 }
-#wave-phone-script-root .wave-phone-host .wave-device .space-hole .hole-comment-actions {
-  justify-content: flex-start;
-  align-items: center;
-  gap: 4px 14px;
-  margin: 6px 0 0;
-  padding: 0;
-}
-#wave-phone-script-root .wave-phone-host .wave-device .space-hole .hole-comment-actions > button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  flex: 0 0 auto;
-  width: auto;
-  min-width: 0;
-  height: 28px;
-  min-height: 28px;
-  margin: 0;
-  padding: 0;
-  gap: 4px;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  font-size: 11px;
-  line-height: 18px;
-}
-#wave-phone-script-root .wave-phone-host .wave-device .space-hole .hole-comment-actions > button i {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 12px;
-  margin: 0;
-  font-size: 11px;
-  line-height: 1;
-}
 </style>
