@@ -3,6 +3,7 @@ import { unzipSync } from 'fflate';
 import { IMAGE_MODELS, type ImageProfile, type CharacterImage } from './schema';
 import { klona } from 'klona';
 import { ImageRequestSchema } from '../chat/media-settings';
+import { checkImageResponse } from './errors';
 
 export function imageSubjectRequest(profile: ImageProfile, character: CharacterImage, raw: unknown) {
   const request = ImageRequestSchema.parse(raw);
@@ -142,10 +143,6 @@ async function imageBlob(source: string, signal: AbortSignal): Promise<Blob> {
     throw Error('参考图需要 PNG/JPEG/WebP，且小于 20MB');
   return blob;
 }
-async function checked(response: Response): Promise<Response> {
-  if (!response.ok) throw Error(`生图服务返回 ${response.status}，请检查模型权限、密钥、额度与参数`);
-  return response;
-}
 /** Explicit user action only: no paid requests while loading settings or switching characters. */
 export async function generateImage(
   profile: ImageProfile,
@@ -153,6 +150,7 @@ export async function generateImage(
   prompt: string,
   signal: AbortSignal,
 ): Promise<string> {
+  const checked = (response: Response) => checkImageResponse(response, profile.apiKey);
   if (!character.enabled) throw Error('请先启用当前角色的生图');
   validateImageProfile(profile, true);
   const root = imageApiRoot(profile);
