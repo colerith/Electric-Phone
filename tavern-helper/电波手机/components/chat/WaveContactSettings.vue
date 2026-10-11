@@ -45,6 +45,7 @@
   <WaveCrossChatSettings v-if="phone.activeIdentity?.source !== 'local_group'" />
 </template>
 <script setup lang="ts">
+import { useSettingsForm } from '../../services/core/settings-forms';
 import WaveCrossChatSettings from './WaveCrossChatSettings.vue';
 import { ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
@@ -80,5 +81,6 @@ function save(): boolean {
     return false;
   }
 }
+useSettingsForm(() => draft.value, save);
 defineExpose({ save });
 </script>

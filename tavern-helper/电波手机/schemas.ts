@@ -18,7 +18,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.3.26';
+export const WAVE_PHONE_RELEASE_VERSION = '1.3.27';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -41,7 +41,7 @@ export const ApiSettingsSchema = z
     frequencyPenalty: z.coerce.number().min(-2).max(2).prefault(0),
     presencePenalty: z.coerce.number().min(-2).max(2).prefault(0),
     topK: z.coerce.number().int().min(0).max(500).prefault(0),
-    contextLength: z.coerce.number().int().min(2048).max(2000000).prefault(100000),
+    contextLength: z.coerce.number().int().min(2048).max(2000000).prefault(2000000),
     retryCount: z.coerce.number().int().min(0).max(5).prefault(0),
     topP: z.coerce
       .number()

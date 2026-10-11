@@ -102,11 +102,12 @@
     <p v-if="feedback" class="api-feedback" role="status">{{ feedback }}</p>
     <div class="settings-actions">
       <button type="button" :disabled="testing" @click="test">{{ testing ? '测试中…' : '测试连接' }}</button
-      ><button class="primary-action" type="button" @click="save">保存 API 设置</button>
+      ><button v-if="!settingsForm.managed" class="primary-action" type="button" @click="save">保存 API 设置</button>
     </div>
   </section>
 </template>
 <script setup lang="ts">
+import { useSettingsForm } from '../../services/core/settings-forms';
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { klona } from 'klona';
 import { usePhoneStore } from '../../stores/phone';
@@ -185,10 +186,14 @@ function save() {
     }
     phone.saveSettings();
     feedback.value = '配置已保存';
+    settingsForm.markSaved();
+    return true;
   } catch (e) {
     feedback.value = e instanceof Error ? e.message : '无法保存';
+    return false;
   }
 }
+const settingsForm = useSettingsForm(() => [phone.settings.api, profileName.value], save);
 function saveAs() {
   try {
     const api = validated();

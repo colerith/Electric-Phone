@@ -889,7 +889,8 @@
   .moment-compose-body.moment-compose-form {
     grid-template-rows: minmax(160px, 1fr);
   }
-  .moment-compose-body > textarea {
+  .moment-compose-body > textarea,
+  .moment-compose-body > .wave-mention-field textarea {
     min-height: 160px;
     height: 100%;
     resize: none;

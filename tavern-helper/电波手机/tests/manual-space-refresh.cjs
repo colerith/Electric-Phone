@@ -11,7 +11,12 @@ require.extensions['.ts'] = (m, f) =>
 global._ = require('lodash');
 global.z = require('zod').z;
 global.window = global;
-global.SillyTavern = { name1: 'User', characterId: '1', getCurrentChatId: () => 'test' };
+global.SillyTavern = {
+  name1: 'User',
+  characterId: '1',
+  getCurrentChatId: () => 'test',
+  getContext: () => ({ substituteParams: text => text }),
+};
 global.getCharData = () => ({ name: 'Alice' });
 global.getCharAvatarPath = () => '';
 global.getChatMessages = () => [];

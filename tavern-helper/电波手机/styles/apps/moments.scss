@@ -517,7 +517,8 @@
     display: grid;
     gap: 16px;
   }
-  .moment-compose-body > textarea {
+  .moment-compose-body > textarea,
+  .moment-compose-body > .wave-mention-field textarea {
     border: 0;
     resize: vertical;
   }

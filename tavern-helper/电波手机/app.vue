@@ -1,7 +1,7 @@
 <template>
   <div class="wave-phone-host">
     <WaveFloatingEntry v-if="store.settings.appearance.floatingEntry && !store.isOpen" />
-    <div v-if="store.isOpen" class="wave-overlay" @click.self="store.isOpen = false">
+    <div v-if="store.isOpen" class="wave-overlay" @click.self="closePhone">
       <section
         ref="phoneSurface"
         class="wave-device"
@@ -106,6 +106,18 @@
             </div>
             <div class="appbar-tools">
               <button
+                v-if="
+                  store.currentPage === 'settings' &&
+                  settingsSection !== 'root' &&
+                  !['backup', 'credits'].includes(settingsSection)
+                "
+                type="button"
+                aria-label="保存设置"
+                @click="saveAllSettings"
+              >
+                <i class="fa-solid fa-check"></i>
+              </button>
+              <button
                 v-if="canManualGenerateMoments && !appSettingsOpen"
                 type="button"
                 :aria-label="momentsGenerating ? '中止空间动态生成' : 'AI 更新空间动态'"
@@ -155,6 +167,21 @@
             </div>
           </header>
 
+          <div
+            v-if="pendingSettingsLeave"
+            class="settings-unsaved-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="未保存的设置"
+          >
+            <section>
+              <strong>设置尚未保存</strong>
+              <p>要保存修改后离开吗？</p>
+              <button type="button" @click="pendingSettingsLeave = null">继续编辑</button
+              ><button type="button" @click="finishSettingsLeave(false)">放弃修改</button
+              ><button type="button" @click="finishSettingsLeave(true)">保存并返回</button>
+            </section>
+          </div>
           <main class="wave-screen">
             <details
               v-if="
@@ -316,18 +343,24 @@
                     <strong>{{ editingMessageId ? '编辑消息' : '输入消息' }}</strong
                     ><WaveCloseButton label="关闭编辑窗口" @close="closeChatEditor" />
                   </header>
-                  <textarea
-                    v-if="editingMessageId"
-                    v-model="editMessageDraft"
-                    aria-label="编辑消息内容"
-                    rows="8"
-                  ></textarea>
-                  <textarea
-                    v-else
-                    :value="store.activeThread?.draft || ''"
-                    aria-label="展开输入内容"
-                    @input="onDraft"
-                  ></textarea>
+                  <WaveMentionPicker
+                    inline
+                    :contacts="chatMentionContacts"
+                    @select="person => selectedChatMentions.add(person.charKey)"
+                  >
+                    <textarea
+                      v-if="editingMessageId"
+                      v-model="editMessageDraft"
+                      aria-label="编辑消息内容"
+                      rows="8"
+                    ></textarea>
+                    <textarea
+                      v-else
+                      :value="store.activeThread?.draft || ''"
+                      aria-label="展开输入内容"
+                      @input="onDraft"
+                    ></textarea>
+                  </WaveMentionPicker>
                   <footer>
                     <button type="button" @click="closeChatEditor">{{ editingMessageId ? '取消' : '收起' }}</button
                     ><button
@@ -751,17 +784,21 @@
                   <i class="fa-solid fa-plus"></i>
                 </button>
                 <div class="composer-text-wrap" :class="{ 'has-expand': composerHasLongText }">
-                  <textarea
-                    ref="composerInput"
-                    :value="store.activeThread?.draft || ''"
-                    rows="1"
-                    placeholder="输入一条讯号…"
-                    @compositionstart="composerComposing = true"
-                    @compositionend="composerComposing = false"
-                    @input="onDraft"
-                    @keydown.enter.exact="onComposerEnter"
-                    @beforeinput="onComposerBeforeInput"
-                  ></textarea
+                  <WaveMentionPicker
+                    :contacts="chatMentionContacts"
+                    @select="person => selectedChatMentions.add(person.charKey)"
+                  >
+                    <textarea
+                      ref="composerInput"
+                      :value="store.activeThread?.draft || ''"
+                      rows="1"
+                      placeholder="输入讯号，@ 艾特联系人…"
+                      @compositionstart="composerComposing = true"
+                      @compositionend="composerComposing = false"
+                      @input="onDraft"
+                      @keydown.enter.exact="onComposerEnter"
+                      @beforeinput="onComposerBeforeInput"
+                    ></textarea></WaveMentionPicker
                   ><button
                     v-if="composerHasLongText"
                     type="button"
@@ -1024,9 +1061,6 @@
                   <div class="settings-card">
                     <WaveTranslationServices />
                   </div>
-                  <button class="settings-save-wide" type="button" @click="saveSettings">
-                    <i class="fa-solid fa-floppy-disk"></i> 保存聊天与行为
-                  </button>
                 </div>
 
                 <div v-else-if="settingsSection === 'media'" class="settings-card">
@@ -1058,9 +1092,6 @@
                     />
                   </div>
                   <WaveVoiceServices />
-                  <button class="settings-save-wide" type="button" @click="saveSettings">
-                    <i class="fa-solid fa-floppy-disk"></i> 保存语音与媒体
-                  </button>
                 </div>
 
                 <div v-else-if="settingsSection === 'image'" class="image-settings-page"><WaveImageServices /></div>
@@ -1108,9 +1139,6 @@
                       />
                     </div>
                   </section>
-                  <button class="settings-save-wide" type="button" @click="saveSettings">
-                    <i class="fa-solid fa-floppy-disk"></i> 保存外观设置
-                  </button>
                 </div>
 
                 <div v-else class="settings-card">
@@ -1120,9 +1148,6 @@
                   </div>
 
                   <WaveNotificationSound />
-                  <button class="settings-save-wide" type="button" @click="saveSettings">
-                    <i class="fa-solid fa-floppy-disk"></i> 保存通知与音效
-                  </button>
                 </div>
               </div>
             </section>
@@ -1225,6 +1250,8 @@
 </template>
 
 <script setup lang="ts">
+import { provideSettingsForms } from './services/core/settings-forms';
+import WaveMentionPicker from './components/shared/WaveMentionPicker.vue';
 import WaveExtensionUpdate from './components/settings/WaveExtensionUpdate.vue';
 import { storeResource } from './services/core/resource-storage';
 import { usePhoneTheme } from './services/core/theme';
@@ -1254,7 +1281,7 @@ import WaveGenerationIsland from './components/shell/WaveGenerationIsland.vue';
 import WaveDeviceStatus from './components/shell/WaveDeviceStatus.vue';
 import WavePokeNotice from './components/chat/WavePokeNotice.vue';
 import { useMutationObserver, useResizeObserver } from '@vueuse/core';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch, provide } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch, provide, reactive } from 'vue';
 import WaveImageUpload from './components/shared/WaveImageUpload.vue';
 import WaveGroupAvatar from './components/shared/WaveGroupAvatar.vue';
 import WaveMessageContent from './components/chat/WaveMessageContent.vue';
@@ -1301,6 +1328,20 @@ import { usePhoneStore } from './stores/phone';
 import { useSystemClockStore } from './stores/system-clock';
 
 const store = usePhoneStore();
+const selectedChatMentions = reactive(new Set<string>());
+watch(
+  () => [store.activeThread?.id, store.activeThread?.draft],
+  ([id, draft], [oldId]) => {
+    if (id !== oldId || !draft) selectedChatMentions.clear();
+  },
+);
+const chatMentionContacts = computed(() =>
+  store.identities.filter(
+    person =>
+      person.source !== 'local_group' &&
+      (store.activeIdentity?.source !== 'local_group' || store.activeIdentity.memberKeys?.includes(person.charKey)),
+  ),
+);
 const music = useMusicStore();
 watch(
   () => {
@@ -1366,6 +1407,69 @@ function saveMessageEdit(): void {
   closeChatEditor();
 }
 const appSettingsOpen = ref(false);
+const settingsForms = provideSettingsForms();
+const settingsBaseline = ref('');
+const pendingSettingsLeave = ref<(() => void) | null>(null);
+let leavingSettings = false;
+const settingsEditorActive = computed(
+  () =>
+    appSettingsOpen.value ||
+    (store.currentPage === 'settings' && !['root', 'backup', 'credits'].includes(settingsSection.value)),
+);
+watch(
+  () => [store.currentPage, settingsSection.value, appSettingsOpen.value],
+  () => {
+    settingsBaseline.value = JSON.stringify(store.settings);
+  },
+  { immediate: true, flush: 'sync' },
+);
+store.$onAction(({ name, after }) => {
+  if (name === 'saveSettings')
+    after(() => {
+      settingsBaseline.value = JSON.stringify(store.settings);
+    });
+});
+function saveAllSettings(): boolean {
+  try {
+    if (!settingsForms.save()) return false;
+    store.saveSettings();
+    settingsBaseline.value = JSON.stringify(store.settings);
+    notifySuccess('设置已保存', '电波手机');
+    return true;
+  } catch (error) {
+    toastr.error(error instanceof Error ? error.message : String(error), '保存失败', { escapeHtml: true });
+    return false;
+  }
+}
+function guardSettingsLeave(action: () => void): boolean {
+  if (
+    !leavingSettings &&
+    (settingsForms.dirty.value ||
+      (settingsEditorActive.value && JSON.stringify(store.settings) !== settingsBaseline.value))
+  ) {
+    pendingSettingsLeave.value = action;
+    return true;
+  }
+  return false;
+}
+function finishSettingsLeave(save: boolean) {
+  if (save && !saveAllSettings()) {
+    pendingSettingsLeave.value = null;
+    return;
+  }
+  if (!save) {
+    settingsForms.discard();
+    if (settingsBaseline.value) store.settings = JSON.parse(settingsBaseline.value);
+  }
+  const action = pendingSettingsLeave.value;
+  pendingSettingsLeave.value = null;
+  leavingSettings = true;
+  try {
+    action?.();
+  } finally {
+    leavingSettings = false;
+  }
+}
 const appSettings = ref<InstanceType<typeof WaveAppSettings> | null>(null);
 const showMusicDock = computed(
   () =>
@@ -1396,7 +1500,7 @@ const selectedPhotos = ref<Array<{ url: string; description: string }>>([]);
 function toggleAppSettings(): void {
   if (!appSettingsOpen.value && store.currentPage === 'zone') openZoneCover();
   else if (appSettingsOpen.value) {
-    if (appSettings.value?.save() === false) return;
+    if (!saveAllSettings()) return;
     appSettingsOpen.value = false;
   } else appSettingsOpen.value = true;
 }
@@ -1404,6 +1508,7 @@ function openZoneCover(): void {
   appSettingsOpen.value = true;
 }
 function openGlobalSettings(section: SettingsSectionId): void {
+  if (guardSettingsLeave(() => openGlobalSettings(section))) return;
   appSettingsOpen.value = false;
   store.currentPage = 'settings';
   settingsSection.value = section;
@@ -2008,6 +2113,7 @@ function openConversation(charKey: string): void {
   });
 }
 function goBack(): void {
+  if (guardSettingsLeave(goBack)) return;
   if (forwardDraft.value) {
     forwardDraft.value = null;
     return;
@@ -2037,7 +2143,12 @@ function goBack(): void {
   }
   returnToPreviousPage();
 }
+function closePhone(): void {
+  if (guardSettingsLeave(closePhone)) return;
+  store.isOpen = false;
+}
 function handleHomebar(): void {
+  if (guardSettingsLeave(handleHomebar)) return;
   if (!store.isReady) {
     store.isOpen = false;
     return;
@@ -2341,6 +2452,14 @@ async function send(activateReply = true): Promise<void> {
         quotedMessageId: quotedMessage.value?.id || '',
         payload: {
           ...translatedPayload,
+          mentions: chatMentionContacts.value
+            .filter(
+              person =>
+                content.includes(`@${person.name}`) &&
+                (selectedChatMentions.has(person.charKey) ||
+                  chatMentionContacts.value.filter(other => other.name === person.name).length === 1),
+            )
+            .map(person => ({ charKey: person.charKey, name: person.name })),
           ...(quotedMessage.value
             ? {
                 quote: {
@@ -2851,10 +2970,6 @@ function clearComposerContext(): void {
   closeMessageMenu();
   if (wasEditing) store.setDraft('');
 }
-function saveSettings(): void {
-  store.saveSettings();
-  notifySuccess('设置已保存', '电波手机');
-}
 function notifySuccess(message: string, title: string): void {
   if (store.settings.notifications.toastEnabled) toastr.success(message, title);
 }
@@ -2988,3 +3103,31 @@ async function retrySynchronize() {
   }
 }
 </script>
+
+<style scoped>
+.settings-unsaved-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  background: #0006;
+  padding: 20px;
+}
+.settings-unsaved-overlay section {
+  background: var(--wave-surface, white);
+  color: var(--wave-text, #26354d);
+  padding: 22px;
+  border-radius: 20px;
+  max-width: 100%;
+}
+.settings-unsaved-overlay button {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin: 5px;
+  background: #6385bd;
+  color: white;
+  cursor: pointer;
+}
+</style>

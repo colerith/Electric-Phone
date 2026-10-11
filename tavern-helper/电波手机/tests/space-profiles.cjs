@@ -111,13 +111,14 @@ const patch = ZoneUpdateSchema.parse({
 });
 assert.equal(patch.posts[0].comments[0].translation.content, '你好');
 assert.deepEqual(patch.profile.badges, ['laptop']);
-const contract = moduleGenerationRules({ moduleSettings: { zone: { syncChat: false, autoTranslate: true } } }, [
-  'zone',
-]);
+const contract = moduleGenerationRules(
+  { appSnapshot: { zone: '' }, moduleSettings: { zone: { syncChat: false, autoTranslate: true } } },
+  ['zone'],
+);
 assert(contract.includes('titleColor'));
-assert(contract.includes('laptop'));
+assert(contract.includes('首次补全资料'));
 assert(contract.includes('每条评论与回复'));
-assert(contract.includes('最多 4'));
+assert(contract.includes('0–4'));
 assert.equal(profileBadges.length, 160);
 assert(profileBadges.every(b => b.url.startsWith('data:image/svg+xml')));
 console.log(

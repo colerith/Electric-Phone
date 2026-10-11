@@ -270,7 +270,9 @@
           /></label>
         </div>
         <p>生成完成后按延迟逐条显示。关闭手机不会重置等待时间。</p>
-        <button class="settings-save-wide" type="button" @click="saveSettings">保存互动设置</button>
+        <button v-if="initialPanel !== 'settings'" class="settings-save-wide" type="button" @click="saveSettings">
+          保存互动设置
+        </button>
       </section>
       <section class="settings-card system-settings-card wave-clear-section">
         <div class="wave-settings-title">世界与个人动态</div>
@@ -562,14 +564,17 @@
               >
               <WaveCloseButton label="取消回复" @close="replyingComment = null" />
             </div>
-            <input
-              v-model="commentText"
-              maxlength="500"
-              :placeholder="
-                replyingComment ? `回复 ${nameFor(replyingComment.authorKey, replyingComment.authorName)}…` : '写评论…'
-              "
-              aria-label="评论内容"
-            /><button type="submit">发送</button>
+            <WaveMentionPicker inline :contacts="contacts">
+              <input
+                v-model="commentText"
+                maxlength="500"
+                :placeholder="
+                  replyingComment
+                    ? `回复 ${nameFor(replyingComment.authorKey, replyingComment.authorName)}…`
+                    : '写评论…'
+                "
+                aria-label="评论内容" /></WaveMentionPicker
+            ><button type="submit">发送</button>
           </form>
         </div>
       </article>
@@ -617,13 +622,23 @@
           </div>
         </div>
         <div v-else class="moment-compose-body moment-compose-form">
-          <textarea
-            v-model="draft.content"
-            maxlength="5000"
-            rows="5"
-            placeholder="这一刻的想法…"
-            aria-label="空间动态文本"
-          ></textarea>
+          <WaveMentionPicker
+            inline
+            :contacts="contacts"
+            @select="
+              person => {
+                if (!draft.mentions.includes(person.charKey)) draft.mentions.push(person.charKey);
+              }
+            "
+          >
+            <textarea
+              v-model="draft.content"
+              maxlength="5000"
+              rows="5"
+              placeholder="这一刻的想法…输入 @ 艾特联系人"
+              aria-label="空间动态文本"
+            ></textarea>
+          </WaveMentionPicker>
           <div v-if="draft.images.length" class="moment-draft-images">
             <div v-for="(media, index) in draft.images" :key="index">
               <button type="button" @click="preview = media">
@@ -794,6 +809,8 @@
   </div>
 </template>
 <script setup lang="ts">
+import WaveMentionPicker from '../shared/WaveMentionPicker.vue';
+import { useSettingsForm } from '../../services/core/settings-forms';
 import WaveCloseButton from '../shared/WaveCloseButton.vue';
 import WaveAppearanceImport from '../shared/WaveAppearanceImport.vue';
 import WaveManualImageOptions from '../shared/WaveManualImageOptions.vue';
@@ -814,7 +831,7 @@ import { titleColors } from '../../services/space/profile-badges';
 import { PostTagsSchema, MAX_POST_TAGS } from '../../services/space/post-tags';
 import WaveProfileDecorations from './WaveProfileDecorations.vue';
 import WaveProfileBadgePicker from './WaveProfileBadgePicker.vue';
-import { MomentUserProfileSchema } from '../../services/space/moments';
+import { MomentUserProfileSchema, MomentsStateSchema } from '../../services/space/moments';
 import WaveNpcProfile from './WaveNpcProfile.vue';
 import { parseZonePage } from '../../services/space/zone';
 import { npcAvatarUrl, spaceAvatarUrl } from '../../services/space/npc-avatar';
@@ -872,7 +889,13 @@ const failedAvatars = ref(new Set<string>());
 const panel = ref<'home' | 'profile' | 'settings' | 'own' | 'wallet'>(props.initialPanel),
   notice = ref('');
 const clearConfirm = ref(false);
-const settings = computed(() => phone.state.moments.settings);
+const settings = ref(klona(phone.state.moments.settings));
+watch(
+  () => panel.value,
+  value => {
+    if (value === 'settings') settings.value = klona(phone.state.moments.settings);
+  },
+);
 const contacts = computed(() => phone.identities.filter(identity => identity.source !== 'local_group'));
 const now = ref(Date.now());
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -1071,6 +1094,10 @@ function saveSettings() {
   try {
     if (settings.value.maxInteractions < settings.value.minInteractions) throw new Error('互动上限不能小于下限');
     if (settings.value.maxDelaySeconds < settings.value.minDelaySeconds) throw Error('最长延迟不能小于最短延迟');
+    const validatedSettings = MomentsStateSchema.parse({
+      ...phone.state.moments,
+      settings: klona(settings.value),
+    }).settings;
     Object.assign(phone.settings.moduleSettings.zone, {
       syncChat: settings.value.syncChat,
       autoTranslate: settings.value.autoTranslate,
@@ -1079,12 +1106,24 @@ function saveSettings() {
       targetLanguage: settings.value.targetLanguage,
     });
     phone.saveSettings();
+    phone.state.moments.settings = validatedSettings;
     phone.saveMoments();
     notice.value = '互动设置已保存';
+    settingsForm.markSaved();
+    return true;
   } catch (error) {
     notice.value = String(error);
+    return false;
   }
 }
+const settingsForm = useSettingsForm(
+  () => settings.value,
+  saveSettings,
+  () => panel.value === 'settings',
+  value => {
+    settings.value = value;
+  },
+);
 const composing = ref(false),
   composeError = ref(''),
   selection = ref<'' | 'mentions' | 'audience'>(''),

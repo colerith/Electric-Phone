@@ -181,7 +181,7 @@ export const MomentsStateSchema = z
         maxInteractions: z.number().int().min(1).max(3).default(3),
         commentProbability: z.number().min(0).max(100).default(50),
         heartbeatEnabled: z.boolean().default(true),
-        cooldownMinutes: z.number().min(0).max(1440).default(10),
+        cooldownMinutes: z.number().min(0).max(1440).default(30),
         minDelaySeconds: z.number().min(0).max(3600).default(15),
         maxDelaySeconds: z.number().min(0).max(86400).default(120),
       })

@@ -91,6 +91,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import { useSettingsForm } from '../../services/core/settings-forms';
 import WaveContactSettings from './WaveContactSettings.vue';
 import { computed, ref, watch } from 'vue';
 import { useNow } from '@vueuse/core';
@@ -159,6 +160,7 @@ function save(): boolean {
     return false;
   }
 }
+useSettingsForm(() => draft.value, save);
 defineExpose({ save });
 function useWeatherLocation() {
   const location = phone.weatherLocation;

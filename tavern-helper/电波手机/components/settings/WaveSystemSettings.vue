@@ -189,12 +189,13 @@
       </section>
     </template>
     <p v-if="notice" role="status">{{ notice }}</p>
-    <button class="settings-save-wide" type="button" @click="save">
+    <button v-if="!settingsForm.managed" class="settings-save-wide" type="button" @click="save">
       保存{{ section === 'basic' ? '基础设置' : section === 'worldbooks' ? '世界书规则' : '调试设置' }}
     </button>
   </div>
 </template>
 <script setup lang="ts">
+import { useSettingsForm } from '../../services/core/settings-forms';
 import { computed, onMounted, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { cacheStats, clearParseCache } from '../../services/core/local-cache';
@@ -345,10 +346,14 @@ function save() {
     phone.saveSettings();
     notice.value = '已保存';
     if (props.section === 'basic') void phone.synchronize();
+    settingsForm.markSaved();
+    return true;
   } catch (error) {
     notice.value = String(error);
+    return false;
   }
 }
+const settingsForm = useSettingsForm(() => null, save);
 let bookToken = 0;
 async function readBook(name: string) {
   const token = ++bookToken;
