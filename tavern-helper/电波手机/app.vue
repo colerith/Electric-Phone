@@ -393,8 +393,18 @@
                   avatarThoughtKey = '';
                 "
                 @scroll.passive="updateThreadScroll"
-                @load.capture="updateThreadScroll"
+                @load.capture="handleThreadMediaLoad"
               >
+                <div v-if="hasMoreMessages" class="chat-load-more-row">
+                  <button
+                    type="button"
+                    class="chat-load-more"
+                    :disabled="loadingOlderMessages"
+                    @click.stop="loadOlderMessages"
+                  >
+                    加载更多聊天
+                  </button>
+                </div>
                 <div
                   v-for="(message, messageIndex) in visibleMessages"
                   :key="message.id"
@@ -570,7 +580,11 @@
                       "
                       class="wave-poke-notice wave-group-notice"
                     >
-                      {{ message.payload.interaction === 'message_reaction' ? formatReactionNotice(message) : message.content }}
+                      {{
+                        message.payload.interaction === 'message_reaction'
+                          ? formatReactionNotice(message)
+                          : message.content
+                      }}
                     </div>
                     <div v-else class="message-stack">
                       <WaveMessageContent
@@ -1324,6 +1338,7 @@ import type { SendMessageInput } from './stores/phone';
 import WaveApiSettings from './components/settings/WaveApiSettings.vue';
 import WaveBackupSettings from './components/settings/WaveBackupSettings.vue';
 import WaveCopyrightCredits from './components/settings/WaveCopyrightCredits.vue';
+import { useChatPagination } from './services/chat/chat-pagination';
 import { formatPhoneMessage, formatReactionNotice } from './services/chat/message-format';
 import { displayIdentityName } from './services/core/identity';
 import { identityAvatarStyle as avatarStyle } from './services/core/avatar';
@@ -1572,6 +1587,11 @@ function scrollToUnreadReply(): void {
   unreadReplyIds.value = [];
 }
 
+function handleThreadMediaLoad(): void {
+  const element = threadElement.value;
+  if (element && !isAwayFromBottom.value && !loadingOlderMessages.value) element.scrollTop = element.scrollHeight;
+  updateThreadScroll();
+}
 function updateThreadScroll(): void {
   const element = threadElement.value;
   isAwayFromBottom.value = !!element && element.scrollHeight - element.clientHeight - element.scrollTop > 48;
@@ -1888,7 +1908,7 @@ const extraHint = computed(
     })[extraMode.value] || '',
 );
 const regeneratingReplyIds = ref(new Set<string>());
-const visibleMessages = computed<PhoneMessage[]>(() => {
+const allThreadMessages = computed<PhoneMessage[]>(() => {
   const legacy = parseLegacyMessages(store.activeSnapshot.messages).map(
     (message, index): PhoneMessage => ({
       id: `legacy-${index}`,
@@ -1941,8 +1961,48 @@ const visibleMessages = computed<PhoneMessage[]>(() => {
     ...notices,
   ].sort((a, b) => (Date.parse(a.createdAt) || 0) - (Date.parse(b.createdAt) || 0));
 });
+const {
+  visible: visibleMessages,
+  hasMore: hasMoreMessages,
+  reset: resetChatPage,
+  loadMore: loadChatPage,
+} = useChatPagination(allThreadMessages);
+const loadingOlderMessages = ref(false);
+let conversationEntry = 0;
 watch(
-  () => ({ threadId: store.activeThread?.id, messages: visibleMessages.value }),
+  () => [store.isOpen, store.currentPage, store.activeThread?.id, threadElement.value, allThreadMessages.value.length === 0] as const,
+  async ([open, page, , element]) => {
+    const entry = ++conversationEntry;
+    if (!open || page !== 'conversation' || !element) return;
+    resetChatPage();
+    await nextTick();
+    if (entry !== conversationEntry || threadElement.value !== element) return;
+    element.scrollTop = element.scrollHeight;
+    isAwayFromBottom.value = false;
+    requestAnimationFrame(() => {
+      if (entry === conversationEntry && threadElement.value === element && !isAwayFromBottom.value)
+        element.scrollTop = element.scrollHeight;
+    });
+  },
+  { flush: 'post', immediate: true },
+);
+async function loadOlderMessages(): Promise<void> {
+  const element = threadElement.value;
+  if (!element || loadingOlderMessages.value || !hasMoreMessages.value) return;
+  loadingOlderMessages.value = true;
+  const entry = conversationEntry;
+  const anchor = element.querySelector<HTMLElement>('.message-unit');
+  const top = anchor?.getBoundingClientRect().top;
+  loadChatPage();
+  await nextTick();
+  if (entry === conversationEntry && threadElement.value === element && anchor && top !== undefined) {
+    element.scrollTop += anchor.getBoundingClientRect().top - top;
+    updateThreadScroll();
+  }
+  loadingOlderMessages.value = false;
+}
+watch(
+  () => ({ threadId: store.activeThread?.id, messages: allThreadMessages.value }),
   (current, previous) => {
     if (current.threadId !== previous?.threadId) {
       unreadReplyIds.value = [];
@@ -1970,7 +2030,7 @@ watch(
   },
 );
 const groupElectric = computed(() =>
-  store.activeIdentity?.source === 'local_group' ? groupRoundElectric(visibleMessages.value) : {},
+  store.activeIdentity?.source === 'local_group' ? groupRoundElectric(allThreadMessages.value) : {},
 );
 const showTypingBubble = computed(
   () =>
@@ -2048,7 +2108,7 @@ const activeMessage = computed(
   () => visibleMessages.value.find(message => message.id === activeMessageId.value) || null,
 );
 const quotedMessage = computed(
-  () => visibleMessages.value.find(message => message.id === quotedMessageId.value && !message.withdrawn) || null,
+  () => allThreadMessages.value.find(message => message.id === quotedMessageId.value && !message.withdrawn) || null,
 );
 const canMutateActiveMessage = computed(() =>
   Boolean(activeMessage.value && !activeMessage.value.id.startsWith('legacy-')),
@@ -2801,7 +2861,7 @@ function messagePlainText(message: PhoneMessage): string {
 }
 function quotedMessageText(message: PhoneMessage): string {
   if (!message.quotedMessageId) return '';
-  const quoted = visibleMessages.value.find(item => item.id === message.quotedMessageId);
+  const quoted = allThreadMessages.value.find(item => item.id === message.quotedMessageId);
   return quoted
     ? `${groupMemberName(quoted)} · ${formatPhoneMessage(quoted, [], false)}`
     : String((message.payload.quote as { text?: string } | undefined)?.text || '原消息已不可用');
@@ -3133,5 +3193,28 @@ async function retrySynchronize() {
   background: #6385bd;
   color: white;
   cursor: pointer;
+}
+#wave-phone-script-root .wave-device .chat-load-more-row {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 16px;
+  overflow-anchor: none;
+}
+#wave-phone-script-root .wave-device .chat-load-more {
+  width: auto;
+  min-height: 0;
+  padding: 7px 15px;
+  border: 0;
+  border-radius: 14px;
+  background: #92959d;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.5;
+  box-shadow: none;
+  cursor: pointer;
+}
+#wave-phone-script-root .wave-device .chat-load-more:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 </style>
