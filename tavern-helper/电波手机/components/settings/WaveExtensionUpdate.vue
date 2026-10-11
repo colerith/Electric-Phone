@@ -1,10 +1,24 @@
 <template>
   <div class="wave-version-update">
-    <span>电波手机 · v{{ WAVE_PHONE_RELEASE_VERSION }}</span>
-    <button type="button" :disabled="busy" @click="available ? update() : check()">
+    <span class="version-label"
+      >电波手机 <span class="version-number">v{{ WAVE_PHONE_RELEASE_VERSION }}</span></span
+    >
+    <button
+      class="version-action"
+      :class="{ 'has-update': available }"
+      type="button"
+      :disabled="busy"
+      @click="available ? update() : check()"
+    >
+      <i
+        :class="
+          busy ? 'fa-solid fa-spinner fa-spin' : available ? 'fa-solid fa-arrow-down' : 'fa-solid fa-rotate-right'
+        "
+        aria-hidden="true"
+      ></i>
       {{ busy ? '处理中…' : available ? '更新' : '检查更新' }}
     </button>
-    <small role="status">{{ status }}</small>
+    <small v-if="status" class="version-status" role="status">{{ status }}</small>
   </div>
 </template>
 <script setup lang="ts">
@@ -74,29 +88,86 @@ async function update() {
 onMounted(check);
 </script>
 <style scoped>
-.wave-version-update {
+#wave-phone-script-root .wave-device .wave-version-update {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 16px;
-  font-size: 13px;
+  gap: 7px 10px;
+  padding: 14px 12px 20px;
+  color: var(--wave-muted, #737e90);
+  font-size: 11px;
+  line-height: 1.5;
 }
-button {
-  border: 0;
-  border-radius: 12px;
-  padding: 8px 14px;
-  background: #6385bd;
-  color: white;
+#wave-phone-script-root .wave-device .version-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 500;
+}
+#wave-phone-script-root .wave-device .version-number {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--wave-tint, #eaf0f8);
+  color: var(--wave-muted, #737e90);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+#wave-phone-script-root .wave-device .version-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px;
+  width: auto;
+  margin: 0;
+  padding: 5px 10px;
+  border: 1px solid var(--wave-line, #dae3ef);
+  border-radius: 9px;
+  background: var(--wave-card, #fff);
+  color: var(--wave-blue-strong, #4e70a9);
+  box-shadow: none;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
-button:disabled {
-  opacity: 0.6;
+#wave-phone-script-root .wave-device .version-action.has-update {
+  border-color: transparent;
+  background: var(--wave-blue, #6385bd);
+  color: #fff;
+}
+#wave-phone-script-root .wave-device .version-action i {
+  font-size: 10px;
+}
+#wave-phone-script-root .wave-device .version-action:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+#wave-phone-script-root .wave-device .version-action:active:not(:disabled) {
+  transform: translateY(1px);
+}
+#wave-phone-script-root .wave-device .version-action:focus-visible {
+  outline: 2px solid var(--wave-blue, #6385bd);
+  outline-offset: 3px;
+}
+#wave-phone-script-root .wave-device .version-action:disabled {
+  opacity: 0.65;
   cursor: wait;
 }
-small {
+#wave-phone-script-root .wave-device .version-status {
   width: 100%;
+  margin: 0;
+  color: var(--wave-muted, #737e90);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.6;
   text-align: center;
   overflow-wrap: anywhere;
 }
