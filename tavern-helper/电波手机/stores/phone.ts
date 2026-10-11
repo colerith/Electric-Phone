@@ -4646,7 +4646,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const targetKey = identity.source === 'local_group' ? String(message.payload.actorKey || '') : identity.charKey;
     const targetName = identity.source === 'local_group' ? groupMemberDisplayName(identity, targetKey) : identity.name;
     const actorName = state.value.moments.profile.nickname || SillyTavern.name1 || '我';
-    const targetText = formatPhoneMessage(message, [], false).replace(/\s+/g, ' ').trim().slice(0, 160);
+    const targetText = formatPhoneMessage(message, [], false);
     const createdAt = nextReceivedAt(thread);
     thread.messages.push(
       PhoneMessageSchema.parse({
@@ -4654,8 +4654,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         sender: 'system',
         type: 'system',
         content: added
-          ? `${actorName}给${targetName}的消息「${targetText}」回应了 ${emoji}`
-          : `${actorName}取消了对${targetName}的消息「${targetText}」的 ${emoji} 回应`,
+          ? `${actorName}给${targetName}的消息回应了 ${emoji}`
+          : `${actorName}取消了对${targetName}的消息的 ${emoji} 回应`,
         createdAt,
         status: 'sent',
         payload: {

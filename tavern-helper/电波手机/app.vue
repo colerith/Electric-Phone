@@ -570,7 +570,7 @@
                       "
                       class="wave-poke-notice wave-group-notice"
                     >
-                      {{ message.content }}
+                      {{ message.payload.interaction === 'message_reaction' ? formatReactionNotice(message) : message.content }}
                     </div>
                     <div v-else class="message-stack">
                       <WaveMessageContent
@@ -1324,7 +1324,7 @@ import type { SendMessageInput } from './stores/phone';
 import WaveApiSettings from './components/settings/WaveApiSettings.vue';
 import WaveBackupSettings from './components/settings/WaveBackupSettings.vue';
 import WaveCopyrightCredits from './components/settings/WaveCopyrightCredits.vue';
-import { formatPhoneMessage } from './services/chat/message-format';
+import { formatPhoneMessage, formatReactionNotice } from './services/chat/message-format';
 import { displayIdentityName } from './services/core/identity';
 import { identityAvatarStyle as avatarStyle } from './services/core/avatar';
 import { parseLegacyMessages } from './services/generation/parser';

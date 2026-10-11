@@ -9,12 +9,23 @@ function printable(value: unknown): string {
   return text.startsWith('data:') ? '本地附件（无公开地址）' : text;
 }
 
+/** Compact display label; the target message belongs only in model context. */
+export function formatReactionNotice(message: MessageInput): string {
+  const actor = printable(message.payload.actorName) || '我';
+  const target = printable(message.payload.targetName) || '对方';
+  const emoji = printable(message.payload.emoji);
+  return message.payload.action === 'remove'
+    ? `${actor}取消了对${target}的消息的 ${emoji} 回应`
+    : `${actor}给${target}的消息回应了 ${emoji}`;
+}
+
 /** 面向会话列表的简短文案；不要复用给模型读取的 formatPhoneMessage 标签格式。 */
 export function formatMessagePreview(message: MessageInput, charSenderName = ''): string {
   const p = (key: string) => printable(message.payload[key]).replace(/\s+/g, ' ').trim();
   const content = splitElectric(message.content).body.replace(/\s+/g, ' ').trim();
   const prefix =
     message.sender === 'user' ? '我：' : message.sender === 'char' && charSenderName ? `${charSenderName}：` : '';
+  if (message.payload.interaction === 'message_reaction') return formatReactionNotice(message);
   if (message.withdrawn) return `${prefix}${message.sender === 'user' ? '撤回了一条消息' : '一条消息已撤回'}`;
   if (message.payload.interaction === 'poke') {
     const actor = p('actorName') || (message.sender === 'user' ? '我' : charSenderName || '对方');
@@ -80,8 +91,11 @@ export function formatPhoneMessage(
 ): string {
   if (message.withdrawn) return '[已撤回消息]';
   const p = (key: string) => printable(message.payload[key]);
-  if (message.payload.interaction === 'message_reaction')
-    return `[消息回应事件，仅作互动记录，不是用户发言] ${message.content}（目标消息 ID：${p('targetMessageId')}）`;
+  if (message.payload.interaction === 'message_reaction') {
+    const target = history.find(item => item.id === p('targetMessageId') && item.payload.interaction !== 'message_reaction');
+    const targetText = target ? formatPhoneMessage(target, [], false) : p('targetText');
+    return `[消息回应事件，仅作互动记录，不是用户发言] ${formatReactionNotice(message)}（目标消息 ID：${p('targetMessageId')}）\n[被回应消息完整内容]\n${targetText || '原消息已不可用'}\n[/被回应消息完整内容]`;
+  }
   if (message.payload.interaction === 'poke')
     return `[拍一拍] ${p('actorName') || (message.sender === 'user' ? 'User' : 'Char')} 戳了戳 ${p('targetName') || message.content}`;
   const content = splitElectric(message.content).body;
