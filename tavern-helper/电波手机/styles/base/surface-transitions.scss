@@ -138,6 +138,10 @@
   &.page-messages::after {
     background: transparent;
   }
+  // Carry the messenger canvas through the reserved home-indicator space.
+  &.page-messages:has(.messenger-app)::after {
+    background: var(--wave-card, #fff);
+  }
   &:not(.page-home) .wave-homebar {
     border: 0;
     box-shadow: none;
