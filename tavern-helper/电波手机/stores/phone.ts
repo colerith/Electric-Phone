@@ -2438,6 +2438,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         logDiagnostic('手动模块生成', '本轮没有新增内容');
         return '本轮没有新增内容';
       }
+      if (syncRunning) {
+        ++syncToken;
+        syncQueued = true;
+      }
       const charKey = runtime.input.identity.charKey;
       const value = delta.app_updates[module];
       let changed = false;
@@ -2465,7 +2469,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
             : [charKey],
         );
-        delta.messages.forEach(message =>
+        delta.messages.forEach((message, index) =>
           thread.messages.push(
             PhoneMessageSchema.parse({
               id: makeId(message.sender),
@@ -2480,6 +2484,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
                 ...(message.created_at ? { storyCreatedAt: message.created_at } : {}),
                 narrativeRelation: 'independent',
                 replyGenerationId: id,
+                ...(index === 0 && electric ? { electric, electricTitle } : {}),
               },
             }),
           ),

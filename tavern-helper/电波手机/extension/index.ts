@@ -72,7 +72,7 @@ function installEntry() {
   const version = document.createElement('p');
   version.textContent = `扩展版本 v${WAVE_PHONE_RELEASE_VERSION}`;
   const heading = document.createElement('strong');
-  heading.textContent = '📱 电波手机';
+  heading.textContent = '电波手机';
   status = document.createElement('p');
   status.textContent = '等待酒馆助手就绪…';
   const button = document.createElement('button');

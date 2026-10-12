@@ -17,6 +17,7 @@ let chat = 'test-chat',
   vars = { script: {}, chat: {} },
   floors = [];
 global.SillyTavern = { name1: 'User', getCurrentChatId: () => chat, characterId: '1', groupId: '', characters: [] };
+global.SillyTavern.getContext = () => ({ substituteParams: text => text });
 global.getCharData = () => ({ name: 'Alice', avatar: 'a.png' });
 global.getCharAvatarPath = () => '/a.png';
 global.getVariables = ({ type }) => vars[type];

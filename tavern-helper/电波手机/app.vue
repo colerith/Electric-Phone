@@ -199,20 +199,21 @@
             <details
               v-if="
                 !appSettingsOpen &&
-                store.currentPage === 'messages' &&
+                store.currentPage === 'conversation' &&
+                !Object.keys(groupElectric).length &&
                 !store.settings.appearance.hideElectric &&
-                store.state.electricByApp[`${store.state.activeCharKey}:${store.currentPage}`]
+                store.state.electricByApp[`${store.state.activeCharKey}:messages`]
               "
               class="wave-electric"
             >
               <summary>
                 <i class="fa-regular fa-clock"></i
                 ><span>{{
-                  store.state.electricTitleByApp[`${store.state.activeCharKey}:${store.currentPage}`] || '查看 Ecot'
+                  store.state.electricTitleByApp[`${store.state.activeCharKey}:messages`] || '查看 Ecot'
                 }}</span
                 ><i class="fa-solid fa-chevron-right"></i>
               </summary>
-              <pre>{{ store.state.electricByApp[`${store.state.activeCharKey}:${store.currentPage}`] }}</pre>
+              <pre>{{ store.state.electricByApp[`${store.state.activeCharKey}:messages`] }}</pre>
             </details>
             <WaveAppSettings
               v-if="appSettingsOpen"

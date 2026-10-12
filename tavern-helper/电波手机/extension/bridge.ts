@@ -61,7 +61,7 @@ export function replaceScriptButtons(value: typeof buttons) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'menu_button';
-  button.textContent = '📱 电波手机';
+  button.textContent = '电波手机';
   button.onclick = () => hostContext().eventSource.emit(getButtonEvent(button.textContent || ''));
   entry.append(button);
   form.prepend(entry);
