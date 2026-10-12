@@ -24,6 +24,8 @@ export function eventOn(name: string, listener: (...args: any[]) => any) {
   return { stop };
 }
 export function stopExtensionEvents() {
+  quickReplyObserver?.disconnect();
+  document.getElementById('wave-phone-quick-reply')?.remove();
   for (const stop of [...subscriptions]) stop();
 }
 const EXTENSION_ID = 'wave_phone_extension';
@@ -43,28 +45,54 @@ let buttons: { name: string; visible: boolean }[] = [];
 export function getScriptButtons() {
   return buttons.map(b => ({ ...b }));
 }
+let quickReplyObserver: MutationObserver | undefined;
+function mountQuickReply() {
+  const form = document.getElementById('send_form');
+  if (!form || !buttons.some(b => b.visible)) return;
+  let entry = document.getElementById('wave-phone-quick-reply');
+  if (!entry) {
+    entry = document.createElement('div');
+    entry.id = 'wave-phone-quick-reply';
+    entry.className = 'qr--buttons';
+    const button = document.createElement('div');
+    button.className = 'qr--button menu_button';
+    button.setAttribute('role', 'button');
+    button.tabIndex = 0;
+    button.title = '打开电波手机';
+    const label = document.createElement('div');
+    label.className = 'qr--button-label';
+    label.textContent = '电波手机';
+    button.append(label);
+    button.onclick = () => hostContext().eventSource.emit(getButtonEvent('电波手机'));
+    button.onkeydown = event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        button.click();
+      }
+    };
+    entry.append(button);
+  }
+  const bar = document.getElementById('qr--bar');
+  const parent = bar || form;
+  if (entry.parentElement !== parent) {
+    if (bar) bar.append(entry);
+    else form.prepend(entry);
+  }
+}
 export function replaceScriptButtons(value: typeof buttons) {
   buttons = value.map(b => ({ ...b }));
-  const id = 'wave-phone-quick-reply';
-  let entry = document.getElementById(id);
+  quickReplyObserver?.disconnect();
+  quickReplyObserver = undefined;
   if (!buttons.some(b => b.visible)) {
-    entry?.remove();
+    document.getElementById('wave-phone-quick-reply')?.remove();
     return;
   }
-  if (entry) return;
+  mountQuickReply();
   const form = document.getElementById('send_form');
-  if (!form) return;
-  entry = document.createElement('div');
-  entry.id = id;
-  entry.className = 'flex-container flexGap5';
-  entry.style.cssText = 'width:100%;flex-wrap:wrap;';
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'menu_button';
-  button.textContent = '电波手机';
-  button.onclick = () => hostContext().eventSource.emit(getButtonEvent(button.textContent || ''));
-  entry.append(button);
-  form.prepend(entry);
+  if (form) {
+    quickReplyObserver = new MutationObserver(mountQuickReply);
+    quickReplyObserver.observe(form, { childList: true, subtree: true });
+  }
 }
 export function legacyScripts(): any[] {
   const found: any[] = [];
