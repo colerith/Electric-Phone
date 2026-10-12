@@ -391,6 +391,13 @@
   }
 }
 
-#wave-phone-script-root .wave-phone-host .wave-device.page-conversation::after {
-  background: transparent !important;
+// The entire conversation dock is one card surface, including the home indicator inset.
+#wave-phone-script-root .wave-phone-host .wave-device.page-conversation {
+  :is(.composer, .extras-panel, .composer-context, .message-multi-toolbar, .group-observer-bar, .wave-homebar),
+  &::after {
+    background: var(--wave-card, #fff) !important;
+    background-image: none !important;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
 }
