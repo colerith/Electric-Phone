@@ -33,7 +33,7 @@
             }}</template></template
           >
         </p>
-        <WaveLinkCard v-for="url in textLinks" :key="url" :url="url" />
+        <WaveLinkCard v-for="url in textLinks" :key="url" :url="url" :source-text="primaryText" />
         <div v-if="quotedText" class="wave-message-quote wave-message-quote-inline" aria-label="引用消息">
           <i class="fa-solid fa-reply" aria-hidden="true"></i>
           <p :title="quotedText">{{ quotedText }}</p>
@@ -287,6 +287,7 @@
         <p v-if="forwardNote" class="wave-forward-note">{{ forwardNote }}</p>
         <WaveLinkCard
           :url="safeLinkUrl"
+          :source-text="payloadString('shareText') || message.content"
           :title="payloadString('title') || message.content"
           :description="payloadString('description')"
         />
@@ -341,7 +342,7 @@
 <script setup lang="ts">
 import WaveImageViewer from '../shared/WaveImageViewer.vue';
 import WaveLinkCard from './WaveLinkCard.vue';
-import { extractWebLinks } from '../../services/web-tools';
+import { extractWebLinks } from '../../services/chat/share-links';
 import { selectedImage, type ImageTarget } from '../../services/image/library';
 import WavePaymentDialog from './WavePaymentDialog.vue';
 import { paymentDetails } from '../../services/chat/payment';
@@ -577,7 +578,7 @@ const stickerUrl = computed(() => {
 });
 const safeLinkUrl = computed(() => {
   const value = payloadString('url');
-  return /^https?:\/\//i.test(value) ? value : '';
+  return extractWebLinks(value)[0] || extractWebLinks(props.message.content)[0] || '';
 });
 const textLinks = computed(() => (props.message.type === 'text' ? extractWebLinks(primaryText.value) : []));
 const forwardNote = computed(() => payloadString('forwardNote'));

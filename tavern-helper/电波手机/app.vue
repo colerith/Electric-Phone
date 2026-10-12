@@ -902,8 +902,11 @@
                       :video="extraDraft.kind === 'video'"
                     />
                     <label v-if="(extraMode === '媒体' && !mediaAi) || extraMode === '链接'"
-                      ><span>{{ extraMode === '媒体' ? '资源 URL（可留空）' : '链接 URL' }}</span
-                      ><input v-model.trim="extraDraft.url" type="url" placeholder="https://…"
+                      ><span>{{ extraMode === '媒体' ? '资源 URL（可留空）' : '链接或完整分享文案' }}</span
+                      ><input
+                        v-model.trim="extraDraft.url"
+                        :type="extraMode === '链接' ? 'text' : 'url'"
+                        placeholder="https://…"
                     /></label>
                     <input
                       ref="photoFileInput"
@@ -1284,6 +1287,7 @@
 </template>
 
 <script setup lang="ts">
+import { parseSharedLinks } from './services/chat/share-links';
 import { provideSettingsForms } from './services/core/settings-forms';
 import WaveMentionPicker from './components/shared/WaveMentionPicker.vue';
 import WaveExtensionUpdate from './components/settings/WaveExtensionUpdate.vue';
@@ -1930,7 +1934,7 @@ const extraHint = computed(
       红包: '发送时默认为待领取，后续状态由角色互动推进；仅用于剧情互动，不涉及真实支付。',
       转账: '只影响剧情内虚构钱包，不涉及真实支付。',
       位置: '只保存手动文本，不请求设备定位。',
-      链接: '仅允许 http/https URL。',
+      链接: '支持完整分享文案、小红书与 B 站短链、BV/av 号；自动提取可访问的网址。',
     })[extraMode.value] || '',
 );
 const regeneratingReplyIds = ref(new Set<string>());
@@ -2880,11 +2884,16 @@ function submitExtra(): void {
       },
     };
   } else if (extraMode.value === '链接') {
-    if (!/^https?:\/\//i.test(draft.url)) {
-      toastr.error('链接仅允许 http/https');
+    const shared = parseSharedLinks(draft.url)[0];
+    if (!shared) {
+      toastr.error('没有找到可访问的网址，请粘贴完整分享文案、短链接或 BV/av 号');
       return;
     }
-    input = { type: 'link', content: draft.content || draft.url, payload: { url: draft.url, title: draft.content } };
+    input = {
+      type: 'link',
+      content: draft.content || shared.title || shared.url,
+      payload: { url: shared.url, title: draft.content || shared.title, shareText: draft.url },
+    };
   } else return;
   void sendTyped(input);
 }

@@ -33,7 +33,7 @@ const click = text => { const button = [...document.querySelectorAll('button')].
   assert.ok(localStorage.getItem('wave-phone-web-tools-v1').includes('Tavily'));
   app.unmount();
   app = createApp(Card, { url: 'https://example.com/news', title: '临时标题' }); app.mount('#app'); await tick();
-  assert.equal(document.querySelector('.wave-web-card strong').textContent, '真实网页标题');
+  assert.equal(document.querySelector('.wave-web-card strong').textContent, '临时标题');
   assert.equal(document.querySelector('.wave-web-card a').rel, 'noopener noreferrer');
   assert.equal(document.querySelector('.wave-web-card img').getAttribute('referrerpolicy'), 'no-referrer');
   app.unmount();

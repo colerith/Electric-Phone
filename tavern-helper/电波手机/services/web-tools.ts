@@ -167,19 +167,4 @@ export function getLinkPreview(url: string, retry = false): Promise<LinkPreview>
   if (previews.size > 200) previews.delete(previews.keys().next().value!);
   return promise;
 }
-export function extractWebLinks(text: string): string[] {
-  return [
-    ...new Set(
-      (text.match(/https?:\/\/[^\s<>"\u3000]+/gi) || [])
-        .map(value => value.replace(/[)\]。，！？、；：,.!?;]+$/g, ''))
-        .filter(value => {
-          try {
-            const url = new URL(value);
-            return !url.username && !url.password;
-          } catch {
-            return false;
-          }
-        }),
-    ),
-  ].slice(0, 3);
-}
+export { extractWebLinks } from './chat/share-links';

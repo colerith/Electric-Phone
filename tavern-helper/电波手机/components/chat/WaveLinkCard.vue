@@ -3,7 +3,7 @@
     <a :href="safeUrl || undefined" target="_blank" rel="noopener noreferrer">
       <div class="wave-web-card-main">
         <div>
-          <strong>{{ preview?.title || title || host || '分享链接' }}</strong>
+          <strong>{{ displayTitle }}</strong>
           <p>{{ preview?.description || description || (busy ? '正在读取网页…' : host) }}</p>
         </div>
         <img
@@ -23,7 +23,8 @@
           alt=""
           referrerpolicy="no-referrer"
           @error="iconFailed = true"
-        /><i v-else class="fa-solid fa-globe"></i><span>{{ preview?.siteName || host || '链接地址未提供' }}</span
+        /><i v-else class="fa-solid fa-globe"></i
+        ><span>{{ platform || preview?.siteName || host || '链接地址未提供' }}</span
         ><i class="fa-solid fa-arrow-up-right-from-square"></i>
       </footer>
     </a>
@@ -35,9 +36,11 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { getLinkPreview, webSettings, type LinkPreview } from '../../services/web-tools';
-const props = withDefaults(defineProps<{ url: string; title?: string; description?: string }>(), {
+import { parseSharedLinks, linkSiteName } from '../../services/chat/share-links';
+const props = withDefaults(defineProps<{ url: string; title?: string; description?: string; sourceText?: string }>(), {
   title: '',
   description: '',
+  sourceText: '',
 });
 const element = ref<HTMLElement>(),
   preview = ref<LinkPreview>(),
@@ -53,8 +56,23 @@ const safe = (value: string) => {
     return '';
   }
 };
-const safeUrl = computed(() => safe(props.url));
+const safeUrl = computed(() => parseSharedLinks(props.url)[0]?.url || '');
 const host = computed(() => (safeUrl.value ? new URL(safeUrl.value).hostname : ''));
+const shared = computed(() => parseSharedLinks(props.sourceText || props.url).find(link => link.url === safeUrl.value));
+const platform = computed(() => {
+  const name = linkSiteName(safeUrl.value);
+  return name === host.value ? '' : name;
+});
+const displayTitle = computed(() => {
+  const customTitle = props.title && !parseSharedLinks(props.title).length ? props.title : '';
+  return (
+    customTitle ||
+    shared.value?.title ||
+    preview.value?.title ||
+    (platform.value ? `${platform.value}分享` : host.value) ||
+    '分享链接'
+  );
+});
 const imageUrl = computed(() => safe(preview.value?.image || ''));
 const iconUrl = computed(() => safe(preview.value?.icon || ''));
 let revision = 0,
