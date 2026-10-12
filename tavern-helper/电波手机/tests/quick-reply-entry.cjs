@@ -72,7 +72,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   assert.equal(set.disableSend, false);
   assert.equal(set.injectInput, false);
   assert.equal(document.querySelector('#wave-phone-quick-reply'), null, 'old imitation DOM is removed');
-  await api.executeQuickReply(set.name, '电波手机');
+  await api.executeQuickReply(set.name, '📱电波手机');
   assert.equal(clicked, 1);
   const reference = process.env.QR_REFERENCE_PATH;
   if (reference) {

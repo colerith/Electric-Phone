@@ -103,7 +103,7 @@ function syncNativeQuickReply(): Promise<void> {
       }
       let qr = set.qrList.find((row: any) => row.message === `/${QR_COMMAND}`);
       if (!qr && visible())
-        qr = api.createQuickReply(name, '电波手机', {
+        qr = api.createQuickReply(name, '📱电波手机', {
           message: `/${QR_COMMAND}`,
           title: '打开电波手机',
           showLabel: true,
@@ -116,6 +116,7 @@ function syncNativeQuickReply(): Promise<void> {
           executeOnNewChat: false,
           executeBeforeGeneration: false,
         });
+      if (qr?.label === '电波手机') api.updateQuickReply(name, qr.id, { newLabel: '📱电波手机' });
       if (qr && qr.isHidden !== !visible()) api.updateQuickReply(name, qr.id, { isHidden: !visible() });
       if (visible() && !api.settings?.config?.setList?.some((link: any) => link.set === set))
         api.addGlobalSet(name, true);
