@@ -24,7 +24,13 @@ export function eventOn(name: string, listener: (...args: any[]) => any) {
   return { stop };
 }
 export function stopExtensionEvents() {
-  quickReplyObserver?.disconnect();
+  buttons = [];
+  if (quickReplyTimer) clearTimeout(quickReplyTimer);
+  quickReplyTimer = undefined;
+  void syncNativeQuickReply();
+  const parser = (window as any).SillyTavern?.getContext?.()?.SlashCommandParser;
+  if (nativeCommand && parser?.commands?.[QR_COMMAND] === nativeCommand) delete parser.commands[QR_COMMAND];
+  nativeCommand = undefined;
   document.getElementById('wave-phone-quick-reply')?.remove();
   for (const stop of [...subscriptions]) stop();
 }
@@ -45,54 +51,86 @@ let buttons: { name: string; visible: boolean }[] = [];
 export function getScriptButtons() {
   return buttons.map(b => ({ ...b }));
 }
-let quickReplyObserver: MutationObserver | undefined;
-function mountQuickReply() {
-  const form = document.getElementById('send_form');
-  if (!form || !buttons.some(b => b.visible)) return;
-  let entry = document.getElementById('wave-phone-quick-reply');
-  if (!entry) {
-    entry = document.createElement('div');
-    entry.id = 'wave-phone-quick-reply';
-    entry.className = 'qr--buttons';
-    const button = document.createElement('div');
-    button.className = 'qr--button menu_button';
-    button.setAttribute('role', 'button');
-    button.tabIndex = 0;
-    button.title = '打开电波手机';
-    const label = document.createElement('div');
-    label.className = 'qr--button-label';
-    label.textContent = '电波手机';
-    button.append(label);
-    button.onclick = () => hostContext().eventSource.emit(getButtonEvent('电波手机'));
-    button.onkeydown = event => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        button.click();
+const QR_COMMAND = 'wave-phone-open';
+const QR_SET = '电波手机 · 扩展入口';
+let quickReplyTimer: ReturnType<typeof setTimeout> | undefined;
+let quickReplySync: Promise<void> = Promise.resolve();
+let nativeCommand: any;
+function registerPhoneCommand() {
+  const { SlashCommandParser, SlashCommand } = hostContext();
+  if (!SlashCommandParser?.addCommandObject || !SlashCommand?.fromProps) return false;
+  if (!nativeCommand) {
+    nativeCommand = SlashCommand.fromProps({
+      name: QR_COMMAND,
+      callback: async () => {
+        if (buttons.some(button => button.visible)) await hostContext().eventSource.emit(getButtonEvent('电波手机'));
+        return '';
+      },
+      helpString: '打开电波手机，不发送聊天消息。',
+    });
+    SlashCommandParser.addCommandObject(nativeCommand);
+  }
+  return true;
+}
+function syncNativeQuickReply(): Promise<void> {
+  quickReplySync = quickReplySync
+    .catch(() => {})
+    .then(async () => {
+      const api = (window as any).quickReplyApi;
+      const visible = () => buttons.some(button => button.visible);
+      if (!api?.getSetByName || !api?.createSet || (visible() && !registerPhoneCommand())) {
+        if (visible() && !quickReplyTimer)
+          quickReplyTimer = setTimeout(() => {
+            quickReplyTimer = undefined;
+            void syncNativeQuickReply();
+          }, 1000);
+        return;
       }
-    };
-    entry.append(button);
-  }
-  const bar = document.getElementById('qr--bar');
-  const parent = bar || form;
-  if (entry.parentElement !== parent) {
-    if (bar) bar.append(entry);
-    else form.prepend(entry);
-  }
+      let name = QR_SET,
+        set = api.getSetByName(name);
+      // Never replace a user's unrelated set with a coincidentally matching name.
+      for (
+        let suffix = 2;
+        set && set.qrList.length && !set.qrList.some((qr: any) => qr.message === `/${QR_COMMAND}`);
+        suffix++
+      ) {
+        name = `${QR_SET} (${suffix})`;
+        set = api.getSetByName(name);
+      }
+      if (!set) {
+        if (!visible()) return;
+        set = await api.createSet(name, { disableSend: false, injectInput: false, placeBeforeInput: false });
+      }
+      let qr = set.qrList.find((row: any) => row.message === `/${QR_COMMAND}`);
+      if (!qr && visible())
+        qr = api.createQuickReply(name, '电波手机', {
+          message: `/${QR_COMMAND}`,
+          title: '打开电波手机',
+          showLabel: true,
+          isHidden: false,
+          executeOnStartup: false,
+          executeOnUser: false,
+          executeOnAi: false,
+          executeOnChatChange: false,
+          executeOnGroupMemberDraft: false,
+          executeOnNewChat: false,
+          executeBeforeGeneration: false,
+        });
+      if (qr && qr.isHidden !== !visible()) api.updateQuickReply(name, qr.id, { isHidden: !visible() });
+      if (visible() && !api.settings?.config?.setList?.some((link: any) => link.set === set))
+        api.addGlobalSet(name, true);
+    })
+    .catch(() => {
+      console.warn('[wave-phone] 原生快速回复入口注册失败，可从扩展设置打开手机。');
+    });
+  return quickReplySync;
 }
 export function replaceScriptButtons(value: typeof buttons) {
-  buttons = value.map(b => ({ ...b }));
-  quickReplyObserver?.disconnect();
-  quickReplyObserver = undefined;
-  if (!buttons.some(b => b.visible)) {
-    document.getElementById('wave-phone-quick-reply')?.remove();
-    return;
-  }
-  mountQuickReply();
-  const form = document.getElementById('send_form');
-  if (form) {
-    quickReplyObserver = new MutationObserver(mountQuickReply);
-    quickReplyObserver.observe(form, { childList: true, subtree: true });
-  }
+  buttons = value.map(button => ({ ...button }));
+  document.getElementById('wave-phone-quick-reply')?.remove();
+  if (quickReplyTimer) clearTimeout(quickReplyTimer);
+  quickReplyTimer = undefined;
+  void syncNativeQuickReply();
 }
 export function legacyScripts(): any[] {
   const found: any[] = [];
