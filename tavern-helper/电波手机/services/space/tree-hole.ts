@@ -1,3 +1,4 @@
+import { browserUuid } from '../core/browser-crypto';
 import {
   MomentsStateSchema,
   MomentPostSchema,
@@ -125,7 +126,7 @@ export function randomAnonymousId(previous = '', random = Math.random): string {
   return choices[Math.floor(random() * choices.length)];
 }
 export function randomAnonymousAvatarSeed(): string {
-  return `anon-${crypto.randomUUID()}`;
+  return `anon-${browserUuid()}`;
 }
 
 export const TREE_HOLE_PATTERN = /<wave_tree_hole>\s*([\s\S]*?)\s*<\/wave_tree_hole>/g;

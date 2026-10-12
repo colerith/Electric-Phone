@@ -1,4 +1,5 @@
 /** Binary resources live in ST files. Base64 is only a transient upload/API wire format. */
+import { sha256Hex } from './browser-crypto';
 const extensions: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
@@ -26,9 +27,7 @@ export async function storeResource(source: Blob | string, signal?: AbortSignal)
   const blob = typeof source === 'string' ? await (await fetch(source, { signal })).blob() : source;
   if (!blob.size) throw Error('资源文件为空，未保存');
   const bytes = new Uint8Array(await blob.arrayBuffer());
-  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
-    .map(x => x.toString(16).padStart(2, '0'))
-    .join('');
+  const hash = await sha256Hex(bytes);
   const name = `wave-resource-${hash}.${extensions[blob.type.split(';')[0]] || 'bin'}`;
   const path = `/user/files/${name}`;
   if (verified.has(path)) return path;

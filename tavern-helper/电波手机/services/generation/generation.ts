@@ -1,4 +1,5 @@
 import { expandTavernMacros } from '../core/tavern-macros';
+import { searchChatContext } from '../web-tools';
 import { sampleImageCounts } from '../space/image-plan';
 import { parseJsonResponse } from './json-response';
 import { validateCommentLanguages } from '../space/comment-language';
@@ -20,7 +21,7 @@ import { narrativePrompt } from './narrative-context';
 import { prepareContext, stripExcludedTags, isCardExcluded } from './context-controls';
 import { diagnostics, logDiagnostic } from '../core/diagnostics';
 import { describeRequestError, redactDiagnostic, type RequestStage } from '../core/request-error';
-import { buildCustomApi, fitContext } from '../core/api-config';
+import { buildCustomApi, estimateTokens, fitContext } from '../core/api-config';
 import {
   PhoneChatResponseSchema,
   type AppSnapshot,
@@ -99,7 +100,7 @@ function extractJson(raw: string): unknown {
   return parseJsonResponse(cleaned.slice(start, end + 1));
 }
 
-const runningRequests = new Map<string, { cancelled: boolean; backendId: string }>();
+const runningRequests = new Map<string, { cancelled: boolean; backendId: string; webAbort: AbortController }>();
 async function requestConfigured<T>(
   settings: ScriptSettings,
   generationId: string,
@@ -114,9 +115,10 @@ async function requestConfigured<T>(
     thread?: Thread;
     historyBeforeFloor?: number;
     onElectric?: (text: string, title: string) => void;
+    webSearchQuery?: string;
   },
 ): Promise<T> {
-  const request = { cancelled: false, backendId: generationId };
+  const request = { cancelled: false, backendId: generationId, webAbort: new AbortController() };
   let stage: RequestStage = '配置检查';
   let attempt = 0;
   let attemptStarted = Date.now();
@@ -170,6 +172,25 @@ async function requestConfigured<T>(
         : { ...prompt, content: expandTavernMacros(stripExcludedTags(prompt.content, settings.basic.excludedTags)) },
     );
     userInput = expandTavernMacros(stripExcludedTags(userInput, settings.basic.excludedTags));
+    if (namespace?.webSearchQuery) {
+      ensureNamespace();
+      if (request.cancelled) throw Error('生成已停止。');
+      contextStep = 'MCP 网页检索';
+      const query = stripExcludedTags(namespace.webSearchQuery, settings.basic.excludedTags);
+      const external = await searchChatContext(query, request.webAbort.signal);
+      ensureNamespace();
+      if (request.cancelled) throw Error('生成已停止。');
+      const used = filtered.reduce(
+        (n, p) => n + (typeof p === 'string' ? 0 : estimateTokens(p.content) + 8),
+        estimateTokens(userInput),
+      );
+      const remaining = settings.api.contextLength - settings.api.maxTokens - used - 32;
+      if (external && remaining > 256) {
+        let bounded = external;
+        while (estimateTokens(bounded) > remaining) bounded = bounded.slice(0, Math.floor(bounded.length * 0.8));
+        filtered.push({ role: 'user', content: bounded });
+      }
+    }
     if (settings.debugEnabled) {
       diagnostics.prompt = JSON.stringify({ ordered_prompts: filtered, overrides, user_input: userInput }, null, 2);
       diagnostics.response = '';
@@ -313,13 +334,16 @@ export async function generatePhoneReply(
       }
       return response;
     },
-    input,
+    { ...input, webSearchQuery: input.latestUserText },
   );
   return { generationId, data };
 }
 export function stopPhoneGeneration(generationId: string): Promise<boolean> {
   const request = runningRequests.get(generationId);
-  if (request) request.cancelled = true;
+  if (request) {
+    request.cancelled = true;
+    request.webAbort.abort();
+  }
   return stopBackendGeneration(request?.backendId || generationId);
 }
 export async function translatePhoneText(settings: ScriptSettings, text: string, language: string): Promise<string> {
@@ -526,7 +550,7 @@ export async function generatePhoneModule(input: GenerationInput, module: import
       }
       return delta;
     },
-    input,
+    { ...input, webSearchQuery: module === 'messages' ? input.latestUserText : undefined },
   );
 }
 

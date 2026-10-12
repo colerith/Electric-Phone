@@ -6,6 +6,8 @@
 
 /*! #__NO_SIDE_EFFECTS__ */
 
+/*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+
 /**
  * @license
  * Lodash <https://lodash.com/>

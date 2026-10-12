@@ -1,3 +1,4 @@
+import { browserUuid } from '../core/browser-crypto';
 import { externalizeResources } from '../core/resource-storage';
 import { ImageReferenceSchema, type ImageReference } from './schema';
 
@@ -16,7 +17,7 @@ export async function parseVibeFile(text: string): Promise<ImageReference> {
   const image = typeof file.image === 'string' ? file.image : '';
   return externalizeResources(
     ImageReferenceSchema.parse({
-      id: crypto.randomUUID(),
+      id: browserUuid(),
       name: typeof file.name === 'string' ? file.name : '导入的 Vibe',
       image: image
         ? image.startsWith('data:')

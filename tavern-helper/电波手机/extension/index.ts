@@ -79,11 +79,25 @@ function installEntry() {
   button.type = 'button';
   button.className = 'menu_button';
   button.textContent = '打开电波手机 / 重试';
+  Object.assign(button.style, {
+    width: 'fit-content',
+    maxWidth: '100%',
+    whiteSpace: 'normal',
+    wordBreak: 'keep-all',
+    flexShrink: '0',
+  });
   button.onclick = () => void start(true);
   refreshButton = document.createElement('button');
   refreshButton.type = 'button';
   refreshButton.className = 'menu_button';
   refreshButton.textContent = '刷新页面，加载扩展版';
+  Object.assign(refreshButton.style, {
+    width: 'fit-content',
+    maxWidth: '100%',
+    whiteSpace: 'normal',
+    wordBreak: 'keep-all',
+    flexShrink: '0',
+  });
   refreshButton.hidden = true;
   refreshButton.style.display = 'none';
   refreshButton.onclick = () => window.location.reload();

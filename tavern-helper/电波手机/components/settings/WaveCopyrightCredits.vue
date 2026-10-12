@@ -82,6 +82,18 @@
 import { WAVE_PHONE_RELEASE_VERSION } from '../../schemas';
 const projects = [
   {
+    name: 'Jina Reader · Tavily · Exa',
+    url: 'https://modelcontextprotocol.io/',
+    license: '远程服务按各自条款使用',
+    note: '提供网页阅读与搜索的 MCP 模板；服务地址与文档见 MCP 设置，密钥由用户自行填写。',
+  },
+  {
+    name: '@noble/hashes',
+    url: 'https://github.com/paulmillr/noble-hashes',
+    license: 'MIT',
+    note: 'HTTP 环境下的标准 SHA-256 兼容实现，保持资源地址与原有数据一致。',
+  },
+  {
     name: '柏宝绘 · ST-BaiBai-Image',
     url: 'https://github.com/baibai-git/ST-BaiBai-Image',
     license: '以原仓库授权为准',

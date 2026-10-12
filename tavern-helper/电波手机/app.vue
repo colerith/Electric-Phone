@@ -1003,6 +1003,7 @@
                   :section="settingsSection"
                 />
                 <WaveApiSettings v-else-if="settingsSection === 'api'" />
+                <WaveMcpSettings v-else-if="settingsSection === 'mcp'" />
                 <WaveBackupSettings v-else-if="settingsSection === 'backup'" />
                 <WaveCopyrightCredits v-else-if="settingsSection === 'credits'" />
 
@@ -1351,6 +1352,7 @@ import WaveToggle from './components/shared/WaveToggle.vue';
 import { type AppId, type Identity, type PhoneMessage, type StickerLibrary } from './schemas';
 import type { SendMessageInput } from './stores/phone';
 import WaveApiSettings from './components/settings/WaveApiSettings.vue';
+import WaveMcpSettings from './components/settings/WaveMcpSettings.vue';
 import WaveBackupSettings from './components/settings/WaveBackupSettings.vue';
 import WaveCopyrightCredits from './components/settings/WaveCopyrightCredits.vue';
 import { useChatPagination } from './services/chat/chat-pagination';
@@ -1699,6 +1701,7 @@ type SettingsSectionId =
   | 'debug'
   | 'root'
   | 'api'
+  | 'mcp'
   | 'chat'
   | 'media'
   | 'image'
@@ -1714,6 +1717,14 @@ const settingsSections: Array<{
   eyebrow: string;
   icon: string;
 }> = [
+  {
+    id: 'mcp',
+    name: 'MCP 与网页',
+    caption: '链接卡片、工具与联网检索',
+    description: '配置网页解析、远程 MCP 服务与聊天检索。',
+    eyebrow: 'MCP & WEB',
+    icon: 'fa-solid fa-network-wired',
+  },
   {
     id: 'api',
     name: 'API连接',

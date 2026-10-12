@@ -33,6 +33,7 @@
             }}</template></template
           >
         </p>
+        <WaveLinkCard v-for="url in textLinks" :key="url" :url="url" />
         <div v-if="quotedText" class="wave-message-quote wave-message-quote-inline" aria-label="引用消息">
           <i class="fa-solid fa-reply" aria-hidden="true"></i>
           <p :title="quotedText">{{ quotedText }}</p>
@@ -284,19 +285,11 @@
 
       <div v-else-if="message.type === 'link'" class="wave-message-shared-link">
         <p v-if="forwardNote" class="wave-forward-note">{{ forwardNote }}</p>
-        <a
-          class="wave-message-link"
-          :href="safeLinkUrl || undefined"
-          :target="safeLinkUrl ? '_blank' : undefined"
-          :rel="safeLinkUrl ? 'noopener noreferrer' : undefined"
-        >
-          <span><i class="fa-solid fa-link"></i></span>
-          <div>
-            <strong>{{ payloadString('title') || message.content || '分享链接' }}</strong
-            ><small>{{ linkHost }}</small>
-          </div>
-          <i class="fa-solid fa-arrow-up-right-from-square"></i>
-        </a>
+        <WaveLinkCard
+          :url="safeLinkUrl"
+          :title="payloadString('title') || message.content"
+          :description="payloadString('description')"
+        />
       </div>
       <div v-else-if="message.type === 'zone'" class="wave-message-zone">
         <p v-if="forwardNote" class="wave-forward-note">{{ forwardNote }}</p>
@@ -347,6 +340,8 @@
 
 <script setup lang="ts">
 import WaveImageViewer from '../shared/WaveImageViewer.vue';
+import WaveLinkCard from './WaveLinkCard.vue';
+import { extractWebLinks } from '../../services/web-tools';
 import { selectedImage, type ImageTarget } from '../../services/image/library';
 import WavePaymentDialog from './WavePaymentDialog.vue';
 import { paymentDetails } from '../../services/chat/payment';
@@ -575,20 +570,16 @@ const stickerUrl = computed(() => {
   const value = payloadString('stickerUrl') || payloadString('url');
   const markedSticker =
     props.message.type === 'emoji' || payloadString('emojiType') === 'sticker' || Boolean(payloadString('stickerUrl'));
-  return markedSticker && (/^https?:\/\//i.test(value) || value.startsWith('data:image/') || value.startsWith('/user/files/')) ? value : '';
+  return markedSticker &&
+    (/^https?:\/\//i.test(value) || value.startsWith('data:image/') || value.startsWith('/user/files/'))
+    ? value
+    : '';
 });
 const safeLinkUrl = computed(() => {
   const value = payloadString('url');
   return /^https?:\/\//i.test(value) ? value : '';
 });
-const linkHost = computed(() => {
-  if (!safeLinkUrl.value) return '链接地址未提供';
-  try {
-    return new URL(safeLinkUrl.value).hostname;
-  } catch {
-    return safeLinkUrl.value;
-  }
-});
+const textLinks = computed(() => (props.message.type === 'text' ? extractWebLinks(primaryText.value) : []));
 const forwardNote = computed(() => payloadString('forwardNote'));
 const shareKind = computed(() => payloadString('shareKind') || 'zone');
 const sharedFullText = computed(() => payloadString('postContent') || props.message.content);

@@ -1,3 +1,4 @@
+import { browserUuid } from '../core/browser-crypto';
 import { expandTavernMacros } from '../core/tavern-macros';
 import { storeResource, resourceEncoding } from '../core/resource-storage';
 import { unzipSync } from 'fflate';
@@ -183,7 +184,7 @@ export async function generateImage(
         encoding = bytesBase64(bytes);
       }
       body.parameters.reference_image_multiple_cached.push({
-        cache_secret_key: crypto.randomUUID(),
+        cache_secret_key: browserUuid(),
         data: await resourceEncoding(encoding, signal),
       });
       body.parameters.reference_strength_multiple.push(reference.strength);
