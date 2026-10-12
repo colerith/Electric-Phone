@@ -373,8 +373,7 @@ const lyricModes = [
 const lyricModeIndex = computed({
   get: () => phone.settings.musicLyricMode,
   set: value => {
-    phone.settings.musicLyricMode = value;
-    phone.saveSettings();
+    phone.setMusicLyricMode(value);
   },
 });
 const lyricMode = computed(() => lyricModes[lyricModeIndex.value]);
@@ -424,10 +423,10 @@ async function loadAlternates() {
 }
 function cycleLyricMode() {
   lyricModeIndex.value = (lyricModeIndex.value + 1) % lyricModes.length;
-  if (lyricMode.value.enabled) void loadAlternates();
 }
 watch(
-  () => (music.current ? `${music.current.source}:${music.current.id}` : ''),
+  // Playlist refresh/playback resolution may replace a track without changing its ID.
+  [() => music.current, () => lyricModeIndex.value],
   () => {
     alternateController?.abort();
     alternateBusy.value = false;

@@ -733,10 +733,24 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveChat();
   }
   const listening = ref<{ charKey: string; title: string; artist: string; playing: boolean } | null>(null);
+  let musicSaveQueued = false;
   function saveMusicLibrary() {
     if (!context.value || !state.value.chatKey) return;
+    // A parser awaiting cached floors must not overwrite newer music edits.
+    if (syncRunning) {
+      ++syncToken;
+      syncQueued = true;
+    }
     // Music changes do not alter wallet ledgers, group activity or the global character roster.
     persistChatState(ChatStateSchema.parse(state.value));
+    // Coalesce same-click catalog/favorite writes, but do not wait for the autosave interval.
+    if (!musicSaveQueued) {
+      musicSaveQueued = true;
+      queueMicrotask(() => {
+        musicSaveQueued = false;
+        void flushPhoneStorage().catch(error => logDiagnostic('音乐收藏保存失败', stringifyError(error)));
+      });
+    }
   }
   function rememberMusicTracks(tracks: Track[]): void {
     const key = state.value.activeCharKey;
@@ -1006,7 +1020,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!key) return;
     const rows = state.value.musicFavorites[key] || [];
     state.value.musicFavorites[key] = rows.includes(id) ? rows.filter(item => item !== id) : [...rows, id];
-    saveChat();
+    saveMusicLibrary();
   }
   function setServicePreference(key: 'browserEndpoint' | 'musicApi' | 'musicSource', value: string): void {
     settings.value[key] = value.trim();
@@ -1105,7 +1119,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     );
     for (const playlist of state.value.musicPlaylists[charKey] || [])
       playlist.tracks = playlist.tracks.filter(item => `${item.source}:${item.id}` !== key);
-    saveChat();
+    saveMusicLibrary();
   }
   function clearAppContent(app: AppId): void {
     const charKey = state.value.activeCharKey;
@@ -1187,6 +1201,11 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveSettings();
   }
   watch(() => settings.value.basic.storageIntervalSeconds, setPhoneStorageInterval, { immediate: true });
+  function setMusicLyricMode(mode: number): void {
+    settings.value.musicLyricMode = mode;
+    saveSettings();
+    void flushPhoneStorage().catch(error => logDiagnostic('歌词设置保存失败', stringifyError(error)));
+  }
   function saveSettings(): void {
     settings.value = ScriptSettingsSchema.parse(settings.value);
     persistScriptSettings(settings.value);
@@ -5281,6 +5300,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     rememberMusicTracks,
     listening,
     saveMusicLibrary,
+    setMusicLyricMode,
     recordBrowserVisit,
     toggleBrowserBookmark,
     clearBrowserHistory,

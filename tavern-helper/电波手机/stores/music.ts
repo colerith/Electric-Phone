@@ -563,9 +563,15 @@ export const useMusicStore = defineStore('wave-music', () => {
       current.value = resolved;
       player().src = resolved.url;
       if (autoplay) await startMusicPlayback(player(), controller.signal);
+      const originalLyric = current.value?.lyric;
       void extraLyrics(track, phone.settings.neteaseApi, phone.settings.qqMusicApi, controller.signal)
         .then(lyric => {
-          if (!controller.signal.aborted && current.value?.url === resolved.url && lyric)
+          if (
+            !controller.signal.aborted &&
+            current.value?.url === resolved.url &&
+            current.value.lyric === originalLyric &&
+            lyric
+          )
             current.value.lyric = simplifyLyrics(lyric);
         })
         .catch(() => {});
@@ -684,9 +690,11 @@ export const useMusicStore = defineStore('wave-music', () => {
           searchStatus.value = `已播放 · ${resolved.title} · ${resolved.artist}`;
           automaticFallback = playNext;
           // Optional lyrics must not hold up playback or reject a working audio source.
+          const originalLyric = current.value?.lyric;
           void extraLyrics(resolved, phone.settings.neteaseApi, phone.settings.qqMusicApi, controller.signal)
             .then(lyric => {
-              if (active() && current.value?.url === resolved.url && lyric) current.value.lyric = simplifyLyrics(lyric);
+              if (active() && current.value?.url === resolved.url && current.value.lyric === originalLyric && lyric)
+                current.value.lyric = simplifyLyrics(lyric);
             })
             .catch(() => {});
           busy.value = false;

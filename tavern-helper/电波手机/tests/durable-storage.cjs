@@ -284,6 +284,30 @@ function state(content) {
   assert(!JSON.stringify(vars).includes(';base64,'));
   assert.throws(() => storage.writePhoneChat(oldChat), /Base64/);
   await storage.flushPhoneStorage();
+  // User music survives a clean runtime/browser restart, independently of platform caches.
+  const musicState = state('music persistence');
+  const song = { id: 's1', source: 'qq', title: 'Saved song', artist: 'Artist', album: '', cover: '', lyricId: '' };
+  musicState.musicCatalog.alice = [song];
+  musicState.musicFavorites.alice = ['qq:s1'];
+  musicState.musicPlaylists.alice = [{ id: 'local1', name: 'Local playlist', cover: '', tracks: [song] }];
+  storage.writePhoneChat(musicState);
+  await storage.flushPhoneStorage();
+  vars.chat = {};
+  storage = restart();
+  await storage.preparePhoneChat(getRuntimeContext());
+  const recoveredMusic = vars.chat[schema.CHAT_VARIABLE_KEY];
+  assert.deepEqual(recoveredMusic.musicFavorites.alice, ['qq:s1']);
+  assert.equal(recoveredMusic.musicCatalog.alice[0].title, 'Saved song');
+  assert.equal(recoveredMusic.musicPlaylists.alice[0].tracks[0].id, 's1');
+  recoveredMusic.musicFavorites.alice = [];
+  recoveredMusic.musicPlaylists.alice = [];
+  storage.writePhoneChat(recoveredMusic);
+  await storage.flushPhoneStorage();
+  vars.chat = {};
+  storage = restart();
+  await storage.preparePhoneChat(getRuntimeContext());
+  assert.deepEqual(vars.chat[schema.CHAT_VARIABLE_KEY].musicFavorites.alice, []);
+  assert.deepEqual(vars.chat[schema.CHAT_VARIABLE_KEY].musicPlaylists.alice, []);
   console.log(
     'PASS: server recovery without browser state, two snapshots, retry, deliberate deletion, corrupt data and chat-switch isolation.',
   );
