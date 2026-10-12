@@ -1,9 +1,9 @@
 <template>
   <section class="chat-settings-group chat-cleanup">
     <div class="wave-settings-title">聊天记录</div>
-    <button type="button" @click="open('display')">清空聊天记录</button>
-    <button type="button" class="clear-context" @click="open('context')">清空聊天记录与历史上下文</button>
-    <p class="chat-settings-note">仅清理当前聊天对象。头像、人设、关系、其他应用和酒馆原楼层会保留。</p>
+    <button type="button" @click="open('display')">清空当前聊天记录</button>
+    <button type="button" class="clear-context" @click="open('context')">清空当前聊天记录与历史上下文</button>
+    <p class="chat-settings-note">仅清理当前私聊或群聊窗口，不影响其他联系人、其他群聊或其他酒馆聊天存档。</p>
     <button type="button" :disabled="phone.activeThread?.generating" @click="repairTime">修复时间</button>
     <p class="chat-settings-note">
       以手机当前时间为最后一条，按发送顺序每条间隔 1
@@ -41,7 +41,7 @@
                 : '将清空当前联系人的手机记录及模型参考历史。独立请求只取清理后新增的正文楼层；主 API 仍使用酒馆自身的正文上下文。'
             }}
           </p>
-          <p>正在生成的手机回复会停止，清理无法撤销。</p>
+          <p>仅停止当前窗口正在生成的回复，清理无法撤销。</p>
           <div class="chat-clear-actions">
             <button type="button" :disabled="busy" @click="close">取消</button
             ><button type="button" class="clear-context" :disabled="busy" @click="confirm">
@@ -74,9 +74,11 @@ function repairTime() {
   }
 }
 let actor = '',
+  threadId = '',
   previous: HTMLElement | null = null;
 async function open(value: 'display' | 'context') {
   actor = phone.state.activeCharKey;
+  threadId = phone.activeThread?.id || '';
   mode.value = value;
   error.value = '';
   previous = surface.value?.ownerDocument.activeElement as HTMLElement | null;
@@ -93,7 +95,7 @@ async function confirm() {
   busy.value = true;
   const value = mode.value;
   try {
-    await phone.clearActiveConversation(value);
+    await phone.clearActiveConversation(value, threadId);
     if (actor !== phone.state.activeCharKey) return;
     notice.value = value === 'display' ? '聊天记录已清空，模型参考历史保留' : '聊天记录与手机历史上下文已清空';
     busy.value = false;
@@ -105,7 +107,7 @@ async function confirm() {
   }
 }
 watch(
-  () => phone.state.activeCharKey,
+  () => phone.activeThread?.id,
   () => {
     mode.value = '';
     notice.value = '';

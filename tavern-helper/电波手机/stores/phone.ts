@@ -439,6 +439,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   const moduleGenerating = ref(false);
   const manualGeneratingApp = ref<ManualGenerationTarget | null>(null);
   let moduleGenerationId = '';
+  let moduleGenerationThreadId = '';
   let disposeChatTime: (() => void) | null = null;
   let disposeFollow: (() => void) | null = null;
   let disposeTreeHole: (() => void) | null = null;
@@ -2409,6 +2410,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     manualGeneratingApp.value = module;
     const id = createPhoneGenerationId();
     const requestModuleSettings = klona(runtime.settings.moduleSettings);
+    moduleGenerationThreadId = module === 'messages' ? runtime.input.thread.id : '';
     moduleGenerationId = id;
     try {
       let electric = '',
@@ -2582,6 +2584,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const previousRequestAt = state.value.moments.lastRequestAt;
     moduleGenerating.value = true;
     manualGeneratingApp.value = 'moments';
+    moduleGenerationThreadId = '';
     moduleGenerationId = id;
     state.value.moments.requests[plan.id] = plan;
     state.value.moments.lastRequestAt = plan.createdAt;
@@ -3095,6 +3098,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const id = createPhoneGenerationId();
     moduleGenerating.value = true;
     manualGeneratingApp.value = 'moments';
+    moduleGenerationThreadId = '';
     moduleGenerationId = id;
     state.value.moments.requests[plan.id] = plan;
     saveMoments();
@@ -4557,17 +4561,22 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       state.value.moments.npcs[identity.charKey].profile = details.npcProfile;
     saveChat();
   }
-  async function clearActiveConversation(mode: 'display' | 'context'): Promise<void> {
+  async function clearActiveConversation(mode: 'display' | 'context', expectedThreadId?: string): Promise<void> {
     const thread = activeThread.value,
       runtime = context.value;
     if (!thread || !runtime) return;
+    if (expectedThreadId && thread.id !== expectedThreadId) throw Error('聊天窗口已切换，请重新确认清理对象');
     const id = thread.generationId,
-      moduleId = moduleGenerationId;
+      moduleId = moduleGenerationThreadId === thread.id ? moduleGenerationId : '';
     const floors = readChatFloors();
     const floor = Math.max(-1, ...floors.map(message => message.message_id));
     clearThreadHistory(thread, mode, floor);
-    moduleGenerationId = '';
-    moduleGenerating.value = false;
+    if (moduleId) {
+      moduleGenerationId = '';
+      moduleGenerationThreadId = '';
+      moduleGenerating.value = false;
+      manualGeneratingApp.value = null;
+    }
     syncToken += 1;
     const snapshot = state.value.snapshots[thread.charKey];
     if (snapshot) snapshot.messages = '';
@@ -4948,6 +4957,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const previousRequestAt = activity.lastRequestAt;
     moduleGenerating.value = true;
     manualGeneratingApp.value = 'moments';
+    moduleGenerationThreadId = '';
     moduleGenerationId = id;
     activity.requests[plan.id] = plan;
     activity.lastRequestAt = plan.createdAt;
