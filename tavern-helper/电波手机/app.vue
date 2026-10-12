@@ -10,6 +10,7 @@
           `theme-${resolvedTheme}`,
           `page-${store.currentPage}`,
           {
+            'conversation-dock-view': store.currentPage === 'conversation' && !appSettingsOpen,
             'is-subpage': store.currentPage !== 'home',
             'is-observing-group': store.currentPage === 'conversation' && observingGroup,
             'footer-card-view':
