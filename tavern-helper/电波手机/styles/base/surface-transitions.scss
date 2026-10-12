@@ -127,8 +127,7 @@
     margin-top: 18px;
   }
   // Immersive toolbars reveal the page canvas instead of painting a second surface.
-  :is(.browser-toolbar, .messenger-bottom, .space-bottom, .group-observer-bar, .message-multi-toolbar),
-  &.page-conversation :is(.composer, .composer-context) {
+  :is(.browser-toolbar, .messenger-bottom, .space-bottom) {
     background: transparent !important;
     border: 0;
     box-shadow: none;
@@ -199,5 +198,21 @@
   }
   .wave-avatar-size-preview > small {
     color: var(--wave-muted);
+  }
+}
+
+// Conversation controls and the safe area share one uninterrupted card-colored dock.
+#wave-phone-script-root .wave-phone-host .wave-device.page-conversation {
+  form.composer,
+  .composer-context,
+  .extras-panel,
+  .message-multi-toolbar,
+  .group-observer-bar,
+  .wave-homebar,
+  &::after {
+    background: var(--wave-card, #fff) !important;
+    background-image: none !important;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 }

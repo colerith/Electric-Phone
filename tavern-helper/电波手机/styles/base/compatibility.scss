@@ -158,7 +158,7 @@
     padding: 8px 10px 10px;
   }
   .wave-device.page-conversation :is(.composer, .extras-panel, .composer-context, .message-multi-toolbar) {
-    background: transparent !important;
+    background: var(--wave-card, #fff) !important;
     box-shadow: none;
     border-color: transparent;
     backdrop-filter: none;
