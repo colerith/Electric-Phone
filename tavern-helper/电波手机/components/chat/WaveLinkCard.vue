@@ -21,7 +21,11 @@
           alt=""
           loading="lazy"
           referrerpolicy="no-referrer"
-          @error="iconFailed = true"
+          @load="iconLoaded = true"
+          @error="
+            iconFailed = true;
+            iconLoaded = false;
+          "
         />
         <span v-else class="wave-web-card-symbol"><i class="fa-solid fa-link"></i></span>
       </div>
@@ -31,13 +35,17 @@
           :src="iconUrl"
           alt=""
           referrerpolicy="no-referrer"
-          @error="iconFailed = true"
+          @load="iconLoaded = true"
+          @error="
+            iconFailed = true;
+            iconLoaded = false;
+          "
         /><i v-else class="fa-solid fa-globe"></i
         ><span>{{ platform || preview?.siteName || host || '链接地址未提供' }}</span
         ><i class="fa-solid fa-arrow-up-right-from-square"></i>
       </footer>
     </a>
-    <button v-if="failed" type="button" class="wave-web-card-retry" @click.stop="resolve(true)">
+    <button v-if="failed && !iconLoaded" type="button" class="wave-web-card-retry" @click.stop="resolve(true)">
       预览暂不可用 · 重试
     </button>
   </div>
@@ -56,7 +64,8 @@ const element = ref<HTMLElement>(),
   busy = ref(false),
   failed = ref(false),
   imageFailed = ref(false),
-  iconFailed = ref(false);
+  iconFailed = ref(false),
+  iconLoaded = ref(false);
 const safe = (value: string) => {
   try {
     const url = new URL(value);
@@ -88,6 +97,14 @@ const iconUrl = computed(() => {
   return safe(preview.value?.icon || (safeUrl.value ? new URL('/favicon.ico', safeUrl.value).href : ''));
 });
 const visible = ref(false);
+watch(
+  iconUrl,
+  () => {
+    iconLoaded.value = false;
+    iconFailed.value = false;
+  },
+  { flush: 'sync' },
+);
 let revision = 0,
   observer: IntersectionObserver | undefined;
 async function resolve(retry = false) {
@@ -107,7 +124,7 @@ async function resolve(retry = false) {
 watch([safeUrl, () => webSettings.preview], () => {
   revision++;
   preview.value = undefined;
-  busy.value = failed.value = imageFailed.value = iconFailed.value = false;
+  busy.value = failed.value = imageFailed.value = iconFailed.value = iconLoaded.value = false;
   void resolve();
 });
 onMounted(() => {
@@ -183,7 +200,7 @@ onUnmounted(() => {
   }
   > img.wave-web-card-favicon {
     object-fit: contain;
-    padding: 12px;
+    padding: 0;
     box-sizing: border-box;
     background: var(--wave-tint);
   }
