@@ -1722,14 +1722,6 @@ const settingsSections: Array<{
   icon: string;
 }> = [
   {
-    id: 'mcp',
-    name: 'MCP 与网页',
-    caption: '链接卡片、工具与联网检索',
-    description: '配置网页解析、远程 MCP 服务与聊天检索。',
-    eyebrow: 'MCP & WEB',
-    icon: 'fa-solid fa-network-wired',
-  },
-  {
     id: 'api',
     name: 'API连接',
     caption: '模型、连接与服务状态',
@@ -1768,6 +1760,14 @@ const settingsSections: Array<{
     description: '管理生图接口，角色外貌与参考图在私聊设置中配置。',
     eyebrow: 'IMAGE GENERATION',
     icon: 'fa-solid fa-wand-magic-sparkles',
+  },
+  {
+    id: 'mcp',
+    name: 'MCP 与网页',
+    caption: '链接卡片、工具与联网检索',
+    description: '配置网页解析、远程 MCP 服务与聊天检索。',
+    eyebrow: 'MCP & WEB',
+    icon: 'fa-solid fa-network-wired',
   },
   {
     id: 'media',

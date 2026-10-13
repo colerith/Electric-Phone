@@ -2,9 +2,10 @@
   <div class="wave-mcp-settings">
     <section class="settings-card">
       <div class="wave-settings-title">链接卡片</div>
-      <label class="mcp-switch"
-        ><strong>自动解析网页预览</strong><input v-model="config.preview" type="checkbox"
-      /></label>
+      <div class="toggle-row">
+        <span><strong>自动解析网页预览</strong></span
+        ><WaveToggle v-model="config.preview" aria-label="自动解析网页预览" />
+      </div>
       <p class="api-note">
         聊天中的网址自动展示标题、摘要、封面与站点。网页地址会发送给酒馆后端读取；登录、反爬限制或无封面的网站保留基础卡片。
       </p>
@@ -25,7 +26,10 @@
         ><WaveSelect v-model="selectedId" :options="config.servers.map(s => ({ value: s.id, label: s.name }))"
       /></label>
       <template v-if="server">
-        <label class="mcp-switch"><strong>启用服务</strong><input v-model="server.enabled" type="checkbox" /></label>
+        <div class="toggle-row">
+          <span><strong>启用服务</strong></span
+          ><WaveToggle v-model="server.enabled" aria-label="启用服务" />
+        </div>
         <label><strong>名称</strong><input v-model="server.name" /></label>
         <label
           ><strong>MCP 地址</strong><input v-model.trim="server.url" type="url" placeholder="https://…/mcp"
@@ -73,9 +77,10 @@
     </section>
     <section class="settings-card">
       <div class="wave-settings-title">聊天前自动检索</div>
-      <label class="mcp-switch"
-        ><strong>生成回复前检索资料</strong><input v-model="config.autoSearch" type="checkbox"
-      /></label>
+      <div class="toggle-row">
+        <span><strong>生成回复前检索资料</strong></span
+        ><WaveToggle v-model="config.autoSearch" aria-label="生成回复前检索资料" />
+      </div>
       <p class="api-note">
         默认关闭。开启后，将本轮用户消息（最多 2000
         字）发送给指定工具；返回资料供角色回复参考。失败时继续原本聊天，排除的角色卡不会触发检索。
@@ -103,6 +108,7 @@ import { browserUuid } from '../../services/core/browser-crypto';
 
 import { computed, onUnmounted, ref, watch } from 'vue';
 import WaveSelect from '../shared/WaveSelect.vue';
+import WaveToggle from '../shared/WaveToggle.vue';
 import {
   webSettings as config,
   saveWebSettings,
@@ -267,7 +273,7 @@ onUnmounted(reset);
   flex-wrap: wrap;
   margin: 12px 0;
 }
-button {
+button:not(.wave-toggle-control) {
   padding: 10px 14px;
   border: 1px solid var(--wave-line);
   border-radius: 12px;
@@ -275,7 +281,7 @@ button {
   color: var(--wave-ink);
   cursor: pointer;
 }
-button:disabled {
+button:not(.wave-toggle-control):disabled {
   opacity: 0.5;
 }
 .mcp-delete {
@@ -288,15 +294,6 @@ label {
   flex-direction: column;
   gap: 9px;
   margin: 14px 0;
-}
-label.mcp-switch {
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  input {
-    width: 20px;
-    height: 20px;
-  }
 }
 input,
 textarea {
@@ -331,7 +328,16 @@ details {
 summary {
   cursor: pointer;
 }
-a {
-  color: var(--wave-accent);
+#wave-phone-script-root .wave-device .wave-mcp-settings .api-note a {
+  color: var(--wave-accent, #729bd6);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.toggle-row {
+  gap: 16px;
+  span {
+    min-width: 0;
+  }
 }
 </style>

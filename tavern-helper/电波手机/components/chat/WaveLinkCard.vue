@@ -14,6 +14,15 @@
           referrerpolicy="no-referrer"
           @error="imageFailed = true"
         />
+        <img
+          v-else-if="iconUrl && !iconFailed"
+          :src="iconUrl"
+          class="wave-web-card-favicon"
+          alt=""
+          loading="lazy"
+          referrerpolicy="no-referrer"
+          @error="iconFailed = true"
+        />
         <span v-else class="wave-web-card-symbol"><i class="fa-solid fa-link"></i></span>
       </div>
       <footer>
@@ -74,12 +83,15 @@ const displayTitle = computed(() => {
   );
 });
 const imageUrl = computed(() => safe(preview.value?.image || ''));
-const iconUrl = computed(() => safe(preview.value?.icon || ''));
+const iconUrl = computed(() => {
+  if (!webSettings.preview || !visible.value) return '';
+  return safe(preview.value?.icon || (safeUrl.value ? new URL('/favicon.ico', safeUrl.value).href : ''));
+});
+const visible = ref(false);
 let revision = 0,
-  visible = false,
   observer: IntersectionObserver | undefined;
 async function resolve(retry = false) {
-  if (!safeUrl.value || !webSettings.preview || !visible) return;
+  if (!safeUrl.value || !webSettings.preview || !visible.value) return;
   const token = ++revision;
   busy.value = true;
   failed.value = false;
@@ -100,14 +112,14 @@ watch([safeUrl, () => webSettings.preview], () => {
 });
 onMounted(() => {
   if (typeof IntersectionObserver === 'undefined') {
-    visible = true;
+    visible.value = true;
     void resolve();
     return;
   }
   observer = new IntersectionObserver(
     entries => {
       if (entries.some(e => e.isIntersecting)) {
-        visible = true;
+        visible.value = true;
         observer?.disconnect();
         void resolve();
       }
@@ -168,6 +180,12 @@ onUnmounted(() => {
     -webkit-box-orient: vertical;
     overflow: hidden;
     overflow-wrap: anywhere;
+  }
+  > img.wave-web-card-favicon {
+    object-fit: contain;
+    padding: 12px;
+    box-sizing: border-box;
+    background: var(--wave-tint);
   }
   > img,
   .wave-web-card-symbol {
