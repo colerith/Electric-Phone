@@ -1212,6 +1212,17 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     persistScriptSettings(settings.value);
   }
 
+  function saveMomentSettings(value: ChatState['moments']['settings']): void {
+    if (!context.value || state.value.cardKey !== context.value.cardKey) return;
+    const parsed = MomentsStateSchema.parse({ settings: value }).settings;
+    updateCharacterDefaults(defaults => {
+      defaults.momentsSettings = klona(parsed);
+    });
+    state.value.moments.settings = parsed;
+    saveChat();
+    void flushPhoneStorage().catch(error => logDiagnostic('空间设置保存失败', stringifyError(error)));
+  }
+
   function saveChat(): void {
     batchPhoneStorage(persistCurrentChat);
   }
@@ -1923,6 +1934,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         : nowIso();
       if (policyConsumed) pendingModulePolicy = null;
       if (token !== syncToken) return;
+      const latestSpaceSettings = CharacterDefaultsMapSchema.parse(readPersistentData(CHARACTER_DEFAULTS_KEY) || {})[
+        runtime.cardKey
+      ]?.momentsSettings;
+      if (latestSpaceSettings) nextState.moments.settings = klona(latestSpaceSettings);
       context.value = runtime;
       state.value = ChatStateSchema.parse(nextState);
       for (const thread of Object.values(state.value.threads)) {
@@ -5300,6 +5315,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     scheduleSync,
     saveSettings,
     saveChat,
+    saveMomentSettings,
     reloadPersistentData,
     markAppRead,
     setWeatherLocation,

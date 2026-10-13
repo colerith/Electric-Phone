@@ -1107,7 +1107,7 @@ function saveSettings() {
       targetLanguage: settings.value.targetLanguage,
     });
     phone.saveSettings();
-    phone.state.moments.settings = validatedSettings;
+    phone.saveMomentSettings(validatedSettings);
     phone.saveMoments();
     notice.value = '互动设置已保存';
     settingsForm.markSaved();
