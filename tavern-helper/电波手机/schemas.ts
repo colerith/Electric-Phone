@@ -18,7 +18,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.3.54-beta.10';
+export const WAVE_PHONE_RELEASE_VERSION = '1.3.54-beta.11';
 export const WAVE_PHONE_RELEASE_DATE = '2026.10.13';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
@@ -218,6 +218,15 @@ export const ScriptSettingsSchema = z
     generation: z
       .object({
         followEnabled: z.boolean().prefault(false),
+        appApis: z
+          .partialRecord(
+            z.enum(APP_IDS),
+            z.object({
+              mode: z.enum(['inherit', 'main_api', 'secondary_api', 'profile']).prefault('inherit'),
+              profileId: z.string().prefault(''),
+            }),
+          )
+          .prefault({}),
         randomMin: z.number().int().min(1).max(4).prefault(1),
         randomMax: z.number().int().min(2).max(4).prefault(2),
         probability: z.number().min(0).max(100).prefault(35),

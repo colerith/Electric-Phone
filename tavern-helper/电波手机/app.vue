@@ -1014,15 +1014,6 @@
                   <WaveGenerationSettings />
                   <div class="settings-card">
                     <div class="wave-settings-title">发送与回复</div>
-                    <label>
-                      <strong>发送方式</strong>
-                      <WaveSelect
-                        :model-value="store.settings.sendMode"
-                        aria-label="发送方式"
-                        :options="sendModeOptions"
-                        @update:model-value="updateSendMode"
-                      />
-                    </label>
                     <label
                       ><strong>私聊与正文的关系</strong
                       ><WaveSelect
@@ -1694,11 +1685,6 @@ const currencyOptions: WaveSelectOption[] = ['CNY', 'JPY', 'USD', 'EUR', 'GBP', 
   value,
   label: value,
 }));
-const sendModeOptions: WaveSelectOption[] = [
-  { value: 'secondary_api', label: '独立副 API', description: '不占用酒馆主生成' },
-  { value: 'main_api', label: '同步酒馆正文', description: '发送后触发主生成' },
-  { value: 'append', label: '仅尾附输入框', description: '交给你手动发送' },
-];
 type SettingsSectionId =
   | 'basic'
   | 'worldbooks'
@@ -1741,7 +1727,7 @@ const settingsSections: Array<{
     id: 'chat',
     name: '聊天与行为',
     caption: '消息能力、输入与生成',
-    description: '管理发送方式、输入动作和手机提示词。',
+    description: '管理全局生成方式、输入动作和手机提示词。',
     eyebrow: 'CHAT BEHAVIOR',
     icon: 'fa-solid fa-comment-dots',
   },
@@ -2318,9 +2304,6 @@ function resetAvatarAndReturn(): void {
 function saveProfile(): void {
   store.updateActiveIdentityProfile({ remark: profileRemark.value });
   notifySuccess('Char 信息已保存', '电波手机');
-}
-function updateSendMode(value: string): void {
-  store.settings.sendMode = value as typeof store.settings.sendMode;
 }
 
 const composerComposing = ref(false);

@@ -1,3 +1,4 @@
+import { appApiMode } from './app-api';
 import { watchEffect } from 'vue';
 import { CHAT_TIME_PATTERN } from '../core/chat-time';
 import { TREE_HOLE_PATTERN } from '../space/tree-hole';
@@ -164,6 +165,7 @@ export function registerFollowGeneration(
   isManualBusy: () => boolean,
   onRequest?: (settings: ScriptSettings, type: string) => void,
   canInject: () => boolean = () => true,
+  selectModules: typeof chooseFollowModules = chooseFollowModules,
 ): () => void {
   let injection: { uninject: () => void } | null = null;
   let generationContext = '';
@@ -196,7 +198,9 @@ export function registerFollowGeneration(
         const runtime = getInput();
         if (!runtime || isCardExcluded(runtime.settings, runtime.input.cardName)) return;
         generationContext = JSON.stringify([runtime.input.cardKey, runtime.input.chatKey]);
-        const selectedModules = chooseFollowModules(runtime.settings.generation);
+        const selectedModules = selectModules(runtime.settings.generation).filter(
+          app => appApiMode(runtime.settings, app) === 'main_api',
+        );
         const modules =
           runtime.input.identity.source === 'local_group'
             ? selectedModules.filter(module => module === 'messages')

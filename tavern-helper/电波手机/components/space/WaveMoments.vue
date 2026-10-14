@@ -143,6 +143,7 @@
       </section>
     </template>
     <template v-else-if="panel === 'settings'">
+      <WaveAppApiSettings app="zone" />
       <section class="settings-card system-settings-card moments-form space-settings-card">
         <div class="wave-settings-title">空间配图与互动</div>
         <label
@@ -810,6 +811,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import WaveAppApiSettings from '../settings/WaveAppApiSettings.vue';
 import { messageClockTime } from '../../services/core/message-clock';
 import WaveMentionPicker from '../shared/WaveMentionPicker.vue';
 import { useSettingsForm } from '../../services/core/settings-forms';

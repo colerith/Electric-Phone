@@ -219,6 +219,7 @@ const schema = require(base + '/schemas.ts'),
     identity: { stableId: 'alice', charKey: 'alice', name: 'Alice' },
     appSnapshot: snapshot,
   };
+  settings.sendMode = 'main_api';
   const dispose = follow.registerFollowGeneration(
     () => ({ settings, input }),
     () => false,

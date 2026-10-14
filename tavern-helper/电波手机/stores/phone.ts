@@ -103,8 +103,14 @@ import {
   narrativePrompt,
   resolveNarrativeRelation,
 } from '../services/generation/narrative-context';
-import { installPhoneRegexes, registerFollowGeneration } from '../services/generation/follow-generation';
-import { stripInlineCards } from '../services/generation/module-protocol';
+import {
+  installPhoneRegexes,
+  registerFollowGeneration,
+  chooseFollowModules,
+} from '../services/generation/follow-generation';
+import { registerSecondaryFollow, type SecondaryFollowJob } from '../services/generation/secondary-follow';
+import { serializeDelta, stripInlineCards } from '../services/generation/module-protocol';
+import { appApiMode, appApiSettings, appApiGroup, appApiAvailable } from '../services/generation/app-api';
 import { cachedParse, chatParseSignature } from '../services/core/local-cache';
 import { isCardExcluded, stripExcludedTags } from '../services/generation/context-controls';
 import { logDiagnostic } from '../services/core/diagnostics';
@@ -177,6 +183,7 @@ import {
   generateImageCaption,
   generatePhoneReply,
   generatePhoneModule,
+  generateFollowModules,
   generateZonePage,
   stopPhoneGeneration,
 } from '../services/generation/generation';
@@ -446,6 +453,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   let moduleGenerationThreadId = '';
   let disposeChatTime: (() => void) | null = null;
   let disposeFollow: (() => void) | null = null;
+  let disposeSecondaryFollow: (() => void) | null = null;
+  const followGenerationStatus = ref('');
+  let followRoundModules: AppId[] = [];
   let disposeTreeHole: (() => void) | null = null;
   let disposeMoments: (() => void) | null = null;
   let zoneGenerationId = '';
@@ -2034,7 +2044,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (
       !isReady.value ||
       !context.value ||
-      !settings.value.api.enabled ||
+      !appApiAvailable(settings.value, 'zone') ||
       !config.heartbeatEnabled ||
       hostGenerating ||
       moduleGenerating.value ||
@@ -2058,7 +2068,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         !isReady.value ||
         `${context.value?.cardKey}::${context.value?.chatKey}` !== scope ||
         !state.value.moments.settings.heartbeatEnabled ||
-        !settings.value.api.enabled ||
+        !appApiAvailable(settings.value, 'zone') ||
         hostGenerating ||
         moduleGenerating.value ||
         zoneGenerating.value ||
@@ -2074,7 +2084,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   function registerEvents(): void {
     offEvents.push(
       eventOn(tavern_events.GENERATION_AFTER_COMMANDS, (_type, _options, dry) => {
-        if (!dry) hostGenerating = true;
+        if (!dry && ['normal', 'continue', 'swipe', 'regenerate'].includes(_type)) {
+          hostGenerating = true;
+          followRoundModules = chooseFollowModules(settings.value.generation);
+        }
       }),
       eventOn(tavern_events.GENERATION_ENDED, () => {
         hostGenerating = false;
@@ -2158,7 +2171,15 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         Object.values(state.value.threads).some(thread => thread.generating),
       captureModulePolicy,
       canInjectPhonePrompts,
+      () => followRoundModules,
     );
+    disposeSecondaryFollow?.();
+    disposeSecondaryFollow = registerSecondaryFollow(() => {
+      const current = getRuntimeContext();
+      return current && canInjectPhonePrompts()
+        ? { key: JSON.stringify([current.cardKey, current.chatKey]), settings: settings.value }
+        : null;
+    }, generateSecondaryFollow);
     disposeMoments = registerMomentsFollow(
       () => {
         const runtime = moduleInput();
@@ -2220,7 +2241,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     disposeHeartbeat?.();
     let stopClock: (() => void) | undefined;
     const stopHeartbeatWatch = watch(
-      () => isReady.value && settings.value.api.enabled && state.value.moments.settings.heartbeatEnabled,
+      () => isReady.value && appApiAvailable(settings.value, 'zone') && state.value.moments.settings.heartbeatEnabled,
       enabled => {
         stopClock?.();
         stopClock = enabled ? startHeartbeat(heartbeat) : undefined;
@@ -2264,6 +2285,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     disposeChatTime = null;
     disposeFollow?.();
     disposeFollow = null;
+    disposeSecondaryFollow?.();
+    disposeSecondaryFollow = null;
     if (moduleGenerationId) void stopPhoneGeneration(moduleGenerationId);
     moduleGenerationId = '';
     moduleGenerating.value = false;
@@ -2415,6 +2438,154 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       },
     };
   }
+  async function generateSecondaryFollow(job: SecondaryFollowJob): Promise<void> {
+    await synchronize();
+    if (!job.isCurrent()) return;
+    const runtime = moduleInput();
+    if (!runtime) return;
+    if (moduleGenerating.value || zoneGenerating.value || Object.values(state.value.threads).some(t => t.generating)) {
+      followGenerationStatus.value = '本轮未更新：手机有其他生成正在进行';
+      return;
+    }
+    const modules =
+      runtime.input.identity.source === 'local_group'
+        ? job.modules.filter(module => module === 'messages')
+        : job.modules;
+    const momentState = klona(state.value.moments);
+    const momentPosts = klona(momentsFeed.value.posts);
+    const momentPlan =
+      appApiMode(runtime.settings, 'zone') === 'secondary_api'
+        ? planMoments(momentState, identities.value, momentPosts, Date.now(), Math.random, {
+            newPosts: runtime.settings.moduleSettings.zone.maxNew,
+          })
+        : null;
+    const day = treeHoleDay(new Date(messageClockTime(settings.value.basic.systemClock)));
+    const holeState = klona(holeActivity(day));
+    const holePosts = momentTimeline(holeState).posts;
+    const holePlan =
+      appApiMode(runtime.settings, 'zone') === 'secondary_api'
+        ? planMoments(holeState, anonymousActors(identities.value), holePosts, Date.now(), Math.random, {
+            newPosts: runtime.settings.moduleSettings.zone.maxNew,
+          })
+        : null;
+    if (!modules.length && !momentPlan && !holePlan) return;
+    const id = createPhoneGenerationId();
+    moduleGenerationId = id;
+    moduleGenerating.value = true;
+    followGenerationStatus.value = '正在通过副 API 更新手机内容…';
+    const abort = () => void stopPhoneGeneration(id).catch(() => {});
+    job.signal.addEventListener('abort', abort, { once: true });
+    const current = () =>
+      job.isCurrent() && moduleGenerationId === id && state.value.activeCharKey === runtime.input.identity.charKey;
+    const input = {
+      ...klona(runtime.input),
+      settings: klona(runtime.settings),
+      latestUserText: `请根据刚完成的第 ${job.message.message_id} 楼正文更新本轮手机内容，不续写正文：\n${job.message.message}`,
+      historyBeforeFloor: job.message.message_id + 1,
+      generationId: id,
+    };
+    try {
+      const blocks: string[] = [];
+      const groups = new Map<string, AppId[]>();
+      for (const module of modules) {
+        const key = appApiGroup(runtime.settings, module);
+        groups.set(key, [...(groups.get(key) || []), module]);
+      }
+      for (const group of groups.values()) {
+        const delta = await generateFollowModules(
+          { ...input, settings: klona(appApiSettings(runtime.settings, group[0])) },
+          group,
+        );
+        if (!current()) return;
+        delta.messages = normalizeGroupReplies(runtime.input.identity, delta.messages);
+        if (
+          delta.messages.length ||
+          delta.reactions?.length ||
+          delta.payment_actions?.length ||
+          Object.keys(delta.app_updates).length
+        )
+          blocks.push(serializeDelta(delta));
+      }
+      if (momentPlan) {
+        const batch = await generateMomentsBatch(
+          { ...input, settings: klona(appApiSettings(runtime.settings, 'zone')) },
+          momentPlan,
+          momentState,
+          momentPosts,
+        );
+        if (!current()) return;
+        blocks.push(
+          `<wave_moments>${JSON.stringify(batch).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e')}</wave_moments>`,
+        );
+      }
+      if (holePlan) {
+        const batch = await generateMomentsBatch(
+          {
+            ...input,
+            settings: klona(appApiSettings(runtime.settings, 'zone')),
+            treeHoleTopic: ensureTreeHole(day).topic,
+            actorLanguagePreferences: holeLanguages(),
+          },
+          holePlan,
+          holeState,
+          holePosts,
+        );
+        if (!current()) return;
+        blocks.push(
+          `<wave_tree_hole>${JSON.stringify(batch).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e')}</wave_tree_hole>`,
+        );
+      }
+      if (!current()) return;
+      if (!blocks.length) {
+        followGenerationStatus.value = '本轮没有新内容，保留原记录';
+        return;
+      }
+      // Persist plans only for completed results, and attach data to its originating floor/swipe.
+      if (momentPlan) {
+        state.value.moments.requests[momentPlan.id] = momentPlan;
+        state.value.moments.lastRequestAt = momentPlan.createdAt;
+      }
+      if (holePlan) {
+        const activity = holeActivity(day);
+        activity.requests[holePlan.id] = holePlan;
+        activity.lastRequestAt = holePlan.createdAt;
+      }
+      pendingModulePolicy = {
+        namespace: `${runtime.input.cardKey}:${runtime.input.chatKey}`,
+        after: job.message.message_id - 1,
+        settings: klona(runtime.settings.moduleSettings),
+        wallet: runtime.input.walletAuthorization,
+      };
+      saveChat();
+      await writeChatFloor(
+        job.message.message_id,
+        job.message.message,
+        `${job.message.message}\n\n${blocks.join('\n')}`,
+      );
+      if (job.signal.aborted) return;
+      await synchronize();
+      followGenerationStatus.value = '本轮副 API 更新完成';
+      logDiagnostic(
+        '副 API 跟随完成',
+        `第 ${job.message.message_id} 楼；模块：${modules.join('、') || '无'}；动态：${Boolean(momentPlan)}；树洞：${Boolean(holePlan)}`,
+      );
+    } catch (error) {
+      if (!job.signal.aborted) {
+        followGenerationStatus.value = error instanceof Error ? error.message : '副 API 跟随失败';
+        throw error;
+      }
+    } finally {
+      job.signal.removeEventListener('abort', abort);
+      if (moduleGenerationId === id) {
+        moduleGenerationId = '';
+        moduleGenerating.value = false;
+        if (job.signal.aborted) followGenerationStatus.value = '已取消本轮副 API 更新';
+        else if (followGenerationStatus.value === '正在通过副 API 更新手机内容…')
+          followGenerationStatus.value = '正文或会话已变化，本轮结果未写入';
+      }
+    }
+  }
+
   async function generateModule(module: AppId): Promise<string> {
     const runtime = moduleInput();
     if (!runtime) throw Error('请先选择有角色的聊天');
@@ -2437,7 +2608,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const delta = await generatePhoneModule(
         {
           ...klona(runtime.input),
-          settings: klona(runtime.settings),
+          settings: klona(appApiSettings(runtime.settings, module)),
           latestUserText: '',
           generationId: id,
           onElectric: (text, title) => {
@@ -2612,7 +2783,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const batch = await generateMomentsBatch(
         {
           ...klona(runtime.input),
-          settings: klona(runtime.settings),
+          settings: klona(appApiSettings(runtime.settings, 'zone')),
           latestUserText: '',
           generationId: id,
         },
@@ -3109,7 +3280,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     state.value.moments.comments.push(comment);
     saveMoments();
     onSaved?.();
-    if (!settings.value.api.enabled) return;
+    if (!appApiAvailable(settings.value, 'zone')) return;
     const runtime = moduleInput();
     if (!runtime || moduleGenerating.value || zoneGenerating.value) return;
     const plan = planMomentReply(state.value.moments, identities.value, momentsFeed.value.posts, postId, comment.id);
@@ -3125,7 +3296,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const batch = await generateMomentsBatch(
         {
           ...klona(runtime.input),
-          settings: klona(runtime.settings),
+          settings: klona(appApiSettings(runtime.settings, 'zone')),
           latestUserText: content.trim(),
           generationId: id,
         },
@@ -3845,6 +4016,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
 
   async function sendMessage(input?: string | SendMessageInput, activateReply = false): Promise<void> {
     const runtime = context.value;
+    const messageSettings = appApiSettings(settings.value, 'messages');
+    const messageMode =
+      (!settings.value.generation.appApis.messages || settings.value.generation.appApis.messages.mode === 'inherit') &&
+      settings.value.sendMode === 'append'
+        ? 'append'
+        : messageSettings.sendMode;
     const requestWalletGrant = currentWalletGrant();
     const requestModuleSettings = klona(
       resolveModuleSettings(
@@ -3977,7 +4154,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         ),
         awareness,
         useDeviceStore().context(),
-        settings.value.sendMode === 'secondary_api'
+        messageMode === 'secondary_api'
           ? ''
           : buildPhoneBridgePrompt({
               actorLanguagePreferences: klona(state.value.chatPreferences),
@@ -4006,7 +4183,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         .filter(Boolean)
         .join('\n\n');
       formattedInput = stripExcludedTags(formattedInput, settings.value.basic.excludedTags);
-      if (settings.value.sendMode === 'main_api') {
+      if (messageMode === 'main_api') {
         sendStage = '请求接口';
         await bridgeToMainApi(identity, formattedInput);
         pending.forEach(message => {
@@ -4017,7 +4194,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         saveChat();
         return;
       }
-      if (settings.value.sendMode === 'append') {
+      if (messageMode === 'append') {
         appendToInput(identity, formattedInput);
         pending.forEach(message => {
           delete message.payload.awaitingReply;
@@ -4040,7 +4217,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         ),
         walletAuthorization: requestWalletGrant,
         settings: klona({
-          ...settings.value,
+          ...messageSettings,
           moduleSettings: requestModuleSettings,
           generation: { ...settings.value.generation, narrativeMode },
         }),
@@ -4223,7 +4400,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const detail = redactDiagnostic(stringifyError(error), secrets);
       logDiagnostic(
         '发送失败',
-        `模式：${settings.value.sendMode}｜${detail.includes('｜阶段：') ? detail : describeRequestError(error, sendStage, secrets).detail}`,
+        `模式：${messageMode}｜${detail.includes('｜阶段：') ? detail : describeRequestError(error, sendStage, secrets).detail}`,
       );
       const currentThread = state.value.threads[thread.id];
       if (
@@ -4267,7 +4444,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const preference = ChatPreferencesSchema.parse(state.value.chatPreferences[source.charKey]);
     if (
       !runtime ||
-      !settings.value.api.enabled ||
+      !appApiAvailable(settings.value, 'messages') ||
       !preference.crossChatEnabled ||
       Math.random() * 100 >= preference.crossChatProbability
     )
@@ -4305,7 +4482,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     try {
       const result = await generatePhoneReply({
         settings: klona({
-          ...settings.value,
+          ...appApiSettings(settings.value, 'messages'),
           chat: { ...settings.value.chat, minReplies: count, maxReplies: count },
           generation: {
             ...settings.value.generation,
@@ -4402,8 +4579,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const revision = thread.clearRevision;
     const generationId = createPhoneGenerationId();
     const operation = Symbol('regenerate');
-    const requestSettings = klona(settings.value);
-    requestSettings.sendMode = 'secondary_api';
+    const requestSettings = klona(appApiSettings(settings.value, 'messages'));
     const preferences = ChatPreferencesSchema.parse(state.value.chatPreferences[identity.charKey]);
     const formattedInput = [
       '[重新生成本轮私聊回复] 回应下列原始用户消息，不续写上一次回答，不代用户发言；只输出回复，app_updates 留空。',
@@ -4943,7 +5119,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     });
     activity.comments.push(comment);
     saveChat();
-    if (settings.value.api.enabled) holeQueue.value.push({ day, postId: id, commentId: comment.id });
+    if (appApiAvailable(settings.value, 'zone')) holeQueue.value.push({ day, postId: id, commentId: comment.id });
   }
   async function refreshTreeHole(
     day = treeHoleDay(new Date(messageClockTime(settings.value.basic.systemClock))),
@@ -4989,7 +5165,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const batch = await generateMomentsBatch(
         {
           ...klona(runtime.input),
-          settings: klona(settings.value),
+          settings: klona(appApiSettings(settings.value, 'zone')),
           treeHoleTopic: daily.topic,
           actorLanguagePreferences: holeLanguages(),
           generationId: id,
@@ -5045,7 +5221,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     ],
     () => {
       if (
-        !settings.value.api.enabled ||
+        !appApiAvailable(settings.value, 'zone') ||
         moduleGenerating.value ||
         zoneGenerating.value ||
         Object.values(state.value.threads).some(thread => thread.generating)
@@ -5088,7 +5264,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         spaceActors: klona(
           Object.values(state.value.identities).filter(actor => !['local_group', 'temporary'].includes(actor.source)),
         ),
-        settings: klona(settings.value),
+        settings: klona(appApiSettings(settings.value, 'zone')),
         cardKey: runtime.cardKey,
         chatKey: runtime.chatKey,
         cardName: runtime.cardName,
@@ -5282,6 +5458,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     updateGroupMember,
     addGroupMembers,
     moduleGenerating,
+    followGenerationStatus,
     manualGeneratingApp,
     generateModule,
     generateMoments,

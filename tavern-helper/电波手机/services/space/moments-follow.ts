@@ -1,3 +1,4 @@
+import { appApiMode } from '../generation/app-api';
 import { watchEffect } from 'vue';
 import type { ChatPreferences } from '../chat/chat-preferences';
 import { buildTreeHolePrompt, presetMomentsRules, buildMomentsPrompt } from '../../prompts';
@@ -39,7 +40,14 @@ export function registerMomentsFollow(
       if (dry || !['normal', 'continue', 'swipe', 'regenerate'].includes(type)) return;
       try {
         const input = getInput();
-        if (!input || input.busy || isCardExcluded(input.settings, input.cardName)) return;
+        if (
+          !input ||
+          input.busy ||
+          !input.settings.generation.followEnabled ||
+          appApiMode(input.settings, 'zone') === 'secondary_api' ||
+          isCardExcluded(input.settings, input.cardName)
+        )
+          return;
         const plan = planMoments(input.state, input.identities, input.posts, Date.now(), Math.random, {
           newPosts: input.settings.moduleSettings.zone.maxNew,
         });

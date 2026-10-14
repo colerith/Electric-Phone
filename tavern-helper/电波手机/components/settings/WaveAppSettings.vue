@@ -1,5 +1,6 @@
 <template>
   <section class="wave-app-content app-function-settings wave-settings-surface">
+    <WaveAppApiSettings v-if="apiApp && app !== 'zone'" :app="apiApp" />
     <WaveWalletWorkspace v-if="app === 'wallet'" mode="settings" />
     <WaveModuleSettings v-if="isLimitedApp(app)" :app="app" />
     <template v-if="app === 'conversation'">
@@ -246,7 +247,9 @@ import WaveChatCleanup from '../chat/WaveChatCleanup.vue';
 import WaveChatPreferences from '../chat/WaveChatPreferences.vue';
 import WaveGroupSettings from '../chat/WaveGroupSettings.vue';
 
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import WaveAppApiSettings from './WaveAppApiSettings.vue';
+import { APP_IDS, type AppId } from '../../schemas';
 import { ScriptSettingsSchema } from '../../schemas';
 import { musicProviders } from '../../services/music/music';
 import { usePhoneStore } from '../../stores/phone';
@@ -260,7 +263,7 @@ import WaveImageUpload from '../shared/WaveImageUpload.vue';
 import WaveWeatherLocation from './WaveWeatherLocation.vue';
 import type { WeatherLocation } from '../../services/core/weather';
 import { zoneArtworks, walletArtworks, artworkUrl } from '../../services/core/artworks';
-defineProps<{
+const props = defineProps<{
   userAvatar?: string;
   app: string;
   name: string;
@@ -271,6 +274,9 @@ defineProps<{
   musicApi: string;
   musicSource: string;
 }>();
+const apiApp = computed(() =>
+  props.app === 'conversation' ? 'messages' : APP_IDS.includes(props.app as AppId) ? (props.app as AppId) : null,
+);
 const emit = defineEmits<{
   engine: [value: SearchEngine];
   service: [key: 'browserEndpoint' | 'musicApi' | 'musicSource', value: string];

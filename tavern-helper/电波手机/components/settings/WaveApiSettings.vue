@@ -17,7 +17,7 @@
       ><button v-if="phone.settings.activeApiProfileId" type="button" @click="removeProfile">删除此配置</button>
     </div>
     <div class="toggle-row">
-      <span><strong>启用副 API</strong><small>独立生成手机回复</small></span
+      <span><strong>启用副 API</strong><small>用于手机内容后置生成及单独配置的应用</small></span
       ><WaveToggle v-model="phone.settings.api.enabled" aria-label="启用副 API" />
     </div>
     <label

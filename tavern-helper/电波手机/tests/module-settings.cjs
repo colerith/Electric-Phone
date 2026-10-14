@@ -48,6 +48,7 @@ Object.assign(global, {
   getVariables: ({ type }) => vars[type],
   replaceVariables: (v, { type }) => (vars[type] = v),
 });
+window.SillyTavern = { getContext: () => ({ substituteParams: text => text }) };
 const vue = require('vue'),
   { createPinia } = require('pinia');
 const base = path.resolve('src/util/酒馆助手脚本/电波手机');
@@ -357,6 +358,7 @@ const item = id => ({
   phone.settings.generation.requiredModules = ['memo'];
   phone.settings.generation.probability = 0;
   phone.settings.moduleSettings.memo.maxNew = 1;
+  phone.settings.sendMode = 'main_api';
   const dispose = registerFollowGeneration(
     () => ({ settings: phone.settings, input: { ...input, moduleSettings: phone.settings.moduleSettings } }),
     () => false,

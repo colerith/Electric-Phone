@@ -2,6 +2,7 @@ import { expandTavernMacros } from '../core/tavern-macros';
 import { searchChatContext } from '../web-tools';
 import { sampleImageCounts } from '../space/image-plan';
 import { parseJsonResponse } from './json-response';
+import { ModuleDeltaSchema } from './module-protocol';
 import { validateCommentLanguages } from '../space/comment-language';
 import {
   NpcGenerationOptionsSchema,
@@ -151,7 +152,7 @@ async function requestConfigured<T>(
   runningRequests.set(generationId, request);
   try {
     ensureNamespace();
-    const api = buildCustomApi(settings);
+    const api = settings.sendMode === 'secondary_api' ? buildCustomApi(settings) : undefined;
     const runtime = getRuntimeContext();
     if (namespace && runtime && isCardExcluded(settings, runtime.cardName))
       throw Error('当前角色卡已排除，已暂停手机生成。');
@@ -207,7 +208,7 @@ async function requestConfigured<T>(
     logDiagnostic(
       '开始请求',
       redactDiagnostic(
-        `${generationId}｜服务：${settings.api.provider}｜模型：${api.model}｜上下文上限 ${settings.api.contextLength}｜最大回复 ${settings.api.maxTokens}｜超时 ${settings.api.timeoutMs} ms｜显式提示词 ${ordered.reduce((n, p) => n + (typeof p === 'string' ? 0 : p.content.length), userInput.length)} 字｜历史 ${overrides?.chat_history?.prompts?.length || 0} 条；原生角色卡/世界书由酒馆展开`,
+        `${generationId}｜服务：${api ? settings.api.provider : '酒馆主 API'}｜模型：${api?.model || '酒馆当前模型'}｜上下文上限 ${settings.api.contextLength}｜最大回复 ${settings.api.maxTokens}｜超时 ${settings.api.timeoutMs} ms｜显式提示词 ${ordered.reduce((n, p) => n + (typeof p === 'string' ? 0 : p.content.length), userInput.length)} 字｜历史 ${overrides?.chat_history?.prompts?.length || 0} 条；原生角色卡/世界书由酒馆展开`,
         secrets,
       ),
     );
@@ -492,6 +493,73 @@ export async function previewPhoneRequest(input: GenerationInput) {
   };
 }
 
+/** A post-narrative follow request may legitimately return no changes. */
+export async function generateFollowModules(input: GenerationInput, modules: import('../../schemas').AppId[]) {
+  if (modules.includes('zone')) input = withSpaceImagePlan(input);
+  const { buildModulePrompt } = await import('../../prompts');
+  return requestConfigured(
+    input.settings,
+    input.generationId || createPhoneGenerationId(),
+    [
+      'char_description',
+      'char_personality',
+      'scenario',
+      'persona_description',
+      'world_info_before',
+      'chat_history',
+      'world_info_after',
+      {
+        role: 'system',
+        content:
+          buildModulePrompt(buildInputContext(input), modules, true) +
+          '\n【副 API 后处理】酒馆正文已经完成。只根据已完成正文更新手机，不续写、不重写正文。只输出一个符合 wave_phone_delta 结构的 JSON 对象，不输出标签。没有新事实时返回 messages:[]、app_updates:{}。',
+      },
+      'user_input',
+    ],
+    input.latestUserText,
+    raw => {
+      const delta = ModuleDeltaSchema.parse(extractJson(raw));
+      if (delta.char_id !== (input.identity.stableId || input.identity.charKey)) throw Error('模块结果角色 ID 不匹配');
+      if (
+        Object.keys(delta.app_updates).some(key => !modules.includes(key as (typeof modules)[number])) ||
+        (!modules.includes('messages') &&
+          (delta.messages.length || delta.reactions?.length || delta.payment_actions?.length))
+      )
+        throw Error('模块结果包含未请求的更新');
+      if (input.media)
+        validateReplyMedia(delta.messages, {
+          ...input.media,
+          voice: { ...input.media.voice, min: 0 },
+          image: { ...input.media.image, min: 0 },
+        });
+      for (const module of modules) {
+        const value = delta.app_updates[module];
+        if (value === undefined) continue;
+        if (isLimitedApp(module))
+          delta.app_updates[module] = limitModulePatch(
+            module,
+            input.appSnapshot[module],
+            value,
+            resolveModuleSettings(input.settings.moduleSettings, input.chatPreferences),
+          );
+      }
+      if (delta.app_updates.wallet !== undefined) {
+        if (!input.walletAuthorization) throw Error('请先选择剧情钱包账户');
+        delta.app_updates.wallet = {
+          ...validateWalletPatch(
+            delta.app_updates.wallet,
+            input.walletAuthorization,
+            parseWallet(input.appSnapshot.wallet).balance === null,
+          ),
+          ...input.walletAuthorization,
+        };
+      }
+      return delta;
+    },
+    input,
+  );
+}
+
 export async function generatePhoneModule(input: GenerationInput, module: import('../../schemas').AppId) {
   if (module === 'zone') input = withSpaceImagePlan(input);
   const { buildModulePrompt } = await import('../../prompts');
@@ -597,9 +665,10 @@ export async function generateMomentsBatch(
     input.settings,
     input.generationId || createPhoneGenerationId(),
     input.treeHoleTopic !== undefined ? prompts.filter(prompt => typeof prompt !== 'string') : prompts,
-    input.treeHoleTopic !== undefined
-      ? '生成本轮匿名树洞任务，只输出 wave_tree_hole 数据块'
-      : '手动生成一轮朋友圈动态与互动',
+    input.latestUserText ||
+      (input.treeHoleTopic !== undefined
+        ? '生成本轮匿名树洞任务，只输出 wave_tree_hole 数据块'
+        : '手动生成一轮朋友圈动态与互动'),
     raw => {
       const batch = MomentBatchSchema.parse(extractJson(raw));
       if (batch.request_id !== plan.id) throw Error('朋友圈结果 request_id 不匹配');
