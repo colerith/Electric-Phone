@@ -2,9 +2,7 @@ import type { Thread, Identity } from '../../schemas';
 export function phoneHistory(thread: Thread) {
   return [
     ...new Map([...(thread.historyArchive || []), ...thread.messages].map(message => [message.id, message])).values(),
-  ]
-    .filter(message => message.status === 'sent' && !message.withdrawn && !message.payload.awaitingReply)
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  ].filter(message => message.status === 'sent' && !message.withdrawn && !message.payload.awaitingReply);
 }
 export function actorContext(identity: Identity) {
   return {

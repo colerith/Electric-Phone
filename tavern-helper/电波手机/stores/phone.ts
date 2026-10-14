@@ -90,7 +90,7 @@ import {
   momentTimeline,
   planMomentReply,
   planMoments,
-  syncMomentEvents,
+  syncMomentEvents as syncMomentEventsWithClock,
   type MomentPost,
   type MomentMedia,
   type MomentComment,
@@ -423,6 +423,10 @@ export type SharedForwardInput = Pick<SendMessageInput, 'content' | 'type' | 'pa
 export type ManualGenerationTarget = AppId | 'moments';
 
 export const usePhoneStore = defineStore('wave-phone', () => {
+  function syncMomentEvents(state: Parameters<typeof syncMomentEventsWithClock>[0], messages: string[]) {
+    syncMomentEventsWithClock(state, messages, Date.now(), messageClockTime(settings.value.basic.systemClock));
+  }
+
   const settings = ref<ScriptSettings>(readScriptSettings());
   const characterProfiles = ref<Record<string, CharacterProfileOverride>>(readCharacterProfiles());
   const momentUserProfiles = ref(readMomentUserProfiles());
@@ -1823,13 +1827,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         filterDeletedSnapshotContent(snapshot, charKey, nextState.contentTombstones);
 
       Object.values(nextState.threads).forEach(thread => {
-        if (nextState.identities[thread.charKey]?.source === 'local_group') {
-          // Floor replay appends old messages again. Retain their original receipt order.
+        {
+          // Display time can rewind or change sources. Preserve receipt order on floor replay.
           const order = new Map((previousThreadMessages.get(thread.charKey) || []).map((id, index) => [id, index]));
           thread.messages.sort(
             (a, b) => (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER),
           );
-        } else thread.messages.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        }
       });
 
       if (!nextState.activeCharKey || !nextState.identities[nextState.activeCharKey]) {
@@ -2042,7 +2046,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const now = Date.now(),
       interval = Math.max(60000, config.cooldownMinutes * 60000);
     if (now - heartbeatAttemptAt < interval) return;
-    const day = treeHoleDay();
+    const day = treeHoleDay(new Date(messageClockTime(settings.value.basic.systemClock)));
     const holeLast = state.value.treeHole[day]?.activity?.lastRequestAt || heartbeatStartedAt;
     const spaceLast = state.value.moments.lastRequestAt || heartbeatStartedAt;
     if (now - heartbeatAttemptAt < interval || (now - spaceLast < interval && now - holeLast < interval)) return;
@@ -2185,7 +2189,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       () => {
         const runtime = moduleInput();
         if (!runtime) return null;
-        const day = treeHoleDay();
+        const day = treeHoleDay(new Date(messageClockTime(settings.value.basic.systemClock)));
         const daily = ensureTreeHole(day);
         const activity = holeActivity(day);
         return {
@@ -2204,7 +2208,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         };
       },
       plan => {
-        const activity = holeActivity(treeHoleDay());
+        const activity = holeActivity(treeHoleDay(new Date(messageClockTime(settings.value.basic.systemClock))));
         activity.requests[plan.id] = plan;
         activity.lastRequestAt = plan.createdAt;
         saveChat();
@@ -3060,7 +3064,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       authorKey: 'user',
       authorName: state.value.moments.profile.nickname || SillyTavern.name1 || '我',
       content: draft.content.trim(),
-      createdAt: now,
+      createdAt: messageClockTime(settings.value.basic.systemClock),
       availableAt: now,
     });
     post.mentions = post.mentions.filter(
@@ -3096,7 +3100,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       authorKey: 'user',
       authorName: state.value.moments.profile.nickname || SillyTavern.name1 || '我',
       content: content.trim(),
-      createdAt: now,
+      createdAt: messageClockTime(settings.value.basic.systemClock),
       availableAt: now,
       parentId: parent?.id || '',
       replyToAuthorKey: parent?.authorKey || '',
@@ -4857,7 +4861,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     }
     return profile;
   }
-  function ensureTreeHole(day = treeHoleDay()) {
+  function ensureTreeHole(day = treeHoleDay(new Date(messageClockTime(settings.value.basic.systemClock)))) {
     return (state.value.treeHole[day] ||= { topic: dailyTopic(day, context.value?.cardKey || ''), posts: [] });
   }
   function holeActivity(day: string) {
@@ -4883,7 +4887,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       treeHoleFeedback.value = {};
     },
   );
-  function publishTreeHole(content: string, day = treeHoleDay()): void {
+  function publishTreeHole(
+    content: string,
+    day = treeHoleDay(new Date(messageClockTime(settings.value.basic.systemClock))),
+  ): void {
     if (!context.value || !content.trim()) return;
     const activity = holeActivity(day),
       now = Date.now();
@@ -4892,7 +4899,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       authorKey: 'user',
       authorName: activity.profile.nickname,
       content: content.trim().slice(0, 2000),
-      createdAt: now,
+      createdAt: messageClockTime(settings.value.basic.systemClock),
       availableAt: now,
     });
     activity.posts.push(post);
@@ -4928,7 +4935,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       authorKey: 'user',
       authorName: activity.profile.nickname,
       content: content.trim().slice(0, 500),
-      createdAt: now,
+      createdAt: messageClockTime(settings.value.basic.systemClock),
       availableAt: now,
       parentId: parent?.id || '',
       replyToAuthorKey: parent?.authorKey || '',
@@ -4939,7 +4946,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (settings.value.api.enabled) holeQueue.value.push({ day, postId: id, commentId: comment.id });
   }
   async function refreshTreeHole(
-    day = treeHoleDay(),
+    day = treeHoleDay(new Date(messageClockTime(settings.value.basic.systemClock))),
     postId?: string,
     commentId?: string,
     automatic = false,

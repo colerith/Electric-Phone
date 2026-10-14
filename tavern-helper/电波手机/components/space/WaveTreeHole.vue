@@ -15,7 +15,7 @@
         ><i class="fa-regular fa-calendar" aria-hidden="true"></i><span>历史树洞</span
         ><select v-model="day" aria-label="查看历史树洞">
           <option v-for="date in historyDays" :key="date" :value="date">
-            {{ date === treeHoleDay() ? '今天' : date }}
+            {{ date === treeHoleDay(new Date(messageClockTime(phone.settings.basic.systemClock))) ? '今天' : date }}
           </option>
         </select></label
       >
@@ -170,6 +170,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import { messageClockTime } from '../../services/core/message-clock';
 import { MomentPostSchema, type MomentPost, momentTimeline } from '../../services/space/moments';
 import WaveCloseButton from '../shared/WaveCloseButton.vue';
 import WaveAnonymousAvatar from './WaveAnonymousAvatar.vue';
@@ -246,7 +247,7 @@ watch(
     phone.ensureAnonymousProfile();
   },
 );
-const day = ref(treeHoleDay()),
+const day = ref(treeHoleDay(new Date(messageClockTime(phone.settings.basic.systemClock)))),
   draft = ref(''),
   reply = ref(''),
   replyTo = ref(''),
@@ -255,9 +256,17 @@ const day = ref(treeHoleDay()),
   commenting = ref(''),
   error = ref('');
 const historyDays = computed(() =>
-  [...new Set([treeHoleDay(), day.value, ...Object.keys(phone.state.treeHole)])].sort().reverse(),
+  [
+    ...new Set([
+      treeHoleDay(new Date(messageClockTime(phone.settings.basic.systemClock))),
+      day.value,
+      ...Object.keys(phone.state.treeHole),
+    ]),
+  ]
+    .sort()
+    .reverse(),
 );
-let currentDay = treeHoleDay();
+let currentDay = treeHoleDay(new Date(messageClockTime(phone.settings.basic.systemClock)));
 const topic = computed(
   () => phone.state.treeHole[day.value]?.topic || dailyTopic(day.value, phone.context?.cardKey || ''),
 );
@@ -266,7 +275,7 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 function tick() {
   clearTimeout(timer);
   now.value = Date.now();
-  const today = treeHoleDay();
+  const today = treeHoleDay(new Date(messageClockTime(phone.settings.basic.systemClock)));
   if (day.value === currentDay) day.value = today;
   currentDay = today;
   if (!document.hidden) {
@@ -317,7 +326,7 @@ async function refresh() {
   }
 }
 function time(value: number) {
-  const minutes = Math.max(0, Math.floor((Date.now() - value) / 60000));
+  const minutes = Math.max(0, Math.floor((messageClockTime(phone.settings.basic.systemClock) - value) / 60000));
   return minutes < 1
     ? '刚刚'
     : minutes < 60

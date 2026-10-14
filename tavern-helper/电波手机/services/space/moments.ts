@@ -18,7 +18,10 @@ export const MomentMediaSchema = z
     imageProfileId: z.string().optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.kind === 'image' && !/^(https?:\/\/|\/user\/files\/|data:image\/(?:png|jpeg|webp|gif);base64,)/i.test(value.url))
+    if (
+      value.kind === 'image' &&
+      !/^(https?:\/\/|\/user\/files\/|data:image\/(?:png|jpeg|webp|gif);base64,)/i.test(value.url)
+    )
       ctx.addIssue({ code: 'custom', message: '图片地址无效' });
     if (value.kind === 'description' && !value.description.trim())
       ctx.addIssue({ code: 'custom', message: '请填写图片描述' });
@@ -196,6 +199,7 @@ export const MomentsStateSchema = z
           requestId: z.string(),
           batch: MomentBatchSchema,
           receivedAt: z.number(),
+          storyReceivedAt: z.number().optional(),
           independent: z.boolean().default(false),
         }),
       )
@@ -442,7 +446,7 @@ export function planMomentReply(
     maxDelay: 0,
   });
 }
-export function syncMomentEvents(state: MomentsState, messages: string[], now = Date.now()): void {
+export function syncMomentEvents(state: MomentsState, messages: string[], now = Date.now(), storyNow?: number): void {
   // Persist the identities of previously validated legacy NPC events before rebuilding floors.
   for (const event of state.events) {
     for (const author of [...event.batch.posts, ...event.batch.comments, ...event.batch.likes]) {
@@ -555,6 +559,8 @@ export function syncMomentEvents(state: MomentsState, messages: string[], now = 
           requestId: batch.request_id,
           batch,
           receivedAt: old.get(batch.request_id)?.receivedAt ?? now,
+          storyReceivedAt:
+            old.get(batch.request_id)?.storyReceivedAt ?? (old.has(batch.request_id) ? undefined : storyNow),
           independent: old.get(batch.request_id)?.independent ?? false,
         });
       } catch {
@@ -604,7 +610,7 @@ export function momentTimeline(state: MomentsState, legacy: MomentPost[] = []) {
         mentions: [],
         visibility: 'all',
         audience: [],
-        createdAt: time(post.delaySeconds),
+        createdAt: event.storyReceivedAt ?? time(post.delaySeconds),
         availableAt: time(post.delaySeconds),
       }),
     );
@@ -626,7 +632,7 @@ export function momentTimeline(state: MomentsState, legacy: MomentPost[] = []) {
           (comment.authorKey.match(/^npc:(?:ambient|stranger):/) ? comment.authorName : actor?.name || ''),
         content: comment.content,
         translation: comment.translation,
-        createdAt: when,
+        createdAt: event.storyReceivedAt ?? when,
         availableAt: when,
         parentId: comment.replyToCommentId,
         replyToAuthorKey: comments.find(item => item.id === comment.replyToCommentId)?.authorKey || '',

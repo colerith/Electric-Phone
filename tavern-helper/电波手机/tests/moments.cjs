@@ -201,6 +201,18 @@ const input = (el, text) => {
     comments: [{ authorKey: key, postId: plan.comments[0].postId, content: '很好看', delaySeconds: 30 }],
   };
   const raw = '<wave_moments>' + JSON.stringify(batch) + '</wave_moments>';
+  const storyState = MomentsStateSchema.parse(JSON.parse(JSON.stringify(state)));
+  const storyNow = new Date(2018, 6, 3, 15, 4).getTime();
+  syncMomentEvents(storyState, [raw], now, storyNow);
+  const storyPost = momentTimeline(storyState).posts.find(post => post.id.startsWith(batch.request_id));
+  assert.equal(storyPost.createdAt, storyNow, '动态显示手机时间');
+  assert(storyPost.availableAt >= now, '延迟仍使用现实时间');
+  syncMomentEvents(storyState, [raw], now + 10000, storyNow + 60000);
+  assert.equal(
+    momentTimeline(storyState).posts.find(post => post.id === storyPost.id).createdAt,
+    storyNow,
+    '同步保留首次剧情时间',
+  );
   syncMomentEvents(state, [raw], now);
   assert.equal(state.events.length, 1);
   let timeline = momentTimeline(state);
@@ -398,6 +410,52 @@ const input = (el, text) => {
   await new Promise(resolve => setTimeout(resolve, 140));
   await tick();
   assert(document.body.textContent.includes('延时显示回归'), 'scheduled posts appear on time');
+  phone.startConversation(phone.addContact('Clock regression', '朋友'));
+  const originalClock = JSON.parse(JSON.stringify(phone.settings.basic.systemClock));
+  phone.settings.basic.systemClock.source = 'custom';
+  phone.settings.basic.systemClock.customRunning = false;
+  phone.settings.basic.systemClock.customTime = '2028-07-03 15:04:00';
+  await phone.sendMessage('较早收到但日期较晚', false);
+  phone.settings.basic.systemClock.customTime = '2018-07-03 15:04:00';
+  await phone.sendMessage('回拨后的新消息', false);
+  const receiptOrder = phone.activeThread.messages.map(message => message.id);
+  const privateThreadId = phone.activeThread.id;
+  await phone.synchronize();
+  phone.startConversation(phone.state.threads[privateThreadId].charKey);
+  assert.deepEqual(
+    phone.state.threads[privateThreadId].messages.map(message => message.id),
+    receiptOrder,
+    '私聊时间回拨后重新同步仍按接收顺序',
+  );
+  const { phoneHistory } = require(base + '/services/chat/chat-history.ts');
+  assert.equal(
+    phoneHistory({
+      ...phone.activeThread,
+      messages: phone.activeThread.messages.map(message => ({
+        ...message,
+        status: 'sent',
+        payload: { ...message.payload, awaitingReply: false },
+      })),
+    }).at(-1).content,
+    '回拨后的新消息',
+  );
+  phone.repairConversationTime();
+  const fixedTimes = phone.activeThread.messages.map(message => message.createdAt);
+  await phone.synchronize();
+  phone.startConversation(phone.state.threads[privateThreadId].charKey);
+  assert.deepEqual(
+    phone.activeThread.messages.map(message => message.createdAt),
+    fixedTimes,
+    '私聊修复时间持久化',
+  );
+  phone.publishTreeHole('剧情日期的树洞');
+  const storyHole = phone.state.treeHole['2018-07-03'];
+  assert(storyHole, '树洞日期跟随手机时间');
+  assert.equal(new Date(storyHole.activity.posts.at(-1).createdAt).getFullYear(), 2018);
+  assert(storyHole.activity.posts.at(-1).availableAt > new Date(2020, 0, 1).getTime());
+  phone.settings.basic.systemClock = originalClock;
+  phone.activeThread.messages = [];
+
   app.unmount();
   console.log(
     'PASS: alphabetical grouping; actual Vue multi-image-description publishing, persistence/profile/own feed; privacy-safe planning/prompt, delayed replay, deduplication, deletion and unauthorized-comment rejection.',

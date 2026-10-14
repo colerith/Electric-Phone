@@ -810,6 +810,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import { messageClockTime } from '../../services/core/message-clock';
 import WaveMentionPicker from '../shared/WaveMentionPicker.vue';
 import { useSettingsForm } from '../../services/core/settings-forms';
 import WaveCloseButton from '../shared/WaveCloseButton.vue';
@@ -1047,7 +1048,7 @@ function markAvatarFailed(key: string, fallbackSeed: string): void {
 }
 function timeLabel(value: number) {
   if (!value) return '此前';
-  const minutes = Math.max(0, Math.floor((now.value - value) / 60000));
+  const minutes = Math.max(0, Math.floor((messageClockTime(phone.settings.basic.systemClock) - value) / 60000));
   return minutes < 1
     ? '刚刚'
     : minutes < 60
