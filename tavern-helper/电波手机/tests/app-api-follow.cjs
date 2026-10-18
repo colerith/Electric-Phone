@@ -165,6 +165,8 @@ const waitFor = async fn => {
     });
   global.generateRaw = async args => {
     requests.push(args);
+    emit('GENERATION_STOPPED');
+    await wait(5);
     assert(args.user_input.includes('最终正文'), '副 API 必须读到最终正文');
     const model = args.custom_api?.model;
     if (model === 'memo-model')
@@ -325,12 +327,14 @@ const waitFor = async fn => {
   assert.equal(jobs.length, 0, '旧楼重渲染不能消费生成任务');
   floors.push({ message_id: 3, role: 'assistant', message: '最终正文四' });
   emit('CHARACTER_MESSAGE_RENDERED', 3);
+  emit('GENERATION_STOPPED');
   await waitFor(() => jobs.length === 1);
   emit('CHARACTER_MESSAGE_RENDERED', 3);
   await wait(5);
   assert.equal(jobs.length, 1);
   emit('GENERATION_STOPPED');
-  assert(jobs[0].signal.aborted);
+  assert(!jobs[0].signal.aborted, '正文完成后的全局停止事件不得取消独立副 API');
+  assert(jobs[0].isCurrent());
   emit('GENERATION_AFTER_COMMANDS', 'normal', {}, false);
   floors.push({ message_id: 4, role: 'assistant', message: '最终正文五' });
   emit('CHARACTER_MESSAGE_RENDERED', 4);
@@ -345,6 +349,12 @@ const waitFor = async fn => {
   await waitFor(() => jobs.length === 3);
   emit('MESSAGE_SWIPED', 4);
   assert(jobs[2].signal.aborted, '手动切候选取消正在执行的任务');
+  emit('GENERATION_AFTER_COMMANDS', 'normal', {}, false);
+  emit('GENERATION_STOPPED');
+  floors.push({ message_id: 5, role: 'assistant', message: '已停止的正文' });
+  emit('CHARACTER_MESSAGE_RENDERED', 5);
+  await wait(5);
+  assert.equal(jobs.length, 3, '正文完成前停止仍应清除待处理任务');
   releases.forEach(resolve => resolve());
   stop();
   app.unmount();

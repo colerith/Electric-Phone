@@ -91,7 +91,13 @@ export function registerSecondaryFollow(
           });
       }, 0);
     }),
-    eventOn(tavern_events.GENERATION_STOPPED, clear),
+    eventOn(tavern_events.GENERATION_STOPPED, () => {
+      // This host-wide event has no request ID. Once the final render has consumed
+      // the gate, a later stop may belong to host cleanup or another extension.
+      // Only stop the pending narrative; running side requests have their own stop
+      // control and remain guarded by chat, swipe, routing and content freshness.
+      if (pending) clear();
+    }),
     eventOn(tavern_events.CHAT_CHANGED, clear),
     eventOn(tavern_events.MESSAGE_SWIPED, () => {
       // A generated swipe is still waiting for its final render. A manual swipe only cancels in-flight work.
