@@ -19,8 +19,10 @@ async function start(open = false) {
     return;
   }
   starting = true;
+  let stage = '检查酒馆助手';
   try {
     helper();
+    stage = '检查旧脚本';
     const activeScripts = legacyScripts().filter(row => row.active);
     if (activeScripts.length) {
       setStatus(
@@ -38,8 +40,11 @@ async function start(open = false) {
     }
     refreshButton.hidden = true;
     refreshButton.style.display = 'none';
+    stage = '迁移旧脚本变量';
     migrateLegacyVariables();
-    await initialize();
+    await initialize(value => {
+      stage = value;
+    });
     if (disposed) {
       cleanup();
       return;
@@ -50,8 +55,9 @@ async function start(open = false) {
   } catch (e) {
     cleanup();
     stopExtensionEvents();
-    setStatus(e instanceof Error ? e.message : '启动失败，请检查依赖后重试');
-    console.warn('[wave-phone] 扩展启动失败');
+    const detail = e instanceof Error ? e.message : '未知错误';
+    setStatus(`启动失败（${stage}）：${detail}。原存档未重置；请保留此提示并查看控制台调用栈。`);
+    console.warn(`[wave-phone] 扩展启动失败（${stage}）`, e instanceof Error ? e.stack : detail);
   } finally {
     starting = false;
   }

@@ -48,7 +48,7 @@ export function openPhone(): void {
   if (activePinia) usePhoneStore(activePinia).isOpen = true;
 }
 
-export async function initialize(): Promise<void> {
+export async function initialize(onStage: (stage: string) => void = () => {}): Promise<void> {
   if (
     !isExtensionRuntime &&
     window.parent.document.querySelector('#wave-phone-script-root[data-wave-runtime="extension"]')
@@ -56,7 +56,9 @@ export async function initialize(): Promise<void> {
     toastr.warning('电波手机扩展已运行，请停用旧脚本');
     return;
   }
+  onStage('读取服务器存档');
   await preparePhoneStorage();
+  onStage('创建手机界面');
   cleanup();
   const $root = createScriptIdDiv().attr('id', ROOT_ID);
   $('body').append($root);
@@ -66,9 +68,11 @@ export async function initialize(): Promise<void> {
   activePinia = pinia;
   vueApp = createApp(App);
   vueApp.use(pinia);
+  onStage('读取设置并挂载界面');
   vueApp.mount($root[0]);
   teleportStyle();
 
+  onStage('注册手机入口');
   const store = usePhoneStore(pinia);
   stopScaleWatch = watch(
     () => store.settings.appearance.interfaceScale,
