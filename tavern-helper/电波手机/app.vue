@@ -191,9 +191,15 @@
             <section>
               <strong>设置尚未保存</strong>
               <p>要保存修改后离开吗？</p>
-              <button type="button" @click="pendingSettingsLeave = null">继续编辑</button
-              ><button type="button" @click="finishSettingsLeave(false)">放弃修改</button
-              ><button type="button" @click="finishSettingsLeave(true)">保存并返回</button>
+              <div class="settings-unsaved-actions">
+                <button type="button" @click="pendingSettingsLeave = null">继续编辑</button>
+                <button type="button" class="settings-unsaved-discard" @click="finishSettingsLeave(false)">
+                  放弃修改
+                </button>
+                <button type="button" class="settings-unsaved-save" @click="finishSettingsLeave(true)">
+                  保存并返回
+                </button>
+              </div>
             </section>
           </div>
           <main class="wave-screen">
@@ -3194,30 +3200,81 @@ async function retrySynchronize() {
 </script>
 
 <style scoped>
-.settings-unsaved-overlay {
+#wave-phone-script-root .wave-device .settings-unsaved-overlay {
   position: absolute;
   inset: 0;
   z-index: 10000;
   display: grid;
   place-items: center;
-  background: #0006;
-  padding: 20px;
+  background: #18233855;
+  backdrop-filter: blur(4px);
+  padding: 24px;
 }
-.settings-unsaved-overlay section {
-  background: var(--wave-surface, white);
-  color: var(--wave-text, #26354d);
+#wave-phone-script-root .wave-device .settings-unsaved-overlay section {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 300px;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--wave-card, #fff);
+  color: var(--wave-ink, #374558);
   padding: 22px;
-  border-radius: 20px;
-  max-width: 100%;
+  border: 1px solid var(--wave-line, #dce3ed);
+  border-radius: 22px;
+  box-shadow: 0 18px 60px #18233822;
 }
-.settings-unsaved-overlay button {
-  border: 0;
+#wave-phone-script-root .wave-device .settings-unsaved-overlay strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+#wave-phone-script-root .wave-device .settings-unsaved-overlay p {
+  margin: 10px 0 20px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--wave-muted, #6e7682);
+}
+#wave-phone-script-root .wave-device .settings-unsaved-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+#wave-phone-script-root .wave-device .settings-unsaved-actions button {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  border: 1px solid var(--wave-line, #dce3ed);
   border-radius: 12px;
-  padding: 10px 12px;
-  margin: 5px;
-  background: #6385bd;
-  color: white;
+  padding: 11px 8px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: normal;
+  background: var(--wave-tint, #f3f3f3);
+  color: var(--wave-ink, #374558);
   cursor: pointer;
+}
+#wave-phone-script-root .wave-device .settings-unsaved-actions .settings-unsaved-discard {
+  background: transparent;
+  color: var(--wave-muted, #6e7682);
+}
+#wave-phone-script-root .wave-device .settings-unsaved-actions .settings-unsaved-save {
+  grid-column: 1 / -1;
+  background: var(--wave-blue, #5e80be);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+#wave-phone-script-root .wave-device .settings-unsaved-actions button:focus-visible {
+  outline: 2px solid var(--wave-blue-strong, #3f65a7);
+  outline-offset: 2px;
+}
+#wave-phone-script-root .wave-device .settings-unsaved-actions button:active {
+  filter: brightness(0.94);
 }
 #wave-phone-script-root .wave-device .chat-load-more-row {
   display: flex;
