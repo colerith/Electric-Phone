@@ -3,8 +3,8 @@
   inset: 0;
   width: auto;
   height: auto;
-  overflow: hidden;
-  contain: strict;
+  overflow: visible;
+  contain: style;
   pointer-events: none;
 }
 #wave-phone-script-root .wave-floating-viewport > .wave-floating-entry {

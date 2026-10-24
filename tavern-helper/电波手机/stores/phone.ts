@@ -1456,6 +1456,23 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     });
     return syncRunning;
   }
+  let regexInstall: Promise<void> | undefined;
+  let regexReady = false;
+  async function ensurePhoneRegexes(): Promise<void> {
+    if (regexReady) return;
+    regexInstall ||= installPhoneRegexes()
+      .then(() => {
+        regexReady = true;
+      })
+      .catch(error => {
+        logDiagnostic('正则安装失败', String(error));
+      })
+      .finally(() => {
+        regexInstall = undefined;
+      });
+    await regexInstall;
+  }
+
   async function synchronizeOnce(): Promise<void> {
     if (context.value && state.value.cardKey === context.value.cardKey) {
       const groups = Object.values(state.value.identities).filter(identity => identity.source === 'local_group');
@@ -1477,6 +1494,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         return;
       }
 
+      // Updating Tavern regexes reloads the chat: never run on the welcome screen.
+      if (runtime.chatKey && SillyTavern.getCurrentChatId?.()) await ensurePhoneRegexes();
+      if (token !== syncToken) return;
       if (isCardExcluded(settings.value, runtime.cardName)) {
         context.value = runtime;
         state.value = ChatStateSchema.parse({ cardKey: runtime.cardKey, chatKey: runtime.chatKey });
@@ -2151,11 +2171,6 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     settings.value = readScriptSettings();
     characterProfiles.value = readCharacterProfiles();
     isOpen.value = settings.value.openOnLoad;
-    try {
-      await installPhoneRegexes();
-    } catch (error) {
-      logDiagnostic('正则安装失败', String(error));
-    }
     registerEvents();
     disposeChatTime?.();
     const canInjectPhonePrompts = () => {

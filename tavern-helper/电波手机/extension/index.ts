@@ -101,6 +101,24 @@ function installEntry() {
   refreshButton.hidden = true;
   refreshButton.style.display = 'none';
   refreshButton.onclick = () => window.location.reload();
+  // Host themes may force every menu_button to icon width or vertical writing.
+  for (const control of [button, refreshButton]) {
+    for (const [key, value] of Object.entries({
+      width: 'auto',
+      'min-width': '0',
+      'max-width': '100%',
+      height: 'auto',
+      'writing-mode': 'horizontal-tb',
+      'text-orientation': 'mixed',
+      'white-space': 'normal',
+      'word-break': 'normal',
+      'overflow-wrap': 'break-word',
+      'flex-shrink': '0',
+      'box-sizing': 'border-box',
+      padding: '8px 12px',
+    }))
+      control.style.setProperty(key, value, 'important');
+  }
   header.append(heading, arrow);
   content.append(version, status, button, refreshButton);
   drawer.append(header, content);
