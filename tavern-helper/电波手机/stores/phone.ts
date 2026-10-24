@@ -1,3 +1,4 @@
+import { isReplayedMessage } from '../services/chat/replayed-message';
 import { applyGroupManagement } from '../services/chat/group-management';
 import { registerChatTime } from '../services/core/chat-time';
 import { startHeartbeat } from '../services/core/heartbeat';
@@ -1817,6 +1818,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
               )
                 return;
             }
+            if (isReplayedMessage(thread.messages, message)) return;
             let hash = 2166136261;
             for (const char of JSON.stringify(originalMessage)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
             const id = `wave-floor-${block.messageId}-${block.ordinal}-${index}-${hash >>> 0}`;
@@ -4333,6 +4335,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           : [identity.charKey],
       );
       result.data.messages.forEach(modelMessage => {
+        if (isReplayedMessage(currentThread.messages, modelMessage)) return;
         currentThread.messages.push({
           id: makeId(modelMessage.sender),
           clientId: modelMessage.client_id,

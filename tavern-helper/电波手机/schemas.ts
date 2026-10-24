@@ -18,7 +18,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.3.54-beta.14';
+export const WAVE_PHONE_RELEASE_VERSION = '1.3.54-beta.15';
 export const WAVE_PHONE_RELEASE_DATE = '2026.10.24';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
@@ -111,6 +111,7 @@ export const NotificationSettingsSchema = z
 
 export const AppearanceSettingsSchema = z
   .object({
+    interfaceScale: z.number().finite().min(0.7).max(1.8).catch(1).prefault(1),
     hideElectric: z.boolean().prefault(false),
     floatingEntry: z.boolean().prefault(false),
     quickReplyEntry: z.boolean().prefault(true),

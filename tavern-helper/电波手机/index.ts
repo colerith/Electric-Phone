@@ -22,12 +22,15 @@ let stopEntryWatch: (() => void) | null = null;
 let vueApp: VueApp<Element> | null = null;
 let buttonEvent: EventOnReturn | null = null;
 let mountedRoot: HTMLElement | null = null;
+let stopScaleWatch: (() => void) | null = null;
 let releaseViewport: (() => void) | null = null;
 export function cleanup(): void {
   stopEntryWatch?.();
   stopEntryWatch = null;
   syncPhoneMenu(false, openPhone);
   syncPhoneQuickReply(false);
+  stopScaleWatch?.();
+  stopScaleWatch = null;
   releaseViewport?.();
   releaseViewport = null;
   buttonEvent?.stop();
@@ -58,7 +61,6 @@ export async function initialize(): Promise<void> {
   const $root = createScriptIdDiv().attr('id', ROOT_ID);
   $('body').append($root);
   mountedRoot = $root[0];
-  releaseViewport = bindPhoneViewport(mountedRoot);
 
   const pinia = createPinia();
   activePinia = pinia;
@@ -68,6 +70,14 @@ export async function initialize(): Promise<void> {
   teleportStyle();
 
   const store = usePhoneStore(pinia);
+  stopScaleWatch = watch(
+    () => store.settings.appearance.interfaceScale,
+    scale => {
+      releaseViewport?.();
+      if (mountedRoot) releaseViewport = bindPhoneViewport(mountedRoot, scale);
+    },
+    { immediate: true },
+  );
   stopEntryWatch = watch(
     () => [
       store.settings.appearance.quickReplyEntry,

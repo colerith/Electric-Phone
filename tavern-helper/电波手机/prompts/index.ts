@@ -76,7 +76,7 @@ export function buildMomentsPrompt(
   const language = resolveBilingual(state.settings, chatPreferences);
   const bilingualRule = language.autoTranslate
     ? `[朋友圈双语格式] 严格按界面显示顺序输出：posts 与 comments 的 content 必须是位于上方的 ${language.sourceLanguage} 原文，各项 translation.content 必须是位于下方的 ${language.targetLanguage} 忠实译文，另附 translation={language:"${language.targetLanguage}",title:"",content:"忠实译文"}。严禁把译文写入 content，严禁交换、覆盖或重复原文与译文；译文只写自然文本，不加“译文”标签、括号或折叠标记；不加情节，保留 authorKey/authorName，不翻译身份 ID，不给 likes 添加译文。`
-    : '新帖默认单语输出；评论按目标主帖及单独语言设置决定，不得据此省略主帖要求的译文。';
+    : '未启用双语时，新帖标题、正文统一使用简体中文（用户明确指定其他语言时遵循指定），不得跟随历史外语样例随机切换；评论按目标主帖及单独语言设置决定，不得据此省略主帖要求的译文。';
   const request = {
     protocol: 'wave_moments_request_v1',
     request_id: plan.id,
@@ -1553,7 +1553,7 @@ export function moduleGenerationRules(input: PhonePromptInput, apps: readonly st
         const local = settings[app];
         const language = app === 'calendar' ? null : resolveBilingual(settings[app], input.chatPreferences);
         const pref = language || local;
-        return `${app} 本轮设置：${JSON.stringify(pref)}\n${contracts[app]}\n新增不同 ID 最多 ${pref.maxNew} 条${app === 'memo' ? `；涂鸦最多 ${settings.memo.maxDoodles} 条` : ''}，0 禁止新增，更新已有 ID 不占新增额度。额度跨本轮所有数据块共享，不按块重置。允许少量或零更新，不为凑数编造。只提交变化条目，禁止删除未提交旧项。${language?.autoTranslate ? `严格按显示顺序输出：title/content 必须保存位于上方的 ${language.sourceLanguage} 原文；translation.title/translation.content 必须保存位于下方的 ${language.targetLanguage} 译文。每项另附 translation={language:"${language.targetLanguage}",title:"标题译文",content:"正文译文"}；严禁把译文写入 title/content，严禁交换、覆盖、重复原文与译文。译文忠实，不增添情节。` : '单语输出即可，不要求 translation。'}`;
+        return `${app} 本轮设置：${JSON.stringify(pref)}\n${contracts[app]}\n新增不同 ID 最多 ${pref.maxNew} 条${app === 'memo' ? `；涂鸦最多 ${settings.memo.maxDoodles} 条` : ''}，0 禁止新增，更新已有 ID 不占新增额度。额度跨本轮所有数据块共享，不按块重置。允许少量或零更新，不为凑数编造。只提交变化条目，禁止删除未提交旧项。${language?.autoTranslate ? `严格按显示顺序输出：title/content 必须保存位于上方的 ${language.sourceLanguage} 原文；translation.title/translation.content 必须保存位于下方的 ${language.targetLanguage} 译文。每项另附 translation={language:"${language.targetLanguage}",title:"标题译文",content:"正文译文"}；严禁把译文写入 title/content，严禁交换、覆盖、重复原文与译文。译文忠实，不增添情节。` : '单语时标题和正文统一使用简体中文（用户明确指定其他语言时遵循指定），不要求 translation；不得因历史样例而随机切换语言。'}`;
       }),
   ].join('\n\n');
 }
@@ -1566,7 +1566,7 @@ export function walletAccountRules(input: PhonePromptInput): string {
 
 export function chatBilingualRules(p?: ChatPreferences): string {
   if (!p || (!p.autoTranslate && !p.outgoingTranslation)) return '';
-  const rules = ['[电波手机·私聊双语格式与顺序] 双语内容属于同一条消息，不得当作两条消息。'];
+  const rules = ['[电波手机·私聊双语格式与顺序] 双语内容属于同一条消息，不得当作两条消息。messages 仅包含本轮新回复，不重发历史消息；新消息使用新的 client_id，不把历史上下文当待回复请求。'];
   if (p.autoTranslate)
     rules.push(
       `Char 消息：使用 ${p.sourceLanguage} 写入 text/voice 的 content 原文，使用 ${p.targetLanguage} 写入 payload.translation 忠实译文，并写 payload.translationProvider="模型"；界面顺序为上方原文、下方译文。voice 的 payload.transcript 保留原文与引擎标签，译文不带语音标签。`,

@@ -1,6 +1,35 @@
 <template>
   <div class="home-appearance-editor">
     <section class="settings-card appearance-group">
+      <div class="wave-settings-title">手机界面大小</div>
+      <div class="settings-slider-row">
+        <span
+          ><strong>整体缩放</strong><b>{{ Math.round(appearance.interfaceScale * 100) }}%</b></span
+        >
+        <WaveSlider
+          v-model="appearance.interfaceScale"
+          :min="0.7"
+          :max="1.8"
+          :step="0.05"
+          aria-label="手机界面缩放"
+          @update:model-value="phone.saveSettings()"
+        />
+      </div>
+      <p>按比例调整整个手机，立即生效并保存。屏幕空间不足时自动缩小；手机竖屏最大保持满屏。</p>
+      <div class="settings-actions">
+        <button
+          type="button"
+          class="system-action"
+          @click="
+            appearance.interfaceScale = 1;
+            phone.saveSettings();
+          "
+        >
+          恢复默认大小
+        </button>
+      </div>
+    </section>
+    <section class="settings-card appearance-group">
       <div class="wave-settings-title">主题</div>
       <div class="appearance-theme-options" role="group" aria-label="主题模式">
         <button
