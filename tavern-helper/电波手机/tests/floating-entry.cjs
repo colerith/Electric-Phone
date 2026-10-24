@@ -101,3 +101,33 @@ const release = bindFloatingEntry(recovered, { x: NaN, y: Infinity, edge: 'right
 assert(Number.isFinite(parseFloat(recovered.style.left)));
 assert(Number.isFinite(parseFloat(recovered.style.top)));
 release();
+
+{
+  const dom = new JSDOM('<button></button>');
+  const w = dom.window,
+    button = w.document.querySelector('button');
+  const vv = new w.EventTarget();
+  Object.assign(vv, { width: w.innerWidth, height: w.innerHeight, offsetLeft: 9999, offsetTop: 9999 });
+  Object.defineProperty(w, 'visualViewport', { value: vv });
+  let b = floatingBounds(w);
+  assert.equal(b.size, 56, 'stale offsets must not collapse the button');
+  assert.equal(b.left, 0);
+  assert.equal(b.top, 0);
+  Object.assign(vv, { width: NaN, height: 0, offsetLeft: Infinity, offsetTop: NaN });
+  b = floatingBounds(w);
+  assert.equal(b.size, 56);
+  assert.equal(b.top, 0);
+  const stop = bindFloatingEntry(button, { x: NaN, y: Infinity, edge: 'right' }, () => {});
+  Object.assign(vv, { width: 320, height: 480, offsetLeft: 0, offsetTop: 0 });
+  w.dispatchEvent(new w.Event('pageshow'));
+  assert.equal(parseFloat(button.style.left), 264);
+  Object.assign(vv, { width: 768, height: 700 });
+  w.dispatchEvent(new w.Event('orientationchange'));
+  assert.equal(parseFloat(button.style.left), 712);
+  stop();
+  Object.assign(vv, { width: 320 });
+  w.dispatchEvent(new w.Event('pageshow'));
+  assert.equal(parseFloat(button.style.left), 712, 'cleanup removes recovery listeners');
+  dom.window.close();
+}
+console.log('PASS: stale Safari offsets, invalid viewport values, page restore, rotation and cleanup');
