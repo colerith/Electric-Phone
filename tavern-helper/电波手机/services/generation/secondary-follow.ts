@@ -19,7 +19,7 @@ export function registerSecondaryFollow(
   run: (job: SecondaryFollowJob) => Promise<void>,
   selectModules: typeof chooseFollowModules = chooseFollowModules,
 ): () => void {
-  let pending: { key: string; modules: AppId[]; minFloor: number } | null = null;
+  let pending: { key: string; modules: AppId[]; minFloor: number; expectedDeleteFloor?: number } | null = null;
   let controller: AbortController | undefined;
   let activeKey = '';
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -50,14 +50,21 @@ export function registerSecondaryFollow(
       if (dry || !['normal', 'continue', 'swipe', 'regenerate'].includes(type)) return;
       clear();
       const context = enabled();
-      if (context)
+      if (context) {
+        const last = readChatFloors().at(-1);
         pending = {
           key: context.key,
+          expectedDeleteFloor: type === 'regenerate' && last?.role === 'assistant' ? last.message_id : undefined,
           minFloor: Math.max(-1, ...readChatFloors().map(row => row.message_id)) + (type === 'normal' ? 1 : 0),
           modules: selectModules(context.settings.generation).filter(
             app => appApiMode(context.settings, app) === 'secondary_api',
           ),
         };
+        logDiagnostic(
+          '副 API 跟随等待',
+          `类型：${type}；模块：${pending.modules.join('、') || '空间规则'}；等待正文最终渲染`,
+        );
+      }
     }),
     eventOn(tavern_events.CHARACTER_MESSAGE_RENDERED, id => {
       const captured = pending;
@@ -78,7 +85,11 @@ export function registerSecondaryFollow(
           enabled()?.key === captured.key &&
           SillyTavern.chat?.[id]?.swipe_id === swipe &&
           readChatFloor(id)?.message === message.message;
-        if (!isCurrent()) return;
+        if (!isCurrent()) {
+          logDiagnostic('副 API 跟随取消', '聊天、回复或生成设置已变化');
+          return;
+        }
+        logDiagnostic('副 API 跟随开始', `正文楼层：${id}；模块：${captured.modules.join('、') || '空间规则'}`);
         void run({ modules: captured.modules, message, signal: active.signal, isCurrent })
           .catch(error => {
             if (!active.signal.aborted) logDiagnostic('副 API 跟随失败', String(error));
@@ -103,7 +114,20 @@ export function registerSecondaryFollow(
       // A generated swipe is still waiting for its final render. A manual swipe only cancels in-flight work.
       if (!pending) clear();
     }),
-    eventOn(tavern_events.MESSAGE_DELETED, clear),
+    eventOn(tavern_events.MESSAGE_DELETED, count => {
+      // ST emits the remaining count after removing the old assistant reply for regenerate.
+      if (
+        pending?.expectedDeleteFloor !== undefined &&
+        count === pending.expectedDeleteFloor &&
+        pending.key === enabled()?.key
+      ) {
+        pending.expectedDeleteFloor = undefined;
+        logDiagnostic('副 API 跟随等待', '重生成已移除旧回复，保留后置任务等待新正文');
+        return;
+      }
+      if (pending || controller) logDiagnostic('副 API 跟随取消', '聊天楼层被删除');
+      clear();
+    }),
   ];
   return () => {
     stopWatch();
