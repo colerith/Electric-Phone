@@ -2514,7 +2514,11 @@ export const usePhoneStore = defineStore('wave-phone', () => {
               .map(f => [f.message_id, f.message]),
           );
         const expectedPrefix = prefix();
-        const wanted = full ? [...APP_IDS] : row.missing;
+        const wanted = full
+          ? [...APP_IDS]
+          : chooseFollowModules({ ...runtime.settings.generation, followEnabled: true }).filter(module =>
+              row.missing.includes(module),
+            );
         const modules = runtime.input.identity.source === 'local_group' ? wanted.filter(m => m === 'messages') : wanted;
         if (!modules.length) continue;
         generationRecordStatus.value = `正在补生成 #${row.floor} · ${index + 1}/${selected.length}`;

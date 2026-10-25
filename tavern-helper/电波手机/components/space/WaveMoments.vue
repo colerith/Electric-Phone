@@ -357,7 +357,7 @@
       "
       class="moments-feed"
     >
-      <article v-for="post in posts" :key="post.id" class="moment-post">
+      <article v-for="post in visiblePosts" :key="post.id" class="moment-post">
         <header class="space-post-header">
           <button
             type="button"
@@ -579,6 +579,7 @@
           </form>
         </div>
       </article>
+      <button v-if="posts.length > postLimit" class="system-action" @click="postLimit += 20">加载更多动态</button>
       <div v-if="!posts.length" class="messenger-empty">
         {{ view === 'me' ? '还没有发布空间动态' : '还没有动态，发布第一条生活记录吧' }}
       </div>
@@ -1000,32 +1001,70 @@ const posts = computed(() =>
     return post.authorKey === 'user';
   }),
 );
+const postLimit = ref(20);
+const visiblePosts = computed(() => posts.value.slice(0, postLimit.value));
+watch(
+  () => [
+    props.view,
+    props.query,
+    props.authorKey,
+    props.likedOnly,
+    profileFilter.value,
+    openedCommentPost.value,
+    phone.context?.chatKey,
+  ],
+  () => {
+    postLimit.value = 20;
+  },
+);
+const zonePages = computed(
+  () =>
+    new Map(Object.entries(phone.state.snapshots).map(([key, snapshot]) => [key, parseZonePage(snapshot.zone || '')])),
+);
+const zoneTitles = computed(
+  () =>
+    new Map<string, string>(
+      [...zonePages.value].flatMap(([key, page]) =>
+        page.posts.map(post => [`zone:${key}:${post.id}`, post.title] as const),
+      ),
+    ),
+);
+const interactionIndex = computed(() => {
+  const likes = new Map<string, typeof phone.momentsFeed.likes>();
+  const comments = new Map<string, typeof phone.momentsFeed.comments>();
+  for (const like of phone.momentsFeed.likes)
+    if (like.availableAt <= now.value) {
+      const bucket = likes.get(like.postId) || [];
+      bucket.push(like);
+      likes.set(like.postId, bucket);
+    }
+  for (const comment of phone.momentsFeed.comments)
+    if (comment.availableAt <= now.value) {
+      const bucket = comments.get(comment.postId) || [];
+      bucket.push(comment);
+      comments.set(comment.postId, bucket);
+    }
+  return { likes, comments };
+});
 function legacyTitle(post: MomentPost): string {
-  if (!post.id.startsWith(`zone:${post.authorKey}:`)) return '';
-  const id = post.id.slice(`zone:${post.authorKey}:`.length);
-  return (
-    parseZonePage(phone.state.snapshots[post.authorKey]?.zone || '').posts.find(item => item.id === id)?.title || ''
-  );
+  return zoneTitles.value.get(post.id) || '';
 }
 function likesFor(id: string) {
-  return phone.momentsFeed.likes.filter(like => like.postId === id && like.availableAt <= now.value);
+  return interactionIndex.value.likes.get(id) || [];
 }
 function commentsFor(id: string) {
-  return phone.momentsFeed.comments.filter(comment => comment.postId === id && comment.availableAt <= now.value);
+  return interactionIndex.value.comments.get(id) || [];
 }
 function nameFor(key: string, fallback: string) {
   return key === 'user'
     ? props.userName
     : phone.state.identities[key]
-      ? parseZonePage(phone.state.snapshots[key]?.zone || '').profile.username ||
-        displayIdentityName(phone.state.identities[key])
+      ? zonePages.value.get(key)?.profile.username || displayIdentityName(phone.state.identities[key])
       : phone.state.moments.npcs[key]?.username || fallback;
 }
 function accountFor(key: string) {
   return (
-    key === 'user'
-      ? phone.state.moments.profile.account
-      : parseZonePage(phone.state.snapshots[key]?.zone || '').profile.handle || ''
+    key === 'user' ? phone.state.moments.profile.account : zonePages.value.get(key)?.profile.handle || ''
   ).replace(/^@+/, '');
 }
 function avatarToken(key: string, fallbackSeed: string): string {

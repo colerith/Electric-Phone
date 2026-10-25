@@ -115,6 +115,8 @@ const waitFor = async fn => {
   phone.settings.api.apiurl = 'https://test.invalid/v1';
   phone.settings.api.model = 'test';
   phone.settings.api.retryCount = 0;
+  phone.settings.generation.requiredModules = [...APP_IDS];
+  phone.settings.generation.modules = [];
   const requests = [];
   global.generateRaw = async args => {
     requests.push(args);
@@ -186,6 +188,17 @@ const waitFor = async fn => {
   assert.equal(phone.generationRecords.find(r => r.floor === 4).missing.length, 0, '空结果也是已检查');
   await tick();
   assert(document.body.textContent.includes('生成记录'));
+  phone.settings.generation.requiredModules = ['status'];
+  phone.settings.generation.modules = ['memo', 'calendar'];
+  phone.settings.generation.probability = 100;
+  phone.settings.generation.randomMin = 2;
+  phone.settings.generation.randomMax = 2;
+  floors.push({message_id:30, role:'assistant', message:'抽取模块 <wave_time>2020/1/3 09:00</wave_time>'});
+  await phone.backfillGeneration([30]);
+  assert.deepEqual([...phone.generationRecords.find(r=>r.floor===30).checked].sort(), ['calendar','memo','status']);
+  assert(!phone.generationRecords.find(r=>r.floor===30).checked.includes('zone'));
+  floors.pop();
+  phone.refreshGenerationRecords();
   // Compile the SFC styles too: template-only tests miss broken scoped/global selectors.
   const sfc = parse(fs.readFileSync(base + '/components/settings/WaveGenerationRecords.vue', 'utf8')).descriptor;
   const styleBlock = sfc.styles[0];

@@ -2,7 +2,9 @@
   <div class="generation-records">
     <section class="settings-card">
       <div class="wave-settings-title">生成记录</div>
-      <p>按正文楼层查看手机更新。补生成只检查尚未生成的模块，已有内容保留；没有新事实也会记录为已检查。</p>
+      <p>
+        按正文楼层查看手机更新。补生成按聊天与行为的必更新、随机更新规则选择模块；已有模块保留，没有新事实也会记录为已检查。
+      </p>
       <div class="record-actions">
         <button
           class="system-action primary"
@@ -15,7 +17,7 @@
         <button v-if="busy" class="system-action" @click="phone.stopManualGeneration()">停止生成</button>
       </div>
       <p>
-        立即生成检查最新正文的全部模块；批量补生成按楼层从旧到新执行，时间取本楼标记或之前最近的标记。切换聊天或停止后，已完成楼层仍会保留。
+        立即生成检查最新正文的全部模块；批量补生成按设置逐楼抽取模块，从旧到新执行，时间取本楼标记或之前最近的标记。切换聊天或停止后，已完成楼层仍会保留。
       </p>
       <p v-if="notice || phone.generationRecordStatus" role="status" aria-live="polite">
         {{ notice || phone.generationRecordStatus }}
