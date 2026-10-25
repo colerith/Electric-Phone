@@ -18,7 +18,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.3.54-beta.18';
+export const WAVE_PHONE_RELEASE_VERSION = '1.3.54-beta.19';
 export const WAVE_PHONE_RELEASE_DATE = '2026.10.25';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
@@ -29,6 +29,8 @@ export const ApiSettingsSchema = z
   .object({
     enabled: z.boolean().prefault(false),
     provider: ProviderSchema.prefault('openai'),
+    stream: z.boolean().prefault(false),
+    autoTimeout: z.boolean().prefault(true),
     apiurl: z.string().prefault(''),
     key: z.string().prefault(''),
     model: z.string().prefault(''),
@@ -199,7 +201,7 @@ export const ScriptSettingsSchema = z
         systemClock: SystemClockSettingsSchema,
         storageIntervalSeconds: z.number().min(5).max(600).prefault(30),
         autoOpenOnUpdate: z.boolean().prefault(false),
-        historyDepth: z.number().int().nonnegative().nullable().prefault(20),
+        historyDepth: z.number().int().nonnegative().nullable().prefault(5),
         cacheEnabled: z.boolean().prefault(true),
         cacheLimitMb: z.coerce
           .number()

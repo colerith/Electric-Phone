@@ -3,7 +3,7 @@ import { readChatFloors } from '../chat/chat-reader';
 import { stripInlineCards } from './module-protocol';
 import type { ScriptSettings } from '../../schemas';
 export function stripExcludedTags(text: string, tags: string[]): string {
-  let result = stripInlineCards(text);
+  let result = stripInlineCards(text).replace(/\\?<!--[\s\S]*?(?:-->|$)/g, '');
   for (const tag of new Set(tags.map(value => value.trim()).filter(Boolean))) {
     const pattern = new RegExp(`<(/?)${_.escapeRegExp(tag)}(?=[\\s/>])[^>]*>`, 'gi');
     let depth = 0,

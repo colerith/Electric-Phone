@@ -22,7 +22,7 @@ import { narrativePrompt } from './narrative-context';
 import { prepareContext, stripExcludedTags, isCardExcluded } from './context-controls';
 import { diagnostics, logDiagnostic } from '../core/diagnostics';
 import { describeRequestError, redactDiagnostic, type RequestStage } from '../core/request-error';
-import { buildCustomApi, estimateTokens, fitContext } from '../core/api-config';
+import { buildCustomApi, effectiveTimeout, estimateTokens, fitContext } from '../core/api-config';
 import {
   PhoneChatResponseSchema,
   type AppSnapshot,
@@ -152,6 +152,7 @@ async function requestConfigured<T>(
   runningRequests.set(generationId, request);
   try {
     ensureNamespace();
+    const timeoutMs = effectiveTimeout(settings.api);
     const api = settings.sendMode === 'secondary_api' ? buildCustomApi(settings) : undefined;
     const runtime = getRuntimeContext();
     if (namespace && runtime && isCardExcluded(settings, runtime.cardName))
@@ -170,9 +171,18 @@ async function requestConfigured<T>(
     const filtered = prompts.map(prompt =>
       typeof prompt === 'string'
         ? prompt
-        : { ...prompt, content: expandTavernMacros(stripExcludedTags(prompt.content, settings.basic.excludedTags)) },
+        : {
+            ...prompt,
+            content: stripExcludedTags(
+              expandTavernMacros(stripExcludedTags(prompt.content, settings.basic.excludedTags)),
+              settings.basic.excludedTags,
+            ),
+          },
     );
-    userInput = expandTavernMacros(stripExcludedTags(userInput, settings.basic.excludedTags));
+    userInput = stripExcludedTags(
+      expandTavernMacros(stripExcludedTags(userInput, settings.basic.excludedTags)),
+      settings.basic.excludedTags,
+    );
     if (namespace?.webSearchQuery) {
       ensureNamespace();
       if (request.cancelled) throw Error('生成已停止。');
@@ -208,7 +218,7 @@ async function requestConfigured<T>(
     logDiagnostic(
       '开始请求',
       redactDiagnostic(
-        `${generationId}｜服务：${api ? settings.api.provider : '酒馆主 API'}｜模型：${api?.model || '酒馆当前模型'}｜上下文上限 ${settings.api.contextLength}｜最大回复 ${settings.api.maxTokens}｜超时 ${settings.api.timeoutMs} ms｜显式提示词 ${ordered.reduce((n, p) => n + (typeof p === 'string' ? 0 : p.content.length), userInput.length)} 字｜历史 ${overrides?.chat_history?.prompts?.length || 0} 条；原生角色卡/世界书由酒馆展开`,
+        `${generationId}｜服务：${api ? settings.api.provider : '酒馆主 API'}｜模型：${api?.model || '酒馆当前模型'}｜上下文上限 ${settings.api.contextLength}｜最大回复 ${settings.api.maxTokens}｜生效超时 ${timeoutMs} ms（设置 ${settings.api.timeoutMs} ms）｜${settings.api.stream ? '流式' : '非流式'}｜显式提示词 ${ordered.reduce((n, p) => n + (typeof p === 'string' ? 0 : p.content.length), userInput.length)} 字｜历史 ${overrides?.chat_history?.prompts?.length || 0} 条；原生角色卡/世界书由酒馆展开`,
         secrets,
       ),
     );
@@ -221,16 +231,17 @@ async function requestConfigured<T>(
         request.backendId = attempt === 0 ? generationId : `${generationId}-retry-${attempt}`;
         attemptStarted = Date.now();
         const raw = await withTimeout(
-          generateRaw({
-            user_input: userInput || undefined,
-            ordered_prompts: formatCorrection ? [...ordered, { role: 'system', content: formatCorrection }] : ordered,
-            overrides,
-            custom_api: api,
-            should_stream: false,
-            max_chat_history: prompts.includes('chat_history') ? 'all' : 0,
-            generation_id: request.backendId,
-          }),
-          settings.api.timeoutMs,
+          () =>
+            generateRaw({
+              user_input: userInput || undefined,
+              ordered_prompts: formatCorrection ? [...ordered, { role: 'system', content: formatCorrection }] : ordered,
+              overrides,
+              custom_api: api,
+              should_stream: settings.api.stream,
+              max_chat_history: prompts.includes('chat_history') ? 'all' : 0,
+              generation_id: request.backendId,
+            }),
+          timeoutMs,
           request.backendId,
         );
         if (request.cancelled) throw Error('生成已停止。');

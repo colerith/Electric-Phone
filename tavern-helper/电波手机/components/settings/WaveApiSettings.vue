@@ -61,8 +61,18 @@
         aria-label="可用模型列表"
       /><small v-if="modelError" role="status">{{ modelError }}</small></label
     >
+    <div class="toggle-row">
+      <span><strong>流式输出</strong><small>关闭时使用非流式；完整接收后统一解析并写入手机</small></span
+      ><WaveToggle v-model="phone.settings.api.stream" aria-label="流式输出" />
+    </div>
+    <div class="toggle-row">
+      <span
+        ><strong>自动延长等待</strong
+        ><small>普通请求至少 180 秒，4-argon 至少 300 秒；关闭后按下方设置执行</small></span
+      ><WaveToggle v-model="phone.settings.api.autoTimeout" aria-label="自动延长等待" />
+    </div>
     <div class="wave-settings-title">生成参数</div>
-    <p v-if="samplingOff" class="api-note">已识别 Gemini 3.5–3.8 Flash，以下五项参数不会发送。</p>
+    <p v-if="samplingOff" class="api-note">此模型默认不发送以下五项采样参数（包含 Gemini 3.5–3.8 Flash、4-argon）。</p>
     <div class="settings-columns api-parameters">
       <label v-for="field in samplingFields" :key="field.key"
         ><strong>{{ field.label }}</strong
@@ -96,7 +106,8 @@
     </div>
     <p class="api-note">
       长度单位为 tokens；上下文采用本地估算并为回复预留空间，超限优先移除最旧历史。0
-      次重试表示只请求一次。慢速或思考模型可将超时设为 180000–600000 毫秒；已有配置需手动调整。
+      次重试表示只请求一次。慢速或思考模型可将超时设为 180000–600000
+      毫秒；自动延长等待开启时取两者较大值，不会缩短你设置的时间。
     </p>
     <p class="api-note">密钥仅保存在脚本变量，不进入聊天提示词。</p>
     <p v-if="feedback" class="api-feedback" role="status">{{ feedback }}</p>

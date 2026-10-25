@@ -45,7 +45,7 @@ global.getWorldbook = async () => {
   throw new TypeError('A.toLocaleLowerCase is not a function');
 };
 (async () => {
-  assert.equal(ScriptSettingsSchema.parse({}).basic.historyDepth, 20);
+  assert.equal(ScriptSettingsSchema.parse({}).basic.historyDepth, 5);
   assert.equal(ScriptSettingsSchema.parse({ basic: { historyDepth: null } }).basic.historyDepth, null);
   assert.equal(ScriptSettingsSchema.parse({ basic: { historyDepth: 0 } }).basic.historyDepth, 0);
   assert.deepEqual(boundWorldbooks(), ['book']);
@@ -79,7 +79,7 @@ global.getWorldbook = async () => {
   assert(matchesWorldbookKey(emojiRows[0].strategy.keys[1], '今天 👩🏽‍🚀'));
   console.log('PASS emoji worldbook name, title, content and keyword fallback without rewriting data');
   console.log(
-    'PASS history default 20; malformed names, foreign/serialized regex and helper worldbook conversion fallback',
+    'PASS history default 5; malformed names, foreign/serialized regex and helper worldbook conversion fallback',
   );
 })().catch(e => {
   console.error(e);

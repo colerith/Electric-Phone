@@ -3,7 +3,11 @@ export async function stopBackendGeneration(generationId: string): Promise<boole
   return Boolean(await stopGenerationById(generationId));
 }
 
-export async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, generationId: string): Promise<T> {
+export async function withTimeout<T>(
+  promise: Promise<T> | (() => Promise<T>),
+  timeoutMs: number,
+  generationId: string,
+): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
@@ -13,7 +17,7 @@ export async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, gen
     }, timeoutMs);
   });
   try {
-    return await Promise.race([promise, timeout]);
+    return await Promise.race([typeof promise === 'function' ? Promise.resolve().then(promise) : promise, timeout]);
   } finally {
     clearTimeout(timer);
   }
