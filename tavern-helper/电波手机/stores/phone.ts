@@ -1,3 +1,4 @@
+import { PersonaCardSchema } from '../services/chat/persona-card';
 import { generationRows, floorSource, storyIso } from '../services/generation/generation-records';
 import { isReplayedMessage } from '../services/chat/replayed-message';
 import { applyGroupManagement } from '../services/chat/group-management';
@@ -3797,6 +3798,71 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     return additions.map(c => c.charKey);
   }
 
+  function exportPersonaData() {
+    const identity = activeIdentity.value;
+    if (!identity || identity.source === 'local_group' || !context.value) throw Error('请选择单个角色聊天');
+    const profile = klona(characterProfiles.value[`${context.value.cardKey}::${identity.charKey}`] || {});
+    return PersonaCardSchema.parse({
+      format: 'wave-phone-persona',
+      version: 1,
+      identity: klona(identity),
+      profile: {
+        ...profile,
+        remark: identity.remark,
+        avatar: identity.avatar,
+        avatarZoom: identity.avatarZoom,
+        avatarOffsetX: identity.avatarOffsetX,
+        avatarOffsetY: identity.avatarOffsetY,
+        chatPreferences: state.value.chatPreferences[identity.charKey],
+        characterVoice: state.value.characterVoices[identity.charKey],
+      },
+    });
+  }
+  async function importPersonaData(value: unknown): Promise<string> {
+    const runtime = context.value;
+    if (!runtime || !isReady.value) throw Error('请先进入有效聊天');
+    const card = PersonaCardSchema.parse(value);
+    const safeImage = (value: string) => !value || /^data:image\/(png|jpeg|webp|gif);base64,/i.test(value);
+    if (
+      !safeImage(card.identity.avatar) ||
+      (card.profile.characterImage?.references || []).some(ref => !safeImage(ref.image))
+    )
+      throw Error('人设卡图片必须内嵌在 PNG 中，请重新导出原始人设卡');
+    let name = card.identity.name;
+    let suffix = 2;
+    while (identities.value.some(item => item.name === name)) name = `${card.identity.name}（${suffix++}）`;
+    const id = makeId('contact');
+    const identity = IdentitySchema.parse({
+      ...card.identity,
+      name,
+      charKey: id,
+      stableId: id,
+      avatarCustomized: Boolean(card.identity.avatar),
+      source: 'local_contact',
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    });
+    const profile = {
+      ...card.profile,
+      avatar: identity.avatar,
+      avatarCustomized: identity.avatarCustomized,
+      updatedAt: nowIso(),
+    };
+    syncToken += 1;
+    upsertIdentity(state.value, identity, runtime);
+    const thread = ensureThread(state.value, runtime, identity);
+    thread.hidden = true;
+    thread.pinned = Boolean(profile.conversationPinned);
+    if (profile.chatPreferences) state.value.chatPreferences[id] = klona(profile.chatPreferences);
+    if (profile.characterVoice) state.value.characterVoices[id] = klona(profile.characterVoice);
+    characterProfiles.value[`${runtime.cardKey}::${id}`] = profile;
+    persistRosterIdentity(identity);
+    persistCharacterProfiles(characterProfiles.value);
+    saveChat();
+    await flushPhoneStorage();
+    return id;
+  }
+
   function addContact(name: string, about: string): string {
     const title = name.trim();
     if (!context.value || !title) throw Error('请填写联系人名称');
@@ -5639,6 +5705,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     startConversation,
     addMomentNpc,
     addContact,
+    exportPersonaData,
+    importPersonaData,
     addGeneratedNpcs,
     importCardContact,
     addSpaceContact,

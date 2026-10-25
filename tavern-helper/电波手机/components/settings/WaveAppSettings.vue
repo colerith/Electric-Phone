@@ -235,6 +235,7 @@
       同一角色卡的账户、余额、流水、币种和卡面在不同聊天之间共享。
     </p>
     <WaveChatCleanup v-if="app === 'conversation'" />
+    <WavePersonaExport v-if="app === 'conversation'" />
   </section>
 </template>
 <script setup lang="ts">
@@ -243,6 +244,7 @@ import WaveMoments from '../space/WaveMoments.vue';
 import WaveWalletWorkspace from '../wallet/WaveWalletWorkspace.vue';
 import WaveModuleSettings from './WaveModuleSettings.vue';
 import { isLimitedApp } from '../../services/generation/module-updates';
+import WavePersonaExport from '../chat/WavePersonaExport.vue';
 import WaveChatCleanup from '../chat/WaveChatCleanup.vue';
 import WaveChatPreferences from '../chat/WaveChatPreferences.vue';
 import WaveGroupSettings from '../chat/WaveGroupSettings.vue';
