@@ -2611,6 +2611,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!runtime) return;
     if (moduleGenerating.value || zoneGenerating.value || Object.values(state.value.threads).some(t => t.generating)) {
       followGenerationStatus.value = '本轮未更新：手机有其他生成正在进行';
+      logDiagnostic('副 API 跟随跳过', `第 ${job.message.message_id} 楼：手机有其他生成正在进行，可在生成记录补生成`);
       return;
     }
     const modules =
@@ -2634,7 +2635,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             newPosts: runtime.settings.moduleSettings.zone.maxNew,
           })
         : null;
-    if (!modules.length && !momentPlan && !holePlan) return;
+    if (!modules.length && !momentPlan && !holePlan) {
+      logDiagnostic('副 API 跟随跳过', `第 ${job.message.message_id} 楼：本轮未抽中可更新模块或空间任务`);
+      return;
+    }
     const id = createPhoneGenerationId();
     moduleGenerationId = id;
     moduleGenerating.value = true;
@@ -2712,6 +2716,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         saveChat();
         refreshGenerationRecords();
         followGenerationStatus.value = '本轮没有新内容，保留原记录';
+        logDiagnostic('副 API 跟随完成', `第 ${job.message.message_id} 楼：已检查 ${modules.join('、')}，没有新增内容`);
         return;
       }
       // Persist plans only for completed results, and attach data to its originating floor/swipe.

@@ -165,6 +165,7 @@ const waitFor = async fn => {
     });
   global.generateRaw = async args => {
     requests.push(args);
+    emit('GENERATION_AFTER_COMMANDS', 'normal', {}, false);
     emit('GENERATION_STOPPED');
     await wait(5);
     assert(args.user_input.includes('最终正文'), '副 API 必须读到最终正文');
@@ -338,11 +339,14 @@ const waitFor = async fn => {
   emit('GENERATION_AFTER_COMMANDS', 'normal', {}, false);
   floors.push({ message_id: 4, role: 'assistant', message: '最终正文五' });
   emit('CHARACTER_MESSAGE_RENDERED', 4);
+  assert(jobs[0].signal.aborted);
+  releases[0]();
   await waitFor(() => jobs.length === 2);
   scope = 'other';
   emit('CHAT_CHANGED');
   assert(jobs[1].signal.aborted);
   assert(!jobs[1].isCurrent());
+  releases[1]();
   emit('GENERATION_AFTER_COMMANDS', 'swipe', {}, false);
   emit('MESSAGE_SWIPED', 4);
   emit('CHARACTER_MESSAGE_RENDERED', 4);

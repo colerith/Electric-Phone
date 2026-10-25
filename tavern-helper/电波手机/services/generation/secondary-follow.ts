@@ -22,6 +22,7 @@ export function registerSecondaryFollow(
   let pending: { key: string; modules: AppId[]; minFloor: number; expectedDeleteFloor?: number } | null = null;
   let controller: AbortController | undefined;
   let activeKey = '';
+  let running: Promise<void> | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const enabled = () => {
     const context = getContext();
@@ -48,7 +49,12 @@ export function registerSecondaryFollow(
     eventOn(tavern_events.GENERATION_AFTER_COMMANDS, (type, _options, dry) => {
       // Auxiliary/quiet requests must not cancel the real generation's pending job.
       if (dry || !['normal', 'continue', 'swipe', 'regenerate'].includes(type)) return;
-      clear();
+      // A normal event may be emitted by the side request itself. Arm the next
+      // floor without killing a job whose source floor is still unchanged.
+      if (controller && type === 'normal') {
+        pending = null;
+        logDiagnostic('副 API 跟随保持', '收到 normal 事件，保留正在处理的原楼层；仅新正文渲染后切换任务');
+      } else clear();
       const context = enabled();
       if (context) {
         const last = readChatFloors().at(-1);
@@ -71,6 +77,11 @@ export function registerSecondaryFollow(
       if (!captured || captured.key !== enabled()?.key || id < captured.minFloor) return;
       if (readChatFloor(id)?.role !== 'assistant') return;
       pending = null;
+      const preceding = running;
+      if (controller) {
+        logDiagnostic('副 API 跟随取消', '新的正文楼层已渲染，停止旧楼层后置任务');
+        controller.abort();
+      }
       const active = new AbortController();
       controller = active;
       activeKey = captured.key;
@@ -89,8 +100,15 @@ export function registerSecondaryFollow(
           logDiagnostic('副 API 跟随取消', '聊天、回复或生成设置已变化');
           return;
         }
-        logDiagnostic('副 API 跟随开始', `正文楼层：${id}；模块：${captured.modules.join('、') || '空间规则'}`);
-        void run({ modules: captured.modules, message, signal: active.signal, isCurrent })
+        running = (async () => {
+          if (preceding) await preceding;
+          if (!isCurrent()) {
+            logDiagnostic('副 API 跟随取消', `第 ${id} 楼：等待期间正文或会话已变化`);
+            return;
+          }
+          logDiagnostic('副 API 跟随开始', `正文楼层：${id}；模块：${captured.modules.join('、') || '空间规则'}`);
+          await run({ modules: captured.modules, message, signal: active.signal, isCurrent });
+        })()
           .catch(error => {
             if (!active.signal.aborted) logDiagnostic('副 API 跟随失败', String(error));
           })
@@ -98,6 +116,7 @@ export function registerSecondaryFollow(
             if (controller === active) {
               controller = undefined;
               activeKey = '';
+              running = undefined;
             }
           });
       }, 0);
@@ -107,7 +126,8 @@ export function registerSecondaryFollow(
       // the gate, a later stop may belong to host cleanup or another extension.
       // Only stop the pending narrative; running side requests have their own stop
       // control and remain guarded by chat, swipe, routing and content freshness.
-      if (pending) clear();
+      // Never abort a running side request because an unrelated pending gate stopped.
+      if (pending) pending = null;
     }),
     eventOn(tavern_events.CHAT_CHANGED, clear),
     eventOn(tavern_events.MESSAGE_SWIPED, () => {
