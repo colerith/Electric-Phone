@@ -165,7 +165,7 @@ const waitFor = async fn => {
   const vm = messenger.mount(mount);
   await vm.toggleMenu();
   await tick();
-  const menu = [...document.querySelectorAll('[role="menuitem"]')].find(b => b.textContent.includes('PNG 人设卡'));
+  const menu = [...document.querySelectorAll('[role="menuitem"]')].find(b => b.textContent.includes('从PNG导入角色'));
   assert(menu);
   menu.click();
   await tick();

@@ -403,9 +403,9 @@ const filters = [
 ];
 const menuItems: { id: Dialog; name: string; icon: string }[] = [
   { id: 'start', name: '发起聊天', icon: 'fa-regular fa-comment' },
-  { id: 'persona', name: '导入 PNG 人设卡', icon: 'fa-solid fa-file-import' },
   { id: 'friend', name: '添加好友', icon: 'fa-solid fa-user-plus' },
   { id: 'npc', name: '自动生成 NPC', icon: 'fa-solid fa-wand-magic-sparkles' },
+  { id: 'persona', name: '从PNG导入角色', icon: 'fa-solid fa-file-import' },
   { id: 'worldbook', name: '从世界书导入角色', icon: 'fa-solid fa-book-open' },
   { id: 'character', name: '从角色卡描述导入', icon: 'fa-solid fa-id-card' },
   { id: 'group', name: '创建群聊', icon: 'fa-solid fa-user-group' },
