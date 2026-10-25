@@ -143,7 +143,7 @@
       </section>
     </template>
     <template v-else-if="panel === 'settings'">
-      <WaveAppApiSettings app="zone" />
+      <div class="space-api-section"><WaveAppApiSettings app="zone" /></div>
       <section class="settings-card system-settings-card moments-form space-settings-card">
         <div class="wave-settings-title">空间配图与互动</div>
         <label
@@ -1678,5 +1678,9 @@ defineExpose({
 }
 #wave-phone-script-root .space-moments .space-settings-card > .wave-settings-title + label {
   padding-top: 0;
+}
+#wave-phone-script-root .space-moments .space-api-section {
+  margin-bottom: 16px;
+  min-width: 0;
 }
 </style>
