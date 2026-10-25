@@ -1,3 +1,4 @@
+import { generationRows, floorSource, storyIso } from '../services/generation/generation-records';
 import { isReplayedMessage } from '../services/chat/replayed-message';
 import { applyGroupManagement } from '../services/chat/group-management';
 import { registerChatTime } from '../services/core/chat-time';
@@ -1865,6 +1866,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           thread.messages.sort(
             (a, b) => (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER),
           );
+          // Historical repairs occupy floor-message slots in narrative order; manual messages keep their slots.
+          if (Object.keys(nextState.generationReceipts).length) {
+            const ordered = thread.messages
+              .filter(m => m.payload.waveFloor)
+              .sort((a, b) => Number(a.payload.sourceMessageId) - Number(b.payload.sourceMessageId));
+            let index = 0;
+            thread.messages = thread.messages.map(m => (m.payload.waveFloor ? ordered[index++] : m));
+          }
         }
       });
 
@@ -2455,6 +2464,141 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       },
     };
   }
+  const generationRecordRevision = ref(0);
+  const generationRecordStatus = ref('');
+  const generationRecords = computed(() => {
+    void generationRecordRevision.value;
+    void state.value.lastSyncedAt;
+    const identity = activeIdentity.value;
+    if (!identity || !isReady.value) return [];
+    return generationRows(readChatFloors(), state.value.generationReceipts, identity.stableId || identity.charKey);
+  });
+  function refreshGenerationRecords() {
+    generationRecordRevision.value++;
+  }
+  async function backfillGeneration(floorIds: number[], full = false): Promise<void> {
+    if (moduleGenerating.value || zoneGenerating.value || Object.values(state.value.threads).some(t => t.generating))
+      throw Error('请等待当前生成结束');
+    await synchronize();
+    const runtime = moduleInput();
+    if (!runtime) throw Error('请先打开有效的角色聊天');
+    if (moduleGenerating.value || zoneGenerating.value) throw Error('已有生成正在进行');
+    const charId = runtime.input.identity.stableId || runtime.input.identity.charKey;
+    const selected = generationRows(readChatFloors(), state.value.generationReceipts, charId)
+      .filter(row => floorIds.includes(row.floor))
+      .sort((a, b) => a.floor - b.floor);
+    if (!selected.length) throw Error('没有可生成的楼层');
+    if (selected.some(row => row.timestamp === null))
+      throw Error('所选楼层缺少有效时间标记，请先补充 wave_time 后重试');
+    const id = createPhoneGenerationId();
+    moduleGenerationId = id;
+    moduleGenerating.value = true;
+    const current = () => {
+      const ctx = getRuntimeContext();
+      return (
+        moduleGenerationId === id &&
+        ctx?.cardKey === runtime.input.cardKey &&
+        ctx?.chatKey === runtime.input.chatKey &&
+        state.value.activeCharKey === runtime.input.identity.charKey
+      );
+    };
+    try {
+      for (const [index, row] of selected.entries()) {
+        if (!current()) throw Error('聊天已切换或生成已停止');
+        if (readChatFloors().find(f => f.message_id === row.floor)?.message !== row.source)
+          throw Error(`第 ${row.floor} 楼已修改，请刷新后重试`);
+        const prefix = () =>
+          JSON.stringify(
+            readChatFloors()
+              .filter(f => f.message_id <= row.floor)
+              .map(f => [f.message_id, f.message]),
+          );
+        const expectedPrefix = prefix();
+        const wanted = full ? [...APP_IDS] : row.missing;
+        const modules = runtime.input.identity.source === 'local_group' ? wanted.filter(m => m === 'messages') : wanted;
+        if (!modules.length) continue;
+        generationRecordStatus.value = `正在补生成 #${row.floor} · ${index + 1}/${selected.length}`;
+        let snapshot = AppSnapshotSchema.parse({});
+        for (const floor of readChatFloors()
+          .filter(f => f.message_id <= row.floor)
+          .sort((a, b) => a.message_id - b.message_id))
+          for (const block of parsePhoneMessage(floor.message, floor.message_id))
+            if (block.stableId === charId)
+              snapshot = mergeAppSnapshot(snapshot, block, runtime.settings.moduleSettings);
+        const thread = klona(runtime.input.thread);
+        thread.messages = thread.messages.filter(
+          m => typeof m.payload.sourceMessageId === 'number' && m.payload.sourceMessageId < row.floor,
+        );
+        thread.draft = '';
+        const blocks: string[] = [];
+        const groups = new Map<string, AppId[]>();
+        for (const module of modules) {
+          const key = appApiGroup(runtime.settings, module);
+          groups.set(key, [...(groups.get(key) || []), module]);
+        }
+        for (const group of groups.values()) {
+          const delta = await generateFollowModules(
+            {
+              ...klona(runtime.input),
+              thread,
+              appSnapshot: snapshot,
+              settings: klona(appApiSettings(runtime.settings, group[0])),
+              generationId: id,
+              historyBeforeFloor: row.floor + 1,
+              latestUserText: `【历史楼层补生成】仅根据第 ${row.floor} 楼及之前正文更新，不引用之后剧情。唯一剧情时间基准：${row.time}。消息、浏览、音乐、备忘及动态的发生时间归属于该楼层；日历约定保留正文明确的实际日期，不使用现实时间。不重复已有条目，不将当前余额当作历史初始余额。只检查指定模块，无新事实返回空更新。\n本楼正文：\n${floorSource(row.source)}`,
+            },
+            group,
+          );
+          if (!current()) throw Error('聊天已切换或生成已停止');
+          delta.messages = normalizeGroupReplies(runtime.input.identity, delta.messages);
+          delta.messages.forEach(message => {
+            message.created_at = storyIso(row.timestamp!);
+          });
+          const zone = delta.app_updates.zone;
+          if (zone && typeof zone === 'object' && 'posts' in zone && Array.isArray(zone.posts)) {
+            for (const post of zone.posts) {
+              if (post && typeof post === 'object') {
+                post.date = row.time;
+                if (Array.isArray(post.comments))
+                  for (const comment of post.comments) comment.createdAt = storyIso(row.timestamp!);
+              }
+            }
+          }
+          blocks.push(serializeDelta(delta));
+        }
+        if (
+          !current() ||
+          prefix() !== expectedPrefix ||
+          readChatFloors().find(f => f.message_id === row.floor)?.message !== row.source
+        )
+          throw Error('正文已变化，已丢弃本楼生成结果');
+        const replacement = `${row.source}\n\n${blocks.join('\n')}`;
+        await writeChatFloor(row.floor, row.source, replacement);
+        if (!current() || readChatFloors().find(f => f.message_id === row.floor)?.message !== replacement)
+          throw Error('本楼结果未能保存，请刷新后重试');
+        state.value.generationReceipts[`${charId}:${row.floor}`] = {
+          source: floorSource(replacement),
+          modules: [...new Set([...row.checked, ...modules])],
+          completedAt: new Date().toISOString(),
+        };
+        saveChat();
+        await flushPhoneStorage();
+        await synchronize();
+        refreshGenerationRecords();
+      }
+      generationRecordStatus.value = '生成完成，结果已写回对应楼层';
+    } catch (error) {
+      generationRecordStatus.value = error instanceof Error ? error.message : String(error);
+      throw error;
+    } finally {
+      if (moduleGenerationId === id) {
+        moduleGenerationId = '';
+        moduleGenerating.value = false;
+      }
+      refreshGenerationRecords();
+    }
+  }
+
   async function generateSecondaryFollow(job: SecondaryFollowJob): Promise<void> {
     await synchronize();
     if (!job.isCurrent()) return;
@@ -2554,6 +2698,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       }
       if (!current()) return;
       if (!blocks.length) {
+        const charId = runtime.input.identity.stableId || runtime.input.identity.charKey;
+        state.value.generationReceipts[`${charId}:${job.message.message_id}`] = {
+          source: floorSource(job.message.message),
+          modules,
+          completedAt: new Date().toISOString(),
+        };
+        saveChat();
+        refreshGenerationRecords();
         followGenerationStatus.value = '本轮没有新内容，保留原记录';
         return;
       }
@@ -2580,7 +2732,18 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         `${job.message.message}\n\n${blocks.join('\n')}`,
       );
       if (job.signal.aborted) return;
+      const charId = runtime.input.identity.stableId || runtime.input.identity.charKey;
+      const saved = readChatFloors().find(f => f.message_id === job.message.message_id);
+      if (saved && floorSource(saved.message) === floorSource(job.message.message)) {
+        state.value.generationReceipts[`${charId}:${job.message.message_id}`] = {
+          source: floorSource(saved.message),
+          modules,
+          completedAt: new Date().toISOString(),
+        };
+        saveChat();
+      }
       await synchronize();
+      refreshGenerationRecords();
       followGenerationStatus.value = '本轮副 API 更新完成';
       logDiagnostic(
         '副 API 跟随完成',
@@ -5446,6 +5609,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     { flush: 'post' },
   );
   return {
+    generationRecords,
+    generationRecordStatus,
+    refreshGenerationRecords,
+    backfillGeneration,
     messageThreadIndex,
     getImageAsset,
     updateImageAsset,

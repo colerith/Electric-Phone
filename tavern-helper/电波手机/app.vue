@@ -1011,6 +1011,7 @@
                   :key="settingsSection"
                   :section="settingsSection"
                 />
+                <WaveGenerationRecords v-else-if="settingsSection === 'records'" />
                 <WaveApiSettings v-else-if="settingsSection === 'api'" />
                 <WaveMcpSettings v-else-if="settingsSection === 'mcp'" />
                 <WaveBackupSettings v-else-if="settingsSection === 'backup'" />
@@ -1305,6 +1306,7 @@ import WaveFloatingEntry from './components/shared/WaveFloatingEntry.vue';
 import { canReactToMessage } from './services/chat/message-reactions';
 import { parseCalendar } from './services/apps/calendar';
 import WaveTogether from './components/chat/WaveTogether.vue';
+import WaveGenerationRecords from './components/settings/WaveGenerationRecords.vue';
 import WaveSystemSettings from './components/settings/WaveSystemSettings.vue';
 import WaveMessenger from './components/chat/WaveMessenger.vue';
 import WaveGenerationSettings from './components/settings/WaveGenerationSettings.vue';
@@ -1451,7 +1453,7 @@ let leavingSettings = false;
 const settingsEditorActive = computed(
   () =>
     appSettingsOpen.value ||
-    (store.currentPage === 'settings' && !['root', 'backup', 'credits'].includes(settingsSection.value)),
+    (store.currentPage === 'settings' && !['root', 'backup', 'credits', 'records'].includes(settingsSection.value)),
 );
 watch(
   () => [store.currentPage, settingsSection.value, appSettingsOpen.value],
@@ -1692,6 +1694,7 @@ const currencyOptions: WaveSelectOption[] = ['CNY', 'JPY', 'USD', 'EUR', 'GBP', 
   label: value,
 }));
 type SettingsSectionId =
+  | 'records'
   | 'basic'
   | 'worldbooks'
   | 'debug'
@@ -1728,6 +1731,14 @@ const settingsSections: Array<{
     description: '管理正文读取与运行范围',
     eyebrow: 'BASIC',
     icon: 'fa-solid fa-sliders',
+  },
+  {
+    id: 'records',
+    name: '生成记录',
+    caption: '楼层、模块与历史补生成',
+    description: '查看正文更新记录，按时间顺序补生成缺失内容。',
+    eyebrow: 'GENERATION HISTORY',
+    icon: 'fa-solid fa-clock-rotate-left',
   },
   {
     id: 'chat',
