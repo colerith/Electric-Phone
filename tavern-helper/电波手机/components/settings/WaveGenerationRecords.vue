@@ -17,7 +17,9 @@
       <p>
         立即生成检查最新正文的全部模块；批量补生成按楼层从旧到新执行，时间取本楼标记或之前最近的标记。切换聊天或停止后，已完成楼层仍会保留。
       </p>
-      <p role="status" aria-live="polite">{{ notice || phone.generationRecordStatus }}</p>
+      <p v-if="notice || phone.generationRecordStatus" role="status" aria-live="polite">
+        {{ notice || phone.generationRecordStatus }}
+      </p>
     </section>
     <section class="settings-card missing-card">
       <div class="record-heading">
@@ -51,7 +53,16 @@
       </button>
       <p v-else>暂无未生成楼层</p>
     </section>
-    <section v-for="row in visibleRows" :key="row.floor" class="settings-card record-card">
+    <section
+      v-for="(row, index) in visibleRows"
+      :ref="
+        el => {
+          if (index === 0) firstRecord = el as HTMLElement;
+        }
+      "
+      :key="row.floor"
+      class="settings-card record-card"
+    >
       <div class="record-heading">
         <strong>#{{ row.floor }}</strong
         ><span>{{
@@ -66,7 +77,7 @@
         <i class="fa-regular fa-clock"></i> {{ row.time || '暂无时间标记'
         }}<small v-if="row.time && row.timeFloor !== row.floor"> · 沿用 #{{ row.timeFloor }}</small>
       </div>
-      <div class="module-pills">
+      <div v-if="row.generated.length" class="module-pills">
         <span v-for="id in row.generated" :key="id">{{ MODULE_LABELS[id] }}</span>
       </div>
       <p v-if="row.checked.filter(id => !row.generated.includes(id)).length">
@@ -87,12 +98,19 @@
         {{ row.generated.length || row.checked.length ? '补齐本楼模块' : '补生成本楼' }}
       </button>
     </section>
-    <button v-if="rows.length > limit" class="system-action" @click="limit += 50">加载更多记录</button>
+    <nav v-if="rows.length" class="record-pagination" aria-label="生成记录分页">
+      <div class="page-summary">共 {{ rows.length }} 楼 · 每页 10 楼</div>
+      <div class="page-controls">
+        <button class="system-action" :disabled="page === 1" @click="changePage(page - 1)">上一页</button>
+        <span aria-live="polite">{{ page }} / {{ pageCount }}</span>
+        <button class="system-action" :disabled="page === pageCount" @click="changePage(page + 1)">下一页</button>
+      </div>
+    </nav>
     <p v-if="!rows.length">当前聊天还没有可生成的正文楼层。</p>
   </div>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { MODULE_LABELS } from '../../services/generation/module-protocol';
 const moduleLabel = (id: keyof typeof MODULE_LABELS) => MODULE_LABELS[id];
@@ -102,8 +120,18 @@ const busy = computed(() => phone.moduleGenerating || phone.zoneGenerating);
 const missing = computed(() => rows.value.filter(row => !row.generated.length && !row.checked.length));
 const selected = ref<number[]>([]);
 const notice = ref('');
-const limit = ref(50);
-const visibleRows = computed(() => [...rows.value].reverse().slice(0, limit.value));
+const page = ref(1);
+const firstRecord = ref<HTMLElement | null>(null);
+const pageCount = computed(() => Math.max(1, Math.ceil(rows.value.length / 10)));
+const visibleRows = computed(() => [...rows.value].reverse().slice((page.value - 1) * 10, page.value * 10));
+watch(pageCount, count => {
+  page.value = Math.min(page.value, count);
+});
+async function changePage(value: number) {
+  page.value = Math.max(1, Math.min(pageCount.value, value));
+  await nextTick();
+  firstRecord.value?.scrollIntoView({ block: 'start', behavior: 'auto' });
+}
 function toggle(id: number) {
   selected.value = selected.value.includes(id) ? selected.value.filter(n => n !== id) : [...selected.value, id];
 }
@@ -121,88 +149,137 @@ watch(
   () => {
     selected.value = [];
     notice.value = '';
-    limit.value = 50;
+    page.value = 1;
   },
 );
 onMounted(() => phone.refreshGenerationRecords());
 </script>
-<style scoped>
-.generation-records {
-  display: grid;
-  gap: 16px;
-  color: var(--wave-ink);
-}
-.generation-records .settings-card {
-  padding: 20px;
-  margin: 0;
-}
-p {
-  color: var(--wave-muted);
-  font-size: 12px;
-  line-height: 1.8;
-  overflow-wrap: anywhere;
-}
-.record-actions,
-.record-heading,
-.floor-pills,
-.module-pills {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.record-heading {
-  justify-content: space-between;
-  font-size: 14px;
-}
-.record-heading > span,
-small {
-  color: var(--wave-muted);
-  font-size: 11px;
-}
-.record-time {
-  font-size: 13px;
-  margin: 14px 0;
-  line-height: 1.6;
-}
-.system-action {
-  min-height: 44px;
-  padding: 10px 14px;
-  border: 1px solid var(--wave-line);
-  border-radius: 14px;
-  background: var(--wave-tint);
-  color: var(--wave-ink);
-  font-size: 13px;
-  cursor: pointer;
-}
-.primary,
-.floor-pills .selected {
-  background: var(--wave-blue);
-  color: white;
-}
-button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-.floor-pills {
-  margin-bottom: 14px;
-}
-.floor-pills button {
-  min-height: 40px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--wave-line);
-  background: var(--wave-tint);
-  color: var(--wave-ink);
-}
-.module-pills span {
-  background: var(--wave-tint);
-  border-radius: 8px;
-  padding: 5px 9px;
-  color: var(--wave-blue);
-  font-size: 12px;
-}
-.missing-card {
-  border: 1px solid var(--wave-line);
+<style scoped lang="scss">
+:global(#wave-phone-script-root) .wave-device {
+  .generation-records {
+    display: grid;
+    gap: 16px;
+    color: var(--wave-ink);
+  }
+  .generation-records .settings-card {
+    padding: 18px;
+    gap: 12px;
+    margin: 0;
+  }
+  p {
+    margin: 0;
+    color: var(--wave-muted);
+    font-size: 12px;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+  }
+  .record-actions,
+  .record-heading,
+  .floor-pills,
+  .module-pills {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .record-heading {
+    justify-content: space-between;
+    font-size: 14px;
+  }
+  .record-heading > span,
+  small {
+    color: var(--wave-muted);
+    font-size: 11px;
+  }
+  .record-time {
+    font-size: 13px;
+    margin: 0;
+    line-height: 1.6;
+  }
+  .system-action {
+    min-height: 44px;
+    padding: 10px 14px;
+    border: 1px solid var(--wave-line);
+    border-radius: 14px;
+    background: var(--wave-tint);
+    color: var(--wave-ink);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .primary,
+  .floor-pills .selected {
+    background: var(--wave-blue);
+    color: white;
+  }
+  button:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+  .floor-pills {
+    margin: 0;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 2px;
+  }
+  .floor-pills button {
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--wave-line);
+    background: var(--wave-tint);
+    color: var(--wave-ink);
+  }
+  .module-pills span {
+    background: var(--wave-tint);
+    border-radius: 8px;
+    padding: 5px 9px;
+    color: var(--wave-blue);
+    font-size: 12px;
+  }
+  .record-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .record-actions > button {
+    width: 100%;
+  }
+  .record-heading > strong {
+    line-height: 1.5;
+  }
+  .record-heading > strong > span {
+    margin-left: 6px;
+    font-size: 12px;
+    color: var(--settings-muted);
+  }
+  .record-card {
+    scroll-margin-top: 12px;
+  }
+  .record-card > .system-action {
+    margin-top: 2px;
+  }
+  .record-pagination {
+    display: grid;
+    gap: 10px;
+    padding: 8px 0 18px;
+  }
+  .page-summary {
+    text-align: center;
+    font-size: 12px;
+    color: var(--settings-muted);
+  }
+  .page-controls {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+  .page-controls > span {
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: var(--settings-muted);
+  }
+  .missing-card {
+    border: 1px solid var(--wave-line);
+  }
 }
 </style>
