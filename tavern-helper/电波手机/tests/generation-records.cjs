@@ -3,7 +3,7 @@ const fs = require('fs'),
   assert = require('node:assert/strict'),
   ts = require('typescript');
 const { JSDOM } = require('jsdom');
-const dom = new JSDOM('<div id="app"></div>', { url: 'http://localhost' });
+const dom = new JSDOM('<div id="wave-phone-script-root"><div class="wave-device"><div id="app"></div></div></div>', { url: 'http://localhost' });
 for (const key of [
   'window',
   'document',
@@ -186,6 +186,19 @@ const waitFor = async fn => {
   assert.equal(phone.generationRecords.find(r => r.floor === 4).missing.length, 0, '空结果也是已检查');
   await tick();
   assert(document.body.textContent.includes('生成记录'));
+  // Compile the SFC styles too: template-only tests miss broken scoped/global selectors.
+  const sfc = parse(fs.readFileSync(base + '/components/settings/WaveGenerationRecords.vue', 'utf8')).descriptor;
+  const styleBlock = sfc.styles[0];
+  const css = require('sass').compileString(styleBlock.content).css;
+  const compiled = require('vue/compiler-sfc').compileStyle({ source: css, filename: 'WaveGenerationRecords.vue', id: 'data-v-test', scoped: styleBlock.scoped });
+  assert.equal(compiled.errors.length, 0);
+  const style = document.createElement('style'); style.textContent = compiled.code; document.head.appendChild(style);
+  assert.equal(window.getComputedStyle(document.querySelector('.generation-records')).display, 'grid');
+  assert.equal(window.getComputedStyle(document.querySelector('.record-card')).paddingTop, '18px');
+  assert.equal(window.getComputedStyle(document.querySelector('.record-heading')).display, 'flex');
+  assert.equal(window.getComputedStyle(document.querySelector('.floor-pills button')).borderRadius, '12px');
+  assert.equal(window.getComputedStyle(document.querySelector('.page-controls')).display, 'grid');
+  assert.equal(window.getComputedStyle(document.querySelector('.page-controls button')).minHeight, '44px');
   HTMLElement.prototype.scrollIntoView = function () {};
   for (let i = 5; i < 25; i++) floors.push({ message_id: i, role: 'assistant', message: `分页楼层 ${i}` });
   phone.refreshGenerationRecords();

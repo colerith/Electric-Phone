@@ -101,9 +101,13 @@
     <nav v-if="rows.length" class="record-pagination" aria-label="生成记录分页">
       <div class="page-summary">共 {{ rows.length }} 楼 · 每页 10 楼</div>
       <div class="page-controls">
-        <button class="system-action" :disabled="page === 1" @click="changePage(page - 1)">上一页</button>
+        <button class="system-action" :disabled="page === 1" @click="changePage(page - 1)">
+          <i class="fa-solid fa-chevron-left" aria-hidden="true"></i><span>上一页</span>
+        </button>
         <span aria-live="polite">{{ page }} / {{ pageCount }}</span>
-        <button class="system-action" :disabled="page === pageCount" @click="changePage(page + 1)">下一页</button>
+        <button class="system-action" :disabled="page === pageCount" @click="changePage(page + 1)">
+          <span>下一页</span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+        </button>
       </div>
     </nav>
     <p v-if="!rows.length">当前聊天还没有可生成的正文楼层。</p>
@@ -154,14 +158,14 @@ watch(
 );
 onMounted(() => phone.refreshGenerationRecords());
 </script>
-<style scoped lang="scss">
-:global(#wave-phone-script-root) .wave-device {
-  .generation-records {
+<style lang="scss">
+#wave-phone-script-root .wave-device .generation-records {
+  & {
     display: grid;
     gap: 16px;
     color: var(--wave-ink);
   }
-  .generation-records .settings-card {
+  .settings-card {
     padding: 18px;
     gap: 12px;
     margin: 0;
@@ -260,7 +264,11 @@ onMounted(() => phone.refreshGenerationRecords());
   .record-pagination {
     display: grid;
     gap: 10px;
-    padding: 8px 0 18px;
+    padding: 16px;
+    margin: 0 0 12px;
+    border-radius: 18px;
+    background: var(--wave-card);
+    border: 1px solid var(--settings-line);
   }
   .page-summary {
     text-align: center;
@@ -270,8 +278,38 @@ onMounted(() => phone.refreshGenerationRecords());
   .page-controls {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
-    gap: 16px;
+    gap: 12px;
     align-items: center;
+  }
+  .page-controls > button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 8px;
+    background: var(--settings-control);
+    border: 1px solid var(--settings-line);
+    border-radius: 12px;
+    color: var(--settings-accent);
+    font-weight: 600;
+    transition:
+      background 0.15s,
+      opacity 0.15s;
+  }
+  .page-controls > button:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  .page-controls > button:not(:disabled):active {
+    transform: translateY(1px);
+  }
+  .page-controls > button:focus-visible {
+    outline: 2px solid var(--settings-accent);
+    outline-offset: 2px;
+  }
+  .page-controls > button i {
+    font-size: 11px;
   }
   .page-controls > span {
     font-size: 13px;
