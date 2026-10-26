@@ -33,6 +33,27 @@ export function repairSingleCardAliases(
   defaults: CharacterDefaults,
 ): boolean {
   if (runtime.isGroup || !runtime.cardKey.startsWith('character-file:')) return false;
+  let changed = false;
+  // Old multi-character detection marked the card's main identity as a placeholder.
+  // Restore only scoped singleton identities; never infer ownership from a display name.
+  for (const identity of Object.values(state.identities)) {
+    if (
+      identity.source !== 'temporary' ||
+      identity.actorType !== 'main' ||
+      !identity.name.startsWith('待迁移 · ') ||
+      !(identity.charKey === `single:${runtime.cardKey}` || /^single:(character:|avatar:)/.test(identity.charKey))
+    )
+      continue;
+    defaults.identityRecovery[`${state.chatKey}::restore-main::${identity.charKey}`] ??= klona({
+      state,
+      roster,
+      profiles,
+    });
+    identity.name = identity.name.replace(/^待迁移 · /, '');
+    identity.source = 'auto_single_card';
+    roster[identity.charKey] = klona(identity);
+    changed = true;
+  }
   const automatic = Object.values(state.identities).filter(
     identity =>
       ['auto_single_card', 'temporary'].includes(identity.source) &&
@@ -43,7 +64,6 @@ export function repairSingleCardAliases(
   const old = automatic.filter(identity => /^single:(character:|avatar:)/.test(identity.charKey));
   const fresh = automatic.find(identity => identity.charKey === `single:${runtime.cardKey}`);
   if (old.length === 1 && fresh) defaults.identityAliases[fresh.charKey] = old[0].charKey;
-  let changed = false;
   for (const [from, to] of Object.entries(defaults.identityAliases)) {
     const source = state.identities[from],
       target = state.identities[to];

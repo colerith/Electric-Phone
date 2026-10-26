@@ -1414,7 +1414,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
 
   function removeEmptySinglePlaceholder(nextState: ChatState): void {
     Object.values(nextState.identities).forEach(identity => {
-      if (identity.source !== 'auto_single_card') return;
+      // A real main character remains valid when other characters appear.
+      if (identity.source !== 'auto_single_card' || identity.actorType === 'main') return;
       const thread = Object.values(nextState.threads).find(item => item.charKey === identity.charKey);
       if (
         thread?.messages?.length ||
