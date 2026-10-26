@@ -1,5 +1,5 @@
 <template>
-  <section class="space-hole">
+  <section ref="viewRoot" class="space-hole">
     <WaveNpcProfile
       v-if="viewingPerson"
       npc-id=""
@@ -13,7 +13,14 @@
       <small>每日树洞 · {{ day }}</small>
       <label v-if="historyDays.length > 1" class="hole-history"
         ><i class="fa-regular fa-calendar" aria-hidden="true"></i><span>历史树洞</span
-        ><select v-model="day" aria-label="查看历史树洞">
+        ><select
+          v-model="day"
+          aria-label="查看历史树洞"
+          @change="
+            focusedPost = '';
+            postLimit = 20;
+          "
+        >
           <option v-for="date in historyDays" :key="date" :value="date">
             {{ date === treeHoleDay(new Date(messageClockTime(phone.settings.basic.systemClock))) ? '今天' : date }}
           </option>
@@ -36,7 +43,7 @@
       ><button type="submit" :disabled="!draft.trim()">匿名发布</button>
     </form>
     <p v-if="error" class="zone-error" role="status">{{ error }}</p>
-    <article v-for="post in posts" :key="post.id" class="space-hole-post" :data-hole-post="post.id">
+    <article v-for="post in visiblePosts" :key="post.id" class="space-hole-post" :data-hole-post="post.id">
       <header class="space-post-header">
         <WaveAnonymousAvatar :seed="post.mine ? anonymousProfile.anonymousAvatarSeed : `${day}:${post.alias}`" />
         <div class="space-post-author-details">
@@ -92,7 +99,20 @@
           </button>
         </div>
       </div>
-      <div v-for="comment in post.comments" :key="comment.id" class="space-comment" :data-hole-comment="comment.id">
+      <button
+        v-if="commentOffsets[post.id]"
+        type="button"
+        class="system-action"
+        @click="commentOffsets[post.id] = Math.max(0, commentOffsets[post.id] - 20)"
+      >
+        查看更早回应
+      </button>
+      <div
+        v-for="comment in visibleComments(post)"
+        :key="comment.id"
+        class="space-comment"
+        :data-hole-comment="comment.id"
+      >
         <WaveAnonymousAvatar
           :seed="isMine(comment) ? anonymousProfile.anonymousAvatarSeed : `${day}:${comment.alias}`"
         />
@@ -147,6 +167,14 @@
           </div>
         </div>
       </div>
+      <button
+        v-if="post.comments.length > (commentOffsets[post.id] || 0) + (commentLimits[post.id] || 20)"
+        type="button"
+        class="system-action"
+        @click="commentLimits[post.id] = (commentLimits[post.id] || 20) + 20"
+      >
+        加载更多回应
+      </button>
       <form v-if="commenting === post.id" class="moment-comment-form" @submit.prevent="sendComment(post.id)">
         <div v-if="replyTo" class="hole-reply-target">
           <i class="fa-solid fa-reply"></i><span>回复</span><strong>{{ replyTo }}</strong
@@ -166,6 +194,15 @@
         </button>
       </form>
     </article>
+    <button
+      v-if="!focusedPost && posts.length > postLimit"
+      type="button"
+      class="system-action"
+      @click="postLimit += 20"
+    >
+      加载更多动态
+    </button>
+    <p v-if="focusedPost && !visiblePosts.length" class="messenger-empty">这条动态已删除或尚未发布。</p>
     <p v-if="!posts.length" class="messenger-empty">今天的树洞还很安静，留下第一句回声吧。</p>
   </section>
 </template>
@@ -177,6 +214,12 @@ import WaveAnonymousAvatar from './WaveAnonymousAvatar.vue';
 import WaveNpcProfile from './WaveNpcProfile.vue';
 import { anonymousAvatarUrl, dailyTopic, treeHoleDay } from '../../services/space/tree-hole';
 import WaveDeleteConfirm from '../shared/WaveDeleteConfirm.vue';
+const props = defineProps<{ target?: { day: string; postId: string; commentId: string } | null }>();
+const viewRoot = ref<HTMLElement | null>(null);
+const focusedPost = ref(props.target?.postId || '');
+const postLimit = ref(20);
+const commentLimits = ref<Record<string, number>>({});
+const commentOffsets = ref<Record<string, number>>({});
 const emit = defineEmits<{ share: [post: MomentPost, author: string] }>();
 function share(post: ReturnType<typeof phone.treeHoleFeed>[number]) {
   const author = post.mine ? anonymousProfile.value.anonymousId : post.alias;
@@ -199,15 +242,27 @@ function showPerson(name: string, seed: string): void {
   viewingPerson.value = { name, avatar: anonymousAvatarUrl(seed) };
 }
 function back(): boolean {
-  if (!viewingPerson.value) return false;
+  if (!viewingPerson.value) {
+    if (focusedPost.value) {
+      focusedPost.value = '';
+      return true;
+    }
+    return false;
+  }
   viewingPerson.value = null;
   return true;
 }
 async function openPost(date: string, postId: string, commentId = '') {
+  focusedPost.value = postId;
   day.value = date;
+  const post = posts.value.find(item => item.id === postId);
+  if (commentId && post) {
+    const index = post.comments.findIndex(comment => comment.id === commentId);
+    if (index >= 0) commentOffsets.value[postId] = Math.max(0, index - 5);
+  }
   await nextTick();
   const selector = commentId ? '[data-hole-comment]' : '[data-hole-post]';
-  const root = document.querySelector('.space-hole');
+  const root = viewRoot.value;
   const target = Array.from(root?.querySelectorAll<HTMLElement>(selector) || []).find(node =>
     commentId ? node.dataset.holeComment === commentId : node.dataset.holePost === postId,
   );
@@ -247,7 +302,7 @@ watch(
     phone.ensureAnonymousProfile();
   },
 );
-const day = ref(treeHoleDay(new Date(messageClockTime(phone.settings.basic.systemClock)))),
+const day = ref(props.target?.day || treeHoleDay(new Date(messageClockTime(phone.settings.basic.systemClock)))),
   draft = ref(''),
   reply = ref(''),
   replyTo = ref(''),
@@ -271,6 +326,22 @@ const topic = computed(
   () => phone.state.treeHole[day.value]?.topic || dailyTopic(day.value, phone.context?.cardKey || ''),
 );
 const posts = computed(() => [...phone.treeHoleFeed(day.value, now.value)].reverse());
+const visiblePosts = computed(() =>
+  focusedPost.value ? posts.value.filter(post => post.id === focusedPost.value) : posts.value.slice(0, postLimit.value),
+);
+function visibleComments(post: ReturnType<typeof phone.treeHoleFeed>[number]) {
+  const start = commentOffsets.value[post.id] || 0;
+  return post.comments.slice(start, start + (commentLimits.value[post.id] || 20));
+}
+watch(
+  day,
+  () => {
+    postLimit.value = 20;
+    commentLimits.value = {};
+    commentOffsets.value = {};
+  },
+  { flush: 'sync' },
+);
 let timer: ReturnType<typeof setTimeout> | undefined;
 function tick() {
   clearTimeout(timer);

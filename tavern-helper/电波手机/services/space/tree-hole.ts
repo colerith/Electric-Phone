@@ -202,8 +202,9 @@ export function prepareTreeHoleActivity(
 }
 export function treeHoleFeed(daily: z.infer<typeof TreeHoleStateSchema>[string], now = Date.now()) {
   if (!daily.activity) return daily.posts.map(post => ({ ...post, likeCount: Number(post.liked) }));
+  const currentPostIds = new Set(daily.activity.posts.map(post => post.id));
   const legacyPosts = daily.posts
-    .filter(post => !daily.activity!.posts.some(current => current.id === post.id))
+    .filter(post => !currentPostIds.has(post.id))
     .map(post =>
       MomentPostSchema.parse({
         id: post.id,
@@ -234,6 +235,17 @@ export function treeHoleFeed(daily: z.infer<typeof TreeHoleStateSchema>[string],
         }),
       );
     }
+  const likesByPost = new Map<string, number>();
+  const commentsByPost = new Map<string, typeof feed.comments>();
+  const liked = new Set(daily.activity.likes);
+  for (const like of feed.likes)
+    if (like.availableAt <= now) likesByPost.set(like.postId, (likesByPost.get(like.postId) || 0) + 1);
+  for (const comment of feed.comments)
+    if (comment.availableAt <= now) {
+      const list = commentsByPost.get(comment.postId) || [];
+      list.push(comment);
+      commentsByPost.set(comment.postId, list);
+    }
   return feed.posts
     .sort((a, b) => a.createdAt - b.createdAt)
     .filter(post => post.availableAt <= now)
@@ -244,18 +256,16 @@ export function treeHoleFeed(daily: z.infer<typeof TreeHoleStateSchema>[string],
       translation: post.translation,
       createdAt: post.createdAt,
       mine: post.authorKey === 'user',
-      liked: daily.activity!.likes.includes(post.id),
-      likeCount: feed.likes.filter(like => like.postId === post.id && like.availableAt <= now).length,
-      comments: feed.comments
-        .filter(comment => comment.postId === post.id && comment.availableAt <= now)
-        .map(comment => ({
-          id: comment.id,
-          alias: comment.authorName,
-          content: comment.content,
-          translation: comment.translation,
-          createdAt: comment.createdAt,
-          replyTo: comment.replyToAuthorName,
-          mine: comment.authorKey === 'user',
-        })),
+      liked: liked.has(post.id),
+      likeCount: likesByPost.get(post.id) || 0,
+      comments: (commentsByPost.get(post.id) || []).map(comment => ({
+        id: comment.id,
+        alias: comment.authorName,
+        content: comment.content,
+        translation: comment.translation,
+        createdAt: comment.createdAt,
+        replyTo: comment.replyToAuthorName,
+        mine: comment.authorKey === 'user',
+      })),
     }));
 }

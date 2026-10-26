@@ -484,8 +484,16 @@
                 </button></template
               >
             </div>
+            <button
+              v-if="commentOffsets[post.id]"
+              type="button"
+              class="system-action"
+              @click="commentOffsets[post.id] = Math.max(0, commentOffsets[post.id] - 20)"
+            >
+              查看更早评论
+            </button>
             <div
-              v-for="comment in commentsFor(post.id)"
+              v-for="comment in visibleComments(post.id)"
               :key="comment.id"
               class="moment-comment-row space-comment"
               :class="{ 'comment-jump-target': comment.id === openedCommentId }"
@@ -553,6 +561,14 @@
                 </div>
               </div>
             </div>
+            <button
+              v-if="commentsFor(post.id).length > (commentOffsets[post.id] || 0) + (commentLimits[post.id] || 20)"
+              type="button"
+              class="system-action"
+              @click="commentLimits[post.id] = (commentLimits[post.id] || 20) + 20"
+            >
+              加载更多评论
+            </button>
           </div>
           <form v-if="commenting === post.id" class="moment-comment-form" @submit.prevent="sendComment(post.id)">
             <div v-if="replyingComment" class="moment-reply-target">
@@ -960,6 +976,8 @@ async function openCommentPost(postId: string, commentId: string) {
   clearTimeout(commentHighlightTimer);
   openedCommentPost.value = postId;
   openedCommentId.value = commentId;
+  commentOffsets.value[postId] = Math.max(0, commentsFor(postId).findIndex(item => item.id === commentId) - 5);
+  commentLimits.value[postId] = 20;
   await nextTick();
   const target = Array.from(viewRoot.value?.querySelectorAll<HTMLElement>('[data-comment-id]') || []).find(
     node => node.dataset.commentId === commentId,
@@ -1051,6 +1069,12 @@ function legacyTitle(post: MomentPost): string {
 }
 function likesFor(id: string) {
   return interactionIndex.value.likes.get(id) || [];
+}
+const commentOffsets = ref<Record<string, number>>({});
+const commentLimits = ref<Record<string, number>>({});
+function visibleComments(id: string) {
+  const offset = commentOffsets.value[id] || 0;
+  return commentsFor(id).slice(offset, offset + (commentLimits.value[id] || 20));
 }
 function commentsFor(id: string) {
   return interactionIndex.value.comments.get(id) || [];
