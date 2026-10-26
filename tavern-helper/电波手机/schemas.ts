@@ -18,7 +18,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.3.54-beta.28';
+export const WAVE_PHONE_RELEASE_VERSION = '1.3.54-beta.29';
 export const WAVE_PHONE_RELEASE_DATE = '2026.10.26';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
@@ -527,11 +527,21 @@ export const ModelMessageSchema = z
     actorKey: z.string().optional(),
     actor_key: z.string().optional(),
     actorName: z.string().optional(),
+    author: z.string().optional(),
+    authorKey: z.string().optional(),
+    char_id: z.string().optional(),
+    translation: z.string().optional(),
+    time: z.string().optional(),
     payload: z.record(z.string(), z.unknown()).prefault({}),
   })
-  .transform(({ actorKey, actor_key, actorName, ...message }) => ({
+  .transform(({ actorKey, actor_key, actorName, author, authorKey, char_id, translation, time, ...message }) => ({
     ...message,
     payload: {
+      ...(authorKey ? { actorKey: authorKey } : {}),
+      ...(author ? { actorName: author.replace(/^待迁移 · /, '') } : {}),
+      ...(char_id ? { conversationId: char_id } : {}),
+      ...(translation ? { translation } : {}),
+      ...(time ? { storyTime: time } : {}),
       ...(actorKey ? { actorKey } : {}),
       ...(actor_key ? { actor_key } : {}),
       ...(actorName ? { actorName } : {}),

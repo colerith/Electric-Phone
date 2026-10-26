@@ -1575,7 +1575,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         ? await cachedParse(
             runtime.cardKey,
             runtime.chatKey,
-            await chatParseSignature(JSON.stringify([runtime.cardKey, runtime.chatKey]), assistantMessages),
+            await chatParseSignature(
+              JSON.stringify([runtime.cardKey, runtime.chatKey, 'message-routing-v2']),
+              assistantMessages,
+            ),
             settings.value.basic.cacheLimitMb,
             parse,
             validatePhoneBlocks,
@@ -1662,7 +1665,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           if (block.name || block.stableId) {
             identity = {
               ...identity,
-              name: block.name || identity.name,
+              name: block.name.replace(/^待迁移 · /, '') || identity.name,
               stableId: identity.stableId || block.stableId,
               idAliases: [...new Set([...(identity.idAliases || []), block.stableId].filter(Boolean))],
               nameAliases: [...new Set([...(identity.nameAliases || []), identity.name, block.name].filter(Boolean))],
@@ -1768,27 +1771,37 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           );
         if (block.delta) {
           const thread = ensureThread(nextState, runtime, identity);
-          if (block.messageId <= thread.displayFloorCutoff) return;
-          applyPaymentActions(
-            thread.messages,
-            block.delta.payment_actions?.map(action => ({
-              ...action,
-              actor_key: findIdentityById(nextState, action.actor_key || '')?.charKey || action.actor_key,
-            })),
-            identity.source === 'local_group'
-              ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
-              : [identity.charKey],
-            identity.source === 'local_group',
-            new Date(messageClockTime(settings.value.basic.systemClock)).toISOString(),
-          );
-          applyCharacterReactions(
-            thread.messages,
-            block.delta.reactions,
-            identity.source === 'local_group'
-              ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
-              : [identity.charKey],
-          );
+          if (block.messageId > thread.displayFloorCutoff) {
+            applyPaymentActions(
+              thread.messages,
+              block.delta.payment_actions?.map(action => ({
+                ...action,
+                actor_key: findIdentityById(nextState, action.actor_key || '')?.charKey || action.actor_key,
+              })),
+              identity.source === 'local_group'
+                ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
+                : [identity.charKey],
+              identity.source === 'local_group',
+              new Date(messageClockTime(settings.value.basic.systemClock)).toISOString(),
+            );
+            applyCharacterReactions(
+              thread.messages,
+              block.delta.reactions,
+              identity.source === 'local_group'
+                ? (identity.memberKeys || []).filter(key => !identity.groupMembers?.[key]?.muted)
+                : [identity.charKey],
+            );
+          }
+          const blockIdentity = identity;
           block.delta.messages.forEach((message, index) => {
+            const destination = String(message.payload.conversationId || '');
+            const identity = destination ? findIdentityById(nextState, destination) : blockIdentity;
+            if (!identity) {
+              logDiagnostic('消息归属未匹配', `第 ${block.messageId} 楼 · 目标 ${destination}，保留原楼层等待匹配`);
+              return;
+            }
+            const thread = ensureThread(nextState, runtime, identity);
+            if (block.messageId <= thread.displayFloorCutoff) return;
             const originalMessage = message;
             if (identity.source === 'local_group' && message.sender === 'char') {
               try {
@@ -1799,7 +1812,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
                     actorKey: resolveGroupActor(identity, nextState.identities, message.payload),
                   },
                 };
-              } catch {
+              } catch (error) {
+                logDiagnostic('群消息发言人未匹配', `第 ${block.messageId} 楼 · ${String(error)}`);
                 return;
               }
             }

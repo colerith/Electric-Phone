@@ -38,7 +38,7 @@ export function repairSingleCardAliases(
   // Restore only scoped singleton identities; never infer ownership from a display name.
   for (const identity of Object.values(state.identities)) {
     if (
-      identity.source !== 'temporary' ||
+      !['temporary', 'auto_single_card', 'parsed'].includes(identity.source) ||
       identity.actorType !== 'main' ||
       !identity.name.startsWith('待迁移 · ') ||
       !(identity.charKey === `single:${runtime.cardKey}` || /^single:(character:|avatar:)/.test(identity.charKey))
@@ -50,7 +50,7 @@ export function repairSingleCardAliases(
       profiles,
     });
     identity.name = identity.name.replace(/^待迁移 · /, '');
-    identity.source = 'auto_single_card';
+    if (identity.source === 'temporary') identity.source = 'auto_single_card';
     roster[identity.charKey] = klona(identity);
     changed = true;
   }

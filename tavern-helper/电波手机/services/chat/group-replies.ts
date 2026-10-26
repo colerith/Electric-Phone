@@ -11,6 +11,7 @@ export function resolveGroupActor(
   const keys = (group.memberKeys || []).filter(key => Boolean(identities[key]));
   const matches = supplied.map(value => {
     if (keys.includes(value)) return [value];
+    const npcName = value.startsWith('npc:') && !identities[value] ? value.slice(4) : '';
     return keys.filter(key =>
       [
         identities[key].stableId,
@@ -19,7 +20,7 @@ export function resolveGroupActor(
         identities[key].name,
         identities[key].remark,
         group.groupMembers?.[key]?.nickname,
-      ].includes(value),
+      ].some(alias => alias === value || (npcName && alias === npcName)),
     );
   });
   if (!supplied.length) throw Error('缺少发言者 payload.actorKey');
