@@ -316,11 +316,28 @@ function removeAccount(): void {
 }
 </script>
 <style scoped>
+#wave-phone-script-root .wave-device .wallet-currency-migration > .wallet-account-action {
+  min-height: 44px;
+  margin: 0;
+  border: 1px solid var(--settings-line);
+  background: var(--settings-control);
+  color: var(--settings-accent);
+  box-shadow: none;
+  font: 600 14px/1.5 var(--wave-ui-font);
+}
+#wave-phone-script-root .wave-device .wallet-currency-migration > .wallet-account-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+#wave-phone-script-root .wave-device .wallet-currency-migration > .wallet-account-action:focus-visible {
+  outline: 2px solid var(--settings-accent);
+  outline-offset: 2px;
+}
 .wallet-currency-migration {
   display: grid;
   gap: 12px;
   padding: 16px 0;
-  border-block: 1px solid var(--settings-border);
+  border-block: 1px solid var(--settings-line);
 }
 .wallet-workspace {
   color: var(--wave-ink, #374558);
