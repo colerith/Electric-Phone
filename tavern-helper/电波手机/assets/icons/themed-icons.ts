@@ -1,5 +1,6 @@
 import { staticResource } from '../../services/core/static-resource';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
+import { warmImages } from '../../services/core/image-cache';
 import { usePhoneTheme } from '../../services/core/theme';
 import type { PhoneTheme } from '../../services/core/theme';
 import { appIcons } from './app-icons';
@@ -36,8 +37,16 @@ const darkIcons: Record<string, string> = {
 /** Shared by the desktop, Dock and appearance preview. Custom artwork always wins. */
 export function useAppIcons(preference: () => PhoneTheme, customIcons: () => Record<string, string>) {
   const theme = usePhoneTheme(preference);
-  return computed(() => ({
+  const icons = computed(() => ({
     ...(theme.value === 'dark' ? darkIcons : lightIcons),
     ...Object.fromEntries(Object.entries(customIcons()).filter(([, url]) => Boolean(url))),
   }));
+  watch(
+    icons,
+    values => {
+      void warmImages(Object.values(values));
+    },
+    { immediate: true },
+  );
+  return icons;
 }

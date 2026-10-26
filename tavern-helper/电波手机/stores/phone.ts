@@ -2308,6 +2308,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       canInjectPhonePrompts,
     );
     await synchronize();
+    if (syncDisposed) return;
     disposeHeartbeat?.();
     let stopClock: (() => void) | undefined;
     const stopHeartbeatWatch = watch(

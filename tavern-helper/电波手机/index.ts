@@ -48,7 +48,10 @@ export function openPhone(): void {
   if (activePinia) usePhoneStore(activePinia).isOpen = true;
 }
 
-export async function initialize(onStage: (stage: string) => void = () => {}): Promise<void> {
+export async function initialize(
+  onStage: (stage: string) => void = () => {},
+  isEnabled: () => boolean = () => true,
+): Promise<void> {
   if (
     !isExtensionRuntime &&
     window.parent.document.querySelector('#wave-phone-script-root[data-wave-runtime="extension"]')
@@ -58,6 +61,7 @@ export async function initialize(onStage: (stage: string) => void = () => {}): P
   }
   onStage('读取服务器存档');
   await preparePhoneStorage();
+  if (!isEnabled()) return;
   onStage('创建手机界面');
   cleanup();
   const $root = createScriptIdDiv().attr('id', ROOT_ID);

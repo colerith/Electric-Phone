@@ -1,7 +1,7 @@
 <template>
   <span :class="['wave-group-avatar-grid', `members-${cells.length}`]" role="img" aria-label="群成员组合头像">
     <span v-for="(member, index) in cells" :key="member?.key || `empty-${index}`" class="wave-group-avatar-cell">
-      <img
+      <WaveCachedImage
         v-if="member?.avatar && !failed[member.avatar]"
         :src="member.avatar"
         :style="member.style"
@@ -13,6 +13,7 @@
   </span>
 </template>
 <script setup lang="ts">
+import WaveCachedImage from './WaveCachedImage.vue';
 import { computed, reactive } from 'vue';
 import type { Identity } from '../../schemas';
 import { usePhoneStore } from '../../stores/phone';

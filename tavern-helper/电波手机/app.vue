@@ -3157,9 +3157,11 @@ watch(
   },
 );
 
+let phoneUnmounted = false;
 onMounted(async () => {
   systemClock.start(window.parent);
   await store.initialize();
+  if (phoneUnmounted) return;
   refreshUserProfile();
   personaEvents.push(eventOn('persona_changed', (avatarId: string) => refreshUserProfile(avatarId)));
   personaEvents.push(eventOn(tavern_events.SETTINGS_UPDATED, () => refreshUserProfile()));
@@ -3171,6 +3173,7 @@ onMounted(async () => {
   );
 });
 onUnmounted(() => {
+  phoneUnmounted = true;
   cancelAnimationFrame(threadMeasureFrame);
   cancelAvatarHome();
   cancelAvatarHome();

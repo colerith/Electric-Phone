@@ -1,3 +1,4 @@
+import { phoneActivitySignal } from '../core/phone-activity';
 import { expandTavernMacros } from '../core/tavern-macros';
 import { searchChatContext } from '../web-tools';
 import { sampleImageCounts } from '../space/image-plan';
@@ -119,7 +120,14 @@ async function requestConfigured<T>(
     webSearchQuery?: string;
   },
 ): Promise<T> {
+  const activity = phoneActivitySignal();
   const request = { cancelled: false, backendId: generationId, webAbort: new AbortController() };
+  const stopForDisable = () => {
+    request.cancelled = true;
+    request.webAbort.abort();
+    void stopPhoneGeneration(generationId).catch(() => {});
+  };
+  activity.addEventListener('abort', stopForDisable, { once: true });
   let stage: RequestStage = '配置检查';
   let attempt = 0;
   let attemptStarted = Date.now();
@@ -281,6 +289,7 @@ async function requestConfigured<T>(
     if (!failureLogged) throw Error(reportFailure(error).detail);
     throw error;
   } finally {
+    activity.removeEventListener('abort', stopForDisable);
     if (runningRequests.get(generationId) === request) runningRequests.delete(generationId);
   }
 }

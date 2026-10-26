@@ -1,3 +1,4 @@
+import { phoneActivitySignal } from '../core/phone-activity';
 import { browserUuid } from '../core/browser-crypto';
 import { expandTavernMacros } from '../core/tavern-macros';
 import { storeResource, resourceEncoding } from '../core/resource-storage';
@@ -152,6 +153,7 @@ export async function generateImage(
   prompt: string,
   signal: AbortSignal,
 ): Promise<string> {
+  signal = AbortSignal.any([signal, phoneActivitySignal()]);
   const checked = (response: Response) => checkImageResponse(response, profile.apiKey);
   if (!character.enabled) throw Error('请先启用当前角色的生图');
   validateImageProfile(profile, true);

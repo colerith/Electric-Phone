@@ -20,7 +20,7 @@
           </button>
         </aside>
         <div class="portrait-cover">
-          <img
+          <WaveCachedImage
             v-if="phone.settings.appearance.coverWallpaper || cover"
             class="portrait-image"
             :src="phone.settings.appearance.coverWallpaper || cover"
@@ -55,10 +55,10 @@
             <div v-if="!query" class="ios-anniversary-widget">
               <div class="anniversary-portraits" aria-label="我和你一起听">
                 <div class="anniversary-avatar">
-                  <img v-if="userAvatar" :src="userAvatar" alt="我" /><span v-else>我</span>
+                  <WaveCachedImage v-if="userAvatar" :src="userAvatar" alt="我" /><span v-else>我</span>
                 </div>
                 <div class="anniversary-avatar">
-                  <img
+                  <WaveCachedImage
                     v-if="anniversaryCharacter?.avatar || (!anniversaryCharacter && cover)"
                     :src="anniversaryCharacter?.avatar || cover"
                     :style="identityAvatarStyle(anniversaryCharacter)"
@@ -152,7 +152,7 @@
               @click="$emit('open', app.id)"
             >
               <span
-                ><img :src="appIcons[app.id]" alt="" /><b
+                ><WaveCachedImage :src="appIcons[app.id]" alt="" /><b
                   v-if="app.id === 'messages' && unread"
                   class="ios-unread-badge"
                   >{{ unread > 99 ? '99+' : unread }}</b
@@ -172,7 +172,7 @@
             :aria-label="phone.settings.appearance.iconNames.settings || '设置'"
             @click="$emit('settings')"
           >
-            <span><img :src="appIcons.settings" alt="" /></span>
+            <span><WaveCachedImage :src="appIcons.settings" alt="" /></span>
           </button>
           <button
             class="ios-app-icon"
@@ -180,7 +180,7 @@
             :aria-label="phone.settings.appearance.iconNames.appearance || '外观'"
             @click="$emit('appearance')"
           >
-            <span><img :src="appIcons.appearance" alt="" /></span>
+            <span><WaveCachedImage :src="appIcons.appearance" alt="" /></span>
           </button>
           <button
             class="ios-app-icon"
@@ -189,7 +189,7 @@
             title="推特 · 开发中"
             @click="showTwitterPlaceholder"
           >
-            <span><img :src="appIcons.twitter" alt="" /></span>
+            <span><WaveCachedImage :src="appIcons.twitter" alt="" /></span>
           </button>
           <button
             type="button"
@@ -197,7 +197,7 @@
             :aria-label="phone.settings.appearance.iconNames.presets || '预设'"
             @click="$emit('presets')"
           >
-            <span><img :src="appIcons.presets" alt="" /></span>
+            <span><WaveCachedImage :src="appIcons.presets" alt="" /></span>
           </button>
         </nav>
       </div>
@@ -215,6 +215,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import WaveCachedImage from '../shared/WaveCachedImage.vue';
 import { identityAvatarStyle } from '../../services/core/avatar';
 function showTwitterPlaceholder() {
   toastr.info('推特暂为占位，敬请期待');
@@ -305,7 +306,11 @@ watch(
   { immediate: true },
 );
 function imageFailed(event: Event) {
-  if ((event.target as HTMLImageElement).getAttribute('src') !== cover.value) return;
+  if (
+    ((event.target as HTMLImageElement).dataset.sourceSrc || (event.target as HTMLImageElement).getAttribute('src')) !==
+    cover.value
+  )
+    return;
   if (cover.value !== fallback.value) cover.value = fallback.value;
   else cover.value = '';
 }

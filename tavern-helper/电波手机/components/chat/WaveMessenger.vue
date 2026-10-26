@@ -19,7 +19,9 @@
     <div class="messenger-scroll">
       <div v-if="tab === 'messages'" class="messenger-profile">
         <span class="messenger-avatar large"
-          ><img v-if="userAvatar" :src="userAvatar" alt="" /><span v-else>{{ userName.slice(0, 1) }}</span></span
+          ><WaveCachedImage v-if="userAvatar" :src="userAvatar" alt="" /><span v-else>{{
+            userName.slice(0, 1)
+          }}</span></span
         >
         <div>
           <strong>{{ userName }}</strong
@@ -75,7 +77,7 @@
               @keydown.delete.prevent="revealed = row.identity.charKey"
             >
               <span class="messenger-avatar"
-                ><img
+                ><WaveCachedImage
                   v-if="row.identity.avatar"
                   :src="row.identity.avatar"
                   alt=""
@@ -143,10 +145,12 @@
                 @keydown.delete.prevent="revealed = contact.charKey"
               >
                 <span class="messenger-avatar"
-                  ><img v-if="contact.avatar" :src="contact.avatar" alt="" :style="avatarStyle(contact)" /><span
-                    v-else
-                    >{{ contact.name.slice(0, 1) }}</span
-                  ></span
+                  ><WaveCachedImage
+                    v-if="contact.avatar"
+                    :src="contact.avatar"
+                    alt=""
+                    :style="avatarStyle(contact)"
+                  /><span v-else>{{ contact.name.slice(0, 1) }}</span></span
                 ><span class="messenger-row-copy"
                   ><strong>{{ displayIdentityName(contact) }}</strong
                   ><small>{{ contact.about || '点击发起聊天' }}</small></span
@@ -362,6 +366,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import WaveCachedImage from '../shared/WaveCachedImage.vue';
 import { decodePersonaPng } from '../../services/chat/persona-card';
 import { readWorldbookEntries, type ReadableWorldbookEntry } from '../../services/generation/worldbook-reader';
 import { identityAvatarStyle as avatarStyle } from '../../services/core/avatar';
