@@ -18,7 +18,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.3.54-beta.29';
+export const WAVE_PHONE_RELEASE_VERSION = '1.3.54-beta.30';
 export const WAVE_PHONE_RELEASE_DATE = '2026.10.26';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
@@ -527,6 +527,8 @@ export const ModelMessageSchema = z
     actorKey: z.string().optional(),
     actor_key: z.string().optional(),
     actorName: z.string().optional(),
+    char_name: z.string().optional(),
+    group_name: z.string().optional(),
     author: z.string().optional(),
     authorKey: z.string().optional(),
     char_id: z.string().optional(),
@@ -534,41 +536,57 @@ export const ModelMessageSchema = z
     time: z.string().optional(),
     payload: z.record(z.string(), z.unknown()).prefault({}),
   })
-  .transform(({ actorKey, actor_key, actorName, author, authorKey, char_id, translation, time, ...message }) => ({
-    ...message,
-    payload: {
-      ...(authorKey ? { actorKey: authorKey } : {}),
-      ...(author ? { actorName: author.replace(/^待迁移 · /, '') } : {}),
-      ...(char_id ? { conversationId: char_id } : {}),
-      ...(translation ? { translation } : {}),
-      ...(time ? { storyTime: time } : {}),
-      ...(actorKey ? { actorKey } : {}),
-      ...(actor_key ? { actor_key } : {}),
-      ...(actorName ? { actorName } : {}),
-      ...message.payload,
-      ...(['red_packet', 'transfer'].includes(message.type) ? { paymentLedgerVersion: 1 } : {}),
-      ...(message.type === 'transfer'
-        ? {
-            state: 'pending',
-            claims: [],
-            claimedCount: 0,
-            claimedAmount: 0,
-            userPaymentDecision: '',
-            userReceivedAmount: undefined,
-          }
-        : {}),
-      ...(message.type === 'red_packet'
-        ? {
-            state: message.payload.packetType === 'group' ? 'group_available' : 'pending',
-            claimedCount: 0,
-            claimedAmount: 0,
-            claims: [],
-            userPaymentDecision: '',
-            userReceivedAmount: undefined,
-          }
-        : {}),
-    } as Record<string, unknown>,
-  }));
+  .transform(
+    ({
+      actorKey,
+      actor_key,
+      actorName,
+      author,
+      authorKey,
+      char_id,
+      char_name,
+      group_name,
+      translation,
+      time,
+      ...message
+    }) => ({
+      ...message,
+      payload: {
+        ...(authorKey ? { actorKey: authorKey } : {}),
+        ...(author ? { actorName: author.replace(/^待迁移 · /, '') } : {}),
+        ...(char_id ? { conversationId: char_id } : {}),
+        ...(group_name ? { conversationType: 'group' } : {}),
+        ...(group_name || char_name ? { conversationName: group_name || char_name } : {}),
+        ...(translation ? { translation } : {}),
+        ...(time ? { storyTime: time } : {}),
+        ...(actorKey ? { actorKey } : {}),
+        ...(actor_key ? { actor_key } : {}),
+        ...(actorName ? { actorName } : {}),
+        ...message.payload,
+        ...(['red_packet', 'transfer'].includes(message.type) ? { paymentLedgerVersion: 1 } : {}),
+        ...(message.type === 'transfer'
+          ? {
+              state: 'pending',
+              claims: [],
+              claimedCount: 0,
+              claimedAmount: 0,
+              userPaymentDecision: '',
+              userReceivedAmount: undefined,
+            }
+          : {}),
+        ...(message.type === 'red_packet'
+          ? {
+              state: message.payload.packetType === 'group' ? 'group_available' : 'pending',
+              claimedCount: 0,
+              claimedAmount: 0,
+              claims: [],
+              userPaymentDecision: '',
+              userReceivedAmount: undefined,
+            }
+          : {}),
+      } as Record<string, unknown>,
+    }),
+  );
 
 export const ModelReactionsSchema = z
   .array(z.object({ message_id: z.string(), emoji: z.string().max(32), actor_key: z.string().optional() }))

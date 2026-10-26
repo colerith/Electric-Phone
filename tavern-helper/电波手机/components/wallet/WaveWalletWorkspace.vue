@@ -43,6 +43,16 @@
         <p class="chat-settings-note">
           每个币种独立记账，不自动换汇。角色与共享账户未填余额时，首次生成会按人设补全剧情初始余额；我的私人账户由你填写。
         </p>
+        <div v-if="migrationOptions.length" class="wallet-currency-migration">
+          <div class="wave-settings-title">迁移旧币种记录</div>
+          <WaveSelect v-model="migrationSource" :options="migrationOptions" aria-label="原记账币种" />
+          <p class="chat-settings-note">
+            将所选旧币种的流水和期初余额合并至 {{ draft.currency }}。金额数字保持不变，不按汇率换算；其他账户不受影响。
+          </p>
+          <button type="button" class="wallet-account-action" :disabled="!migrationSource" @click="migrateCurrency">
+            一键迁移至 {{ draft.currency }}
+          </button>
+        </div>
         <label>银行名称<input v-model="draft.bankName" maxlength="80" placeholder="例如：日常储蓄卡" /></label>
         <div class="wallet-account-pair">
           <label>卡片备注<input v-model="draft.cardLabel" maxlength="80" placeholder="工资卡 / 生活卡" /></label>
@@ -126,11 +136,11 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { useSettingsForm } from '../../services/core/settings-forms';
 import { usePhoneStore } from '../../stores/phone';
 import { identityAvatarStyle } from '../../services/core/avatar';
-import { accountWallet, currencies } from '../../services/wallet/wallet-accounts';
+import { accountRows, accountWallet, currencies } from '../../services/wallet/wallet-accounts';
 import WaveSelect from '../shared/WaveSelect.vue';
 import WaveWalletPanel from './WaveWalletPanel.vue';
 const props = defineProps<{ mode: 'mine' | 'app' | 'settings'; artwork?: string; userAvatar?: string }>();
@@ -175,8 +185,40 @@ const sharedOptions = computed(() => [
     .map(a => ({ value: a.id, label: a.name })),
 ]);
 const currencyOptions = currencies.map(value => ({ value, label: value }));
-let markWalletSaved = () => {};
 const draft = reactive({ name: '', currency: 'CNY', balance: '', bankName: '', cardLabel: '', cardLastFour: '' });
+const migrationSource = ref('');
+const migrationOptions = computed(() => {
+  if (!account.value) return [];
+  return [
+    ...new Set([
+      ...Object.keys(account.value.opening),
+      ...accountRows(phone.state.walletBook, account.value).map(row => row.currency),
+    ]),
+  ]
+    .filter(currency => currency !== draft.currency)
+    .map(currency => ({ value: currency, label: currency }));
+});
+watch(migrationOptions, options => {
+  if (!options.some(option => option.value === migrationSource.value)) migrationSource.value = options[0]?.value || '';
+});
+async function migrateCurrency(): Promise<void> {
+  if (!account.value || !migrationSource.value) return;
+  const id = account.value.id,
+    from = migrationSource.value,
+    to = draft.currency;
+  if (!save()) return;
+  try {
+    const count = phone.migrateWalletCurrency(id, from, to);
+    await nextTick();
+    draft.balance =
+      accountWallet(phone.state.walletBook, phone.state.walletBook.accounts[id]).balance?.toString() || '';
+    feedback.value = `已迁移 ${count} 条流水：${from} → ${to}，金额数字不变`;
+    walletForm.markSaved();
+  } catch (error) {
+    feedback.value = String(error);
+  }
+}
+let markWalletSaved = () => {};
 watch(
   () => [phone.state.activeCharKey, props.mode, accounts.value.map(a => a.id).join('|'), phone.walletSelectedAccountId],
   () => {
@@ -274,6 +316,12 @@ function removeAccount(): void {
 }
 </script>
 <style scoped>
+.wallet-currency-migration {
+  display: grid;
+  gap: 12px;
+  padding: 16px 0;
+  border-block: 1px solid var(--settings-border);
+}
 .wallet-workspace {
   color: var(--wave-ink, #374558);
   min-width: 0;

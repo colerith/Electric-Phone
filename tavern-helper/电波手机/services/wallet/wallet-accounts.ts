@@ -30,6 +30,9 @@ export const WalletAccountSchema = z.object({
   manual: z.record(z.string(), AccountRowSchema).default({}),
   layers: z.record(z.string(), z.array(AccountRowSchema)).default({}),
   deletedTransactionIds: z.array(z.string()).default([]),
+  migratedCurrencies: z.record(z.string(), z.string()).default({}),
+  currencyMigrationLayers: z.array(z.string()).default([]),
+  currencyMigrationBackup: z.record(z.string(), z.unknown()).optional(),
 });
 export const WalletBookSchema = z
   .object({
@@ -165,6 +168,11 @@ export function applyWalletPatch(
       id: row.id.startsWith('chat:') ? row.id : sourcePrefix + row.id,
     }));
   }
+  // Only explicitly migrated transaction IDs are relabelled on old-floor replay.
+  patch.transactions = patch.transactions.map(row => ({
+    ...row,
+    currency: account.migratedCurrencies[row.id] || row.currency,
+  }));
   for (const row of patch.transactions) {
     const previous = accountRows(book, account).find(item => item.id === row.id);
     if (previous && previous.currency !== row.currency) throw Error('既有流水不能更改币种');
@@ -174,7 +182,13 @@ export function applyWalletPatch(
   // A current balance initializes an unknown currency once. Reconcile against the whole
   // visible ledger (including manual rows and prior layers), not just this delta.
   // Once known, only ledger changes affect balance; model snapshots cannot overwrite it.
-  if (account.opening[grant.currency] == null && patch.balance != null) {
+  const migratedReplay = patch.transactions.some(row => account.migratedCurrencies[row.id]);
+  if (
+    !migratedReplay &&
+    !account.currencyMigrationLayers.includes(layer) &&
+    account.opening[grant.currency] == null &&
+    patch.balance != null
+  ) {
     const total = walletTotals(accountRows(book, account).filter(row => row.currency === grant.currency));
     account.opening[grant.currency] = Math.round((patch.balance - total.income + total.expense) * 100) / 100;
   }
@@ -200,4 +214,47 @@ export function saveAccount(
   const totals = walletTotals(accountRows(book, account).filter(row => row.currency === fields.currency));
   parsed.opening[fields.currency] = fields.balance === null ? null : fields.balance - totals.income + totals.expense;
   book.accounts[id] = parsed;
+}
+
+/** Correct the denomination of old entries; amounts are intentionally not exchanged. */
+export function migrateAccountCurrency(book: WalletBook, id: string, from: string, to: string): number {
+  const account = book.accounts[id];
+  if (!account) throw Error('账户不存在');
+  if (!currencies.includes(to) || !from || from === to) throw Error('请选择不同的原币种与目标币种');
+  const rows = accountRows(book, account);
+  const sourceRows = rows.filter(row => row.currency === from);
+  if (!sourceRows.length && !Object.hasOwn(account.opening, from)) throw Error('该币种没有可迁移的记录或期初余额');
+  const backup = JSON.parse(JSON.stringify({ ...account, currencyMigrationBackup: undefined }));
+  const next = WalletAccountSchema.parse(backup);
+  next.currencyMigrationBackup = backup;
+  const allRows = [...Object.values(next.manual), ...Object.values(next.layers).flat()];
+  for (const row of allRows) {
+    if (row.currency !== from) continue;
+    row.currency = to;
+    next.migratedCurrencies[row.id] = to;
+  }
+  for (const [rowId, currency] of Object.entries(next.migratedCurrencies))
+    if (currency === from) next.migratedCurrencies[rowId] = to;
+  const sourceOpening = next.opening[from];
+  if (Object.hasOwn(next.opening, from) || sourceRows.length) {
+    const targetOpening = next.opening[to];
+    next.opening[to] =
+      sourceOpening == null || (targetOpening == null && rows.some(row => row.currency === to))
+        ? null
+        : Math.round((sourceOpening + (targetOpening || 0)) * 100) / 100;
+    delete next.opening[from];
+  }
+  next.currencyMigrationLayers = [
+    ...new Set([
+      ...next.currencyMigrationLayers,
+      ...Object.keys(next.layers).filter(layer => next.layers[layer].some(row => next.migratedCurrencies[row.id])),
+      ...Object.entries(book.grants)
+        .filter(([, grant]) => grant.accountId === id && grant.currency === from)
+        .map(([layer]) => layer),
+    ]),
+  ];
+  next.currency = to;
+  book.accounts[id] = next;
+  ++book.revision;
+  return sourceRows.length;
 }

@@ -124,6 +124,7 @@ const message = (id, sender, content, payload = {}) =>
   });
   await store.synchronize();
   assert.equal(thread().messages.length, 2);
+  assert.equal(Object.values(store.state.threads).find(t => t.charKey === 'group-missing').messages.length, 1);
   assert.equal(Object.values(store.state.threads).find(t => t.charKey === main).messages.length, 0);
   const { ModelMessageSchema } = schema;
   assert.equal(

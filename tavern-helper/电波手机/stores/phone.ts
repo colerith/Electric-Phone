@@ -1,3 +1,5 @@
+import { migrateAccountCurrency } from '../services/wallet/wallet-accounts';
+import { ensureIncomingIdentities } from '../services/core/incoming-identities';
 import { PersonaCardSchema } from '../services/chat/persona-card';
 import { generationRows, floorSource, storyIso } from '../services/generation/generation-records';
 import { isReplayedMessage } from '../services/chat/replayed-message';
@@ -690,6 +692,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     saveAccount(state.value.walletBook, id, fields);
     ++syncToken;
     saveChat();
+  }
+  function migrateWalletCurrency(id: string, from: string, to: string): number {
+    if (!walletAccounts.value.some(account => account.id === id)) throw Error('请选择当前角色可见的账户');
+    const count = migrateAccountCurrency(state.value.walletBook, id, from, to);
+    ++syncToken;
+    saveChat();
+    return count;
   }
   function createSharedWallet(name: string): string {
     const key = walletIdentity.value?.charKey;
@@ -1576,7 +1585,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             runtime.cardKey,
             runtime.chatKey,
             await chatParseSignature(
-              JSON.stringify([runtime.cardKey, runtime.chatKey, 'message-routing-v2']),
+              JSON.stringify([runtime.cardKey, runtime.chatKey, 'message-routing-v3']),
               assistantMessages,
             ),
             settings.value.basic.cacheLimitMb,
@@ -1587,6 +1596,22 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (token !== syncToken) return;
       stage = '合并角色与手机数据';
       logDiagnostic('同步正文', `${runtime.cardName} · ${assistantMessages.length} 楼 · ${blocks.length} 个手机数据块`);
+      // Keep the single-card identity available before discovering group participants.
+      if (!runtime.isGroup && !findIdentityById(nextState, runtime.cardKey)) {
+        const existing = Object.values(nextState.identities).find(item => item.source === 'auto_single_card');
+        if (
+          existing ||
+          !Object.keys(nextState.identities).length ||
+          blocks.some(block => block.stableId === runtime.cardKey)
+        )
+          upsertIdentity(nextState, makeSingleCardIdentity(runtime, existing), runtime);
+      }
+      const incoming = ensureIncomingIdentities(nextState, runtime, blocks);
+      for (const identity of incoming) {
+        upsertIdentity(nextState, identity, runtime);
+        roster[identity.charKey] = klona(identity);
+      }
+      if (incoming.length) persistCardRosters(cardRosters.value);
       const namedCharacters = new Set(blocks.map(block => block.name.trim().toLocaleLowerCase()).filter(Boolean));
       const parsedStableIds = new Set(blocks.map(block => block.stableId.trim()).filter(Boolean));
       let policyConsumed = false;
@@ -1615,6 +1640,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       );
       const isMulti =
         runtime.isGroup ||
+        blocks.some(block =>
+          ['local_contact', 'local_group'].includes(findIdentityById(nextState, block.stableId)?.source || ''),
+        ) ||
         Object.values(blocksPerMessage).some(count => count > 1) ||
         namedCharacters.size > 1 ||
         parsedStableIds.size > 1 ||
@@ -5808,6 +5836,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     selectedWalletAccount,
     walletRaw,
     saveWalletAccount,
+    migrateWalletCurrency,
     createSharedWallet,
     deleteWalletAccount,
     selectSharedWallet,
