@@ -122,12 +122,9 @@ export const useSystemClockStore = defineStore('wave-system-clock', () => {
       status.value = dom?.text === text ? '已同步柏宝书当前时间 · 不自动走时' : '已同步柏宝书时间 · 不自动走时';
     } else status.value = storyTime.value ? '暂未读到新时间，保持本聊天上次时间' : '等待柏宝书时间，请打开柏宝书摘要页';
   }
-  onScopeDispose(
-    registerMessageClock(() => {
-      refresh(false);
-      return civilDate.value;
-    }),
-  );
+  // Rendering timestamps must never refresh reactive clock state. The timer,
+  // observers and explicit refresh calls own synchronization.
+  onScopeDispose(registerMessageClock(() => civilDate.value));
   function start(target: Window) {
     stop();
     host = target as BaiBaiHost;
