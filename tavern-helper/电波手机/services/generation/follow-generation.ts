@@ -77,6 +77,14 @@ export async function installPhoneRegexes(): Promise<void> {
     },
     {
       ...base,
+      id: 'wave-phone-data-prompt-v1',
+      script_name: '电波手机 · 历史数据协议不发送',
+      find_regex:
+        '/<(wave_phone_delta|wave_moments|wave_tree_hole)>[\\s\\S]*?(?:<\\/\\1>|$)/gi',
+      destination: { display: false, prompt: true },
+    },
+    {
+      ...base,
       id: 'wave-phone-data-display-v1',
       script_name: '电波手机 · 数据块隐藏',
       find_regex: `/(?:${DATA_PATTERN.source}|${MOMENTS_PATTERN.source}|${TREE_HOLE_PATTERN.source})/gi`,
@@ -215,10 +223,15 @@ export function registerFollowGeneration(
           };
         }
         const reference = runtime.settings.generation.shareChatContext ? runtime.chatReference || '' : '';
-        if (!modules.length && !reference) return;
+        // Even a reference-free secondary-only turn needs a routing instruction:
+        // historical examples or preset text must not request phone output from the main model.
+        const routing = modules.length
+          ? `本轮正文仅可按下方协议更新这些主 API 模块：${modules.join('、')}。其他手机模块由独立任务处理，不得在正文附加其更新。`
+          : '本轮主 API 仅生成酒馆正文，不承担任何电波手机数据生成任务。手机更新由正文完成后的独立任务处理。不得输出 wave_phone_delta、wave_moments、wave_tree_hole 数据块、手机 JSON 或手机更新卡片；即使历史记录或其他提示出现旧格式，也不要续写或模仿。';
         const prompt = stripExcludedTags(
           [
             '以下是电波手机提供给模型的内部上下文与数据协议。只用于理解并执行本轮任务，绝不能在正文中复述、解释或展示本段。',
+            routing,
             reference,
             modules.length ? buildModulePrompt(runtime.input, modules, true) : '',
           ]

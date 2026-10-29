@@ -288,6 +288,31 @@ const waitFor = async fn => {
   await waitFor(() => !phone.moduleGenerating && kinds.length > 0);
   assert.deepEqual(kinds, ['moments', 'hole']);
   assert(floors[2].message.includes('wave_moments') && floors[2].message.includes('wave_tree_hole'));
+  // Secondary-only turns still tell the main model not to imitate old phone protocols.
+  phone.settings.sendMode = 'secondary_api';
+  phone.settings.generation.appApis = {};
+  phone.settings.generation.shareChatContext = false;
+  phone.settings.generation.requiredModules = ['status', 'memo'];
+  phone.settings.generation.modules = [];
+  injections.length = 0;
+  emit('GENERATION_AFTER_COMMANDS', 'normal', {}, false);
+  assert(injections.some(p => p.content.includes('不承担任何电波手机数据生成任务')));
+  assert(!injections.some(p => p.content.includes('本轮仅允许更新：')));
+  emit('GENERATION_STOPPED');
+  const { installPhoneRegexes } = require(base + '/services/generation/follow-generation.ts');
+  let installed = [];
+  global.updateTavernRegexesWith = async fn => {
+    installed = fn([]);
+  };
+  await installPhoneRegexes();
+  const rule = installed.find(r => r.id === 'wave-phone-data-prompt-v1');
+  assert(rule && rule.destination.prompt && !rule.destination.display);
+  const regex = new RegExp(rule.find_regex.slice(1, rule.find_regex.lastIndexOf('/')), 'gi');
+  const original =
+    '正文<wave_phone_delta>{"app_updates":{}}</wave_phone_delta>后文<wave_moments>{}</wave_moments><wave_tree_hole>{}</wave_tree_hole>';
+  assert.equal(original.replace(regex, ''), '正文后文');
+  assert.equal('正文<wave_phone_delta>{"unfinished":'.replace(regex, ''), '正文');
+  assert(original.includes('app_updates'), 'prompt filtering must not rewrite persisted floors');
   // Full disable prevents both primary injection and secondary follow requests.
   phone.settings.generation.followEnabled = false;
   await tick();
