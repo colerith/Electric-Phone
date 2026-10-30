@@ -787,8 +787,11 @@
   }
   .space-badge-selected button {
     position: relative;
-    width: 40px;
-    height: 40px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
     padding: 5px;
     background: var(--wave-tint);
     border-radius: 12px;
@@ -797,17 +800,39 @@
     width: 22px;
     height: 22px;
   }
-  .space-badge-selected span {
+  .space-badge-selected .space-badge-remove {
     position: absolute;
-    right: -3px;
-    top: -5px;
+    right: 0;
+    top: 0;
     display: grid;
     place-items: center;
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+    line-height: 1;
+    pointer-events: none;
     border-radius: 50%;
     background: var(--wave-card);
     color: var(--wave-muted);
+  }
+  .space-badge-remove::before,
+  .space-badge-remove::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 1.5px;
+    border-radius: 1px;
+    background: currentColor;
+    transform: rotate(45deg);
+  }
+  .space-badge-remove::after {
+    transform: rotate(-45deg);
+  }
+  .space-badge-selected button:focus-visible {
+    outline: 2px solid var(--settings-accent);
+    outline-offset: 2px;
   }
   .space-badge-search {
     margin-bottom: 12px;
@@ -991,7 +1016,9 @@
     line-height: 1;
     white-space: nowrap;
     cursor: pointer;
-    transition: background 0.15s, opacity 0.15s;
+    transition:
+      background 0.15s,
+      opacity 0.15s;
   }
   .space-tag-entry button:disabled {
     background: #edf1f7;
