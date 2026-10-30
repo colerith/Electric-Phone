@@ -1388,7 +1388,7 @@ export function buildPhonePrompts(
               '\n' +
               mediaCountRules(input.media) +
               '\n' +
-              (input.identity.source === 'local_group' ? '' : chatBilingualRules(input.chatPreferences)) +
+              chatBilingualRules(input.chatPreferences, input.identity.source === 'local_group') +
               '\n' +
               messageReactionContext(input) +
               '\n' +
@@ -1502,7 +1502,7 @@ export function buildModulePrompt(
             : undefined,
         ) +
         '\n' +
-        (input.identity.source === 'local_group' ? '' : chatBilingualRules(input.chatPreferences)) +
+        chatBilingualRules(input.chatPreferences, input.identity.source === 'local_group') +
         '\n' +
         messageReactionContext(input) +
         '\n[phone_history]\n' +
@@ -1564,10 +1564,12 @@ export function walletAccountRules(input: PhonePromptInput): string {
     : '[电波手机·本轮钱包授权] 未提供可写账户，禁止输出 wallet 更新。';
 }
 
-export function chatBilingualRules(p?: ChatPreferences): string {
-  if (!p || (!p.autoTranslate && !p.outgoingTranslation)) return '';
-  const rules = ['[电波手机·私聊双语格式与顺序] 双语内容属于同一条消息，不得当作两条消息。messages 仅包含本轮新回复，不重发历史消息；新消息使用新的 client_id，不把历史上下文当待回复请求。'];
-  if (p.autoTranslate)
+export function chatBilingualRules(p?: ChatPreferences, group = false): string {
+  if (!p || (!(p.autoTranslate && !group) && !p.outgoingTranslation)) return '';
+  const rules = [
+    `[电波手机·${group ? '群聊 User' : '私聊'}双语格式与顺序] 双语内容属于同一条消息，不得当作两条消息。messages 仅包含本轮新回复，不重发历史消息；新消息使用新的 client_id，不把历史上下文当待回复请求。`,
+  ];
+  if (p.autoTranslate && !group)
     rules.push(
       `Char 消息：使用 ${p.sourceLanguage} 写入 text/voice 的 content 原文，使用 ${p.targetLanguage} 写入 payload.translation 忠实译文，并写 payload.translationProvider="模型"；界面顺序为上方原文、下方译文。voice 的 payload.transcript 保留原文与引擎标签，译文不带语音标签。`,
     );

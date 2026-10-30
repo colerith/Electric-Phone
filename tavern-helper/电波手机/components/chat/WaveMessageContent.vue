@@ -457,7 +457,7 @@ const preferences = computed(() => {
   return {
     ...selected,
     autoTranslate: Boolean(phone.activeIdentity.groupAutoTranslate),
-    outgoingTranslation: false,
+    outgoingTranslation: selected.outgoingTranslation,
   };
 });
 const originalText = computed(() => {

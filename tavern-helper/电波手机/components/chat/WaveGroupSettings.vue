@@ -64,6 +64,44 @@
           @update:model-value="value => phone.updateGroupDetails({ voiceFollowPrivate: value })"
       /></label>
     </section>
+    <section v-if="!group.groupObserver" class="chat-settings-group wave-group-settings">
+      <div class="wave-settings-title">我的消息翻译</div>
+      <label class="chat-setting-row"
+        ><span>自动译出我的消息<small>发送译文，气泡下保留我输入的原文</small></span
+        ><WaveToggle
+          :model-value="preferences.outgoingTranslation"
+          aria-label="自动译出我的消息"
+          @update:model-value="value => updatePreferences({ outgoingTranslation: value })"
+      /></label>
+      <template v-if="preferences.outgoingTranslation">
+        <label class="chat-setting-row"
+          ><span>我的输入语言</span
+          ><WaveSelect
+            :model-value="preferences.inputLanguage"
+            :options="translationLanguages"
+            aria-label="我的输入语言"
+            @update:model-value="value => updatePreferences({ inputLanguage: value })"
+        /></label>
+        <label class="chat-setting-row"
+          ><span>我的消息译为</span
+          ><WaveSelect
+            :model-value="preferences.outgoingLanguage || preferences.sourceLanguage"
+            :options="translationLanguages"
+            aria-label="我的消息译出语言"
+            @update:model-value="value => updatePreferences({ outgoingLanguage: value })"
+        /></label>
+      </template>
+      <label class="chat-setting-row"
+        ><span>自动展开翻译<small>关闭后点击我的消息下方按钮查看原文</small></span
+        ><WaveToggle
+          :model-value="preferences.expandTranslation"
+          aria-label="自动展开翻译"
+          @update:model-value="value => updatePreferences({ expandTranslation: value })"
+      /></label>
+      <p class="chat-settings-note">
+        与私聊一致：输入时预览译文，群成员收到译文，原文保留在第二个气泡。本群独立保存设置，翻译服务在“聊天与行为”中配置。
+      </p>
+    </section>
     <WaveCrossChatSettings />
     <WaveCharacterImage />
     <section class="chat-settings-group wave-group-settings">
@@ -226,6 +264,9 @@
 </template>
 <script setup lang="ts">
 import WaveCrossChatSettings from './WaveCrossChatSettings.vue';
+import WaveSelect from '../shared/WaveSelect.vue';
+import { ChatPreferencesSchema, type ChatPreferences } from '../../services/chat/chat-preferences';
+import { translationLanguages } from '../../services/generation/translation';
 import { groupExperienceLabel } from '../../services/chat/group-activity';
 import { computed, inject, nextTick, ref, watch } from 'vue';
 import { displayIdentityName } from '../../services/core/identity';
@@ -238,6 +279,10 @@ import WaveCharacterImage from './WaveCharacterImage.vue';
 import { phoneSurfaceKey } from '../../services/core/ui-context';
 const props = defineProps<{ userAvatar?: string }>();
 const phone = usePhoneStore();
+const preferences = computed(() => ChatPreferencesSchema.parse(phone.state.chatPreferences[phone.state.activeCharKey]));
+function updatePreferences(patch: Partial<ChatPreferences>) {
+  phone.setChatPreferences({ ...preferences.value, ...patch });
+}
 const surface = inject(phoneSurfaceKey, ref(null));
 const group = computed(() => (phone.activeIdentity?.source === 'local_group' ? phone.activeIdentity : null));
 const ownerKey = computed(() => group.value?.groupOwnerKey || 'user');
