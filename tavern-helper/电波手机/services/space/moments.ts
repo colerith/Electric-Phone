@@ -161,6 +161,7 @@ export const MomentsStateSchema = z
     autoInteractionPostIds: z.array(z.string()).default([]),
     imageEdits: z.record(z.string(), ImageAssetSchema).default({}),
     profile: MomentUserProfileSchema,
+    profileOwnerKey: z.string().default(''),
     settings: z
       .object({
         ...bilingual,

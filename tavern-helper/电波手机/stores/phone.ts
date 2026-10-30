@@ -1306,20 +1306,30 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     const savedProfile = momentUserProfiles.value[activeUserKey.value];
     if (savedProfile) {
       nextState.moments.profile = MomentUserProfileSchema.parse(savedProfile);
+      nextState.moments.profileOwnerKey = activeUserKey.value;
       return;
     }
     const legacyProfile = MomentUserProfileSchema.parse(nextState.moments.profile);
-    if (!hasMomentUserProfile(legacyProfile)) return;
-    momentUserProfiles.value[activeUserKey.value] = legacyProfile;
-    persistMomentUserProfiles(momentUserProfiles.value);
+    const owner = nextState.moments.profileOwnerKey;
+    // Unowned legacy data can only seed the first profile, never every new persona.
+    if (
+      hasMomentUserProfile(legacyProfile) &&
+      (owner === activeUserKey.value || (!owner && Object.keys(momentUserProfiles.value).length === 0))
+    ) {
+      momentUserProfiles.value[activeUserKey.value] = legacyProfile;
+      persistMomentUserProfiles(momentUserProfiles.value);
+    } else nextState.moments.profile = MomentUserProfileSchema.parse({});
+    nextState.moments.profileOwnerKey = activeUserKey.value;
   }
 
   function selectUserScope(userKey: string): void {
+    if (activeUserKey.value === (userKey.trim() || 'default')) return;
     activeUserKey.value = userKey.trim() || 'default';
     momentUserProfiles.value = readMomentUserProfiles();
     const savedProfile = momentUserProfiles.value[activeUserKey.value];
     if (savedProfile) state.value.moments.profile = MomentUserProfileSchema.parse(savedProfile);
     else state.value.moments.profile = MomentUserProfileSchema.parse({});
+    state.value.moments.profileOwnerKey = activeUserKey.value;
   }
 
   function upsertIdentity(nextState: ChatState, identity: Identity, runtime: RuntimeContext): Identity {
@@ -3434,6 +3444,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   function saveMoments(): void {
     // Chat persistence validates the complete state. Keep existing post identities stable for Vue.
     batchPhoneStorage(() => {
+      state.value.moments.profileOwnerKey = activeUserKey.value;
       const profile = MomentUserProfileSchema.parse(state.value.moments.profile);
       if (!_.isEqual(momentUserProfiles.value[activeUserKey.value], profile)) {
         momentUserProfiles.value[activeUserKey.value] = profile;

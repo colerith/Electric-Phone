@@ -224,7 +224,6 @@
             </details>
             <WaveAppSettings
               v-if="appSettingsOpen"
-              ref="appSettings"
               :app="store.currentPage"
               :name="pageTitle"
               :user-avatar="userAvatar"
@@ -1509,7 +1508,6 @@ function finishSettingsLeave(save: boolean) {
     leavingSettings = false;
   }
 }
-const appSettings = ref<InstanceType<typeof WaveAppSettings> | null>(null);
 const showMusicDock = computed(
   () =>
     store.currentPage === 'music' &&

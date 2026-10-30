@@ -1132,6 +1132,15 @@ function visibilityLabel(post: MomentPost) {
   return visibilityOptions.find(option => option.value === post.visibility)?.label || '';
 }
 const profileDraft = reactive(MomentUserProfileSchema.parse({}));
+watch(
+  () => phone.state.moments.profileOwnerKey,
+  () => {
+    Object.assign(profileDraft, klona(phone.state.moments.profile));
+    if (panel.value === 'profile') panel.value = 'home';
+    notice.value = '';
+  },
+  { flush: 'sync' },
+);
 function openProfile() {
   phone.ensureAnonymousProfile();
   Object.assign(profileDraft, klona(phone.state.moments.profile));
