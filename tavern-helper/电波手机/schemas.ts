@@ -18,7 +18,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.3.54-beta.39';
+export const WAVE_PHONE_RELEASE_VERSION = '1.3.54-beta.40';
 export const WAVE_PHONE_RELEASE_DATE = '2026.10.29';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 

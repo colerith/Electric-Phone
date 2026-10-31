@@ -298,6 +298,9 @@ const waitFor = async fn => {
   emit('GENERATION_AFTER_COMMANDS', 'normal', {}, false);
   assert(injections.some(p => p.content.includes('不承担任何电波手机数据生成任务')));
   assert(!injections.some(p => p.content.includes('本轮仅允许更新：')));
+  const sent = { dryRun: false, chat: [{ role: 'assistant', content: '正文<wave_phone_delta>{}</wave_phone_delta>' }] };
+  emit('CHAT_COMPLETION_PROMPT_READY', sent);
+  assert.equal(sent.chat[0].content, '正文', 'actual outgoing payload strips stored phone blocks');
   emit('GENERATION_STOPPED');
   const { installPhoneRegexes } = require(base + '/services/generation/follow-generation.ts');
   let installed = [];

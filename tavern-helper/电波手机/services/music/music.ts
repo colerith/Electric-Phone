@@ -169,6 +169,11 @@ async function resolveMeting(track: Track, signal?: AbortSignal): Promise<Track>
   return { ...track, url, lyric, cover: found?.cover || track.cover, mediaUrl: url, lyricUrl };
 }
 export function musicIntent(raw: string): { title: string; artist: string; note: string } {
+  // Older snapshots appended one update per line/block. Read the latest song.
+  const starts = [...raw.matchAll(/(?:^|\n)\s*歌曲名称[：:]/g)];
+  if (starts.length > 1) raw = raw.slice(starts.at(-1)!.index).trim();
+  const lines = raw.trim().split(/\r?\n/);
+  if (lines.length > 1 && lines.every(line => line.trim().startsWith('{'))) raw = lines.at(-1)!;
   try {
     const data = JSON.parse(raw);
     if (data && typeof data === 'object' && !Array.isArray(data))

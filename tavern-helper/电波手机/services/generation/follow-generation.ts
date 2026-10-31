@@ -24,6 +24,18 @@ import {
 } from './module-protocol';
 const PROMPT_ID = 'wave-phone-follow-v1';
 const FOLLOW_PROMPT_TAG = 'wave_phone_follow_context';
+const HISTORICAL_PHONE_DATA = /<(wave_phone_delta|wave_moments|wave_tree_hole)>[\s\S]*?(?:<\/\1>|$)/gi;
+
+/** Last-mile filtering changes only outgoing history, never stored chat floors. */
+export function sanitizeOutgoingPhoneHistory(chat: SillyTavern.SendingMessage[]): void {
+  for (const message of chat) {
+    if (message.role !== 'assistant' && message.role !== 'user') continue;
+    const clean = (text: string) => stripLeakedFollowPrompt(stripInlineCards(text)).replace(HISTORICAL_PHONE_DATA, '');
+    if (typeof message.content === 'string') message.content = clean(message.content);
+    else if (Array.isArray(message.content))
+      for (const part of message.content) if (part.type === 'text') part.text = clean(part.text);
+  }
+}
 export function chooseFollowModule(settings: ScriptSettings['generation'], random = Math.random): AppId | null {
   if (!settings.followEnabled || !settings.modules.length || random() * 100 >= settings.probability) return null;
   return (
@@ -79,8 +91,7 @@ export async function installPhoneRegexes(): Promise<void> {
       ...base,
       id: 'wave-phone-data-prompt-v1',
       script_name: '电波手机 · 历史数据协议不发送',
-      find_regex:
-        '/<(wave_phone_delta|wave_moments|wave_tree_hole)>[\\s\\S]*?(?:<\\/\\1>|$)/gi',
+      find_regex: '/<(wave_phone_delta|wave_moments|wave_tree_hole)>[\\s\\S]*?(?:<\\/\\1>|$)/gi',
       destination: { display: false, prompt: true },
     },
     {
@@ -129,12 +140,23 @@ export function constrainPhoneFloor(
   previous: AppSnapshot,
   walletGrant?: WalletAuthorization,
   imageCounts?: number[],
+  allowedModules?: AppId[],
 ): string {
   const snapshots = new Map<string, Partial<AppSnapshot>>([[charId, { ...previous }]]);
   const budgets = new Map<string, RoundBudget>();
   return stripInlineCards(text).replace(new RegExp(DATA_PATTERN.source, 'g'), block => {
+    if (allowedModules && !allowedModules.length) return '';
     const delta = readModuleDeltas(block)[0];
     if (!delta) return block;
+    if (allowedModules) {
+      for (const app of Object.keys(delta.app_updates))
+        if (!allowedModules.includes(app as AppId)) delete delta.app_updates[app as AppId];
+      if (!allowedModules.includes('messages')) {
+        delta.messages = [];
+        delta.reactions = [];
+        delta.payment_actions = [];
+      }
+    }
     if (delta.app_updates.wallet !== undefined) {
       try {
         if (!walletGrant || delta.char_id !== charId) throw Error('未授权的钱包更新');
@@ -184,6 +206,7 @@ export function registerFollowGeneration(
     snapshot: AppSnapshot;
     walletGrant?: WalletAuthorization;
     prompt: string;
+    modules: AppId[];
   } | null = null;
   const clear = () => {
     injection?.uninject();
@@ -198,6 +221,9 @@ export function registerFollowGeneration(
     { flush: 'sync' },
   );
   const events = [
+    eventOn(tavern_events.CHAT_COMPLETION_PROMPT_READY, data => {
+      if (!data.dryRun && canInject()) sanitizeOutgoingPhoneHistory(data.chat);
+    }),
     eventOn(tavern_events.GENERATION_AFTER_COMMANDS, (type, _options, dryRun) => {
       try {
         clear();
@@ -247,6 +273,7 @@ export function registerFollowGeneration(
           snapshot: { ...runtime.input.appSnapshot },
           walletGrant: runtime.input.walletAuthorization ? { ...runtime.input.walletAuthorization } : undefined,
           prompt: wrappedPrompt,
+          modules,
         };
         onRequest?.(runtime.settings, type);
         injection = injectPrompts(
@@ -293,6 +320,7 @@ export function registerFollowGeneration(
           captured.snapshot,
           captured.walletGrant,
           captured.imageCounts,
+          captured.modules,
         );
         if (constrained !== message.message)
           void writeChatFloor(message.message_id, message.message, constrained).catch(error =>

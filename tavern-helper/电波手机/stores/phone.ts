@@ -1595,7 +1595,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             runtime.cardKey,
             runtime.chatKey,
             await chatParseSignature(
-              JSON.stringify([runtime.cardKey, runtime.chatKey, 'message-routing-v3']),
+              JSON.stringify([runtime.cardKey, runtime.chatKey, 'message-routing-v4-json-repair']),
               assistantMessages,
             ),
             settings.value.basic.cacheLimitMb,

@@ -2,6 +2,7 @@ import { isLimitedApp, limitModulePatch } from './module-updates';
 import { splitElectric } from './electric';
 import { mergeWallet } from '../wallet/wallet';
 import { z } from 'zod';
+import { parseJsonResponse } from './json-response';
 import { APP_IDS, ModelMessageSchema, ModelReactionsSchema, PaymentActionsSchema } from '../../schemas';
 export const MODULE_LABELS = {
   status: '状态',
@@ -43,7 +44,7 @@ export function readModuleDeltas(text: string): ModuleDelta[] {
       .matchAll(new RegExp(DATA_PATTERN.source, 'g')),
   ].flatMap(match => {
     try {
-      const result = ModuleDeltaSchema.safeParse(JSON.parse(match[1]!));
+      const result = ModuleDeltaSchema.safeParse(parseJsonResponse(match[1]!));
       return result.success ? [result.data] : [];
     } catch {
       return [];
