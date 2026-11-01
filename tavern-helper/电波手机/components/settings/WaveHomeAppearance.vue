@@ -2,9 +2,12 @@
   <div class="home-appearance-editor">
     <section class="settings-card appearance-group">
       <div class="wave-settings-title">辅助触控</div>
-      <label class="chat-setting-row"
-        ><span>手机内部悬浮球</span
-        ><input v-model="appearance.assistiveTouch" type="checkbox" @change="phone.saveSettings()"
+      <label class="chat-setting-row assistive-setting-row"
+        ><span><strong>手机内部悬浮球</strong></span
+        ><WaveToggle
+          v-model="appearance.assistiveTouch"
+          aria-label="手机内部悬浮球"
+          @update:model-value="phone.saveSettings()"
       /></label>
       <p>拖动调整位置，松手后贴边收起。点击快速切换主角色、调整翻译和钱包币种。</p>
     </section>
@@ -288,3 +291,13 @@ function applyImage(value: { avatar: string }) {
   editing.value = '';
 }
 </script>
+
+<style scoped>
+.assistive-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 0;
+}
+</style>

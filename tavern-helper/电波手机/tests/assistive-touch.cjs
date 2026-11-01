@@ -56,7 +56,7 @@ app.use(createPinia()).mount('#app');
 const tick=async()=>{await vue.nextTick();await vue.nextTick();};
 const button=text=>[...document.querySelectorAll('button')].find(b=>b.textContent.trim().includes(text));
 const click=async text=>{assert(button(text),text);button(text).click();await tick();};
-const select=async (label,value)=>{const el=document.querySelector(`[aria-label="${label}"]`);assert(el,label);el.value=value;el.dispatchEvent(new Event('change',{bubbles:true}));await tick();};
+const select=async (label,value)=>{const el=document.querySelector(`button[aria-label="${label}"]`);assert(el,label);el.click();await tick();const text={memo:'备忘',user:'我的钱包'}[value]||value;const option=[...document.querySelectorAll('[role=option]')].find(el=>el.textContent.trim().includes(text));assert(option,text);option.click();await tick();};
 (async()=>{
  await phone.synchronize();await tick();
  const first=phone.state.activeCharKey;
@@ -73,11 +73,11 @@ const select=async (label,value)=>{const el=document.querySelector(`[aria-label=
  ball.click();await tick();assert(document.querySelector('[role=dialog]'));
  await click('角色');await click('Bob');assert.equal(phone.state.activeCharKey,bob);
  document.querySelector('[aria-label="返回辅助触控首页"]').click();await tick();await click('翻译');
- const toggle=[...document.querySelectorAll('label')].find(l=>l.textContent.includes('自动附带译文')).querySelector('input');toggle.checked=true;toggle.dispatchEvent(new Event('change',{bubbles:true}));await tick();
+ const toggle=[...document.querySelectorAll('label')].find(l=>l.textContent.includes('自动附带译文')).querySelector('[role=switch]');toggle.click();await tick();
  assert.equal(phone.state.chatPreferences[bob].autoTranslate,true);
  assert(!phone.state.chatPreferences[first]?.autoTranslate);
  await select('快捷翻译应用','memo');
- const sync=document.querySelector('input[type=checkbox]');sync.checked=false;sync.dispatchEvent(new Event('change',{bubbles:true}));await tick();
+ const sync=document.querySelector('[role=switch]');sync.click();await tick();
  assert.equal(phone.settings.moduleSettings.memo.syncChat,false);
  document.querySelector('[aria-label="返回辅助触控首页"]').click();await tick();await click('钱包');
  phone.saveWalletAccount('user',{name:'我的钱包',currency:'CNY',balance:100,bankName:'',cardLabel:'',cardLastFour:''});
@@ -95,5 +95,6 @@ const select=async (label,value)=>{const el=document.querySelector(`[aria-label=
  document.querySelector('[role=dialog]').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await tick();assert(!document.querySelector('[role=dialog]'));
  const descriptor=parse(fs.readFileSync(base+'/components/shared/WaveAssistiveTouch.vue','utf8')).descriptor;
  assert(require('sass').compileString(descriptor.styles[0].content).css.includes('pointer-events: none'));
+ for(const style of descriptor.styles){const css=require('sass').compileString(style.content).css;const result=require('vue/compiler-sfc').compileStyle({source:css,filename:'Assistive.vue',id:'data-v-test',scoped:!!style.scoped});assert.equal(result.errors.length,0);assert(!/#wave-phone-script-root\s*\{/.test(result.code),'must never style the host root');}
  app.unmount();console.log('PASS assistive drag/snap, click suppression, actor selection, scoped translation, currency migration, undo and stale-undo protection');process.exit(0);
 })().catch(e=>{console.error(e);process.exit(1);});

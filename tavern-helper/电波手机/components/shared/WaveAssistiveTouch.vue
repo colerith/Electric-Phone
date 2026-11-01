@@ -27,9 +27,18 @@
         @keydown.tab="trapFocus"
       >
         <header>
-          <button v-if="page !== 'home'" type="button" aria-label="返回辅助触控首页" @click="page = 'home'">‹</button
+          <button
+            v-if="page !== 'home'"
+            type="button"
+            class="assistive-nav"
+            aria-label="返回辅助触控首页"
+            @click="page = 'home'"
+          >
+            <i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button
           ><strong>{{ titles[page] }}</strong
-          ><button type="button" aria-label="关闭辅助触控" @click="close">×</button>
+          ><button type="button" class="assistive-nav" aria-label="关闭辅助触控" @click="close">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
         </header>
         <div v-if="page === 'home'" class="assistive-grid">
           <button v-for="item in entries" :key="item.page" type="button" @click="page = item.page">
@@ -67,72 +76,58 @@
         <div v-else-if="page === 'translation'" class="assistive-body">
           <p>私聊设置属于当前角色；App 独立设置沿用原有作用范围。关闭跟随私聊后，可单独配置。</p>
           <label
-            >应用<select v-model="translationApp" aria-label="快捷翻译应用">
-              <option value="messages">私聊 · {{ phone.activeIdentity?.name || '未选择角色' }}</option>
-              <option value="memo">备忘</option>
-              <option value="browse">浏览</option>
-              <option value="moments">空间 / 树洞</option>
-            </select></label
-          >
+            >应用<WaveSelect v-model="translationApp" aria-label="快捷翻译应用" :options="translationOptions"
+          /></label>
           <template v-if="translationApp === 'messages'">
             <p v-if="!phone.activeIdentity">请先选择角色。</p>
             <template v-else>
               <label
-                >自动附带译文<input
-                  type="checkbox"
-                  :checked="chatPrefs.autoTranslate"
-                  @change="updateChat({ autoTranslate: checked($event) })"
+                >自动附带译文<WaveToggle
+                  :model-value="chatPrefs.autoTranslate"
+                  aria-label="自动附带译文"
+                  @update:model-value="updateChat({ autoTranslate: $event })"
               /></label>
               <label
-                >自动展开译文<input
-                  type="checkbox"
-                  :checked="chatPrefs.expandTranslation"
-                  @change="updateChat({ expandTranslation: checked($event) })"
+                >自动展开译文<WaveToggle
+                  :model-value="chatPrefs.expandTranslation"
+                  aria-label="自动展开译文"
+                  @update:model-value="updateChat({ expandTranslation: $event })"
               /></label>
               <label
-                >原文语言<select
-                  :value="chatPrefs.sourceLanguage"
-                  @change="updateChat({ sourceLanguage: value($event) })"
-                >
-                  <option v-for="language in translationLanguages" :key="language.value" :value="language.value">
-                    {{ language.label }}
-                  </option>
-                </select></label
-              >
+                >原文语言<WaveSelect
+                  :model-value="chatPrefs.sourceLanguage"
+                  aria-label="原文语言"
+                  :options="translationLanguages"
+                  @update:model-value="updateChat({ sourceLanguage: $event })"
+              /></label>
               <label
-                >译文语言<select
-                  :value="chatPrefs.targetLanguage"
-                  @change="updateChat({ targetLanguage: value($event) })"
-                >
-                  <option v-for="language in translationLanguages" :key="language.value" :value="language.value">
-                    {{ language.label }}
-                  </option>
-                </select></label
-              >
+                >译文语言<WaveSelect
+                  :model-value="chatPrefs.targetLanguage"
+                  aria-label="译文语言"
+                  :options="translationLanguages"
+                  @update:model-value="updateChat({ targetLanguage: $event })"
+              /></label>
               <label
-                >发送前翻译<input
-                  type="checkbox"
-                  :checked="chatPrefs.outgoingTranslation"
-                  @change="updateChat({ outgoingTranslation: checked($event) })"
+                >发送前翻译<WaveToggle
+                  :model-value="chatPrefs.outgoingTranslation"
+                  aria-label="发送前翻译"
+                  @update:model-value="updateChat({ outgoingTranslation: $event })"
               /></label>
               <label v-if="chatPrefs.outgoingTranslation"
-                >发送目标语言<select
-                  :value="chatPrefs.outgoingLanguage || chatPrefs.sourceLanguage"
-                  @change="updateChat({ outgoingLanguage: value($event) })"
-                >
-                  <option v-for="language in translationLanguages" :key="language.value" :value="language.value">
-                    {{ language.label }}
-                  </option>
-                </select></label
-              >
+                >发送目标语言<WaveSelect
+                  :model-value="chatPrefs.outgoingLanguage || chatPrefs.sourceLanguage"
+                  aria-label="发送目标语言"
+                  :options="translationLanguages"
+                  @update:model-value="updateChat({ outgoingLanguage: $event })"
+              /></label>
             </template>
           </template>
           <template v-else>
             <label
-              >跟随当前私聊<input
-                type="checkbox"
-                :checked="modulePrefs.syncChat"
-                @change="updateModule({ syncChat: checked($event) })"
+              >跟随当前私聊<WaveToggle
+                :model-value="modulePrefs.syncChat"
+                aria-label="跟随当前私聊"
+                @update:model-value="updateModule({ syncChat: $event })"
             /></label>
             <p v-if="modulePrefs.syncChat">
               {{
@@ -143,37 +138,31 @@
             </p>
             <template v-else>
               <label
-                >自动附带译文<input
-                  type="checkbox"
-                  :checked="modulePrefs.autoTranslate"
-                  @change="updateModule({ autoTranslate: checked($event) })"
+                >自动附带译文<WaveToggle
+                  :model-value="modulePrefs.autoTranslate"
+                  aria-label="自动附带译文"
+                  @update:model-value="updateModule({ autoTranslate: $event })"
               /></label>
               <label
-                >自动展开译文<input
-                  type="checkbox"
-                  :checked="modulePrefs.expandTranslation"
-                  @change="updateModule({ expandTranslation: checked($event) })"
+                >自动展开译文<WaveToggle
+                  :model-value="modulePrefs.expandTranslation"
+                  aria-label="自动展开译文"
+                  @update:model-value="updateModule({ expandTranslation: $event })"
               /></label>
               <label
-                >原文语言<select
-                  :value="modulePrefs.sourceLanguage"
-                  @change="updateModule({ sourceLanguage: value($event) })"
-                >
-                  <option v-for="language in translationLanguages" :key="language.value" :value="language.value">
-                    {{ language.label }}
-                  </option>
-                </select></label
-              >
+                >原文语言<WaveSelect
+                  :model-value="modulePrefs.sourceLanguage"
+                  aria-label="原文语言"
+                  :options="translationLanguages"
+                  @update:model-value="updateModule({ sourceLanguage: $event })"
+              /></label>
               <label
-                >译文语言<select
-                  :value="modulePrefs.targetLanguage"
-                  @change="updateModule({ targetLanguage: value($event) })"
-                >
-                  <option v-for="language in translationLanguages" :key="language.value" :value="language.value">
-                    {{ language.label }}
-                  </option>
-                </select></label
-              >
+                >译文语言<WaveSelect
+                  :model-value="modulePrefs.targetLanguage"
+                  aria-label="译文语言"
+                  :options="translationLanguages"
+                  @update:model-value="updateModule({ targetLanguage: $event })"
+              /></label>
             </template>
           </template>
           <small
@@ -183,17 +172,14 @@
         <div v-else class="assistive-body">
           <p>统一选定账本的余额和流水币种，金额数字不变，不做汇率换算。</p>
           <label
-            >应用范围<select v-model="walletScope" aria-label="钱包设置范围">
-              <option value="current">当前显示账户</option>
-              <option value="user">我的钱包</option>
-              <option value="all">所有可见钱包</option>
-            </select></label
-          >
+            >应用范围<WaveSelect v-model="walletScope" aria-label="钱包设置范围" :options="walletScopeOptions"
+          /></label>
           <label
-            >目标币种<select v-model="currency" aria-label="快捷钱包币种">
-              <option v-for="code in currencies" :key="code" :value="code">{{ code }}</option>
-            </select></label
-          >
+            >目标币种<WaveSelect
+              v-model="currency"
+              aria-label="快捷钱包币种"
+              :options="currencies.map(code => ({ value: code, label: code }))"
+          /></label>
           <p>
             将修改 {{ walletTargets.length }} 个账户：{{ walletTargets.map(a => a.name).join('、') || '无可用账户' }}
           </p>
@@ -218,6 +204,8 @@
   </div>
 </template>
 <script setup lang="ts">
+import WaveToggle from './WaveToggle.vue';
+import WaveSelect from './WaveSelect.vue';
 import { computed, nextTick, ref } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { ChatPreferencesSchema, type ChatPreferences } from '../../services/chat/chat-preferences';
@@ -322,6 +310,17 @@ function trapFocus(event: KeyboardEvent) {
     first?.focus();
   }
 }
+const translationOptions = computed(() => [
+  { value: 'messages', label: `私聊 · ${phone.activeIdentity?.name || '未选择角色'}` },
+  { value: 'memo', label: '备忘' },
+  { value: 'browse', label: '浏览' },
+  { value: 'moments', label: '空间 / 树洞' },
+]);
+const walletScopeOptions = [
+  { value: 'current', label: '当前显示账户' },
+  { value: 'user', label: '我的钱包' },
+  { value: 'all', label: '所有可见钱包' },
+];
 const translationApp = ref<'messages' | 'memo' | 'browse' | 'moments'>('messages');
 const chatPrefs = computed(() => ChatPreferencesSchema.parse(phone.state.chatPreferences[phone.state.activeCharKey]));
 const modulePrefs = computed(() =>
@@ -329,12 +328,6 @@ const modulePrefs = computed(() =>
     ? phone.state.moments.settings
     : phone.settings.moduleSettings[translationApp.value === 'browse' ? 'browse' : 'memo'],
 );
-function checked(event: Event) {
-  return (event.target as HTMLInputElement).checked;
-}
-function value(event: Event) {
-  return (event.target as HTMLSelectElement).value;
-}
 function updateChat(patch: Partial<ChatPreferences>) {
   if (!phone.activeIdentity) return;
   phone.state.chatPreferences[phone.state.activeCharKey] = { ...chatPrefs.value, ...patch };
@@ -409,7 +402,7 @@ function applyCurrency() {
   place-items: center;
   touch-action: none;
   cursor: grab;
-  opacity: 0.55;
+  opacity: 0.28;
   transition:
     opacity 0.2s,
     left 0.2s;
@@ -424,7 +417,12 @@ function applyCurrency() {
   background: #f8f9fc;
   box-shadow: 0 0 0 4px #ffffff26;
 }
-.assistive-ball:hover,
+@media (hover: hover) {
+  .assistive-ball:hover {
+    opacity: 0.65;
+  }
+}
+
 .assistive-ball:focus-visible,
 .assistive-ball.dragging {
   opacity: 1;
@@ -575,5 +573,72 @@ function applyCurrency() {
 .assistive-menu .assistive-primary {
   background: #6689cb;
   color: white;
+}
+</style>
+
+<style lang="scss">
+#wave-phone-script-root .wave-device .assistive-menu {
+  header .assistive-nav {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #ffffff10;
+    font-size: 18px;
+  }
+  header strong {
+    min-width: 0;
+    line-height: 1.4;
+  }
+  .assistive-body > label {
+    min-height: 48px;
+    gap: 14px;
+    padding: 8px 0;
+    border-bottom: 1px solid #ffffff12;
+  }
+  .wave-toggle-control {
+    align-self: center;
+  }
+  .wave-select {
+    width: 60%;
+    min-width: 0;
+    flex: 0 1 60%;
+  }
+  .wave-select-trigger {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #ffffff22;
+    border-radius: 12px;
+    background: #ffffff10;
+    color: #edf2fa;
+  }
+  .wave-select-trigger strong {
+    color: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: normal;
+  }
+  .wave-select-menu {
+    border: 1px solid #ffffff24;
+    background: #343e50;
+    color: #edf2fa;
+    border-radius: 12px;
+  }
+  .wave-select-menu > button {
+    width: 100%;
+    min-height: 42px;
+    color: #edf2fa;
+    background: transparent;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .wave-select-menu > button.selected {
+    background: #6689cb55;
+  }
 }
 </style>
