@@ -116,6 +116,24 @@ const waitFor = async fn => {
     crossChatProbability: 75,
   });
   const original = phone.exportPersonaData();
+  const { preparePersonaImages, PersonaImageExportError } = require(base + '/services/chat/persona-card.ts');
+  const previousFetch = global.fetch;
+  const linked = JSON.parse(JSON.stringify(original));
+  linked.identity.avatar = 'https://unreachable.invalid/avatar.png';
+  linked.profile.characterImage = { references: [{ id: 'remote', image: 'https://unreachable.invalid/reference.png' }] };
+  let reads = 0;
+  global.fetch = async () => { reads++; throw new TypeError('Failed to fetch'); };
+  await assert.rejects(preparePersonaImages(linked), error => error instanceof PersonaImageExportError && error.message.includes('角色头像'));
+  const linkedBefore = JSON.stringify(linked);
+  const fallback = await preparePersonaImages(linked, true);
+  assert.equal(reads, 1, 'link-only export must not fetch unreachable images again');
+  assert.equal(fallback.identity.avatar, linked.identity.avatar);
+  assert.equal(fallback.profile.characterImage.references[0].image, linked.profile.characterImage.references[0].image);
+  assert.equal(JSON.stringify(linked), linkedBefore, 'export must not change saved profile');
+  linked.identity.avatar = ''; linked.profile.avatar = '';
+  await assert.rejects(preparePersonaImages(linked), /第 1 张角色参考图/);
+  global.fetch = previousFetch;
+
   const png = new Uint8Array(fs.readFileSync(base + '/assets/app-icons/status.png'));
   original.identity.avatar = 'data:image/png;base64,' + Buffer.from(png).toString('base64');
   original.profile.avatar = original.identity.avatar;

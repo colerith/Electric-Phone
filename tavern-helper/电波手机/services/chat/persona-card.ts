@@ -125,11 +125,33 @@ async function embeddedImage(url: string): Promise<string> {
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL('image/png');
 }
-export async function exportPersonaPng(value: unknown): Promise<Blob> {
+export class PersonaImageExportError extends Error {
+  constructor(label: string, cause: unknown) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    super(
+      `${label}无法打包：${/fetch|network|load failed/i.test(detail) ? '图片链接不可访问，可能是跨域限制、链接失效或网络中断' : detail}。可重新上传该图片后重试，或选择保留图片链接导出。`,
+    );
+    this.name = 'PersonaImageExportError';
+  }
+}
+export async function preparePersonaImages(value: unknown, preserveLinks = false): Promise<PersonaCard> {
   const card = PersonaCardSchema.parse(value);
-  card.identity.avatar = await embeddedImage(card.identity.avatar);
+  async function embed(url: string, label: string): Promise<string> {
+    if (preserveLinks && url && !/^data:image\//i.test(url)) return url;
+    try {
+      return await embeddedImage(url);
+    } catch (error) {
+      throw new PersonaImageExportError(label, error);
+    }
+  }
+  card.identity.avatar = await embed(card.identity.avatar || card.profile.avatar, '角色头像');
   card.profile.avatar = card.identity.avatar;
-  for (const ref of card.profile.characterImage?.references || []) ref.image = await embeddedImage(ref.image);
+  for (const [index, ref] of (card.profile.characterImage?.references || []).entries())
+    ref.image = await embed(ref.image, `第 ${index + 1} 张角色参考图`);
+  return card;
+}
+export async function exportPersonaPng(value: unknown, preserveLinks = false): Promise<Blob> {
+  const card = await preparePersonaImages(value, preserveLinks);
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 512;
@@ -137,7 +159,7 @@ export async function exportPersonaPng(value: unknown): Promise<Blob> {
   if (!ctx) throw Error('浏览器不支持 PNG 导出');
   ctx.fillStyle = '#e8edf5';
   ctx.fillRect(0, 0, 512, 512);
-  if (card.identity.avatar) {
+  if (/^data:image\//i.test(card.identity.avatar)) {
     const img = new Image();
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
