@@ -220,19 +220,12 @@ async function migrateCurrency(): Promise<void> {
 }
 let markWalletSaved = () => {};
 watch(
-  () => [phone.state.activeCharKey, props.mode, accounts.value.map(a => a.id).join('|'), phone.walletSelectedAccountId],
+  () => [props.mode, phone.selectedWalletAccount?.id, accounts.value.map(a => a.id).join('|')],
   () => {
-    const updatedAccountId = props.mode === 'app' ? phone.walletSelectedAccountId : '';
-    if (updatedAccountId && accounts.value.some(a => a.id === updatedAccountId)) {
-      selectedId.value = updatedAccountId;
-      return;
-    }
-    if (!accounts.value.some(a => a.id === selectedId.value))
-      selectedId.value =
-        accounts.value.find(a => a.id === (props.mode === 'mine' ? 'user' : `char:${phone.walletIdentity?.charKey}`))
-          ?.id ||
-        accounts.value[0]?.id ||
-        '';
+    if (props.mode === 'mine') {
+      if (!accounts.value.some(a => a.id === selectedId.value))
+        selectedId.value = accounts.value.find(a => a.id === 'user')?.id || '';
+    } else selectedId.value = phone.selectedWalletAccount?.id || '';
   },
   { immediate: true },
 );
@@ -241,7 +234,7 @@ watch(
   value => {
     if (props.mode !== 'mine') phone.walletSelectedAccountId = value;
   },
-  { immediate: true },
+  { immediate: true, flush: 'sync' },
 );
 watch(
   account,

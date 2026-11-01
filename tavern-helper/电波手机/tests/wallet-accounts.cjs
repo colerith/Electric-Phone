@@ -99,6 +99,7 @@ global.getChatMessages = id => (typeof id === 'number' ? floors.filter(f => f.me
   assert.equal(accounts.accountWallet(book(), book().accounts.user).balance, 100);
   assert.equal(document.querySelector('.wallet-page'), null);
   assert.equal(document.querySelector('[aria-label=剧情共享账户]'), null);
+  phone.walletView = 'user';
   mode.value = 'app';
   await tick();
   click('.wallet-tabs button', '记一笔');

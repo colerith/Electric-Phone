@@ -574,13 +574,16 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         : walletView.value === 'shared'
           ? state.value.walletBook.selectedShared[key]
           : `char:${key}`;
-    return (
-      walletAccounts.value.find(account => account.id === id) ||
-      walletAccounts.value.find(account => account.id === 'user') ||
-      walletAccounts.value[0] ||
-      null
-    );
+    return walletAccounts.value.find(account => account.id === id) || null;
   });
+  // Selection belongs to the current actor/view, not the last generated wallet.
+  watch(
+    () => [state.value.activeCharKey, walletView.value],
+    () => {
+      walletSelectedAccountId.value = '';
+    },
+    { flush: 'sync' },
+  );
   const walletIdentity = computed(() => {
     const owner = state.value.identities[selectedWalletAccount.value?.ownerId || ''];
     return isWalletCharacter(owner)
@@ -1631,7 +1634,6 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const parsedStableIds = new Set(blocks.map(block => block.stableId.trim()).filter(Boolean));
       let policyConsumed = false;
       const roundBudgets = new Map<string, RoundBudget>();
-      const updatedWalletAccountByChar = new Map<string, string>();
       const blocksPerMessage = _.countBy(blocks, block => block.messageId);
       const ambiguousNames = new Set(
         blocks
@@ -1786,16 +1788,13 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         if (walletUpdate !== undefined && isWalletCharacter(identity)) {
           const grant = replayWalletAuthorization(nextState.walletBook, walletGrantKey, identity.charKey);
           try {
-            if (
-              grant &&
+            if (grant)
               applyWalletPatch(
                 nextState.walletBook,
                 block.delta ? walletUpdate : parseWallet(String(walletUpdate)),
                 grant,
                 `${walletChatPrefix(runtime.chatKey)}floor:${policyKey}:${identity.charKey}:${block.ordinal}`,
-              )
-            )
-              updatedWalletAccountByChar.set(identity.charKey, grant.accountId);
+              );
           } catch (error) {
             logDiagnostic('钱包更新跳过', stringifyError(error));
           }
@@ -1986,7 +1985,6 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           const updated = updatedByChar.get(account.ownerId) || new Set<AppId>();
           updated.add('wallet');
           updatedByChar.set(account.ownerId, updated);
-          updatedWalletAccountByChar.set(account.ownerId, account.id);
         }
         if (
           momentContentSignature(nextState.moments) !== previousMomentContent ||
@@ -2075,8 +2073,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         }
       if (!isReady.value) restoreCharacterForApp();
       migrateLegacyWeatherLocation();
-      const updatedWalletAccount = updatedWalletAccountByChar.get(state.value.activeCharKey);
-      if (updatedWalletAccount && !walletSelectedAccountId.value) walletSelectedAccountId.value = updatedWalletAccount;
+
       updatedByChar.forEach((apps, charKey) => markAppsUnread(charKey, apps));
       syncError.value = '';
       isReady.value = true;
@@ -3011,8 +3008,6 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           runtime.input.walletAuthorization,
           `${walletChatPrefix(state.value.chatKey)}manual:${id}`,
         );
-        if (changed && !walletSelectedAccountId.value)
-          walletSelectedAccountId.value = runtime.input.walletAuthorization.accountId;
       } else if (value !== undefined) {
         changed = rememberIndependentAppUpdate(charKey, module, value, requestModuleSettings, id) || changed;
       }
@@ -4759,7 +4754,6 @@ export const usePhoneStore = defineStore('wave-phone', () => {
                 )
               ) {
                 updatedApps.add('wallet');
-                if (!walletSelectedAccountId.value) walletSelectedAccountId.value = requestWalletGrant.accountId;
               }
             }
             return;
