@@ -226,6 +226,8 @@ const entries = [
 const position = computed(() => phone.settings.appearance.assistivePosition);
 const dragPoint = ref<{ x: number; y: number } | null>(null);
 const ballStyle = computed(() => ({
+  // Inline state wins over the host's global button opacity reset.
+  opacity: dragging.value || opened.value ? 1 : 0.28,
   left: dragPoint.value
     ? `calc(${dragPoint.value.x * 100}% - 26px)`
     : position.value.edge === 'left'

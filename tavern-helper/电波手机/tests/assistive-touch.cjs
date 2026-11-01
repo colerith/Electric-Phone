@@ -62,15 +62,17 @@ const select=async (label,value)=>{const el=document.querySelector(`button[aria-
  const first=phone.state.activeCharKey;
  const bob=phone.addContact('Bob','Main');phone.state.identities[bob].actorType='main';
  const ball=document.querySelector('[aria-label="辅助触控"]');assert(ball);
+ assert.equal(ball.style.opacity,'0.28');
  const device=document.querySelector('.wave-device');
  device.getBoundingClientRect=()=>({left:0,top:0,width:400,height:800});
  Object.defineProperty(device,'offsetHeight',{value:800});
  const pointer=(type,x,y)=>{const e=new Event(type,{bubbles:true});Object.assign(e,{button:0,pointerId:1,clientX:x,clientY:y});ball.dispatchEvent(e);};
  pointer('pointerdown',380,400);pointer('pointermove',30,300);pointer('pointerup',30,300);await tick();
  assert.equal(phone.settings.appearance.assistivePosition.edge,'left');
+ assert.equal(ball.style.opacity,'0.28','docked opacity must survive host button reset');
  assert(phone.settings.appearance.assistivePosition.y>0 && phone.settings.appearance.assistivePosition.y<1);
  ball.dispatchEvent(new MouseEvent('click',{bubbles:true,detail:1}));await tick();assert(!document.querySelector('[role=dialog]'));
- ball.click();await tick();assert(document.querySelector('[role=dialog]'));
+ ball.click();await tick();assert(document.querySelector('[role=dialog]'));assert.equal(ball.style.opacity,'1');
  await click('角色');await click('Bob');assert.equal(phone.state.activeCharKey,bob);
  document.querySelector('[aria-label="返回辅助触控首页"]').click();await tick();await click('翻译');
  const toggle=[...document.querySelectorAll('label')].find(l=>l.textContent.includes('自动附带译文')).querySelector('[role=switch]');toggle.click();await tick();
@@ -92,7 +94,7 @@ const select=async (label,value)=>{const el=document.querySelector(`button[aria-
  phone.addWalletTransaction(WalletTransactionSchema.parse({id:'later',date:'2026-01-01',type:'expense',amount:2,currency:'JPY',category:'餐饮',note:'新交易'}),'user');
  await click('撤销本次币种统一');assert(document.body.textContent.includes('账户已有新变更'));
  assert.equal(accounts.accountWallet(phone.state.walletBook,phone.state.walletBook.accounts.user).balance,83);
- document.querySelector('[role=dialog]').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await tick();assert(!document.querySelector('[role=dialog]'));
+ document.querySelector('[role=dialog]').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await tick();assert(!document.querySelector('[role=dialog]'));assert.equal(ball.style.opacity,'0.28');
  const descriptor=parse(fs.readFileSync(base+'/components/shared/WaveAssistiveTouch.vue','utf8')).descriptor;
  assert(require('sass').compileString(descriptor.styles[0].content).css.includes('pointer-events: none'));
  for(const style of descriptor.styles){const css=require('sass').compileString(style.content).css;const result=require('vue/compiler-sfc').compileStyle({source:css,filename:'Assistive.vue',id:'data-v-test',scoped:!!style.scoped});assert.equal(result.errors.length,0);assert(!/#wave-phone-script-root\s*\{/.test(result.code),'must never style the host root');}
