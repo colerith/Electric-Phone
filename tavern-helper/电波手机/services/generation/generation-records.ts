@@ -2,12 +2,18 @@ import { APP_IDS, type AppId } from '../../schemas';
 import { timeFromText } from '../core/chat-time';
 import { parseCivilTime } from '../core/system-clock';
 import { parsePhoneMessage } from './parser';
+import { withSecondaryResults, type SecondaryResults } from './secondary-results';
 
 export function floorSource(text: string): string {
   return text.replace(/<wave_phone_delta>[\s\S]*?<\/wave_phone_delta>/gi, '').trim();
 }
 export type GenerationReceipt = { source: string; modules: AppId[]; completedAt: string };
-export function generationRows(floors: ChatMessage[], receipts: Record<string, GenerationReceipt>, charId: string) {
+export function generationRows(
+  floors: ChatMessage[],
+  receipts: Record<string, GenerationReceipt>,
+  charId: string,
+  results: SecondaryResults = {},
+) {
   let time = '';
   let timeFloor = -1;
   return [...floors]
@@ -19,16 +25,15 @@ export function generationRows(floors: ChatMessage[], receipts: Record<string, G
         timeFloor = floor.message_id;
       }
       if (floor.role !== 'assistant' || !floor.message.trim()) return [];
-      const blocks = parsePhoneMessage(floor.message, floor.message_id).filter(b => b.stableId === charId);
+      const dataText = withSecondaryResults([floor], results)[0].message;
+      const blocks = parsePhoneMessage(dataText, floor.message_id).filter(b => b.stableId === charId);
       const generated = new Set<AppId>();
       for (const block of blocks) {
         Object.keys(block.delta?.app_updates || {}).forEach(key => generated.add(key as AppId));
         if (block.delta?.messages.length || block.delta?.reactions?.length || block.delta?.payment_actions?.length)
           generated.add('messages');
       }
-      for (const match of floor.message.matchAll(
-        /<wave_(?:moments|tree_hole)>([\s\S]*?)<\/wave_(?:moments|tree_hole)>/g,
-      )) {
+      for (const match of dataText.matchAll(/<wave_(?:moments|tree_hole)>([\s\S]*?)<\/wave_(?:moments|tree_hole)>/g)) {
         try {
           if (JSON.parse(match[1])) generated.add('zone');
         } catch {

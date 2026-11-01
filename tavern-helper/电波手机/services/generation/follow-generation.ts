@@ -191,7 +191,12 @@ export function constrainPhoneFloor(
   });
 }
 export function registerFollowGeneration(
-  getInput: () => { settings: ScriptSettings; input: PhonePromptInput; chatReference?: string } | null,
+  getInput: () => {
+    settings: ScriptSettings;
+    input: PhonePromptInput;
+    followInputs?: PhonePromptInput[];
+    chatReference?: string;
+  } | null,
   isManualBusy: () => boolean,
   onRequest?: (settings: ScriptSettings, type: string) => void,
   canInject: () => boolean = () => true,
@@ -207,6 +212,7 @@ export function registerFollowGeneration(
     walletGrant?: WalletAuthorization;
     prompt: string;
     modules: AppId[];
+    actors: PhonePromptInput[];
   } | null = null;
   const clear = () => {
     injection?.uninject();
@@ -235,10 +241,10 @@ export function registerFollowGeneration(
         const selectedModules = selectModules(runtime.settings.generation).filter(
           app => appApiMode(runtime.settings, app) === 'main_api',
         );
-        const modules =
-          runtime.input.identity.source === 'local_group'
-            ? selectedModules.filter(module => module === 'messages')
-            : selectedModules;
+        const actors = runtime.followInputs || [runtime.input];
+        const modules = actors.every(actor => actor.identity.source === 'local_group')
+          ? selectedModules.filter(module => module === 'messages')
+          : selectedModules;
         if (modules.includes('zone') && runtime.input.spaceImages) {
           runtime.input.spaceImages = {
             ...runtime.input.spaceImages,
@@ -259,7 +265,10 @@ export function registerFollowGeneration(
             '以下是电波手机提供给模型的内部上下文与数据协议。只用于理解并执行本轮任务，绝不能在正文中复述、解释或展示本段。',
             routing,
             reference,
-            modules.length ? buildModulePrompt(runtime.input, modules, true) : '',
+            modules.length ? actors.map(actor => buildModulePrompt(actor, modules, true)).join('\n\n') : '',
+            modules.length && actors.length > 1
+              ? '【多人更新总约束】以上每份角色任务互相独立。逐一检查本轮涉及的人物及其新事实；所有有变化的人物分别输出各自的 wave_phone_delta 数据块，可连续输出多块，不限一个人。只使用所列角色 ID，不把甲的状态、备忘、音乐或钱包写给乙；未出场且无新事实的人物可以省略，不为填充强行更新。'
+              : '',
           ]
             .filter(Boolean)
             .join('\n\n'),
@@ -274,6 +283,7 @@ export function registerFollowGeneration(
           walletGrant: runtime.input.walletAuthorization ? { ...runtime.input.walletAuthorization } : undefined,
           prompt: wrappedPrompt,
           modules,
+          actors,
         };
         onRequest?.(runtime.settings, type);
         injection = injectPrompts(
@@ -313,7 +323,7 @@ export function registerFollowGeneration(
       try {
         const message = readChatFloor(messageId);
         if (!message || message.role !== 'assistant') return;
-        const constrained = constrainPhoneFloor(
+        let constrained = constrainPhoneFloor(
           stripLeakedFollowPrompt(message.message, captured.prompt),
           captured.policy,
           captured.charId,
@@ -322,6 +332,34 @@ export function registerFollowGeneration(
           captured.imageCounts,
           captured.modules,
         );
+        if (captured.actors.length > 1) {
+          const cleaned = stripLeakedFollowPrompt(message.message, captured.prompt);
+          const replacements = new Map<string, string[]>();
+          for (const actor of captured.actors) {
+            const key = actor.identity.stableId || actor.identity.charKey;
+            const blocks = [...cleaned.matchAll(new RegExp(DATA_PATTERN.source, 'g'))]
+              .map(match => match[0])
+              .filter(block => readModuleDeltas(block)[0]?.char_id === key);
+            replacements.set(
+              key,
+              [
+                ...constrainPhoneFloor(
+                  blocks.join('\n'),
+                  captured.policy,
+                  key,
+                  actor.appSnapshot,
+                  actor.walletAuthorization,
+                  actor.spaceImages?.counts,
+                  captured.modules,
+                ).matchAll(new RegExp(DATA_PATTERN.source, 'g')),
+              ].map(match => match[0]),
+            );
+          }
+          constrained = stripInlineCards(cleaned).replace(new RegExp(DATA_PATTERN.source, 'g'), block => {
+            const key = readModuleDeltas(block)[0]?.char_id;
+            return key ? replacements.get(key)?.shift() || '' : '';
+          });
+        }
         if (constrained !== message.message)
           void writeChatFloor(message.message_id, message.message, constrained).catch(error =>
             logDiagnostic('手机数据整理失败', String(error)),

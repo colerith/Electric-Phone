@@ -1,4 +1,5 @@
 import { phoneActivitySignal } from '../core/phone-activity';
+import { independentMessages, requestIndependentApi } from './independent-api';
 import { expandTavernMacros } from '../core/tavern-macros';
 import { searchChatContext } from '../web-tools';
 import { sampleImageCounts } from '../space/image-plan';
@@ -102,7 +103,10 @@ function extractJson(raw: string): unknown {
   return parseJsonResponse(cleaned.slice(start, end + 1));
 }
 
-const runningRequests = new Map<string, { cancelled: boolean; backendId: string; webAbort: AbortController }>();
+const runningRequests = new Map<
+  string,
+  { cancelled: boolean; backendId: string; webAbort: AbortController; independent: boolean }
+>();
 async function requestConfigured<T>(
   settings: ScriptSettings,
   generationId: string,
@@ -121,7 +125,12 @@ async function requestConfigured<T>(
   },
 ): Promise<T> {
   const activity = phoneActivitySignal();
-  const request = { cancelled: false, backendId: generationId, webAbort: new AbortController() };
+  const request = {
+    cancelled: false,
+    backendId: generationId,
+    webAbort: new AbortController(),
+    independent: settings.sendMode === 'secondary_api',
+  };
   const stopForDisable = () => {
     request.cancelled = true;
     request.webAbort.abort();
@@ -168,8 +177,12 @@ async function requestConfigured<T>(
     stage = '准备上下文';
     contextStep = '读取历史楼层与世界书';
     const overrides =
-      namespace && namespace.treeHoleTopic === undefined
-        ? await prepareContext(settings, namespace.thread?.historyFloorCutoff ?? -1, namespace.historyBeforeFloor)
+      (namespace && namespace.treeHoleTopic === undefined) || api
+        ? await prepareContext(
+            api ? { ...settings, worldbooks: { ...settings.worldbooks, managed: true } } : settings,
+            namespace?.thread?.historyFloorCutoff ?? -1,
+            namespace?.historyBeforeFloor,
+          )
         : undefined;
     if (overrides && namespace?.identity?.source !== 'local_group') {
       const profile = namespace?.identity?.npcProfile?.trim() || namespace?.identity?.about?.trim();
@@ -226,7 +239,7 @@ async function requestConfigured<T>(
     logDiagnostic(
       '开始请求',
       redactDiagnostic(
-        `${generationId}｜服务：${api ? settings.api.provider : '酒馆主 API'}｜模型：${api?.model || '酒馆当前模型'}｜上下文上限 ${settings.api.contextLength}｜最大回复 ${settings.api.maxTokens}｜生效超时 ${timeoutMs} ms（设置 ${settings.api.timeoutMs} ms）｜${settings.api.stream ? '流式' : '非流式'}｜显式提示词 ${ordered.reduce((n, p) => n + (typeof p === 'string' ? 0 : p.content.length), userInput.length)} 字｜历史 ${overrides?.chat_history?.prompts?.length || 0} 条；原生角色卡/世界书由酒馆展开`,
+        `${generationId}｜服务：${api ? settings.api.provider : '酒馆主 API'}｜模型：${api?.model || '酒馆当前模型'}｜上下文上限 ${settings.api.contextLength}｜最大回复 ${settings.api.maxTokens}｜生效超时 ${timeoutMs} ms（设置 ${settings.api.timeoutMs} ms）｜${settings.api.stream ? '流式' : '非流式'}｜显式提示词 ${ordered.reduce((n, p) => n + (typeof p === 'string' ? 0 : p.content.length), userInput.length)} 字｜历史 ${overrides?.chat_history?.prompts?.length || 0} 条；${api ? '角色卡/世界书由手机独立组装' : '原生角色卡/世界书由酒馆展开'}`,
         secrets,
       ),
     );
@@ -238,20 +251,34 @@ async function requestConfigured<T>(
         stage = '请求接口';
         request.backendId = attempt === 0 ? generationId : `${generationId}-retry-${attempt}`;
         attemptStarted = Date.now();
-        const raw = await withTimeout(
-          () =>
-            generateRaw({
-              user_input: userInput || undefined,
-              ordered_prompts: formatCorrection ? [...ordered, { role: 'system', content: formatCorrection }] : ordered,
-              overrides,
-              custom_api: api,
-              should_stream: settings.api.stream,
-              max_chat_history: prompts.includes('chat_history') ? 'all' : 0,
-              generation_id: request.backendId,
-            }),
-          timeoutMs,
-          request.backendId,
-        );
+        const raw = api
+          ? await requestIndependentApi(
+              settings,
+              api,
+              independentMessages(
+                settings,
+                formatCorrection ? [...ordered, { role: 'system', content: formatCorrection }] : ordered,
+                overrides,
+                userInput,
+              ),
+              request.webAbort.signal,
+            )
+          : await withTimeout(
+              () =>
+                generateRaw({
+                  user_input: userInput || undefined,
+                  ordered_prompts: formatCorrection
+                    ? [...ordered, { role: 'system', content: formatCorrection }]
+                    : ordered,
+                  overrides,
+                  custom_api: api,
+                  should_stream: settings.api.stream,
+                  max_chat_history: prompts.includes('chat_history') ? 'all' : 0,
+                  generation_id: request.backendId,
+                }),
+              timeoutMs,
+              request.backendId,
+            );
         if (request.cancelled) throw Error('生成已停止。');
         ensureNamespace();
         stage = '读取响应';
@@ -364,6 +391,7 @@ export function stopPhoneGeneration(generationId: string): Promise<boolean> {
   if (request) {
     request.cancelled = true;
     request.webAbort.abort();
+    if (request.independent) return Promise.resolve(true);
   }
   return stopBackendGeneration(request?.backendId || generationId);
 }

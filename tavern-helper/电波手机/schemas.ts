@@ -10,6 +10,7 @@ import { VoiceServicesSchema, CharacterVoiceSchema } from './services/chat/speec
 import { BrowserStateSchema, SearchEngineSchema } from './services/apps/browser';
 import { WeatherLocationSchema } from './services/core/weather';
 import { z } from 'zod';
+import { SecondaryResultsSchema } from './services/generation/secondary-results';
 import { ImageAssetSchema } from './services/image/library';
 import { ChatPreferencesSchema } from './services/chat/chat-preferences';
 import { ZoneInteractionsSchema } from './services/space/zone';
@@ -18,7 +19,7 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.3.54-beta.43';
+export const WAVE_PHONE_RELEASE_VERSION = '1.3.54-beta.44';
 export const WAVE_PHONE_RELEASE_DATE = '2026.10.29';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
@@ -503,6 +504,7 @@ export const ChatStateSchema = z
     electricTitleByApp: z.record(z.string(), z.string()).prefault({}),
     appUnread: z.record(z.string(), z.array(z.enum(APP_IDS))).prefault({}),
     deletedCharKeys: z.array(z.string()).prefault([]),
+    secondaryResults: SecondaryResultsSchema,
     generationReceipts: z
       .record(
         z.string(),

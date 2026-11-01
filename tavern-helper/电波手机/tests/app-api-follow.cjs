@@ -43,6 +43,7 @@ global.SillyTavern = {
 Object.assign(global, {
   getCharData: () => ({ name: 'Alice', avatar: 'a.png' }),
   getCharAvatarPath: () => '/a.png',
+  getCharWorldbookNames: () => ({ primary: '', additional: [] }),
   getVariables: ({ type }) => vars[type],
   replaceVariables: (value, { type }) => (vars[type] = value),
   getChatMessages: id => (typeof id === 'number' ? floors.filter(f => f.message_id === id) : floors),
@@ -52,6 +53,17 @@ Object.assign(global, {
   toastr: { info: () => {} },
 });
 window.SillyTavern = global.SillyTavern;
+global.SillyTavern.getRequestHeaders = () => ({'Content-Type':'application/json'});
+global.fetch = async (url, options) => {
+  assert.equal(url, '/api/backends/chat-completions/generate');
+  const body = JSON.parse(options.body);
+  const text = await global.generateRaw({
+    user_input: body.messages.filter(m => m.role === 'user').at(-1)?.content,
+    ordered_prompts: body.messages,
+    custom_api: {model:body.model, apiurl:body.reverse_proxy, key:body.proxy_password},
+  });
+  return Response.json({choices:[{message:{content:text}}]});
+};
 const handlers = new Map();
 global.tavern_events = new Proxy({}, { get: (_, name) => name });
 global.eventOn = (event, fn) => {
@@ -77,7 +89,7 @@ global.setChatMessages = async rows => {
     emit('CHARACTER_MESSAGE_RENDERED', row.message_id);
   }
 };
-const base = path.resolve('src/util/酒馆助手脚本/电波手机');
+const base = path.resolve(__dirname, '..');
 const vue = require('vue'),
   { createPinia } = require('pinia');
 const { APP_IDS, ScriptSettingsSchema } = require(base + '/schemas.ts');
@@ -287,7 +299,8 @@ const waitFor = async fn => {
   emit('CHARACTER_MESSAGE_RENDERED', 2);
   await waitFor(() => !phone.moduleGenerating && kinds.length > 0);
   assert.deepEqual(kinds, ['moments', 'hole']);
-  assert(floors[2].message.includes('wave_moments') && floors[2].message.includes('wave_tree_hole'));
+  assert(!floors[2].message.includes('wave_moments'), 'secondary results never rewrite narrative');
+  assert(Object.values(phone.state.secondaryResults).some(r => r.blocks.includes('wave_moments') && r.blocks.includes('wave_tree_hole')));
   // Secondary-only turns still tell the main model not to imitate old phone protocols.
   phone.settings.sendMode = 'secondary_api';
   phone.settings.generation.appApis = {};
@@ -324,6 +337,58 @@ const waitFor = async fn => {
   emit('CHARACTER_MESSAGE_RENDERED', 1);
   await wait(10);
   assert.equal(requests.length, before);
+  // Multiple main characters receive independent prompts, snapshots and writeback.
+  const firstKey = phone.state.activeCharKey;
+  phone.state.identities[firstKey].actorType = 'main';
+  const secondKey = phone.addContact('Bob', '另一个主角');
+  phone.state.identities[secondKey].actorType = 'main';
+  phone.saveChat();
+  phone.settings.sendMode = 'main_api';
+  phone.settings.generation.appApis = {};
+  phone.settings.generation.followEnabled = true;
+  phone.settings.generation.requiredModules = ['status'];
+  phone.settings.generation.modules = [];
+  injections.length = 0;
+  emit('GENERATION_AFTER_COMMANDS', 'normal', {}, false);
+  const multiPrompt = injections.map(p => p.content).join('\n');
+  assert(multiPrompt.includes('角色名：Bob') && multiPrompt.includes('多人更新总约束'));
+  emit('GENERATION_STOPPED');
+  phone.settings.sendMode = 'secondary_api';
+  phone.saveSettings();
+  const actorRequests = [];
+  phone.settings.generation.appApis.zone = { mode: 'main_api', profileId: '' };
+  phone.settings.api.enabled = true;
+  phone.state.moments.settings.followEnabled = false;
+  phone.saveSettings();
+  global.generateRaw = async args => {
+    const prompt = args.ordered_prompts
+      .filter(p => typeof p === 'object')
+      .map(p => p.content)
+      .join('\n');
+    const match = prompt.match(/角色ID：([^；\n]+)；角色名：([^\n]+)/);
+    assert(match);
+    actorRequests.push(match[1]);
+    return JSON.stringify({
+      version: 1,
+      char_id: match[1],
+      char_name: match[2],
+      messages: [],
+      app_updates: { status: { fav: match[2] === 'Bob' ? 23 : 61 } },
+    });
+  };
+  emit('GENERATION_AFTER_COMMANDS', 'normal', {}, false);
+  const nextFloor = Math.max(...floors.map(f => f.message_id)) + 1;
+  floors.push({ message_id: nextFloor, role: 'assistant', message: 'Alice 与 Bob 各自经历了新的事情。' });
+  emit('CHARACTER_MESSAGE_RENDERED', nextFloor);
+  await waitFor(() => actorRequests.length === 2 && !phone.moduleGenerating);
+  assert.equal(new Set(actorRequests).size, 2);
+  assert.equal(JSON.parse(phone.state.snapshots[secondKey].status).fav, 23);
+  assert.equal(JSON.parse(phone.state.snapshots[firstKey].status).fav, 61);
+  assert.equal(floors.at(-1).message, 'Alice 与 Bob 各自经历了新的事情。');
+  assert.equal(phone.state.secondaryResults[`${nextFloor}:0`].blocks.match(/<wave_phone_delta>/g).length, 2);
+  await phone.synchronize();
+  assert.equal(JSON.parse(phone.state.snapshots[secondKey].status).fav, 23, 'sidecar survives reload');
+  floors.pop();
   phone.dispose();
   const { registerSecondaryFollow } = require(base + '/services/generation/secondary-follow.ts');
   const lifeSettings = vue.reactive(

@@ -1,6 +1,7 @@
 import { migrateAccountCurrency } from '../services/wallet/wallet-accounts';
 import { ensureIncomingIdentities } from '../services/core/incoming-identities';
 import { PersonaCardSchema } from '../services/chat/persona-card';
+import { saveSecondaryResult, withSecondaryResults } from '../services/generation/secondary-results';
 import { externalizeResources, assertExternalResources } from '../services/core/resource-storage';
 import { generationRows, floorSource, storyIso } from '../services/generation/generation-records';
 import { isReplayedMessage } from '../services/chat/replayed-message';
@@ -1588,7 +1589,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       const previousHoleContent = holeSignature();
       // Tavern's hidden state only controls its own context/display. Phone data remains persistent.
       stage = '读取聊天楼层';
-      const assistantMessages = readChatFloors({ role: 'assistant', hide_state: 'all' });
+      const assistantMessages = withSecondaryResults(
+        readChatFloors({ role: 'assistant', hide_state: 'all' }),
+        nextState.secondaryResults,
+      );
       stage = '解析手机数据与缓存';
       const parse = () => assistantMessages.flatMap(message => parsePhoneMessage(message.message, message.message_id));
       const blocks = settings.value.basic.cacheEnabled
@@ -1772,8 +1776,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           ),
         ));
         const walletGrantKey = `${walletChatPrefix(runtime.chatKey)}${policyKey}:${identity.charKey}`;
-        if (pending?.wallet && pending.wallet.ownerId === identity.charKey)
-          nextState.walletBook.grants[walletGrantKey] = klona(pending.wallet);
+        const pendingGrant = pending?.wallets?.[identity.charKey] || pending?.wallet;
+        if (pendingGrant && pendingGrant.ownerId === identity.charKey)
+          nextState.walletBook.grants[walletGrantKey] = klona(pendingGrant);
         const walletUpdate =
           block.messageId <= (floorCutoffs.wallet ?? -1)
             ? undefined
@@ -2084,7 +2089,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           thread.messages.filter(message => !previousIds.includes(message.id)),
         ).catch(error => logDiagnostic('回复生图处理失败', String(error)));
       }
-      for (const message of assistantMessages) {
+      for (const message of readChatFloors({ role: 'assistant', hide_state: 'all' })) {
         const cleaned = stripInlineCards(message.message);
         if (cleaned !== message.message)
           void writeChatFloor(message.message_id, message.message, cleaned).catch(error =>
@@ -2245,7 +2250,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     };
     disposeChatTime = registerChatTime(() => settings.value.basic.systemClock, canInjectPhonePrompts);
     disposeFollow = registerFollowGeneration(
-      moduleInput,
+      followModuleInput,
       () =>
         moduleGenerating.value ||
         zoneGenerating.value ||
@@ -2387,6 +2392,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     after: number;
     settings: ModuleSettings;
     wallet?: WalletAuthorization;
+    wallets?: Record<string, WalletAuthorization>;
   } | null = null;
   function captureModulePolicy(config: ScriptSettings, type = 'normal'): void {
     const runtime = getRuntimeContext();
@@ -2403,6 +2409,11 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         ),
       ),
       wallet: currentWalletGrant(),
+      wallets: Object.fromEntries(
+        (followModuleInput()?.followInputs || []).flatMap(actor =>
+          actor.walletAuthorization ? [[actor.identity.charKey, actor.walletAuthorization]] : [],
+        ),
+      ),
     };
   }
   function normalizeGroupReplies<
@@ -2485,40 +2496,60 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       ),
     };
   }
-  function moduleInput() {
+  function moduleInput(identity = activeIdentity.value) {
     const current = getRuntimeContext();
     if (!current || current.cardKey !== context.value?.cardKey || current.chatKey !== context.value?.chatKey)
       return null;
-    if (!context.value || !activeIdentity.value || !activeThread.value || !isReady.value) return null;
+    if (!context.value || !identity || !isReady.value) return null;
+    const thread =
+      Object.values(state.value.threads).find(item => item.charKey === identity.charKey) ||
+      ThreadSchema.parse({
+        id: makeThreadId(current, identity.charKey),
+        charKey: identity.charKey,
+        updatedAt: nowIso(),
+      });
+    const grant = isWalletCharacter(identity)
+      ? walletAuthorization(state.value.walletBook, identity.charKey)
+      : undefined;
     return {
       settings: {
         ...settings.value,
         moduleSettings: resolveModuleSettings(
           settings.value.moduleSettings,
-          ChatPreferencesSchema.parse(state.value.chatPreferences[state.value.activeCharKey]),
+          ChatPreferencesSchema.parse(state.value.chatPreferences[identity.charKey]),
         ),
       },
       chatReference: buildChatReference(state.value),
       input: {
         ...context.value,
         actorLanguagePreferences: klona(state.value.chatPreferences),
-        chatPreferences: ChatPreferencesSchema.parse(state.value.chatPreferences[state.value.activeCharKey]),
-        voice: state.value.characterVoices[state.value.activeCharKey],
+        chatPreferences: ChatPreferencesSchema.parse(state.value.chatPreferences[identity.charKey]),
+        voice: state.value.characterVoices[identity.charKey],
         replyCount: settings.value.chat,
         voiceServices: settings.value.voiceServices,
         presets: settings.value.presets,
         paymentCurrencies: Object.fromEntries(
           walletAccounts.value.filter(a => a.ownerType !== 'shared').map(a => [a.ownerId, a.currency]),
         ),
-        walletAuthorization: currentWalletGrant(),
+        walletAuthorization: grant,
         moduleSettings: settings.value.moduleSettings,
-        identity: activeIdentity.value,
-        ...groupPromptSettings(activeIdentity.value),
-        thread: activeThread.value,
-        appSnapshot: generationSnapshot(),
-        availableStickers: stickerPrompt(activeIdentity.value, settings.value.stickers.stickers, activeThread.value),
+        identity,
+        ...groupPromptSettings(identity),
+        thread,
+        appSnapshot: generationSnapshot(state.value.snapshots[identity.charKey] || AppSnapshotSchema.parse({}), grant),
+        availableStickers: stickerPrompt(identity, settings.value.stickers.stickers, thread),
       },
     };
+  }
+  function followModuleInput() {
+    const runtime = moduleInput();
+    if (!runtime) return null;
+    const actors = panelCharacters.value.length > 1 ? panelCharacters.value : [runtime.input.identity];
+    const followInputs = actors.flatMap(identity => {
+      const candidate = moduleInput(identity);
+      return candidate ? [candidate.input] : [];
+    });
+    return { ...runtime, followInputs };
   }
   const generationRecordRevision = ref(0);
   const generationRecordStatus = ref('');
@@ -2527,7 +2558,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     void state.value.lastSyncedAt;
     const identity = activeIdentity.value;
     if (!identity || !isReady.value) return [];
-    return generationRows(readChatFloors(), state.value.generationReceipts, identity.stableId || identity.charKey);
+    return generationRows(
+      readChatFloors(),
+      state.value.generationReceipts,
+      identity.stableId || identity.charKey,
+      state.value.secondaryResults,
+    );
   });
   function refreshGenerationRecords() {
     generationRecordRevision.value++;
@@ -2540,7 +2576,12 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     if (!runtime) throw Error('请先打开有效的角色聊天');
     if (moduleGenerating.value || zoneGenerating.value) throw Error('已有生成正在进行');
     const charId = runtime.input.identity.stableId || runtime.input.identity.charKey;
-    const selected = generationRows(readChatFloors(), state.value.generationReceipts, charId)
+    const selected = generationRows(
+      readChatFloors(),
+      state.value.generationReceipts,
+      charId,
+      state.value.secondaryResults,
+    )
       .filter(row => floorIds.includes(row.floor))
       .sort((a, b) => a.floor - b.floor);
     if (!selected.length) throw Error('没有可生成的楼层');
@@ -2632,12 +2673,10 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           readChatFloors().find(f => f.message_id === row.floor)?.message !== row.source
         )
           throw Error('正文已变化，已丢弃本楼生成结果');
-        const replacement = `${row.source}\n\n${blocks.join('\n')}`;
-        await writeChatFloor(row.floor, row.source, replacement);
-        if (!current() || readChatFloors().find(f => f.message_id === row.floor)?.message !== replacement)
-          throw Error('本楼结果未能保存，请刷新后重试');
+        const sourceFloor = readChatFloors().find(f => f.message_id === row.floor)!;
+        saveSecondaryResult(state.value.secondaryResults, sourceFloor, blocks.join('\n'));
         state.value.generationReceipts[`${charId}:${row.floor}`] = {
-          source: floorSource(replacement),
+          source: floorSource(row.source),
           modules: [...new Set([...row.checked, ...modules])],
           completedAt: new Date().toISOString(),
         };
@@ -2646,7 +2685,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         await synchronize();
         refreshGenerationRecords();
       }
-      generationRecordStatus.value = '生成完成，结果已写回对应楼层';
+      generationRecordStatus.value = '生成完成，结果已保存到手机存档';
     } catch (error) {
       generationRecordStatus.value = error instanceof Error ? error.message : String(error);
       throw error;
@@ -2662,17 +2701,16 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   async function generateSecondaryFollow(job: SecondaryFollowJob): Promise<void> {
     await synchronize();
     if (!job.isCurrent()) return;
-    const runtime = moduleInput();
+    const runtime = followModuleInput();
     if (!runtime) return;
     if (moduleGenerating.value || zoneGenerating.value || Object.values(state.value.threads).some(t => t.generating)) {
       followGenerationStatus.value = '本轮未更新：手机有其他生成正在进行';
       logDiagnostic('副 API 跟随跳过', `第 ${job.message.message_id} 楼：手机有其他生成正在进行，可在生成记录补生成`);
       return;
     }
-    const modules =
-      runtime.input.identity.source === 'local_group'
-        ? job.modules.filter(module => module === 'messages')
-        : job.modules;
+    const modules = runtime.followInputs.every(input => input.identity.source === 'local_group')
+      ? job.modules.filter(module => module === 'messages')
+      : job.modules;
     const momentState = klona(state.value.moments);
     const momentPosts = klona(momentsFeed.value.posts);
     const momentPlan =
@@ -2700,8 +2738,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     followGenerationStatus.value = '正在通过副 API 更新手机内容…';
     const abort = () => void stopPhoneGeneration(id).catch(() => {});
     job.signal.addEventListener('abort', abort, { once: true });
-    const current = () =>
-      job.isCurrent() && moduleGenerationId === id && state.value.activeCharKey === runtime.input.identity.charKey;
+    const current = () => job.isCurrent() && moduleGenerationId === id;
     const input = {
       ...klona(runtime.input),
       settings: klona(runtime.settings),
@@ -2716,20 +2753,22 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         const key = appApiGroup(runtime.settings, module);
         groups.set(key, [...(groups.get(key) || []), module]);
       }
-      for (const group of groups.values()) {
-        const delta = await generateFollowModules(
-          { ...input, settings: klona(appApiSettings(runtime.settings, group[0])) },
-          group,
-        );
-        if (!current()) return;
-        delta.messages = normalizeGroupReplies(runtime.input.identity, delta.messages);
-        if (
-          delta.messages.length ||
-          delta.reactions?.length ||
-          delta.payment_actions?.length ||
-          Object.keys(delta.app_updates).length
-        )
-          blocks.push(serializeDelta(delta));
+      for (const actorInput of runtime.followInputs) {
+        for (const group of groups.values()) {
+          const delta = await generateFollowModules(
+            { ...input, ...klona(actorInput), settings: klona(appApiSettings(runtime.settings, group[0])) },
+            group,
+          );
+          if (!current()) return;
+          delta.messages = normalizeGroupReplies(actorInput.identity, delta.messages);
+          if (
+            delta.messages.length ||
+            delta.reactions?.length ||
+            delta.payment_actions?.length ||
+            Object.keys(delta.app_updates).length
+          )
+            blocks.push(serializeDelta(delta));
+        }
       }
       if (momentPlan) {
         const batch = await generateMomentsBatch(
@@ -2763,11 +2802,14 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (!current()) return;
       if (!blocks.length) {
         const charId = runtime.input.identity.stableId || runtime.input.identity.charKey;
-        state.value.generationReceipts[`${charId}:${job.message.message_id}`] = {
-          source: floorSource(job.message.message),
-          modules,
-          completedAt: new Date().toISOString(),
-        };
+        for (const actor of runtime.followInputs) {
+          const charId = actor.identity.stableId || actor.identity.charKey;
+          state.value.generationReceipts[`${charId}:${job.message.message_id}`] = {
+            source: floorSource(job.message.message),
+            modules,
+            completedAt: new Date().toISOString(),
+          };
+        }
         saveChat();
         refreshGenerationRecords();
         followGenerationStatus.value = '本轮没有新内容，保留原记录';
@@ -2789,22 +2831,27 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         after: job.message.message_id - 1,
         settings: klona(runtime.settings.moduleSettings),
         wallet: runtime.input.walletAuthorization,
+        wallets: Object.fromEntries(
+          runtime.followInputs.flatMap(actor =>
+            actor.walletAuthorization ? [[actor.identity.charKey, actor.walletAuthorization]] : [],
+          ),
+        ),
       };
+      if (!current()) return;
+      saveSecondaryResult(state.value.secondaryResults, job.message, blocks.join('\n'));
       saveChat();
-      await writeChatFloor(
-        job.message.message_id,
-        job.message.message,
-        `${job.message.message}\n\n${blocks.join('\n')}`,
-      );
+      await flushPhoneStorage();
       if (job.signal.aborted) return;
-      const charId = runtime.input.identity.stableId || runtime.input.identity.charKey;
       const saved = readChatFloors().find(f => f.message_id === job.message.message_id);
       if (saved && floorSource(saved.message) === floorSource(job.message.message)) {
-        state.value.generationReceipts[`${charId}:${job.message.message_id}`] = {
-          source: floorSource(saved.message),
-          modules,
-          completedAt: new Date().toISOString(),
-        };
+        for (const actor of runtime.followInputs) {
+          const charId = actor.identity.stableId || actor.identity.charKey;
+          state.value.generationReceipts[`${charId}:${job.message.message_id}`] = {
+            source: floorSource(saved.message),
+            modules,
+            completedAt: new Date().toISOString(),
+          };
+        }
         saveChat();
       }
       await synchronize();

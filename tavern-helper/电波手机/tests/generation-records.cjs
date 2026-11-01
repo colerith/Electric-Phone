@@ -77,7 +77,7 @@ global.setChatMessages = async rows => {
     emit('CHARACTER_MESSAGE_RENDERED', row.message_id);
   }
 };
-const base = path.resolve('src/util/酒馆助手脚本/电波手机');
+const base = path.resolve(__dirname, '..');
 const vue = require('vue'),
   { createPinia } = require('pinia');
 const { APP_IDS, ScriptSettingsSchema } = require(base + '/schemas.ts');
@@ -118,6 +118,16 @@ const waitFor = async fn => {
   phone.settings.generation.requiredModules = [...APP_IDS];
   phone.settings.generation.modules = [];
   const requests = [];
+  global.getCharWorldbookNames = () => ({primary:'',additional:[]});
+  SillyTavern.getRequestHeaders = () => ({'Content-Type':'application/json'});
+  global.fetch = async (url, options) => {
+    assert.equal(url, '/api/backends/chat-completions/generate');
+    const body = JSON.parse(options.body);
+    return Response.json({choices:[{message:{content:await global.generateRaw({
+      ordered_prompts:body.messages, user_input:body.messages.filter(m=>m.role==='user').at(-1)?.content,
+      custom_api:{model:body.model},
+    })}}]});
+  };
   global.generateRaw = async args => {
     requests.push(args);
     assert(!JSON.stringify(args).includes('未来秘密'), '未来剧情不能进入历史请求');
