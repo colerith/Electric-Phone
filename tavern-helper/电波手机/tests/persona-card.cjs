@@ -170,6 +170,15 @@ const waitFor = async fn => {
   menu.click();
   await tick();
   assert(document.querySelector('[aria-label="选择 PNG 人设卡"]'));
+  const fileInput = document.querySelector('[aria-label="选择 PNG 人设卡"]');
+  let opened = false;
+  fileInput.click = () => {
+    opened = true;
+  };
+  const upload = [...document.querySelectorAll('button')].find(b => b.textContent.includes('选择 PNG 文件'));
+  assert(upload, 'visible upload entry exists independently of native file-input styling');
+  upload.click();
+  assert(opened, 'upload button opens the file picker');
   messenger.unmount();
   app.unmount();
   console.log('PASS PNG metadata, Unicode, CRC, rejection, duplicate-safe import and settings persistence');

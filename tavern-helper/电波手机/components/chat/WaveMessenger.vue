@@ -213,13 +213,23 @@
           <template v-else-if="dialog === 'persona'">
             <p>选择电波手机导出的原始 PNG，新建联系人并恢复角色聊天设置。同名角色会自动编号。</p>
             <input
+              ref="personaFileInput"
               type="file"
+              hidden
               accept="image/png,.png"
               aria-label="选择 PNG 人设卡"
               :disabled="importingPersona"
               @change="importPersona"
             />
-            <p v-if="importingPersona">正在导入…</p>
+            <button
+              type="button"
+              class="settings-save-wide"
+              :disabled="importingPersona"
+              @click="personaFileInput?.click()"
+            >
+              <i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i>
+              {{ importingPersona ? '正在导入…' : '选择 PNG 文件' }}
+            </button>
           </template>
           <template v-else-if="dialog === 'friend'">
             <label>联系人名称<input v-model="newName" maxlength="40" placeholder="填写名称" /></label>
@@ -717,6 +727,7 @@ function pick(key: string) {
       : [...memberKeys.value, key];
 }
 const importingPersona = ref(false);
+const personaFileInput = ref<HTMLInputElement | null>(null);
 async function importPersona(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
