@@ -1,4 +1,4 @@
-import { migrateAccountCurrency } from '../services/wallet/wallet-accounts';
+import { currencies, migrateAccountCurrency } from '../services/wallet/wallet-accounts';
 import { ensureIncomingIdentities } from '../services/core/incoming-identities';
 import { PersonaCardSchema } from '../services/chat/persona-card';
 import { saveSecondaryResult, withSecondaryResults } from '../services/generation/secondary-results';
@@ -704,6 +704,42 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     ++syncToken;
     saveChat();
     return count;
+  }
+  function unifyWalletCurrencies(ids: string[], currency: string): void {
+    if (!currencies.includes(currency)) throw Error('请选择支持的币种');
+    const next = klona(state.value.walletBook);
+    for (const id of new Set(ids)) {
+      if (!walletAccounts.value.some(account => account.id === id)) throw Error('账户不可用，请刷新后重试');
+      const original = klona(next.accounts[id]);
+      const sources = new Set([
+        ...Object.keys(original.opening),
+        ...Object.values(original.manual).map(row => row.currency),
+        ...Object.values(original.layers)
+          .flat()
+          .map(row => row.currency),
+      ]);
+      for (const source of sources) if (source !== currency) migrateAccountCurrency(next, id, source, currency);
+      next.accounts[id].currency = currency;
+      next.accounts[id].currencyMigrationBackup = { ...original, currencyMigrationBackup: undefined };
+    }
+    state.value.walletBook = next;
+    ++syncToken;
+    saveChat();
+  }
+  function undoUnifiedWalletCurrencies(expected: Record<string, string>): void {
+    for (const [id, signature] of Object.entries(expected)) {
+      if (
+        JSON.stringify(state.value.walletBook.accounts[id]) !== signature ||
+        !state.value.walletBook.accounts[id]?.currencyMigrationBackup
+      )
+        throw Error('账户已有新变更，不能直接撤销；修改前数据仍保留在账户备份中');
+    }
+    for (const id of Object.keys(expected))
+      state.value.walletBook.accounts[id] = WalletAccountSchema.parse(
+        state.value.walletBook.accounts[id].currencyMigrationBackup,
+      );
+    ++syncToken;
+    saveChat();
   }
   function createSharedWallet(name: string): string {
     const key = walletIdentity.value?.charKey;
@@ -5932,6 +5968,8 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     walletRaw,
     saveWalletAccount,
     migrateWalletCurrency,
+    unifyWalletCurrencies,
+    undoUnifiedWalletCurrencies,
     createSharedWallet,
     deleteWalletAccount,
     selectSharedWallet,

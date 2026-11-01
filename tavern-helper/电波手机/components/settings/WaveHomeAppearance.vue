@@ -1,6 +1,14 @@
 <template>
   <div class="home-appearance-editor">
     <section class="settings-card appearance-group">
+      <div class="wave-settings-title">辅助触控</div>
+      <label class="chat-setting-row"
+        ><span>手机内部悬浮球</span
+        ><input v-model="appearance.assistiveTouch" type="checkbox" @change="phone.saveSettings()"
+      /></label>
+      <p>拖动调整位置，松手后贴边收起。点击快速切换主角色、调整翻译和钱包币种。</p>
+    </section>
+    <section class="settings-card appearance-group">
       <div class="wave-settings-title">手机界面大小</div>
       <div class="settings-slider-row">
         <span

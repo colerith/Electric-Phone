@@ -1275,6 +1275,7 @@
             @confirm="confirmSharedForward"
           />
         </template>
+        <WaveAssistiveTouch v-if="store.settings.appearance.assistiveTouch" />
         <button class="wave-homebar" type="button" aria-label="返回主屏或关闭手机" @click="handleHomebar">
           <span></span>
         </button>
@@ -1284,6 +1285,7 @@
 </template>
 
 <script setup lang="ts">
+import WaveAssistiveTouch from './components/shared/WaveAssistiveTouch.vue';
 import { parseSharedLinks } from './services/chat/share-links';
 import { provideSettingsForms } from './services/core/settings-forms';
 import WaveMentionPicker from './components/shared/WaveMentionPicker.vue';
