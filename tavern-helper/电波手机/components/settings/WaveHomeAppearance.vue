@@ -1,6 +1,26 @@
 <template>
   <div class="home-appearance-editor">
     <section class="settings-card appearance-group">
+      <div class="wave-settings-title">App 与输出语言</div>
+      <label class="chat-setting-row appearance-language-row"
+        ><span>界面语言</span
+        ><WaveSelect
+          v-model="appearance.interfaceLanguage"
+          :options="interfaceLanguages"
+          aria-label="界面语言"
+          @update:model-value="phone.saveSettings()"
+      /></label>
+      <label class="chat-setting-row appearance-language-row"
+        ><span>默认输出语言</span
+        ><WaveSelect
+          v-model="appearance.outputLanguage"
+          :options="translationLanguages"
+          aria-label="默认输出语言"
+          @update:model-value="phone.saveSettings()"
+      /></label>
+      <p>未开启双语的 App 必须按默认输出语言生成；双语模块保留各自语言设置。仅影响后续生成，不重译已有内容。</p>
+    </section>
+    <section class="settings-card appearance-group">
       <div class="wave-settings-title">辅助触控</div>
       <label class="chat-setting-row assistive-setting-row"
         ><span><strong>手机内部悬浮球</strong></span
@@ -200,6 +220,8 @@
   </div>
 </template>
 <script setup lang="ts">
+import { translationLanguages } from '../../services/generation/translation';
+const interfaceLanguages = ['简体中文', '繁体中文', '英语', '日语', '韩语'].map(value => ({ value, label: value }));
 import { computed, ref } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import WaveToggle from '../shared/WaveToggle.vue';
@@ -299,5 +321,24 @@ function applyImage(value: { avatar: string }) {
   justify-content: space-between;
   gap: 16px;
   padding: 18px 0;
+}
+</style>
+
+<style scoped lang="scss">
+.appearance-language-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  min-height: 64px;
+}
+.appearance-language-row > span {
+  flex: 1;
+  min-width: 0;
+}
+.appearance-language-row :deep(.wave-select) {
+  flex: 0 1 55%;
+  min-width: 0;
 }
 </style>

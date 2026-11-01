@@ -426,6 +426,7 @@ export async function testSecondaryApi(settings: ScriptSettings): Promise<string
 function buildInputContext(input: GenerationInput): PhonePromptInput {
   return {
     ...input,
+    outputLanguage: input.settings.appearance.outputLanguage,
     replyCount: input.settings.chat,
     voiceServices: input.settings.voiceServices,
     presets: input.settings.presets,
@@ -695,6 +696,7 @@ export async function generateMomentsBatch(
               input.treeHoleTopic,
               input.chatPreferences,
               input.actorLanguagePreferences,
+              input.settings.appearance.outputLanguage,
             )
           : buildMomentsPrompt(
               plan,
@@ -704,6 +706,7 @@ export async function generateMomentsBatch(
               input.chatPreferences,
               input.settings.imageServices.profiles.find(p => p.id === state.settings.imageProfileId)?.provider,
               input.actorLanguagePreferences,
+              input.settings.appearance.outputLanguage,
             )) +
         `\n这是独立生成请求，只输出最终 <${input.treeHoleTopic !== undefined ? 'wave_tree_hole' : 'wave_moments'}> 数据块，不续写酒馆正文。`,
     },

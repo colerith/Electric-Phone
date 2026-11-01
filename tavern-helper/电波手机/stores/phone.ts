@@ -2565,6 +2565,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
           walletAccounts.value.filter(a => a.ownerType !== 'shared').map(a => [a.ownerId, a.currency]),
         ),
         walletAuthorization: grant,
+        outputLanguage: settings.value.appearance.outputLanguage,
         moduleSettings: settings.value.moduleSettings,
         identity,
         ...groupPromptSettings(identity),
@@ -4597,6 +4598,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
                 walletAccounts.value.filter(a => a.ownerType !== 'shared').map(a => [a.ownerId, a.currency]),
               ),
               walletAuthorization: requestWalletGrant,
+              outputLanguage: settings.value.appearance.outputLanguage,
               moduleSettings: settings.value.moduleSettings,
               cardKey: runtime.cardKey,
               chatKey: runtime.chatKey,
@@ -4648,6 +4650,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         walletAuthorization: requestWalletGrant,
         settings: klona({
           ...messageSettings,
+          outputLanguage: settings.value.appearance.outputLanguage,
           moduleSettings: requestModuleSettings,
           generation: { ...settings.value.generation, narrativeMode },
         }),

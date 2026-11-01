@@ -107,7 +107,7 @@
           @change="$emit('service', 'browserEndpoint', ($event.target as HTMLInputElement).value)"
         /><small>留空使用维基百科；网页搜索需填写启用 JSON 与跨域访问的 SearXNG 地址。</small></label
       >
-      <button class="function-setting-row" type="button" @click="$emit('clear-history')">
+      <button class="function-setting-row browser-clear-history" type="button" @click="$emit('clear-history')">
         <i class="fa-solid fa-clock-rotate-left"></i
         ><span><strong>清空历史记录</strong><small>保留网页收藏夹</small></span>
       </button>
@@ -382,5 +382,33 @@ defineExpose({ save });
 #wave-phone-script-root .wave-device .music-restore-confirm button.confirm {
   background: #b77792;
   color: white;
+}
+</style>
+
+<style lang="scss">
+#wave-phone-script-root .wave-device .browser-preferences {
+  padding: 20px;
+  > .browser-clear-history {
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid var(--settings-line, #dce2eb);
+    border-radius: 14px;
+    min-height: 72px;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  > .browser-clear-history > span {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    text-align: left;
+  }
+  > .browser-clear-history > i {
+    flex: 0 0 28px;
+    text-align: center;
+  }
 }
 </style>

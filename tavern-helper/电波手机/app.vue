@@ -1285,6 +1285,7 @@
 </template>
 
 <script setup lang="ts">
+import { useInterfaceLanguage } from './services/core/interface-language';
 import WaveAssistiveTouch from './components/shared/WaveAssistiveTouch.vue';
 import { parseSharedLinks } from './services/chat/share-links';
 import { provideSettingsForms } from './services/core/settings-forms';
@@ -1368,6 +1369,7 @@ import { usePhoneStore } from './stores/phone';
 import { useSystemClockStore } from './stores/system-clock';
 
 const store = usePhoneStore();
+useInterfaceLanguage(phoneSurface, () => store.settings.appearance.interfaceLanguage);
 const selectedChatMentions = reactive(new Set<string>());
 watch(
   () => [store.activeThread?.id, store.activeThread?.draft],

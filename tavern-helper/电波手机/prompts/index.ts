@@ -30,6 +30,7 @@ export function buildMomentsPrompt(
   chatPreferences?: ChatPreferences,
   imageProvider?: 'novelai' | 'openai',
   actorPreferences: Record<string, ChatPreferences> = {},
+  outputLanguage = '简体中文',
 ): string {
   const timeline = momentTimeline(state);
   const tasks = [
@@ -76,7 +77,7 @@ export function buildMomentsPrompt(
   const language = resolveBilingual(state.settings, chatPreferences);
   const bilingualRule = language.autoTranslate
     ? `[朋友圈双语格式] 严格按界面显示顺序输出：posts 与 comments 的 content 必须是位于上方的 ${language.sourceLanguage} 原文，各项 translation.content 必须是位于下方的 ${language.targetLanguage} 忠实译文，另附 translation={language:"${language.targetLanguage}",title:"",content:"忠实译文"}。严禁把译文写入 content，严禁交换、覆盖或重复原文与译文；译文只写自然文本，不加“译文”标签、括号或折叠标记；不加情节，保留 authorKey/authorName，不翻译身份 ID，不给 likes 添加译文。`
-    : '未启用双语时，新帖标题、正文统一使用简体中文（用户明确指定其他语言时遵循指定），不得跟随历史外语样例随机切换；评论按目标主帖及单独语言设置决定，不得据此省略主帖要求的译文。';
+    : `未启用双语时，新帖标题、正文必须使用${outputLanguage}，不得跟随历史外语样例随机切换；评论按目标主帖及单独语言设置决定，不得据此省略主帖要求的译文。`;
   const request = {
     protocol: 'wave_moments_request_v1',
     request_id: plan.id,
@@ -108,8 +109,12 @@ export function buildMomentsPrompt(
       tags: ['日常'],
       images: Array.from({ length: plan.imageCounts?.[index] ?? 1 }, (_, image) =>
         state.settings.imageMode === 'ai'
-          ? { subject: 'scene', prompt: `第${image + 1}张不同画面的提示词`, description: '简体中文配文' }
-          : `第${image + 1}张简体中文图片描述`,
+          ? {
+              subject: 'scene',
+              prompt: `第${image + 1}张不同画面的提示词`,
+              description: `${language.autoTranslate ? language.sourceLanguage : outputLanguage}配文`,
+            }
+          : `第${image + 1}张${language.autoTranslate ? language.sourceLanguage : outputLanguage}图片描述`,
       ),
       location: '可选地点',
       delaySeconds: plan.minDelay,
@@ -145,6 +150,7 @@ import {
 import { formatPhoneMessage } from '../services/chat/message-format';
 import type { AppSnapshot, Identity, Thread } from '../schemas';
 export type PhonePromptInput = {
+  outputLanguage?: string;
   spaceActors?: Identity[];
   manualZoneCount?: number;
   actorLanguagePreferences?: Record<string, ChatPreferences>;
@@ -1421,6 +1427,7 @@ export function buildPhonePrompts(
         content: `[电波手机·输出封装] 若启用了 Ecot，只允许先输出一个完整的 <electric title="本轮剧情标题">…</electric> 区块；title 必须每次结合当前剧情、情绪、物件或关键台词临时创作 4–12 个简体中文字符，不使用“查看 Ecot”等固定标题，不机械重复上一轮。随后立即输出当前任务要求的单个 JSON（${task === 'zone' ? '空间 profile/posts' : input.identity.source === 'local_group' ? '群聊 messages/app_updates' : '私聊 messages/app_updates'}）。区块不属于任何聊天气泡，不拆分为多条消息。JSON 外不输出其他文字。没有 Ecot 时直接输出 JSON。此封装优先于旧条目的前言、标签与纯 JSON 限制。`,
       },
     ])
+    .concat([{ role: 'system', content: defaultOutputLanguage(input.outputLanguage) }])
     .filter(item => typeof item === 'string' || !!item.content.trim());
 }
 // 主 API/追加模式的角色、用户、世界书及正文由酒馆自己的生成管线注入，此处仅补手机规则和手机数据。
@@ -1524,6 +1531,7 @@ export function buildModulePrompt(
     follow
       ? '继续完成酒馆本轮正常正文，在相关事件之后插入一个 <wave_phone_delta>上述 JSON</wave_phone_delta>；不要把整楼变为 JSON，不改变原正文格式、角色行为或预设。没有变化可不输出数据块。'
       : '手动指定模块生成：若启用 Ecot，可先输出一个完整 <electric title="本轮剧情标题"> 区块；标题每次结合当前剧情临时创作 4–12 个简体中文字符。区块后只返回上述单个 JSON 对象，不输出正文或 Markdown 围栏。',
+    defaultOutputLanguage(input.outputLanguage),
   ].join('\n\n');
 }
 
@@ -1553,7 +1561,7 @@ export function moduleGenerationRules(input: PhonePromptInput, apps: readonly st
         const local = settings[app];
         const language = app === 'calendar' ? null : resolveBilingual(settings[app], input.chatPreferences);
         const pref = language || local;
-        return `${app} 本轮设置：${JSON.stringify(pref)}\n${contracts[app]}\n新增不同 ID 最多 ${pref.maxNew} 条${app === 'memo' ? `；涂鸦最多 ${settings.memo.maxDoodles} 条` : ''}，0 禁止新增，更新已有 ID 不占新增额度。额度跨本轮所有数据块共享，不按块重置。允许少量或零更新，不为凑数编造。只提交变化条目，禁止删除未提交旧项。${language?.autoTranslate ? `严格按显示顺序输出：title/content 必须保存位于上方的 ${language.sourceLanguage} 原文；translation.title/translation.content 必须保存位于下方的 ${language.targetLanguage} 译文。每项另附 translation={language:"${language.targetLanguage}",title:"标题译文",content:"正文译文"}；严禁把译文写入 title/content，严禁交换、覆盖、重复原文与译文。译文忠实，不增添情节。` : '单语时标题和正文统一使用简体中文（用户明确指定其他语言时遵循指定），不要求 translation；不得因历史样例而随机切换语言。'}`;
+        return `${app} 本轮设置：${JSON.stringify(pref)}\n${contracts[app]}\n新增不同 ID 最多 ${pref.maxNew} 条${app === 'memo' ? `；涂鸦最多 ${settings.memo.maxDoodles} 条` : ''}，0 禁止新增，更新已有 ID 不占新增额度。额度跨本轮所有数据块共享，不按块重置。允许少量或零更新，不为凑数编造。只提交变化条目，禁止删除未提交旧项。${language?.autoTranslate ? `严格按显示顺序输出：title/content 必须保存位于上方的 ${language.sourceLanguage} 原文；translation.title/translation.content 必须保存位于下方的 ${language.targetLanguage} 译文。每项另附 translation={language:"${language.targetLanguage}",title:"标题译文",content:"正文译文"}；严禁把译文写入 title/content，严禁交换、覆盖、重复原文与译文。译文忠实，不增添情节。` : `单语时标题和正文必须使用${input.outputLanguage || '简体中文'}，不要求 translation；不得因历史样例而随机切换语言。`}`;
       }),
   ].join('\n\n');
 }
@@ -1618,12 +1626,17 @@ export function buildTreeHolePrompt(
   topic: string,
   preferences?: ChatPreferences,
   actorPreferences: Record<string, ChatPreferences> = {},
+  outputLanguage = '简体中文',
 ): string {
   return (
-    buildMomentsPrompt(plan, state, posts, '', preferences, undefined, actorPreferences).replaceAll(
+    buildMomentsPrompt(plan, state, posts, '', preferences, undefined, actorPreferences, outputLanguage).replaceAll(
       'wave_moments',
       'wave_tree_hole',
     ) +
     `\n[匿名树洞最高优先规则] 今日话题：${JSON.stringify(topic)}。只使用上面匿名演员和公开帖子、评论，不引用现实姓名、角色卡、用户身份、现场或私聊。匿名昵称跨轮复用；不猜测匿名者真实身份。所有 images=[]，不得生图、文字图或图片地址。新帖数量严格遵守 postTasks，互动仅按 tasks 执行，评论必须承接 target.replyToCommentId；无独立语言配置时继承目标主帖原文与译文格式。`
   );
+}
+
+export function defaultOutputLanguage(language = '简体中文'): string {
+  return `[电波手机·默认输出语言最高优先规则] 未明确启用双语的 App，其本轮新增或改写的所有可读文字必须使用${language}：状态描述、心声、备忘标题与正文、涂鸦解读、日历事件、浏览记录、音乐生成说明、钱包备注等。角色国籍、角色卡语言、历史内容与示例语言不能覆盖此规则。明确启用双语的 App/私聊/群聊成员仍严格使用其指定原文和译文语言；评论继承目标主帖或评论者明确设置。JSON 字段名、协议标签、ID、URL、货币代码不翻译，既有歌名、专名和直接引用保留原文，不回写或重译旧数据。本规则只约束手机数据，不约束酒馆正文。`;
 }
