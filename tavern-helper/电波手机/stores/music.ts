@@ -683,11 +683,12 @@ export const useMusicStore = defineStore('wave-music', () => {
           current.value = resolved;
           radioTrack.value = resolved;
           player().src = resolved.url;
-          await startMusicPlayback(player(), controller.signal);
+          const autoplay = phone.settings.musicGeneratedAutoplay !== false;
+          if (autoplay) await startMusicPlayback(player(), controller.signal);
           if (!active()) return;
           enqueue(resolved);
           error.value = '';
-          searchStatus.value = `已播放 · ${resolved.title} · ${resolved.artist}`;
+          searchStatus.value = `${autoplay ? '已播放' : '已同步，点击播放'} · ${resolved.title} · ${resolved.artist}`;
           automaticFallback = playNext;
           // Optional lyrics must not hold up playback or reject a working audio source.
           const originalLyric = current.value?.lyric;

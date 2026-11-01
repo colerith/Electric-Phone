@@ -155,6 +155,14 @@
         </div>
       </div>
       <div class="function-section-heading"><b>音乐服务</b><small>搜索 · 封面 · 歌词</small></div>
+      <label class="toggle-row">
+        <span><strong>生成新歌自动播放</strong><small>关闭后仍同步歌曲，点击播放才开始收听</small></span>
+        <WaveToggle
+          v-model="phone.settings.musicGeneratedAutoplay"
+          aria-label="生成新歌自动播放"
+          @update:model-value="phone.saveSettings()"
+        />
+      </label>
       <WaveSelect
         :model-value="musicSource"
         :options="[
