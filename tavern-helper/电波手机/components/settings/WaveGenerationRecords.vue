@@ -17,7 +17,7 @@
         <button v-if="busy" class="system-action" @click="phone.stopManualGeneration()">停止生成</button>
       </div>
       <p>
-        立即生成检查最新正文的全部模块；批量补生成按设置逐楼抽取模块，从旧到新执行，时间取本楼标记或之前最近的标记。切换聊天或停止后，已完成楼层仍会保留。
+        多人模式会逐一检查所有主角色，根据本楼上下文判断是否需要更新，无关角色不强行生成。立即生成检查最新正文缺失的全部模块；批量补生成按设置逐楼抽取模块，从旧到新执行，时间取本楼标记或之前最近的标记。切换聊天或停止后，已完成楼层仍会保留。
       </p>
       <p v-if="notice || phone.generationRecordStatus" role="status" aria-live="polite">
         {{ notice || phone.generationRecordStatus }}

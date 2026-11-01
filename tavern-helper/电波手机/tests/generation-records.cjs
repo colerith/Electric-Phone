@@ -236,6 +236,35 @@ const waitFor = async fn => {
   floors = floors.slice(0, 3);
   phone.refreshGenerationRecords(); await tick();
   assert(document.querySelector('.page-controls').textContent.includes('1 / 1'));
+  // Multi-actor backfill must not depend on the selected profile.
+  const firstKey=phone.state.activeCharKey;
+  phone.state.identities[firstKey].actorType='main';
+  const secondKey=phone.addContact('Bob','另一个主角');
+  phone.state.identities[secondKey].actorType='main';
+  phone.saveChat();
+  floors.push({message_id:31,role:'assistant',message:'Bob 收到新消息，Alice 没有参与。 <wave_time>2020/1/3 10:00</wave_time>'});
+  const actors=[];
+  global.generateRaw=async args=>{
+    const prompt=args.ordered_prompts.filter(p=>typeof p==='object').map(p=>p.content).join('\n');
+    const match=prompt.match(/角色ID：([^；\n]+)；角色名：([^\n]+)/);
+    assert(match);assert(args.user_input.includes('先根据本楼及之前上下文判断'));
+    actors.push(match[2]);
+    phone.state.activeCharKey=secondKey; // Switching the displayed actor must not cancel.
+    return JSON.stringify({version:1,char_id:match[1],char_name:match[2],messages:[],app_updates:match[2]==='Bob'?{status:'Bob新状态'}:{}});
+  };
+  await phone.backfillGeneration([31]);
+  assert.deepEqual(actors.sort(),['Alice','Bob']);
+  for(const key of [firstKey,secondKey]) {
+    const actor=phone.state.identities[key];
+    const receipt=phone.state.generationReceipts[`${actor.stableId||key}:31`];
+    assert.deepEqual([...receipt.modules].sort(),['calendar','memo','status']);
+  }
+  assert(phone.activeSnapshot.status.includes('Bob新状态'));
+  assert(!floors.at(-1).message.includes('wave_phone_delta'));
+  phone.state.activeCharKey=firstKey; phone.refreshGenerationRecords();
+  assert(phone.generationRecords.find(r=>r.floor===31).checked.includes('status'));
+  await phone.backfillGeneration([31]);
+  assert.equal(actors.length,2,'checked actors/modules must not be regenerated');
   app.unmount();
   console.log('generation records: chronological backfill, context cutoff, receipts, stale edits and UI passed');
   process.exit(0);
