@@ -136,6 +136,24 @@ const waitFor = async fn => {
   assert.throws(() => decodePersonaPng(png), /没有/);
   assert.throws(() => decodePersonaPng(encoded.slice(0, 25)), /完整|结束/);
   const before = phone.identities.length;
+  const nativeFetch = global.fetch;
+  let rejectUpload = true;
+  const uploaded = new Map();
+  global.fetch = async (url, init = {}) => {
+    if (String(url).startsWith('data:')) return nativeFetch(url, init);
+    if (init.method === 'HEAD') return new Response(null, { status: uploaded.has(url) ? 200 : 404 });
+    if (url === '/api/files/upload') {
+      if (rejectUpload) return new Response(null, { status: 500 });
+      const body = JSON.parse(init.body);
+      const path = '/user/files/' + body.name;
+      uploaded.set(path, body.data);
+      return Response.json({ path });
+    }
+    throw Error('Unexpected resource request: ' + url);
+  };
+  await assert.rejects(phone.importPersonaData(decoded), /资源落盘失败/);
+  assert.equal(phone.identities.length, before, 'failed upload must not create a partial contact');
+  rejectUpload = false;
   const key = await phone.importPersonaData(decoded);
   assert.equal(phone.identities.length, before + 1);
   assert(phone.state.identities[key].name.endsWith('（2）'));
@@ -143,7 +161,11 @@ const waitFor = async fn => {
   await phone.synchronize();
   phone.selectIdentity(key);
   const restored = phone.exportPersonaData();
-  assert.equal(restored.identity.avatar, decoded.identity.avatar);
+  assert(restored.identity.avatar.startsWith('/user/files/wave-resource-'));
+  assert.equal(restored.profile.characterImage.references[0].image, restored.identity.avatar);
+  assert.equal(uploaded.get(restored.identity.avatar), decoded.identity.avatar.split(',')[1]);
+  require(base + '/services/core/resource-storage.ts').assertExternalResources(restored);
+  global.fetch = nativeFetch;
   assert.equal(restored.profile.characterImage.prefix, '角色外貌');
   assert.equal(restored.identity.npcProfile, decoded.identity.npcProfile);
   assert(!JSON.stringify(restored).includes('apiKey'));

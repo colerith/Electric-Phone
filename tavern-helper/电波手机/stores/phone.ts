@@ -1,6 +1,7 @@
 import { migrateAccountCurrency } from '../services/wallet/wallet-accounts';
 import { ensureIncomingIdentities } from '../services/core/incoming-identities';
 import { PersonaCardSchema } from '../services/chat/persona-card';
+import { externalizeResources, assertExternalResources } from '../services/core/resource-storage';
 import { generationRows, floorSource, storyIso } from '../services/generation/generation-records';
 import { isReplayedMessage } from '../services/chat/replayed-message';
 import { applyGroupManagement } from '../services/chat/group-management';
@@ -3881,13 +3882,25 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   async function importPersonaData(value: unknown): Promise<string> {
     const runtime = context.value;
     if (!runtime || !isReady.value) throw Error('请先进入有效聊天');
-    const card = PersonaCardSchema.parse(value);
+    let card = PersonaCardSchema.parse(value);
     const safeImage = (value: string) => !value || /^data:image\/(png|jpeg|webp|gif);base64,/i.test(value);
     if (
       !safeImage(card.identity.avatar) ||
       (card.profile.characterImage?.references || []).some(ref => !safeImage(ref.image))
     )
       throw Error('人设卡图片必须内嵌在 PNG 中，请重新导出原始人设卡');
+    // Upload every embedded asset before mutating either the roster or chat state.
+    card = await externalizeResources(card);
+    assertExternalResources(card);
+    const current = getRuntimeContext();
+    if (
+      !isReady.value ||
+      current?.cardKey !== runtime.cardKey ||
+      current.chatKey !== runtime.chatKey ||
+      context.value?.cardKey !== runtime.cardKey ||
+      context.value.chatKey !== runtime.chatKey
+    )
+      throw Error('聊天已切换，请重新导入');
     let name = card.identity.name;
     let suffix = 2;
     while (identities.value.some(item => item.name === name)) name = `${card.identity.name}（${suffix++}）`;
