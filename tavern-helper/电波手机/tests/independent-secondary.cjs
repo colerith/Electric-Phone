@@ -35,6 +35,16 @@ const {buildCustomApi}=require('../services/core/api-config.ts');
  settings.api.stream=true;
  global.fetch=async()=>new Response(new ReadableStream({start(c){c.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"hel"}}]}\n\ndata: {"choices":[{"delta":{"content":"lo"}}]}\n\ndata: [DONE]\n'));c.close();}}),{headers:{'Content-Type':'text/event-stream'}});
  assert.equal(await requestIndependentApi(settings,buildCustomApi(settings),messages,new AbortController().signal),'hello');
+ // Reproduce mislabeled/missing SSE headers and byte-split UTF-8/chunks.
+ for (const headers of [{}, {'Content-Type':'application/json'}, {'Content-Type':'text/plain'}]) {
+  const bytes=new TextEncoder().encode(': heartbeat\r\nevent: message\r\ndata: {"choices":\r\ndata: [{"delta":{"content":"你好"}}]}\r\n\r\ndata: [DONE]');
+  global.fetch=async()=>new Response(new ReadableStream({start(c){for(const byte of bytes)c.enqueue(Uint8Array.of(byte));c.close();}}),{headers});
+  assert.equal(await requestIndependentApi(settings,buildCustomApi(settings),messages,new AbortController().signal),'你好');
+ }
+ global.fetch=async()=>new Response(JSON.stringify({choices:[{message:{content:'JSON fallback'}}]}),{headers:{'Content-Type':'text/event-stream'}});
+ assert.equal(await requestIndependentApi(settings,buildCustomApi(settings),messages,new AbortController().signal),'JSON fallback');
+ global.fetch=async()=>new Response('data: {"error":{"message":"provider failure"}}\n\n', {headers:{'Content-Type':'application/json'}});
+ await assert.rejects(requestIndependentApi(settings,buildCustomApi(settings),messages,new AbortController().signal),/provider failure/);
  global.fetch=async(_url,opts)=>{opts.signal.throwIfAborted();throw Error('should abort');};
  const abort=new AbortController();abort.abort();
  await assert.rejects(requestIndependentApi(settings,buildCustomApi(settings),messages,abort.signal),{name:'AbortError'});

@@ -88,25 +88,48 @@ export async function requestIndependentApi(
         .join('') || ''
     );
   };
-  if (!response.headers.get('content-type')?.includes('text/event-stream')) return extract(await response.json());
-  if (!response.body) throw Error('副 API 返回空流');
+  // Some proxies label SSE as JSON (or omit Content-Type). Inspect the body;
+  // conversely a streaming request can still receive a normal JSON response.
+  if (!response.body) throw Error('副 API 返回空响应');
   const reader = response.body.getReader(),
     decoder = new TextDecoder();
   let buffer = '',
-    output = '';
+    output = '',
+    mode: 'json' | 'sse' | undefined;
+  let eventData: string[] = [];
+  const dispatch = (): boolean => {
+    const data = eventData.join('\n').trim();
+    eventData = [];
+    if (data === '[DONE]') return true;
+    if (data) output += extract(JSON.parse(data));
+    return false;
+  };
   try {
     while (true) {
       const { done, value } = await reader.read();
       buffer += decoder.decode(value, { stream: !done });
-      const lines = buffer.split('\n');
-      buffer = done ? '' : lines.pop() || '';
-      for (const line of lines) {
-        if (!line.startsWith('data:')) continue;
-        const data = line.slice(5).trim();
-        if (data === '[DONE]') return output;
-        if (data) output += extract(JSON.parse(data));
+      if (!mode) {
+        buffer = buffer.trimStart();
+        if (/^[{[]/.test(buffer)) mode = 'json';
+        else if (/^(?:data:|event:|id:|retry:|:)/.test(buffer)) mode = 'sse';
+        else if (done) throw Error('副 API 返回了无法识别的响应格式');
       }
-      if (done) return output;
+      if (mode === 'sse') {
+        const lines = buffer.split('\n');
+        buffer = done ? '' : lines.pop() || '';
+        for (const rawLine of lines) {
+          const line = rawLine.replace(/\r$/, '');
+          if (!line) {
+            if (dispatch()) return output;
+          } else if (line.startsWith('data:')) {
+            eventData.push(line.slice(5).replace(/^ /, ''));
+          }
+        }
+        if (done) {
+          dispatch();
+          return output;
+        }
+      } else if (done) return extract(JSON.parse(buffer));
     }
   } finally {
     await reader.cancel().catch(() => {});
