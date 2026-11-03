@@ -65,11 +65,23 @@
             :aria-pressed="phone.state.activeCharKey === actor.charKey"
             @click="phone.selectIdentity(actor.charKey)"
           >
-            <img v-if="actor.avatar" :src="actor.avatar" alt="" /><span v-else class="assistive-avatar">{{
-              actor.name.slice(0, 1)
-            }}</span
-            ><b>{{ actor.name }}</b
-            ><span v-if="phone.state.activeCharKey === actor.charKey">✓</span>
+            <span class="assistive-actor-avatar">
+              <img v-if="actor.avatar" :src="actor.avatar" alt="" />
+              <span v-else class="assistive-avatar">{{ actor.name.slice(0, 1) }}</span>
+              <span
+                v-if="phone.state.appUnread[actor.charKey]?.length"
+                class="assistive-actor-unread"
+                role="img"
+                aria-label="未读"
+                title="未读"
+              ></span>
+            </span>
+            <b>{{ actor.name }}</b>
+            <i
+              v-if="phone.state.activeCharKey === actor.charKey"
+              class="fa-solid fa-circle-check assistive-actor-selected"
+              aria-hidden="true"
+            ></i>
           </button>
           <p v-if="!phone.panelCharacters.length">当前没有可切换的主角色。</p>
         </div>
@@ -555,6 +567,30 @@ function applyCurrency() {
 }
 .assistive-actor b {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.assistive-actor-avatar {
+  position: relative;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+}
+.assistive-actor-unread {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #343e50;
+  border-radius: 50%;
+  background: #ff453a;
+  box-sizing: content-box;
+}
+.assistive-actor-selected {
+  flex: none;
+  color: #bed2ff;
+  font-size: 18px;
 }
 .assistive-actor img,
 .assistive-avatar {
