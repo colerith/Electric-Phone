@@ -1851,16 +1851,7 @@ const deviceStyle = computed<Record<string, string>>(() => {
   const fontFamily = fontFamilies[store.settings.appearance.fontFamily];
   const displayFont =
     store.settings.appearance.fontFamily === 'source_sans' ? fontFamilies.source_sans : fontFamilies.source_serif;
-  const wallpaper =
-    homePage.value === 0 ? store.settings.appearance.coverWallpaper : store.settings.appearance.desktopWallpaper;
   return {
-    ...(store.currentPage === 'home' && wallpaper
-      ? {
-          backgroundImage: `url(${JSON.stringify(wallpaper)})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }
-      : {}),
     '--wave-ui-font': fontFamily,
     '--wave-display-font': displayFont,
     '--wave-font-scale': String(store.settings.appearance.fontScale),

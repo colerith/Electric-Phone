@@ -49,7 +49,19 @@
           </div>
         </div>
       </div>
-      <div class="portrait-page portrait-app-page" aria-label="应用列表">
+      <div
+        class="portrait-page portrait-app-page"
+        :style="
+          phone.settings.appearance.desktopWallpaper
+            ? {
+                backgroundImage: `url(${JSON.stringify(phone.settings.appearance.desktopWallpaper)})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
+            : undefined
+        "
+        aria-label="应用列表"
+      >
         <div class="ios-home-scroll">
           <div class="ios-six-grid" :class="{ 'is-searching': query }">
             <div v-if="!query" class="ios-anniversary-widget">
