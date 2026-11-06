@@ -36,7 +36,7 @@ export const ModuleDeltaSchema = z
   });
 export type ModuleDelta = z.infer<typeof ModuleDeltaSchema>;
 export const DATA_PATTERN = /<wave_phone_delta>\s*([\s\S]*?)\s*<\/wave_phone_delta>/g;
-export const HTML_PATTERN = /<!--wave-phone-card:start-->[\s\S]*?<!--wave-phone-card:end-->/g;
+export { HTML_PATTERN, stripInlineCards } from './inline-cards';
 export function readModuleDeltas(text: string): ModuleDelta[] {
   return [
     ...splitElectric(text)
@@ -54,9 +54,6 @@ export function readModuleDeltas(text: string): ModuleDelta[] {
 export function serializeDelta(delta: ModuleDelta): string {
   // Escape delimiter characters inside strings without changing the JSON meaning.
   return `<wave_phone_delta>${JSON.stringify(delta).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e')}</wave_phone_delta>`;
-}
-export function stripInlineCards(text: string): string {
-  return text.replace(HTML_PATTERN, '');
 }
 
 /** A manual app request never applies model-provided changes to other apps. */

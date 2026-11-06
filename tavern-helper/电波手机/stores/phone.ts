@@ -484,6 +484,28 @@ export const usePhoneStore = defineStore('wave-phone', () => {
   const activeIdentity = computed(
     () => state.value.identities[state.value.activeCharKey] || identities.value[0] || null,
   );
+  const wallpaperScope = computed(() =>
+    context.value && activeIdentity.value ? JSON.stringify([context.value.cardKey, activeIdentity.value.charKey]) : '',
+  );
+  const characterWallpaper = computed(
+    () =>
+      settings.value.appearance.characterWallpapers[wallpaperScope.value] || {
+        coverWallpaper: '',
+        desktopWallpaper: '',
+      },
+  );
+  function setCharacterWallpaper(
+    kind: 'coverWallpaper' | 'desktopWallpaper',
+    value: string,
+    scope = wallpaperScope.value,
+  ): void {
+    if (!scope) return;
+    settings.value.appearance.characterWallpapers[scope] = {
+      ...(settings.value.appearance.characterWallpapers[scope] || { coverWallpaper: '', desktopWallpaper: '' }),
+      [kind]: value,
+    };
+    saveSettings();
+  }
   // 群聊只作为聊天对象；离开消息页面后恢复上一个真实角色。
   let lastCharacterKey = '';
   watch(
@@ -5928,6 +5950,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     shareZonePost,
     identities,
     activeIdentity,
+    wallpaperScope,
+    characterWallpaper,
+    setCharacterWallpaper,
     activeThread,
     activeSnapshot,
     weatherLocation,

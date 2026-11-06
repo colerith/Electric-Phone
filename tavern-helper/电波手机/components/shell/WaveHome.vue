@@ -21,9 +21,9 @@
         </aside>
         <div class="portrait-cover">
           <WaveCachedImage
-            v-if="phone.settings.appearance.coverWallpaper || cover"
+            v-if="phone.characterWallpaper.coverWallpaper || cover"
             class="portrait-image"
-            :src="phone.settings.appearance.coverWallpaper || cover"
+            :src="phone.characterWallpaper.coverWallpaper || cover"
             alt="角色卡原始封面"
             decoding="async"
             @error="imageFailed"
@@ -52,9 +52,9 @@
       <div
         class="portrait-page portrait-app-page"
         :style="
-          phone.settings.appearance.desktopWallpaper
+          phone.characterWallpaper.desktopWallpaper
             ? {
-                backgroundImage: `url(${JSON.stringify(phone.settings.appearance.desktopWallpaper)})`,
+                backgroundImage: `url(${JSON.stringify(phone.characterWallpaper.desktopWallpaper)})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
               }

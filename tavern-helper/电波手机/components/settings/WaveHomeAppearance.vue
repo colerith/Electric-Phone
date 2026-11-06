@@ -172,7 +172,14 @@
     </section>
     <section class="settings-card appearance-group">
       <div class="wave-settings-title">主屏与桌面壁纸</div>
-      <p>主屏是角色封面页，桌面是应用列表页。</p>
+      <p>壁纸仅用于当前角色，切换角色后分别保存。主屏是角色封面页，桌面是应用列表页。</p>
+      <button
+        v-if="appearance.coverWallpaper || appearance.desktopWallpaper"
+        type="button"
+        @click="importLegacyWallpapers"
+      >
+        将旧版共用壁纸用于当前角色
+      </button>
       <div v-for="item in wallpapers" :key="item.id" class="appearance-wallpaper-row">
         <div class="appearance-wallpaper-preview">
           <img v-if="wallpaperValue(item.id)" :src="wallpaperValue(item.id)" :alt="item.name" /><i
@@ -181,7 +188,15 @@
           ></i>
         </div>
         <strong>{{ item.name }}</strong
-        ><button type="button" @click="editing = item.id">修改壁纸</button>
+        ><button
+          type="button"
+          @click="
+            editingScope = phone.wallpaperScope;
+            editing = item.id;
+          "
+        >
+          修改壁纸
+        </button>
       </div>
     </section>
     <section class="settings-card appearance-group">
@@ -222,7 +237,7 @@
 <script setup lang="ts">
 import { translationLanguages } from '../../services/generation/translation';
 const interfaceLanguages = ['简体中文', '繁体中文', '英语', '日语', '韩语'].map(value => ({ value, label: value }));
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import WaveToggle from '../shared/WaveToggle.vue';
 import WaveSlider from '../shared/WaveSlider.vue';
@@ -294,21 +309,32 @@ const wallpapers = [
 ];
 function wallpaperValue(id: string) {
   return id === 'coverWallpaper'
-    ? appearance.value.coverWallpaper || phone.context?.avatar || ''
-    : appearance.value.desktopWallpaper;
+    ? phone.characterWallpaper.coverWallpaper || phone.context?.avatar || ''
+    : phone.characterWallpaper.desktopWallpaper;
 }
 const editing = ref('');
+const editingScope = ref('');
+watch(
+  () => phone.wallpaperScope,
+  () => {
+    editing.value = '';
+  },
+);
+function importLegacyWallpapers() {
+  for (const kind of ['coverWallpaper', 'desktopWallpaper'] as const)
+    if (appearance.value[kind]) phone.setCharacterWallpaper(kind, appearance.value[kind]);
+}
 const editingLabel = computed(() => wallpapers.find(item => item.id === editing.value)?.name || '应用图标');
 const editingValue = computed(() =>
   editing.value === 'coverWallpaper'
-    ? appearance.value.coverWallpaper
+    ? phone.characterWallpaper.coverWallpaper
     : editing.value === 'desktopWallpaper'
-      ? appearance.value.desktopWallpaper
+      ? phone.characterWallpaper.desktopWallpaper
       : appearance.value.iconImages[editing.value] || '',
 );
 function applyImage(value: { avatar: string }) {
   if (editing.value === 'coverWallpaper' || editing.value === 'desktopWallpaper')
-    appearance.value[editing.value] = value.avatar;
+    phone.setCharacterWallpaper(editing.value, value.avatar, editingScope.value);
   else appearance.value.iconImages[editing.value] = value.avatar;
   editing.value = '';
 }

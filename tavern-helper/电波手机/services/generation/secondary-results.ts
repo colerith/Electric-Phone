@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import { stripInlineCards } from './inline-cards';
+
+// Automatic removal of our legacy display card does not change the originating story.
+function sameSource(left: string, right: string): boolean {
+  return stripInlineCards(left).replace(/\r\n/g, '\n').trim() === stripInlineCards(right).replace(/\r\n/g, '\n').trim();
+}
 
 export const SecondaryResultsSchema = z
   .record(
@@ -21,7 +27,10 @@ export function secondaryResultKey(floor: ChatMessage): string {
 export function withSecondaryResults(floors: ChatMessage[], results: SecondaryResults): ChatMessage[] {
   return floors.map(floor => {
     const saved = results[secondaryResultKey(floor)];
-    return saved && saved.floor === floor.message_id && saved.source === floor.message && floor.role === 'assistant'
+    return saved &&
+      saved.floor === floor.message_id &&
+      sameSource(saved.source, floor.message) &&
+      floor.role === 'assistant'
       ? { ...floor, message: `${floor.message}\n\n${saved.blocks}` }
       : floor;
   });
@@ -33,6 +42,6 @@ export function saveSecondaryResult(results: SecondaryResults, floor: ChatMessag
   results[key] = {
     floor: floor.message_id,
     source: floor.message,
-    blocks: [old?.source === floor.message ? old.blocks : '', blocks].filter(Boolean).join('\n'),
+    blocks: [old && sameSource(old.source, floor.message) ? old.blocks : '', blocks].filter(Boolean).join('\n'),
   };
 }

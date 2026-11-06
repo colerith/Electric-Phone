@@ -2191,7 +2191,7 @@ function openApp(id: AppId): void {
   store.currentPage = id;
   store.markAppRead(id);
   if (id === 'music') void music.sync(store.activeSnapshot.music, store.state.activeCharKey, false, true);
-  store.scheduleSync(0);
+  // Opening an app consumes the current snapshot. Chat/generation events own synchronization.
 }
 function openAppearance(): void {
   settingsSection.value = 'appearance';
