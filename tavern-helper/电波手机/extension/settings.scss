@@ -1,0 +1,129 @@
+#wave-phone-extension-settings {
+  .inline-drawer-content {
+    padding: 14px 4px;
+  }
+  .wave-ext-summary,
+  .wave-ext-section-head,
+  .wave-ext-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .wave-ext-summary {
+    justify-content: space-between;
+  }
+  .wave-ext-summary .checkbox_label {
+    margin: 0;
+    gap: 10px;
+  }
+  .wave-ext-version,
+  .wave-ext-branch {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #8baee51a;
+    border: 1px solid #8baee538;
+    overflow-wrap: anywhere;
+  }
+  .wave-ext-version {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .wave-ext-runtime-status,
+  .wave-ext-update-status {
+    font-size: 12px;
+    line-height: 1.7;
+    opacity: 0.8;
+    overflow-wrap: anywhere;
+    margin: 10px 0;
+  }
+  .wave-ext-runtime-status {
+    padding: 10px 12px;
+    border-left: 3px solid #8baee5;
+    background: #8baee50c;
+    border-radius: 0 10px 10px 0;
+  }
+  .wave-ext-updates {
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid #80808040;
+    border-radius: 14px;
+    background: #80808008;
+  }
+  .wave-ext-section-head {
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .wave-ext-section-head strong {
+    font-size: 13px;
+  }
+  .wave-ext-section-head small {
+    opacity: 0.65;
+    font-size: 11px;
+  }
+  .wave-ext-updates > .wave-ext-actions {
+    margin-bottom: 16px;
+  }
+  .wave-ext-actions .menu_button {
+    flex: 1 1 110px;
+  }
+  .wave-ext-actions select {
+    flex: 1 1 140px;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    padding: 8px;
+    border-radius: 9px;
+    font: inherit;
+  }
+  .wave-ext-channels {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .wave-ext-channels button {
+    display: flex !important;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+  }
+  .wave-ext-channels small {
+    opacity: 0.65;
+    font-size: 11px;
+  }
+  .wave-ext-channels button[aria-pressed='true'] {
+    border-color: #8baee5;
+    background: #8baee522;
+    opacity: 1;
+  }
+  .menu_button {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin: 0;
+    padding: 9px 12px !important;
+    border-radius: 10px;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    line-height: 1.5;
+    font-size: 13px;
+    box-sizing: border-box;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  button:focus-visible,
+  select:focus-visible {
+    outline: 2px solid #8baee5;
+    outline-offset: 2px;
+  }
+  [hidden] {
+    display: none !important;
+  }
+}

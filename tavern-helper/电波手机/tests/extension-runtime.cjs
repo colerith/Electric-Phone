@@ -83,6 +83,10 @@ const appMock = {
 };
 legacy.enabled = true;
 load('extension/index.ts', {
+  './settings.scss': {},
+  './update-controls': load('extension/update-controls.ts', {
+    '../services/core/extension-update': load('services/core/extension-update.ts'),
+  }),
   '../index': appMock,
   './bridge': bridge,
   '../schemas': { WAVE_PHONE_RELEASE_VERSION: '1.3.2' },

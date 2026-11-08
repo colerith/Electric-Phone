@@ -28,42 +28,13 @@ import { WAVE_PHONE_RELEASE_VERSION, WAVE_PHONE_RELEASE_DATE } from '../../schem
 const busy = ref(false),
   available = ref(false),
   status = ref('');
-let target: { extensionName: string; global: boolean } | undefined;
-async function locate() {
-  if (target) return target;
-  const response = await fetch('/api/extensions/discover');
-  if (!response.ok) throw Error(`无法读取扩展列表（${response.status}）`);
-  const rows = await response.json();
-  for (const row of rows) {
-    if (!['local', 'global'].includes(row.type)) continue;
-    const response = await fetch(`/scripts/extensions/${row.name}/manifest.json`, { cache: 'no-store' });
-    if (!response.ok) continue;
-    const manifest = await response.json();
-    if (manifest.homePage?.replace(/\/$/, '').toLowerCase() !== 'https://github.com/colerith/electric-phone') continue;
-    target = { extensionName: row.name.replace(/^third-party\//, ''), global: row.type === 'global' };
-    return target;
-  }
-  throw Error('未找到电波手机扩展安装目录，请从扩展管理安装扩展版');
-}
-async function request(action: string) {
-  const body = await locate();
-  const host = (window as any).SillyTavern?.getContext?.();
-  if (!host?.getRequestHeaders) throw Error('酒馆接口未就绪，请刷新后重试');
-  const response = await fetch(`/api/extensions/${action}`, {
-    method: 'POST',
-    headers: host.getRequestHeaders(),
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(120000),
-  });
-  if (!response.ok) throw Error(`更新服务返回 ${response.status}，请检查网络、仓库状态和安装目录权限`);
-  return response.json();
-}
+import { extensionRequest, type ExtensionVersion } from '../../services/core/extension-update';
 async function check() {
   if (busy.value) return;
   busy.value = true;
   status.value = '正在检测新版本…';
   try {
-    const data = await request('version');
+    const data = await extensionRequest<ExtensionVersion>('version');
     if (!data.remoteUrl) throw Error('当前安装不支持在线更新，请使用 Git 安装的扩展版');
     available.value = !data.isUpToDate;
     status.value = available.value ? '发现更新，点击更新后将自动刷新网页' : '已是最新版本';
@@ -78,7 +49,7 @@ async function update() {
   busy.value = true;
   status.value = '正在更新，完成后自动刷新网页…';
   try {
-    await request('update');
+    await extensionRequest('update');
     window.location.reload();
   } catch (e) {
     status.value = e instanceof Error ? e.message : '更新失败，请重试';

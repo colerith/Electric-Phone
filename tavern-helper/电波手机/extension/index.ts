@@ -1,3 +1,5 @@
+import './settings.scss';
+import { installUpdateControls } from './update-controls';
 import { setPhoneActive } from '../services/core/phone-activity';
 import { WAVE_PHONE_RELEASE_VERSION } from '../schemas';
 import { initialize, cleanup, openPhone } from '../index';
@@ -122,10 +124,13 @@ function installEntry() {
   const content = document.createElement('div');
   content.className = 'inline-drawer-content';
   const version = document.createElement('p');
-  version.textContent = `扩展版本 v${WAVE_PHONE_RELEASE_VERSION}`;
+  version.className = 'wave-ext-version';
+  version.textContent = `v${WAVE_PHONE_RELEASE_VERSION}`;
   const heading = document.createElement('strong');
   heading.textContent = '电波手机';
   status = document.createElement('p');
+  status.className = 'wave-ext-runtime-status';
+  status.setAttribute('role', 'status');
   status.textContent = '等待酒馆助手就绪…';
   enabled = readEnabled();
   setPhoneActive(enabled);
@@ -143,7 +148,7 @@ function installEntry() {
   button.style.display = enabled ? '' : 'none';
   button.type = 'button';
   button.className = 'menu_button';
-  button.textContent = '打开电波手机 / 重试';
+  button.innerHTML = '<i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i> 打开手机 / 重试';
   Object.assign(button.style, {
     width: 'fit-content',
     maxWidth: '100%',
@@ -185,7 +190,14 @@ function installEntry() {
       control.style.setProperty(key, value, 'important');
   }
   header.append(heading, arrow);
-  content.append(version, toggleLabel, status, button, refreshButton);
+  const summary = document.createElement('div');
+  summary.className = 'wave-ext-summary';
+  summary.append(toggleLabel, version);
+  const actions = document.createElement('div');
+  actions.className = 'wave-ext-actions';
+  actions.append(button, refreshButton);
+  content.append(summary, status, actions);
+  installUpdateControls(content);
   drawer.append(header, content);
   panel.append(drawer);
   (
