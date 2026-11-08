@@ -58,6 +58,21 @@ function settings(): DurableSettings | undefined {
     throw Error('手机服务器存储格式无法识别，请勿重置数据');
   return value;
 }
+// Tavern Helper getVariables deep-clones the entire global table, including other extensions.
+// Read only our keys from the public host context; keep unrelated values by reference on writes.
+function readGlobalVariables(): Record<string, any> {
+  const source = supported() ? SillyTavern.extensionSettings.variables?.global : undefined;
+  if (!source || typeof source !== 'object') return getVariables({ type: 'global' }) || {};
+  return Object.fromEntries(
+    Object.keys(source)
+      .filter(key => key.startsWith('wave_phone_'))
+      .map(key => [key, source[key]]),
+  );
+}
+function replaceGlobalVariables(value: Record<string, any>): void {
+  const source = supported() ? SillyTavern.extensionSettings.variables?.global : undefined;
+  replaceVariables(source && typeof source === 'object' ? { ...source, ...value } : value, { type: 'global' });
+}
 function globalsOnly(value: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
     Object.keys(schemas)
@@ -191,7 +206,7 @@ async function readServerUncached(scope: string): Promise<Snapshot | undefined> 
   if (knownOrder && candidates.length) {
     const newest = candidates[0];
     const cached = scope === 'global' ? settings() : undefined;
-    const local = getVariables({ type: scope === 'global' ? 'global' : 'chat' });
+    const local = scope === 'global' ? readGlobalVariables() : getVariables({ type: 'chat' });
     const options =
       scope === 'global'
         ? [
@@ -304,7 +319,7 @@ export function batchPhoneStorage<T>(action: () => T): T {
 }
 export function readPhoneGlobals(): Record<string, any> {
   if (batchedGlobals) return { ...batchedGlobals };
-  return { ...getVariables({ type: 'global' }), ...(supported() ? settings()?.globals : {}) };
+  return { ...readGlobalVariables(), ...(supported() ? settings()?.globals : {}) };
 }
 export function writePhoneGlobals(value: Record<string, any>): void {
   if (globalBatchDepth) {
@@ -313,13 +328,13 @@ export function writePhoneGlobals(value: Record<string, any>): void {
   }
   const globals = globalsOnly(value);
   if (!Object.keys(globals).length) {
-    replaceVariables(value, { type: 'global' });
+    replaceGlobalVariables(value);
     return;
   }
   const savedAt = queue('global', globals);
-  const local = getVariables({ type: 'global' });
+  const local = readGlobalVariables();
   if (!isEqual(local, { ...value, wave_phone_global_saved_at: savedAt }))
-    replaceVariables({ ...value, wave_phone_global_saved_at: savedAt }, { type: 'global' });
+    replaceGlobalVariables({ ...value, wave_phone_global_saved_at: savedAt });
   if (!supported()) return;
   const current = settings();
   if (current?.savedAt === savedAt && isEqual(current.globals, globals)) return;
@@ -334,7 +349,7 @@ export async function preparePhoneStorage(): Promise<void> {
   globalLoading = (async () => {
     const cached = settings();
     const server = await readServer('global');
-    const local = getVariables({ type: 'global' }) || {};
+    const local = readGlobalVariables() || {};
     const candidates = [
       server,
       cached && { data: cached.globals, savedAt: cached.savedAt },
@@ -347,10 +362,7 @@ export async function preparePhoneStorage(): Promise<void> {
     const chosen = candidates[0]?.data;
     if (chosen) {
       validate({ identifier: WAVE_PHONE_IDENTIFIER, version: 1, scope: 'global', savedAt: Date.now(), data: chosen });
-      replaceVariables(
-        { ...local, ...klona(chosen), wave_phone_global_saved_at: candidates[0].savedAt },
-        { type: 'global' },
-      );
+      replaceGlobalVariables({ ...local, ...klona(chosen), wave_phone_global_saved_at: candidates[0].savedAt });
       SillyTavern.extensionSettings[STORAGE_KEY] = {
         version: 1,
         globals: klona(chosen),

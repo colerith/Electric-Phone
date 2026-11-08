@@ -327,6 +327,34 @@ function state(content) {
   await assert.rejects(storage.preparePhoneRelease(), /备份保存失败/);
   failUpload = false;
   for (const [name, value] of checkpoints) assert.equal(server.get(name), value);
+  // A large foreign global must never be traversed or cloned by phone storage.
+  const foreign = {};
+  Object.defineProperty(foreign, 'largeTree', {
+    enumerable: true,
+    get() {
+      throw Error('foreign data traversed');
+    },
+  });
+  vars.global.foreignPlugin = foreign;
+  SillyTavern.extensionSettings.variables = { global: vars.global };
+  const originalGet = global.getVariables;
+  const originalReplace = global.replaceVariables;
+  global.getVariables = options => {
+    assert.notEqual(options.type, 'global', 'must not deep-clone the host global table');
+    return originalGet(options);
+  };
+  global.replaceVariables = (value, options) => {
+    originalReplace(value, options);
+    if (options.type === 'global') SillyTavern.extensionSettings.variables.global = value;
+  };
+  storage = restart();
+  await storage.preparePhoneStorage();
+  const phoneGlobals = storage.readPhoneGlobals();
+  assert(!Object.hasOwn(phoneGlobals, 'foreignPlugin'));
+  storage.writePhoneGlobals({ ...phoneGlobals, wave_phone_test_marker: true });
+  assert.equal(vars.global.foreignPlugin, foreign, 'foreign globals retain the exact reference');
+  assert.equal(vars.global.wave_phone_test_marker, true);
+  await storage.flushPhoneStorage();
   console.log(
     'PASS: server recovery without browser state, two snapshots, retry, deliberate deletion, corrupt data and chat-switch isolation.',
   );
