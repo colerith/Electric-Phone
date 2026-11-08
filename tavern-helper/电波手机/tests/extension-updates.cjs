@@ -10,7 +10,9 @@ require.extensions['.ts'] = (m, f) =>
     }).outputText,
     f,
   );
-const dom = new JSDOM('<main></main>');
+const dom = new JSDOM(
+  '<div><header class="inline-drawer-header"><strong>电波手机</strong></header><main></main></div><div id="vue-test"></div>',
+);
 global.document = dom.window.document;
 global.Option = dom.window.Option;
 let reloads = 0,
@@ -24,6 +26,7 @@ global.window = {
 };
 const calls = [];
 global.fetch = async (url, options = {}) => {
+  if (url.startsWith('https://raw.githubusercontent.com/')) return Response.json({ version: '1.14.2' });
   if (url === '/api/extensions/discover') return Response.json([{ name: 'third-party/renamed-phone', type: 'global' }]);
   if (url.endsWith('/manifest.json')) return Response.json({ homePage: 'https://github.com/colerith/Electric-Phone' });
   const action = url.split('/').at(-1),
@@ -51,7 +54,11 @@ global.fetch = async (url, options = {}) => {
     version = body.branch.replace('origin/', '');
     return new Response(null, { status: 204 });
   }
-  if (action === 'update') return failUpdate ? new Response('failed', { status: 500 }) : Response.json({});
+  if (action === 'update') {
+    if (failUpdate) return new Response('failed', { status: 500 });
+    upToDate = true;
+    return Response.json({});
+  }
   throw Error(url);
 };
 const { installUpdateControls } = require('../extension/update-controls.ts');
@@ -66,6 +73,8 @@ const get = s => document.querySelector(s),
   await tick();
   assert.equal(calls.filter(c => c.action === 'version').length, 1, 'duplicate checks suppressed');
   assert.equal(get('.wave-ext-update').hidden, false);
+  assert.equal(get('.wave-ext-new').hidden, false);
+  assert.match(get('.wave-ext-update-banner strong').textContent, /1\.14\.2/);
   assert.equal(get('[data-branch="main"]').disabled, true);
   get('.wave-ext-update').click();
   await tick();
@@ -75,10 +84,10 @@ const get = s => document.querySelector(s),
   assert.equal(version, 'beta');
   assert.equal(reloads, 2);
   assert.deepEqual(
-    calls.slice(-3).map(c => c.action),
-    ['branches', 'switch', 'update'],
+    calls.slice(-4).map(c => c.action),
+    ['branches', 'switch', 'update', 'version'],
   );
-  assert.equal(calls.at(-2).body.branch, 'origin/beta');
+  assert.equal(calls.findLast(c => c.action === 'switch').body.branch, 'origin/beta');
   get('.wave-ext-list').click();
   await tick();
   assert.deepEqual(
@@ -108,6 +117,49 @@ const get = s => document.querySelector(s),
   console.log(
     'PASS update discovery, global scope, CSRF, busy guard, 204 switching, remote branch selection and partial-failure recovery',
   );
+  // Mount the real in-phone Vue updater against the same service and mocked host API.
+  global.Element = dom.window.Element;
+  global.SVGElement = dom.window.SVGElement;
+  global.HTMLElement = dom.window.HTMLElement;
+  const vue = require('vue'),
+    compiler = require('vue/compiler-sfc');
+  const file = path.resolve(__dirname, '../components/settings/WaveExtensionUpdate.vue');
+  const script = compiler.compileScript(compiler.parse(fs.readFileSync(file, 'utf8')).descriptor, {
+    id: 'update-test',
+    inlineTemplate: true,
+  }).content;
+  const m = { exports: {} };
+  new Function(
+    'require',
+    'module',
+    'exports',
+    ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } })
+      .outputText,
+  )(
+    id =>
+      id === 'vue'
+        ? vue
+        : id === '../../schemas'
+          ? { WAVE_PHONE_RELEASE_VERSION: '1.14.1', WAVE_PHONE_RELEASE_DATE: '2026.11.08' }
+          : require('../services/core/extension-update.ts'),
+    m,
+    m.exports,
+  );
+  upToDate = false;
+  const app = vue.createApp(m.exports.default);
+  app.mount('#vue-test');
+  await tick();
+  await vue.nextTick();
+  assert.match(get('#vue-test').textContent, /1\.14\.2/);
+  const before = reloads;
+  get('#vue-test button').click();
+  await tick();
+  assert.equal(reloads, before + 1, 'in-phone updater pulls and verifies before reloading');
+  assert.deepEqual(
+    calls.slice(-2).map(c => c.action),
+    ['update', 'version'],
+  );
+  app.unmount();
   dom.window.close();
 })().catch(e => {
   console.error(e);

@@ -1,5 +1,7 @@
 import {
   branchChoices,
+  checkExtensionUpdate,
+  updateExtension,
   extensionRequest,
   type ExtensionBranch,
   type ExtensionVersion,
@@ -9,12 +11,18 @@ export function installUpdateControls(container: HTMLElement): void {
   const section = document.createElement('section');
   section.className = 'wave-ext-updates';
   section.innerHTML = `<div class="wave-ext-section-head"><strong>版本与更新</strong><span class="wave-ext-branch">尚未检查分支</span></div>
+    <div class="wave-ext-update-banner" role="status" hidden><strong></strong><span>点击下方更新，完成后刷新页面</span></div>
     <div class="wave-ext-actions"><button type="button" class="menu_button wave-ext-check"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> 检查更新</button><button type="button" class="menu_button wave-ext-update" hidden><i class="fa-solid fa-download" aria-hidden="true"></i> 更新并刷新</button></div>
     <div class="wave-ext-section-head"><strong>切换分支</strong><small>切换完成后刷新页面</small></div>
     <div class="wave-ext-channels"><button type="button" class="menu_button" data-branch="main"><strong>main</strong><small>正式版</small></button><button type="button" class="menu_button" data-branch="beta"><strong>beta</strong><small>测试版</small></button></div>
-    <div class="wave-ext-actions"><select aria-label="其他分支"><option value="">选择其他分支</option></select><button type="button" class="menu_button wave-ext-list">获取分支</button><button type="button" class="menu_button wave-ext-switch" disabled>切换</button></div>
+    <div class="wave-ext-actions wave-ext-branch-picker"><select aria-label="其他分支"><option value="">选择其他分支</option></select><button type="button" class="menu_button wave-ext-list">获取分支</button><button type="button" class="menu_button wave-ext-switch" disabled>切换</button></div>
     <p class="wave-ext-update-status" role="status" aria-live="polite">检查当前分支更新，或选择要使用的分支。</p><button type="button" class="menu_button wave-ext-reload" hidden>刷新以加载已切换分支</button>`;
   container.append(section);
+  const badge = document.createElement('span');
+  badge.className = 'wave-ext-new';
+  badge.textContent = 'New!';
+  badge.hidden = true;
+  container.parentElement?.querySelector('.inline-drawer-header strong')?.append(badge);
   const get = <T extends HTMLElement>(selector: string) => section.querySelector<T>(selector)!;
   const check = get<HTMLButtonElement>('.wave-ext-check');
   const update = get<HTMLButtonElement>('.wave-ext-update');
@@ -56,6 +64,11 @@ export function installUpdateControls(container: HTMLElement): void {
     current = data.currentBranchName;
     get('.wave-ext-branch').textContent = current ? `当前：${current}` : '未关联分支';
     update.hidden = data.isUpToDate;
+    badge.hidden = data.isUpToDate;
+    get('.wave-ext-update-banner').hidden = data.isUpToDate;
+    get('.wave-ext-update-banner strong').textContent = data.latestVersion
+      ? `发现新版本：${data.latestVersion}`
+      : '发现当前分支的新更新';
     status.textContent = data.isUpToDate ? '当前分支已是最新版本。' : '发现新提交，点击“更新并刷新”安装。';
   }
   async function loadBranches() {
@@ -70,12 +83,14 @@ export function installUpdateControls(container: HTMLElement): void {
     if (!target) throw Error(`未找到 ${name} 分支`);
     await extensionRequest('switch', { branch: target.ref });
     current = name;
+    badge.hidden = true;
+    get('.wave-ext-update-banner').hidden = true;
     update.hidden = true;
     reload.hidden = false;
     get('.wave-ext-branch').textContent = `当前：${current}（待刷新）`;
     status.textContent = '分支已切换，正在拉取最新提交…';
     try {
-      await extensionRequest('update');
+      await updateExtension();
     } catch (error) {
       throw Error(
         `已切换到 ${name}，但更新失败。可重试检查更新，或点击下方刷新。${error instanceof Error ? error.message : ''}`,
@@ -86,12 +101,12 @@ export function installUpdateControls(container: HTMLElement): void {
   check.onclick = () =>
     void run(async () => {
       status.textContent = '正在检查当前分支…';
-      showVersion(await extensionRequest<ExtensionVersion>('version'));
+      showVersion(await checkExtensionUpdate());
     });
   update.onclick = () =>
     void run(async () => {
       status.textContent = '正在更新，完成后刷新页面…';
-      await extensionRequest('update');
+      await updateExtension();
       window.location.reload();
     });
   list.onclick = () =>
@@ -110,4 +125,5 @@ export function installUpdateControls(container: HTMLElement): void {
   };
   reload.onclick = () => window.location.reload();
   render();
+  check.click();
 }

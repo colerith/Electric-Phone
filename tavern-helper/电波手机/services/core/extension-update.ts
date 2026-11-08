@@ -4,6 +4,7 @@ export type ExtensionVersion = {
   currentCommitHash: string;
   isUpToDate: boolean;
   remoteUrl: string;
+  latestVersion?: string;
 };
 export type ExtensionBranch = { name: string; current: boolean };
 let target: ExtensionTarget | undefined;
@@ -54,4 +55,38 @@ export function branchChoices(rows: ExtensionBranch[]): Array<{ name: string; re
     if (!choices.has(name) || row.name.startsWith('origin/')) choices.set(name, row.name);
   }
   return [...choices].map(([name, ref]) => ({ name, ref }));
+}
+
+let checking: Promise<ExtensionVersion> | undefined;
+/** Git remains the update authority; the remote manifest only supplies a readable version label. */
+export function checkExtensionUpdate(): Promise<ExtensionVersion> {
+  if (checking) return checking;
+  checking = (async () => {
+    const data = await extensionRequest<ExtensionVersion>('version');
+    if (!data.remoteUrl) throw Error('当前安装不是 Git 仓库，无法在线更新');
+    if (!data.isUpToDate && data.currentBranchName) {
+      try {
+        const response = await fetch(
+          `https://raw.githubusercontent.com/colerith/Electric-Phone/${encodeURIComponent(data.currentBranchName)}/manifest.json`,
+          { cache: 'no-store', signal: AbortSignal.timeout(10000) },
+        );
+        if (response.ok) {
+          const manifest = await response.json();
+          if (typeof manifest.version === 'string' && /^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/.test(manifest.version))
+            data.latestVersion = manifest.version;
+        }
+      } catch {
+        /* A blocked version-label request must not hide a Git update. */
+      }
+    }
+    return data;
+  })().finally(() => {
+    checking = undefined;
+  });
+  return checking;
+}
+export async function updateExtension(): Promise<void> {
+  await extensionRequest('update');
+  const data = await extensionRequest<ExtensionVersion>('version');
+  if (!data.remoteUrl || !data.isUpToDate) throw Error('更新后仍未与远端同步，请重试或查看酒馆日志');
 }

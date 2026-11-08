@@ -28,16 +28,18 @@ import { WAVE_PHONE_RELEASE_VERSION, WAVE_PHONE_RELEASE_DATE } from '../../schem
 const busy = ref(false),
   available = ref(false),
   status = ref('');
-import { extensionRequest, type ExtensionVersion } from '../../services/core/extension-update';
+import { checkExtensionUpdate, updateExtension } from '../../services/core/extension-update';
 async function check() {
   if (busy.value) return;
   busy.value = true;
   status.value = '正在检测新版本…';
   try {
-    const data = await extensionRequest<ExtensionVersion>('version');
+    const data = await checkExtensionUpdate();
     if (!data.remoteUrl) throw Error('当前安装不支持在线更新，请使用 Git 安装的扩展版');
     available.value = !data.isUpToDate;
-    status.value = available.value ? '发现更新，点击更新后将自动刷新网页' : '已是最新版本';
+    status.value = available.value
+      ? `${data.latestVersion ? `发现新版本：${data.latestVersion}` : '发现当前分支的新更新'}，更新后自动刷新`
+      : '已是最新版本';
   } catch (e) {
     status.value = e instanceof Error ? e.message : '检测失败，请重试';
   } finally {
@@ -49,7 +51,7 @@ async function update() {
   busy.value = true;
   status.value = '正在更新，完成后自动刷新网页…';
   try {
-    await extensionRequest('update');
+    await updateExtension();
     window.location.reload();
   } catch (e) {
     status.value = e instanceof Error ? e.message : '更新失败，请重试';

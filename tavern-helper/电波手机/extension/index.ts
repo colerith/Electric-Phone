@@ -197,7 +197,6 @@ function installEntry() {
   actions.className = 'wave-ext-actions';
   actions.append(button, refreshButton);
   content.append(summary, status, actions);
-  installUpdateControls(content);
   drawer.append(header, content);
   panel.append(drawer);
   (
@@ -205,6 +204,7 @@ function installEntry() {
     document.getElementById('extensions_settings') ||
     document.body
   ).append(panel);
+  installUpdateControls(content);
   const deadline = Date.now() + 30000;
   const waitForHelper = () => {
     if (disposed || !enabled) {

@@ -127,3 +127,71 @@
     display: none !important;
   }
 }
+
+#wave-phone-extension-settings {
+  .menu_button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 40px;
+    margin: 0 !important;
+  }
+  .menu_button > i {
+    flex: 0 0 auto;
+    margin: 0;
+  }
+  .wave-ext-actions {
+    align-items: stretch;
+    gap: 10px;
+  }
+  .wave-ext-channels {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .wave-ext-channels button {
+    justify-content: center;
+    padding: 12px 14px !important;
+  }
+  .wave-ext-branch-picker {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+  .wave-ext-branch-picker select {
+    width: 100%;
+    min-height: 40px;
+    margin: 0 !important;
+    box-sizing: border-box;
+  }
+  .wave-ext-switch {
+    grid-column: 1 / -1;
+  }
+  .wave-ext-section-head {
+    gap: 8px 12px;
+  }
+  .wave-ext-new {
+    color: #ff525f;
+    font-size: 12px;
+    margin-left: 10px;
+    letter-spacing: 0.3px;
+  }
+  .wave-ext-update-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 12px;
+    margin: 0 0 12px;
+    border-left: 3px solid #71b8ef;
+    background: #71b8ef12;
+    border-radius: 8px;
+    overflow-wrap: anywhere;
+  }
+  .wave-ext-update-banner strong {
+    font-size: 13px;
+  }
+  .wave-ext-update-banner span {
+    font-size: 11px;
+    opacity: 0.7;
+  }
+}
