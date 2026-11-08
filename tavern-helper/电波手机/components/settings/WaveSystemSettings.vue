@@ -13,7 +13,7 @@
       <section class="settings-card system-settings-card">
         <div class="wave-settings-title">自动隐藏</div>
         <p>
-          独立 API 请求保留的历史 AI 楼层数，默认 20。留空保留全部；0 仅保留最新 AI 回合及用户消息，不修改酒馆楼层。
+          独立 API 请求保留的历史 AI 楼层数，默认 5。留空保留全部；0 仅保留最新 AI 回合及用户消息，不修改酒馆楼层。
         </p>
         <label
           >保留历史楼层数<input
@@ -259,6 +259,11 @@ function addDefaultTags() {
       'branches',
       'horae',
       'snow',
+      'bbi_image',
+      'meow_fm',
+      'giggle',
+      'title',
+      'letter',
     ]),
   ];
 }

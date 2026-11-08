@@ -108,13 +108,13 @@ const message = (id, sender, content, payload = {}) =>
   assert(store.isReady, store.syncError);
   assert(!store.state.identities[old]);
   assert.deepEqual(store.state.identities.group.memberKeys, [fresh]);
-  assert.equal(store.state.threads.g.messages[0].payload.actorKey, fresh);
+  assert.equal(Object.values(store.state.threads).find(thread => thread.charKey === 'group').messages[0].payload.actorKey, fresh);
   assert.equal(store.state.identities[fresh].avatar, 'cat.png');
   assert.equal(store.momentsFeed.comments.find(c => c.content === 'Still me').authorKey, fresh);
   await store.synchronize();
   assert(store.isReady, store.syncError);
   assert.deepEqual(store.state.identities.group.memberKeys, [fresh]);
-  assert.equal(store.state.threads.g.messages.length, 1);
+  assert.equal(Object.values(store.state.threads).find(thread => thread.charKey === 'group').messages.length, 1);
   assert.equal(Object.keys(store.state.identities).filter(k => k !== 'group').length, 1);
   // A later AI nickname and legacy ID reuse the same person.
   floors.push({

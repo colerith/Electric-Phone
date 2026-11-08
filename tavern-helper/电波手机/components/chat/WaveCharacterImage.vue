@@ -110,6 +110,8 @@
   </section>
 </template>
 <script setup lang="ts">
+import { browserUuid } from '../../services/core/browser-crypto';
+
 import { computed, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { ImageReferenceSchema, type CharacterImage } from '../../services/image/schema';
@@ -175,7 +177,7 @@ function addReference(value: { avatar: string }) {
       references: [
         ...config.value.references,
         ImageReferenceSchema.parse({
-          id: crypto.randomUUID(),
+          id: browserUuid(),
           enabled: config.value.references.filter(row => row.enabled).length < 8,
           image: value.avatar,
           name: `参考图 ${config.value.references.length + 1}`,

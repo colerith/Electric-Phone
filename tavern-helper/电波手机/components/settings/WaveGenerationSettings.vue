@@ -1,11 +1,22 @@
 <template>
   <section class="settings-card system-settings-card generation-settings">
     <div class="wave-settings-title">内容生成</div>
-    <p>跟随酒馆生成正文，按下面两组规则更新手机内容。各 App 的手动生成入口保持独立。</p>
+    <p>按下面两组规则更新手机内容，空间动态和树洞同时遵循各自的跟随设置。各 App 的手动生成入口保持独立。</p>
     <div class="system-toggle-row">
       <span>跟随酒馆生成</span
       ><WaveToggle v-model="phone.settings.generation.followEnabled" aria-label="跟随酒馆生成" />
     </div>
+    <label>
+      <strong>生成方式</strong>
+      <WaveSelect
+        :model-value="phone.settings.sendMode === 'secondary_api' ? 'secondary_api' : 'main_api'"
+        aria-label="生成方式"
+        :options="generationModes"
+        @update:model-value="value => (phone.settings.sendMode = value as 'secondary_api' | 'main_api')"
+      />
+    </label>
+    <p>这是所有 App 的默认生成方式。启用副 API 后仍可选主 API；各 App 设置页可单独覆盖，或选择已保存的副 API 预设。</p>
+    <p v-if="phone.followGenerationStatus" role="status">{{ phone.followGenerationStatus }}</p>
     <template v-if="phone.settings.generation.followEnabled">
       <div v-for="group in groups" :key="group.id" class="generation-module-group">
         <div class="generation-group-heading">
@@ -73,7 +84,12 @@ import { APP_IDS, type AppId } from '../../schemas';
 import { MODULE_LABELS } from '../../services/generation/module-protocol';
 import WaveToggle from '../shared/WaveToggle.vue';
 import WaveSlider from '../shared/WaveSlider.vue';
+import WaveSelect from '../shared/WaveSelect.vue';
 const phone = usePhoneStore();
+const generationModes = [
+  { value: 'main_api', label: '主 API 跟随生成', description: '所有 App 跟随酒馆正文一起生成' },
+  { value: 'secondary_api', label: '副 API 后置生成', description: '正文最终完成后，由副 API 更新所有 App' },
+];
 type Group = 'requiredModules' | 'modules';
 const groups: { id: Group; label: string; help: string }[] = [
   { id: 'requiredModules', label: '每轮必更新', help: '每轮都检查这些模块；没有新事实时保留原内容。' },

@@ -1,3 +1,4 @@
+import { appApiMode } from './app-api';
 import { watchEffect } from 'vue';
 import { CHAT_TIME_PATTERN } from '../core/chat-time';
 import { TREE_HOLE_PATTERN } from '../space/tree-hole';
@@ -23,6 +24,18 @@ import {
 } from './module-protocol';
 const PROMPT_ID = 'wave-phone-follow-v1';
 const FOLLOW_PROMPT_TAG = 'wave_phone_follow_context';
+const HISTORICAL_PHONE_DATA = /<(wave_phone_delta|wave_moments|wave_tree_hole)>[\s\S]*?(?:<\/\1>|$)/gi;
+
+/** Last-mile filtering changes only outgoing history, never stored chat floors. */
+export function sanitizeOutgoingPhoneHistory(chat: SillyTavern.SendingMessage[]): void {
+  for (const message of chat) {
+    if (message.role !== 'assistant' && message.role !== 'user') continue;
+    const clean = (text: string) => stripLeakedFollowPrompt(stripInlineCards(text)).replace(HISTORICAL_PHONE_DATA, '');
+    if (typeof message.content === 'string') message.content = clean(message.content);
+    else if (Array.isArray(message.content))
+      for (const part of message.content) if (part.type === 'text') part.text = clean(part.text);
+  }
+}
 export function chooseFollowModule(settings: ScriptSettings['generation'], random = Math.random): AppId | null {
   if (!settings.followEnabled || !settings.modules.length || random() * 100 >= settings.probability) return null;
   return (
@@ -76,6 +89,13 @@ export async function installPhoneRegexes(): Promise<void> {
     },
     {
       ...base,
+      id: 'wave-phone-data-prompt-v1',
+      script_name: '电波手机 · 历史数据协议不发送',
+      find_regex: '/<(wave_phone_delta|wave_moments|wave_tree_hole)>[\\s\\S]*?(?:<\\/\\1>|$)/gi',
+      destination: { display: false, prompt: true },
+    },
+    {
+      ...base,
       id: 'wave-phone-data-display-v1',
       script_name: '电波手机 · 数据块隐藏',
       find_regex: `/(?:${DATA_PATTERN.source}|${MOMENTS_PATTERN.source}|${TREE_HOLE_PATTERN.source})/gi`,
@@ -120,12 +140,23 @@ export function constrainPhoneFloor(
   previous: AppSnapshot,
   walletGrant?: WalletAuthorization,
   imageCounts?: number[],
+  allowedModules?: AppId[],
 ): string {
   const snapshots = new Map<string, Partial<AppSnapshot>>([[charId, { ...previous }]]);
   const budgets = new Map<string, RoundBudget>();
   return stripInlineCards(text).replace(new RegExp(DATA_PATTERN.source, 'g'), block => {
+    if (allowedModules && !allowedModules.length) return '';
     const delta = readModuleDeltas(block)[0];
     if (!delta) return block;
+    if (allowedModules) {
+      for (const app of Object.keys(delta.app_updates))
+        if (!allowedModules.includes(app as AppId)) delete delta.app_updates[app as AppId];
+      if (!allowedModules.includes('messages')) {
+        delta.messages = [];
+        delta.reactions = [];
+        delta.payment_actions = [];
+      }
+    }
     if (delta.app_updates.wallet !== undefined) {
       try {
         if (!walletGrant || delta.char_id !== charId) throw Error('未授权的钱包更新');
@@ -160,10 +191,16 @@ export function constrainPhoneFloor(
   });
 }
 export function registerFollowGeneration(
-  getInput: () => { settings: ScriptSettings; input: PhonePromptInput; chatReference?: string } | null,
+  getInput: () => {
+    settings: ScriptSettings;
+    input: PhonePromptInput;
+    followInputs?: PhonePromptInput[];
+    chatReference?: string;
+  } | null,
   isManualBusy: () => boolean,
   onRequest?: (settings: ScriptSettings, type: string) => void,
   canInject: () => boolean = () => true,
+  selectModules: typeof chooseFollowModules = chooseFollowModules,
 ): () => void {
   let injection: { uninject: () => void } | null = null;
   let generationContext = '';
@@ -174,6 +211,8 @@ export function registerFollowGeneration(
     snapshot: AppSnapshot;
     walletGrant?: WalletAuthorization;
     prompt: string;
+    modules: AppId[];
+    actors: PhonePromptInput[];
   } | null = null;
   const clear = () => {
     injection?.uninject();
@@ -188,6 +227,9 @@ export function registerFollowGeneration(
     { flush: 'sync' },
   );
   const events = [
+    eventOn(tavern_events.CHAT_COMPLETION_PROMPT_READY, data => {
+      if (!data.dryRun && canInject()) sanitizeOutgoingPhoneHistory(data.chat);
+    }),
     eventOn(tavern_events.GENERATION_AFTER_COMMANDS, (type, _options, dryRun) => {
       try {
         clear();
@@ -196,11 +238,13 @@ export function registerFollowGeneration(
         const runtime = getInput();
         if (!runtime || isCardExcluded(runtime.settings, runtime.input.cardName)) return;
         generationContext = JSON.stringify([runtime.input.cardKey, runtime.input.chatKey]);
-        const selectedModules = chooseFollowModules(runtime.settings.generation);
-        const modules =
-          runtime.input.identity.source === 'local_group'
-            ? selectedModules.filter(module => module === 'messages')
-            : selectedModules;
+        const selectedModules = selectModules(runtime.settings.generation).filter(
+          app => appApiMode(runtime.settings, app) === 'main_api',
+        );
+        const actors = runtime.followInputs || [runtime.input];
+        const modules = actors.every(actor => actor.identity.source === 'local_group')
+          ? selectedModules.filter(module => module === 'messages')
+          : selectedModules;
         if (modules.includes('zone') && runtime.input.spaceImages) {
           runtime.input.spaceImages = {
             ...runtime.input.spaceImages,
@@ -211,12 +255,20 @@ export function registerFollowGeneration(
           };
         }
         const reference = runtime.settings.generation.shareChatContext ? runtime.chatReference || '' : '';
-        if (!modules.length && !reference) return;
+        // Even a reference-free secondary-only turn needs a routing instruction:
+        // historical examples or preset text must not request phone output from the main model.
+        const routing = modules.length
+          ? `本轮正文仅可按下方协议更新这些主 API 模块：${modules.join('、')}。其他手机模块由独立任务处理，不得在正文附加其更新。`
+          : '本轮主 API 仅生成酒馆正文，不承担任何电波手机数据生成任务。手机更新由正文完成后的独立任务处理。不得输出 wave_phone_delta、wave_moments、wave_tree_hole 数据块、手机 JSON 或手机更新卡片；即使历史记录或其他提示出现旧格式，也不要续写或模仿。';
         const prompt = stripExcludedTags(
           [
             '以下是电波手机提供给模型的内部上下文与数据协议。只用于理解并执行本轮任务，绝不能在正文中复述、解释或展示本段。',
+            routing,
             reference,
-            modules.length ? buildModulePrompt(runtime.input, modules, true) : '',
+            modules.length ? actors.map(actor => buildModulePrompt(actor, modules, true)).join('\n\n') : '',
+            modules.length && actors.length > 1
+              ? '【多人更新总约束】以上每份角色任务互相独立。逐一检查本轮涉及的人物及其新事实；所有有变化的人物分别输出各自的 wave_phone_delta 数据块，可连续输出多块，不限一个人。只使用所列角色 ID，不把甲的状态、备忘、音乐或钱包写给乙；未出场且无新事实的人物可以省略，不为填充强行更新。'
+              : '',
           ]
             .filter(Boolean)
             .join('\n\n'),
@@ -230,6 +282,8 @@ export function registerFollowGeneration(
           snapshot: { ...runtime.input.appSnapshot },
           walletGrant: runtime.input.walletAuthorization ? { ...runtime.input.walletAuthorization } : undefined,
           prompt: wrappedPrompt,
+          modules,
+          actors,
         };
         onRequest?.(runtime.settings, type);
         injection = injectPrompts(
@@ -269,14 +323,43 @@ export function registerFollowGeneration(
       try {
         const message = readChatFloor(messageId);
         if (!message || message.role !== 'assistant') return;
-        const constrained = constrainPhoneFloor(
+        let constrained = constrainPhoneFloor(
           stripLeakedFollowPrompt(message.message, captured.prompt),
           captured.policy,
           captured.charId,
           captured.snapshot,
           captured.walletGrant,
           captured.imageCounts,
+          captured.modules,
         );
+        if (captured.actors.length > 1) {
+          const cleaned = stripLeakedFollowPrompt(message.message, captured.prompt);
+          const replacements = new Map<string, string[]>();
+          for (const actor of captured.actors) {
+            const key = actor.identity.stableId || actor.identity.charKey;
+            const blocks = [...cleaned.matchAll(new RegExp(DATA_PATTERN.source, 'g'))]
+              .map(match => match[0])
+              .filter(block => readModuleDeltas(block)[0]?.char_id === key);
+            replacements.set(
+              key,
+              [
+                ...constrainPhoneFloor(
+                  blocks.join('\n'),
+                  captured.policy,
+                  key,
+                  actor.appSnapshot,
+                  actor.walletAuthorization,
+                  actor.spaceImages?.counts,
+                  captured.modules,
+                ).matchAll(new RegExp(DATA_PATTERN.source, 'g')),
+              ].map(match => match[0]),
+            );
+          }
+          constrained = stripInlineCards(cleaned).replace(new RegExp(DATA_PATTERN.source, 'g'), block => {
+            const key = readModuleDeltas(block)[0]?.char_id;
+            return key ? replacements.get(key)?.shift() || '' : '';
+          });
+        }
         if (constrained !== message.message)
           void writeChatFloor(message.message_id, message.message, constrained).catch(error =>
             logDiagnostic('手机数据整理失败', String(error)),

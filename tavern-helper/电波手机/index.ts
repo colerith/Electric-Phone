@@ -22,12 +22,15 @@ let stopEntryWatch: (() => void) | null = null;
 let vueApp: VueApp<Element> | null = null;
 let buttonEvent: EventOnReturn | null = null;
 let mountedRoot: HTMLElement | null = null;
+let stopScaleWatch: (() => void) | null = null;
 let releaseViewport: (() => void) | null = null;
 export function cleanup(): void {
   stopEntryWatch?.();
   stopEntryWatch = null;
   syncPhoneMenu(false, openPhone);
   syncPhoneQuickReply(false);
+  stopScaleWatch?.();
+  stopScaleWatch = null;
   releaseViewport?.();
   releaseViewport = null;
   buttonEvent?.stop();
@@ -45,7 +48,10 @@ export function openPhone(): void {
   if (activePinia) usePhoneStore(activePinia).isOpen = true;
 }
 
-export async function initialize(): Promise<void> {
+export async function initialize(
+  onStage: (stage: string) => void = () => {},
+  isEnabled: () => boolean = () => true,
+): Promise<void> {
   if (
     !isExtensionRuntime &&
     window.parent.document.querySelector('#wave-phone-script-root[data-wave-runtime="extension"]')
@@ -53,21 +59,33 @@ export async function initialize(): Promise<void> {
     toastr.warning('电波手机扩展已运行，请停用旧脚本');
     return;
   }
+  onStage('读取服务器存档');
   await preparePhoneStorage();
+  if (!isEnabled()) return;
+  onStage('创建手机界面');
   cleanup();
   const $root = createScriptIdDiv().attr('id', ROOT_ID);
   $('body').append($root);
   mountedRoot = $root[0];
-  releaseViewport = bindPhoneViewport(mountedRoot);
 
   const pinia = createPinia();
   activePinia = pinia;
   vueApp = createApp(App);
   vueApp.use(pinia);
+  onStage('读取设置并挂载界面');
   vueApp.mount($root[0]);
   teleportStyle();
 
+  onStage('注册手机入口');
   const store = usePhoneStore(pinia);
+  stopScaleWatch = watch(
+    () => store.settings.appearance.interfaceScale,
+    scale => {
+      releaseViewport?.();
+      if (mountedRoot) releaseViewport = bindPhoneViewport(mountedRoot, scale);
+    },
+    { immediate: true },
+  );
   stopEntryWatch = watch(
     () => [
       store.settings.appearance.quickReplyEntry,

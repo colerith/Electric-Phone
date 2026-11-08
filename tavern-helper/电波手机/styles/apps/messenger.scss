@@ -212,8 +212,14 @@
     width: 128px;
     display: flex;
   }
+  .contact-swipe-row .messenger-row-actions {
+    width: 64px;
+  }
   .messenger-row-actions button {
     flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    text-align: center;
     width: 64px;
     padding: 8px 4px;
     border-radius: 0;

@@ -1,0 +1,157 @@
+import { APP_IDS } from '../../schemas';
+import { appApiMode } from './app-api';
+import { watchEffect } from 'vue';
+import type { AppId, ScriptSettings } from '../../schemas';
+import { readChatFloor, readChatFloors } from '../chat/chat-reader';
+import { logDiagnostic } from '../core/diagnostics';
+import { chooseFollowModules } from './follow-generation';
+
+export type SecondaryFollowJob = {
+  modules: AppId[];
+  message: ChatMessage;
+  signal: AbortSignal;
+  isCurrent: () => boolean;
+};
+
+/** Pair a real generation with its final render, never an edit, reload or our own writeback. */
+export function registerSecondaryFollow(
+  getContext: () => { key: string; settings: ScriptSettings } | null,
+  run: (job: SecondaryFollowJob) => Promise<void>,
+  selectModules: typeof chooseFollowModules = chooseFollowModules,
+): () => void {
+  let pending: { key: string; modules: AppId[]; minFloor: number; expectedDeleteFloor?: number } | null = null;
+  let controller: AbortController | undefined;
+  let activeKey = '';
+  let running: Promise<void> | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const enabled = () => {
+    const context = getContext();
+    return context?.settings.generation.followEnabled &&
+      APP_IDS.some(app => appApiMode(context.settings, app) === 'secondary_api')
+      ? {
+          ...context,
+          key: JSON.stringify([context.key, context.settings.sendMode, context.settings.generation.appApis]),
+        }
+      : null;
+  };
+  const clear = () => {
+    pending = null;
+    clearTimeout(timer);
+    controller?.abort();
+    controller = undefined;
+    activeKey = '';
+  };
+  const stopWatch = watchEffect(() => {
+    const context = enabled();
+    if (!context || (pending && pending.key !== context.key) || (activeKey && activeKey !== context.key)) clear();
+  });
+  const events = [
+    eventOn(tavern_events.GENERATION_AFTER_COMMANDS, (type, _options, dry) => {
+      // Auxiliary/quiet requests must not cancel the real generation's pending job.
+      if (dry || !['normal', 'continue', 'swipe', 'regenerate'].includes(type)) return;
+      // A normal event may be emitted by the side request itself. Arm the next
+      // floor without killing a job whose source floor is still unchanged.
+      if (controller && type === 'normal') {
+        pending = null;
+        logDiagnostic('副 API 跟随保持', '收到 normal 事件，保留正在处理的原楼层；仅新正文渲染后切换任务');
+      } else clear();
+      const context = enabled();
+      if (context) {
+        const last = readChatFloors().at(-1);
+        pending = {
+          key: context.key,
+          expectedDeleteFloor: type === 'regenerate' && last?.role === 'assistant' ? last.message_id : undefined,
+          minFloor: Math.max(-1, ...readChatFloors().map(row => row.message_id)) + (type === 'normal' ? 1 : 0),
+          modules: selectModules(context.settings.generation).filter(
+            app => appApiMode(context.settings, app) === 'secondary_api',
+          ),
+        };
+        logDiagnostic(
+          '副 API 跟随等待',
+          `类型：${type}；模块：${pending.modules.join('、') || '空间规则'}；等待正文最终渲染`,
+        );
+      }
+    }),
+    eventOn(tavern_events.CHARACTER_MESSAGE_RENDERED, id => {
+      const captured = pending;
+      if (!captured || captured.key !== enabled()?.key || id < captured.minFloor) return;
+      if (readChatFloor(id)?.role !== 'assistant') return;
+      pending = null;
+      const preceding = running;
+      if (controller) {
+        logDiagnostic('副 API 跟随取消', '新的正文楼层已渲染，停止旧楼层后置任务');
+        controller.abort();
+      }
+      const active = new AbortController();
+      controller = active;
+      activeKey = captured.key;
+      const swipe = SillyTavern.chat?.[id]?.swipe_id;
+      // Let ST finish saving the generated floor before reading context and starting the side request.
+      timer = setTimeout(() => {
+        const latest = readChatFloor(id);
+        if (!latest || latest.role !== 'assistant') return;
+        const message = { ...latest };
+        const isCurrent = () =>
+          !active.signal.aborted &&
+          enabled()?.key === captured.key &&
+          SillyTavern.chat?.[id]?.swipe_id === swipe &&
+          readChatFloor(id)?.message === message.message;
+        if (!isCurrent()) {
+          logDiagnostic('副 API 跟随取消', '聊天、回复或生成设置已变化');
+          return;
+        }
+        running = (async () => {
+          if (preceding) await preceding;
+          if (!isCurrent()) {
+            logDiagnostic('副 API 跟随取消', `第 ${id} 楼：等待期间正文或会话已变化`);
+            return;
+          }
+          logDiagnostic('副 API 跟随开始', `正文楼层：${id}；模块：${captured.modules.join('、') || '空间规则'}`);
+          await run({ modules: captured.modules, message, signal: active.signal, isCurrent });
+        })()
+          .catch(error => {
+            if (!active.signal.aborted) logDiagnostic('副 API 跟随失败', String(error));
+          })
+          .finally(() => {
+            if (controller === active) {
+              controller = undefined;
+              activeKey = '';
+              running = undefined;
+            }
+          });
+      }, 0);
+    }),
+    eventOn(tavern_events.GENERATION_STOPPED, () => {
+      // This host-wide event has no request ID. Once the final render has consumed
+      // the gate, a later stop may belong to host cleanup or another extension.
+      // Only stop the pending narrative; running side requests have their own stop
+      // control and remain guarded by chat, swipe, routing and content freshness.
+      // Never abort a running side request because an unrelated pending gate stopped.
+      if (pending) pending = null;
+    }),
+    eventOn(tavern_events.CHAT_CHANGED, clear),
+    eventOn(tavern_events.MESSAGE_SWIPED, () => {
+      // A generated swipe is still waiting for its final render. A manual swipe only cancels in-flight work.
+      if (!pending) clear();
+    }),
+    eventOn(tavern_events.MESSAGE_DELETED, count => {
+      // ST emits the remaining count after removing the old assistant reply for regenerate.
+      if (
+        pending?.expectedDeleteFloor !== undefined &&
+        count === pending.expectedDeleteFloor &&
+        pending.key === enabled()?.key
+      ) {
+        pending.expectedDeleteFloor = undefined;
+        logDiagnostic('副 API 跟随等待', '重生成已移除旧回复，保留后置任务等待新正文');
+        return;
+      }
+      if (pending || controller) logDiagnostic('副 API 跟随取消', '聊天楼层被删除');
+      clear();
+    }),
+  ];
+  return () => {
+    stopWatch();
+    clear();
+    events.forEach(event => event.stop());
+  };
+}

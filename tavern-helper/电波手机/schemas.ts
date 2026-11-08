@@ -10,6 +10,7 @@ import { VoiceServicesSchema, CharacterVoiceSchema } from './services/chat/speec
 import { BrowserStateSchema, SearchEngineSchema } from './services/apps/browser';
 import { WeatherLocationSchema } from './services/core/weather';
 import { z } from 'zod';
+import { SecondaryResultsSchema } from './services/generation/secondary-results';
 import { ImageAssetSchema } from './services/image/library';
 import { ChatPreferencesSchema } from './services/chat/chat-preferences';
 import { ZoneInteractionsSchema } from './services/space/zone';
@@ -18,7 +19,8 @@ import { SystemClockSettingsSchema } from './services/core/system-clock';
 export const APP_IDS = ['status', 'messages', 'memo', 'zone', 'wallet', 'calendar', 'browse', 'music'] as const;
 export type AppId = (typeof APP_IDS)[number];
 export const WAVE_PHONE_IDENTIFIER = 'cn.wave-phone.tavern-helper';
-export const WAVE_PHONE_RELEASE_VERSION = '1.3.53';
+export const WAVE_PHONE_RELEASE_VERSION = '1.14.0';
+export const WAVE_PHONE_RELEASE_DATE = '2026.10.29';
 export const WAVE_PHONE_STORAGE_VERSION = 1;
 
 export const ProviderSchema = z.enum(['openai', 'siliconflow', 'deepseek', 'google_ai_studio', 'vertex_ai']);
@@ -28,6 +30,8 @@ export const ApiSettingsSchema = z
   .object({
     enabled: z.boolean().prefault(false),
     provider: ProviderSchema.prefault('openai'),
+    stream: z.boolean().prefault(false),
+    autoTimeout: z.boolean().prefault(true),
     apiurl: z.string().prefault(''),
     key: z.string().prefault(''),
     model: z.string().prefault(''),
@@ -110,8 +114,18 @@ export const NotificationSettingsSchema = z
 
 export const AppearanceSettingsSchema = z
   .object({
+    interfaceScale: z.number().finite().min(0.7).max(1.8).catch(1).prefault(1),
     hideElectric: z.boolean().prefault(false),
     floatingEntry: z.boolean().prefault(false),
+    interfaceLanguage: z.enum(['简体中文', '繁体中文', '英语', '日语', '韩语']).prefault('简体中文'),
+    outputLanguage: z.string().trim().min(1).catch('简体中文').prefault('简体中文'),
+    assistiveTouch: z.boolean().prefault(false),
+    assistivePosition: z
+      .object({
+        edge: z.enum(['left', 'right']).prefault('right'),
+        y: z.number().min(0).max(1).catch(0.6).prefault(0.6),
+      })
+      .prefault({}),
     quickReplyEntry: z.boolean().prefault(true),
     extensionMenuEntry: z.boolean().prefault(false),
     floatingPosition: z
@@ -128,6 +142,15 @@ export const AppearanceSettingsSchema = z
       .prefault(40),
     coverWallpaper: z.string().prefault(''),
     desktopWallpaper: z.string().prefault(''),
+    characterWallpapers: z
+      .record(
+        z.string(),
+        z.object({
+          coverWallpaper: z.string().prefault(''),
+          desktopWallpaper: z.string().prefault(''),
+        }),
+      )
+      .prefault({}),
     iconNames: z.record(z.string(), z.string()).prefault({}),
     iconImages: z.record(z.string(), z.string()).prefault({}),
     anniversaries: z.record(z.string(), z.string()).prefault({}),
@@ -197,7 +220,7 @@ export const ScriptSettingsSchema = z
         systemClock: SystemClockSettingsSchema,
         storageIntervalSeconds: z.number().min(5).max(600).prefault(30),
         autoOpenOnUpdate: z.boolean().prefault(false),
-        historyDepth: z.number().int().nonnegative().nullable().prefault(20),
+        historyDepth: z.number().int().nonnegative().nullable().prefault(5),
         cacheEnabled: z.boolean().prefault(true),
         cacheLimitMb: z.coerce
           .number()
@@ -217,6 +240,15 @@ export const ScriptSettingsSchema = z
     generation: z
       .object({
         followEnabled: z.boolean().prefault(false),
+        appApis: z
+          .partialRecord(
+            z.enum(APP_IDS),
+            z.object({
+              mode: z.enum(['inherit', 'main_api', 'secondary_api', 'profile']).prefault('inherit'),
+              profileId: z.string().prefault(''),
+            }),
+          )
+          .prefault({}),
         randomMin: z.number().int().min(1).max(4).prefault(1),
         randomMax: z.number().int().min(2).max(4).prefault(2),
         probability: z.number().min(0).max(100).prefault(35),
@@ -239,6 +271,7 @@ export const ScriptSettingsSchema = z
     neteaseApi: z.string().prefault('https://netease-cloud-music-wheat.vercel.app'),
     qqMusicApi: z.string().prefault(''),
     musicSource: z.string().prefault('aggregate'),
+    musicGeneratedAutoplay: z.boolean().prefault(true),
     musicSearchRevision: z.number().prefault(0),
     weatherLocation: WeatherLocationSchema.nullable().prefault(null),
     version: z.literal(1).prefault(1),
@@ -489,6 +522,17 @@ export const ChatStateSchema = z
     electricTitleByApp: z.record(z.string(), z.string()).prefault({}),
     appUnread: z.record(z.string(), z.array(z.enum(APP_IDS))).prefault({}),
     deletedCharKeys: z.array(z.string()).prefault([]),
+    secondaryResults: SecondaryResultsSchema,
+    generationReceipts: z
+      .record(
+        z.string(),
+        z.object({
+          source: z.string(),
+          modules: z.array(z.enum(APP_IDS)),
+          completedAt: z.string(),
+        }),
+      )
+      .prefault({}),
     lastSyncedAt: z.string().prefault(''),
   })
   .prefault({});
@@ -504,38 +548,66 @@ export const ModelMessageSchema = z
     actorKey: z.string().optional(),
     actor_key: z.string().optional(),
     actorName: z.string().optional(),
+    char_name: z.string().optional(),
+    group_name: z.string().optional(),
+    author: z.string().optional(),
+    authorKey: z.string().optional(),
+    char_id: z.string().optional(),
+    translation: z.string().optional(),
+    time: z.string().optional(),
     payload: z.record(z.string(), z.unknown()).prefault({}),
   })
-  .transform(({ actorKey, actor_key, actorName, ...message }) => ({
-    ...message,
-    payload: {
-      ...(actorKey ? { actorKey } : {}),
-      ...(actor_key ? { actor_key } : {}),
-      ...(actorName ? { actorName } : {}),
-      ...message.payload,
-      ...(['red_packet', 'transfer'].includes(message.type) ? { paymentLedgerVersion: 1 } : {}),
-      ...(message.type === 'transfer'
-        ? {
-            state: 'pending',
-            claims: [],
-            claimedCount: 0,
-            claimedAmount: 0,
-            userPaymentDecision: '',
-            userReceivedAmount: undefined,
-          }
-        : {}),
-      ...(message.type === 'red_packet'
-        ? {
-            state: message.payload.packetType === 'group' ? 'group_available' : 'pending',
-            claimedCount: 0,
-            claimedAmount: 0,
-            claims: [],
-            userPaymentDecision: '',
-            userReceivedAmount: undefined,
-          }
-        : {}),
-    } as Record<string, unknown>,
-  }));
+  .transform(
+    ({
+      actorKey,
+      actor_key,
+      actorName,
+      author,
+      authorKey,
+      char_id,
+      char_name,
+      group_name,
+      translation,
+      time,
+      ...message
+    }) => ({
+      ...message,
+      payload: {
+        ...(authorKey ? { actorKey: authorKey } : {}),
+        ...(author ? { actorName: author.replace(/^待迁移 · /, '') } : {}),
+        ...(char_id ? { conversationId: char_id } : {}),
+        ...(group_name ? { conversationType: 'group' } : {}),
+        ...(group_name || char_name ? { conversationName: group_name || char_name } : {}),
+        ...(translation ? { translation } : {}),
+        ...(time ? { storyTime: time } : {}),
+        ...(actorKey ? { actorKey } : {}),
+        ...(actor_key ? { actor_key } : {}),
+        ...(actorName ? { actorName } : {}),
+        ...message.payload,
+        ...(['red_packet', 'transfer'].includes(message.type) ? { paymentLedgerVersion: 1 } : {}),
+        ...(message.type === 'transfer'
+          ? {
+              state: 'pending',
+              claims: [],
+              claimedCount: 0,
+              claimedAmount: 0,
+              userPaymentDecision: '',
+              userReceivedAmount: undefined,
+            }
+          : {}),
+        ...(message.type === 'red_packet'
+          ? {
+              state: message.payload.packetType === 'group' ? 'group_available' : 'pending',
+              claimedCount: 0,
+              claimedAmount: 0,
+              claims: [],
+              userPaymentDecision: '',
+              userReceivedAmount: undefined,
+            }
+          : {}),
+      } as Record<string, unknown>,
+    }),
+  );
 
 export const ModelReactionsSchema = z
   .array(z.object({ message_id: z.string(), emoji: z.string().max(32), actor_key: z.string().optional() }))

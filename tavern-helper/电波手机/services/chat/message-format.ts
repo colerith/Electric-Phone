@@ -1,3 +1,4 @@
+import { parseSharedLinks } from './share-links';
 import { splitElectric } from '../generation/electric';
 import { locationDistance, distanceLabel } from '../core/location';
 import type { PhoneMessage } from '../../schemas';
@@ -92,7 +93,9 @@ export function formatPhoneMessage(
   if (message.withdrawn) return '[已撤回消息]';
   const p = (key: string) => printable(message.payload[key]);
   if (message.payload.interaction === 'message_reaction') {
-    const target = history.find(item => item.id === p('targetMessageId') && item.payload.interaction !== 'message_reaction');
+    const target = history.find(
+      item => item.id === p('targetMessageId') && item.payload.interaction !== 'message_reaction',
+    );
     const targetText = target ? formatPhoneMessage(target, [], false) : p('targetText');
     return `[消息回应事件，仅作互动记录，不是用户发言] ${formatReactionNotice(message)}（目标消息 ID：${p('targetMessageId')}）\n[被回应消息完整内容]\n${targetText || '原消息已不可用'}\n[/被回应消息完整内容]`;
   }
@@ -179,6 +182,14 @@ export function editedMessagePayload(message: MessageInput, content: string): Re
     } as Record<string, string>
   )[message.type];
   if (key) payload[key] = content;
+  if (message.type === 'link') {
+    const link = parseSharedLinks(content)[0];
+    if (link) {
+      payload.url = link.url;
+      payload.title = link.title;
+      payload.shareText = content;
+    } else delete payload.shareText;
+  }
   if (message.type === 'emoji') payload[payload.emojiType === 'sticker' ? 'name' : 'emoji'] = content;
   return payload;
 }

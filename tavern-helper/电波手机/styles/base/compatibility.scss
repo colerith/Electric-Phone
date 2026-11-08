@@ -157,14 +157,14 @@
     flex-shrink: 0;
     padding: 8px 10px 10px;
   }
-  .wave-device.page-conversation :is(.composer, .extras-panel, .composer-context, .message-multi-toolbar) {
+  .wave-device.conversation-dock-view :is(.composer, .extras-panel, .composer-context, .message-multi-toolbar) {
     background: var(--wave-card, #fff) !important;
     box-shadow: none;
     border-color: transparent;
     backdrop-filter: none;
   }
   // Extend the input surface through the reserved bottom area; the indicator stays transparent.
-  .wave-device.page-conversation:has(.composer, .message-multi-toolbar, .group-observer-bar)::after,
+  .wave-device.conversation-dock-view:has(.composer, .message-multi-toolbar, .group-observer-bar)::after,
   .wave-device.page-messages:has(.messenger-app)::after {
     content: '';
     position: absolute;
@@ -392,7 +392,7 @@
 }
 
 // The entire conversation dock is one card surface, including the home indicator inset.
-#wave-phone-script-root .wave-phone-host .wave-device.page-conversation {
+#wave-phone-script-root .wave-phone-host .wave-device.conversation-dock-view {
   :is(.composer, .extras-panel, .composer-context, .message-multi-toolbar, .group-observer-bar, .wave-homebar),
   &::after {
     background: var(--wave-card, #fff) !important;

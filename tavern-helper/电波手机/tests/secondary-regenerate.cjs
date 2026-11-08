@@ -1,0 +1,135 @@
+const fs = require('fs'),
+  path = require('path'),
+  assert = require('node:assert/strict'),
+  ts = require('typescript');
+const { JSDOM } = require('jsdom');
+const dom = new JSDOM('<div id="app"></div>', { url: 'http://localhost' });
+for (const key of [
+  'window',
+  'document',
+  'Node',
+  'Element',
+  'HTMLElement',
+  'SVGElement',
+  'Event',
+  'MouseEvent',
+  'KeyboardEvent',
+])
+  global[key] = dom.window[key];
+const compile = code =>
+  ts.transpileModule(code, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
+  }).outputText;
+require.extensions['.ts'] = (m, f) => m._compile(compile(fs.readFileSync(f, 'utf8')), f);
+const { parse, compileScript } = require('vue/compiler-sfc');
+require.extensions['.vue'] = (m, f) =>
+  m._compile(
+    compile(compileScript(parse(fs.readFileSync(f, 'utf8')).descriptor, { id: f, inlineTemplate: true }).content),
+    f,
+  );
+global._ = require('lodash');
+global.z = require('zod').z;
+let chat = 'test',
+  floors = [],
+  vars = { script: {}, global: {}, chat: {} };
+global.SillyTavern = {
+  name1: 'User',
+  characterId: '1',
+  groupId: '',
+  characters: [],
+  getCurrentChatId: () => chat,
+  getContext: () => ({ substituteParams: x => x }),
+};
+Object.assign(global, {
+  getCharData: () => ({ name: 'Alice', avatar: 'a.png' }),
+  getCharAvatarPath: () => '/a.png',
+  getVariables: ({ type }) => vars[type],
+  replaceVariables: (value, { type }) => (vars[type] = value),
+  getChatMessages: id => (typeof id === 'number' ? floors.filter(f => f.message_id === id) : floors),
+  getTavernRegexes: () => [],
+  updateTavernRegexesWith: async fn => fn([]),
+  stopGenerationById: async () => true,
+  toastr: { info: () => {} },
+});
+window.SillyTavern = global.SillyTavern;
+const handlers = new Map();
+global.tavern_events = new Proxy({}, { get: (_, name) => name });
+global.eventOn = (event, fn) => {
+  const list = handlers.get(event) || new Set();
+  list.add(fn);
+  handlers.set(event, list);
+  return { stop: () => list.delete(fn) };
+};
+const emit = (name, ...args) => {
+  for (const fn of [...(handlers.get(name) || [])]) fn(...args);
+};
+const injections = [];
+global.injectPrompts = rows => {
+  injections.push(...rows);
+  return { uninject: () => {} };
+};
+global.setChatMessages = async rows => {
+  for (const row of rows) {
+    Object.assign(
+      floors.find(f => f.message_id === row.message_id),
+      row,
+    );
+    emit('CHARACTER_MESSAGE_RENDERED', row.message_id);
+  }
+};
+const base = path.resolve('src/util/酒馆助手脚本/电波手机');
+const vue = require('vue'),
+  { createPinia } = require('pinia');
+const { APP_IDS, ScriptSettingsSchema } = require(base + '/schemas.ts');
+const { appApiMode, appApiSettings } = require(base + '/services/generation/app-api.ts');
+const { usePhoneStore } = require(base + '/stores/phone.ts');
+const ApiSettings = require(base + '/components/settings/WaveAppApiSettings.vue').default;
+let phone;
+const appId = vue.ref('memo');
+const app = vue.createApp({
+  setup() {
+    phone = usePhoneStore();
+    return () => vue.h(ApiSettings, { app: appId.value });
+  },
+});
+app.use(createPinia()).mount('#app');
+const tick = () => vue.nextTick();
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+const waitFor = async fn => {
+  for (let i = 0; i < 200; i++) {
+    if (fn()) return;
+    await wait(5);
+  }
+  throw Error('timed out');
+};
+(async () => {
+  const {registerSecondaryFollow} = require(base + '/services/generation/secondary-follow.ts');
+  const settings = ScriptSettingsSchema.parse({ sendMode: 'secondary_api', generation: {followEnabled:true, requiredModules:['status'],modules:[]} });
+  let runs = 0;
+  const stop = registerSecondaryFollow(() => ({key:'test',settings}), async job => {
+    assert.equal(job.message.message, '重新生成的新正文');
+    assert(job.isCurrent()); runs++;
+  });
+  floors = [{message_id:0,role:'assistant',message:'旧正文'}];
+  emit('GENERATION_AFTER_COMMANDS','regenerate',{},false);
+  floors = [];
+  emit('MESSAGE_DELETED',0);
+  floors = [{message_id:0,role:'assistant',message:'重新生成的新正文'}];
+  emit('CHARACTER_MESSAGE_RENDERED',0);
+  await wait(20);
+  assert.equal(runs,1,'expected regenerate deletion preserves pending job');
+  emit('CHARACTER_MESSAGE_RENDERED',0);
+  await wait(10);assert.equal(runs,1,'duplicate render cannot trigger another job');
+  emit('GENERATION_AFTER_COMMANDS','normal',{},false);
+  emit('MESSAGE_DELETED',0);
+  floors.push({message_id:1,role:'assistant',message:'unexpected'});
+  emit('CHARACTER_MESSAGE_RENDERED',1);
+  await wait(10);assert.equal(runs,1,'manual deletion still cancels');
+  emit('GENERATION_AFTER_COMMANDS','regenerate',{},false);
+  emit('MESSAGE_DELETED',1);emit('MESSAGE_DELETED',0);
+  emit('CHARACTER_MESSAGE_RENDERED',1);
+  await wait(10);assert.equal(runs,1,'only one expected deletion is permitted');
+  stop();app.unmount();dom.window.close();
+  console.log('PASS: regenerated reply survives expected deletion, duplicate renders and unrelated deletes remain guarded');
+  process.exit(0);
+})().catch(e => {console.error(e);process.exit(1)});

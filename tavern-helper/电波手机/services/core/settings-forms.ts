@@ -50,3 +50,12 @@ export function useSettingsForm(
   onUnmounted(() => forms?.delete(form));
   return { markSaved, managed: Boolean(forms) };
 }
+
+/** Save mounted chat setting drafts before exporting a portable persona. */
+export function useSaveSettingsForms() {
+  const forms = inject(key, undefined);
+  return () => {
+    for (const form of forms || []) if (form.active() && form.save() === false) return false;
+    return true;
+  };
+}

@@ -10,6 +10,7 @@
           `theme-${resolvedTheme}`,
           `page-${store.currentPage}`,
           {
+            'conversation-dock-view': store.currentPage === 'conversation' && !appSettingsOpen,
             'is-subpage': store.currentPage !== 'home',
             'is-observing-group': store.currentPage === 'conversation' && observingGroup,
             'footer-card-view':
@@ -190,9 +191,15 @@
             <section>
               <strong>设置尚未保存</strong>
               <p>要保存修改后离开吗？</p>
-              <button type="button" @click="pendingSettingsLeave = null">继续编辑</button
-              ><button type="button" @click="finishSettingsLeave(false)">放弃修改</button
-              ><button type="button" @click="finishSettingsLeave(true)">保存并返回</button>
+              <div class="settings-unsaved-actions">
+                <button type="button" @click="pendingSettingsLeave = null">继续编辑</button>
+                <button type="button" class="settings-unsaved-discard" @click="finishSettingsLeave(false)">
+                  放弃修改
+                </button>
+                <button type="button" class="settings-unsaved-save" @click="finishSettingsLeave(true)">
+                  保存并返回
+                </button>
+              </div>
             </section>
           </div>
           <main class="wave-screen">
@@ -217,7 +224,6 @@
             </details>
             <WaveAppSettings
               v-if="appSettingsOpen"
-              ref="appSettings"
               :app="store.currentPage"
               :name="pageTitle"
               :user-avatar="userAvatar"
@@ -901,8 +907,11 @@
                       :video="extraDraft.kind === 'video'"
                     />
                     <label v-if="(extraMode === '媒体' && !mediaAi) || extraMode === '链接'"
-                      ><span>{{ extraMode === '媒体' ? '资源 URL（可留空）' : '链接 URL' }}</span
-                      ><input v-model.trim="extraDraft.url" type="url" placeholder="https://…"
+                      ><span>{{ extraMode === '媒体' ? '资源 URL（可留空）' : '链接或完整分享文案' }}</span
+                      ><input
+                        v-model.trim="extraDraft.url"
+                        :type="extraMode === '链接' ? 'text' : 'url'"
+                        placeholder="https://…"
                     /></label>
                     <input
                       ref="photoFileInput"
@@ -1001,7 +1010,9 @@
                   :key="settingsSection"
                   :section="settingsSection"
                 />
+                <WaveGenerationRecords v-else-if="settingsSection === 'records'" />
                 <WaveApiSettings v-else-if="settingsSection === 'api'" />
+                <WaveMcpSettings v-else-if="settingsSection === 'mcp'" />
                 <WaveBackupSettings v-else-if="settingsSection === 'backup'" />
                 <WaveCopyrightCredits v-else-if="settingsSection === 'credits'" />
 
@@ -1009,15 +1020,6 @@
                   <WaveGenerationSettings />
                   <div class="settings-card">
                     <div class="wave-settings-title">发送与回复</div>
-                    <label>
-                      <strong>发送方式</strong>
-                      <WaveSelect
-                        :model-value="store.settings.sendMode"
-                        aria-label="发送方式"
-                        :options="sendModeOptions"
-                        @update:model-value="updateSendMode"
-                      />
-                    </label>
                     <label
                       ><strong>私聊与正文的关系</strong
                       ><WaveSelect
@@ -1273,6 +1275,7 @@
             @confirm="confirmSharedForward"
           />
         </template>
+        <WaveAssistiveTouch v-if="store.settings.appearance.assistiveTouch" />
         <button class="wave-homebar" type="button" aria-label="返回主屏或关闭手机" @click="handleHomebar">
           <span></span>
         </button>
@@ -1282,6 +1285,9 @@
 </template>
 
 <script setup lang="ts">
+import { useInterfaceLanguage } from './services/core/interface-language';
+import WaveAssistiveTouch from './components/shared/WaveAssistiveTouch.vue';
+import { parseSharedLinks } from './services/chat/share-links';
 import { provideSettingsForms } from './services/core/settings-forms';
 import WaveMentionPicker from './components/shared/WaveMentionPicker.vue';
 import WaveExtensionUpdate from './components/settings/WaveExtensionUpdate.vue';
@@ -1302,6 +1308,7 @@ import WaveFloatingEntry from './components/shared/WaveFloatingEntry.vue';
 import { canReactToMessage } from './services/chat/message-reactions';
 import { parseCalendar } from './services/apps/calendar';
 import WaveTogether from './components/chat/WaveTogether.vue';
+import WaveGenerationRecords from './components/settings/WaveGenerationRecords.vue';
 import WaveSystemSettings from './components/settings/WaveSystemSettings.vue';
 import WaveMessenger from './components/chat/WaveMessenger.vue';
 import WaveGenerationSettings from './components/settings/WaveGenerationSettings.vue';
@@ -1350,6 +1357,7 @@ import WaveToggle from './components/shared/WaveToggle.vue';
 import { type AppId, type Identity, type PhoneMessage, type StickerLibrary } from './schemas';
 import type { SendMessageInput } from './stores/phone';
 import WaveApiSettings from './components/settings/WaveApiSettings.vue';
+import WaveMcpSettings from './components/settings/WaveMcpSettings.vue';
 import WaveBackupSettings from './components/settings/WaveBackupSettings.vue';
 import WaveCopyrightCredits from './components/settings/WaveCopyrightCredits.vue';
 import { useChatPagination } from './services/chat/chat-pagination';
@@ -1361,6 +1369,7 @@ import { usePhoneStore } from './stores/phone';
 import { useSystemClockStore } from './stores/system-clock';
 
 const store = usePhoneStore();
+useInterfaceLanguage(phoneSurface, () => store.settings.appearance.interfaceLanguage);
 const selectedChatMentions = reactive(new Set<string>());
 watch(
   () => [store.activeThread?.id, store.activeThread?.draft],
@@ -1447,7 +1456,7 @@ let leavingSettings = false;
 const settingsEditorActive = computed(
   () =>
     appSettingsOpen.value ||
-    (store.currentPage === 'settings' && !['root', 'backup', 'credits'].includes(settingsSection.value)),
+    (store.currentPage === 'settings' && !['root', 'backup', 'credits', 'records'].includes(settingsSection.value)),
 );
 watch(
   () => [store.currentPage, settingsSection.value, appSettingsOpen.value],
@@ -1503,7 +1512,6 @@ function finishSettingsLeave(save: boolean) {
     leavingSettings = false;
   }
 }
-const appSettings = ref<InstanceType<typeof WaveAppSettings> | null>(null);
 const showMusicDock = computed(
   () =>
     store.currentPage === 'music' &&
@@ -1687,17 +1695,14 @@ const currencyOptions: WaveSelectOption[] = ['CNY', 'JPY', 'USD', 'EUR', 'GBP', 
   value,
   label: value,
 }));
-const sendModeOptions: WaveSelectOption[] = [
-  { value: 'secondary_api', label: '独立副 API', description: '不占用酒馆主生成' },
-  { value: 'main_api', label: '同步酒馆正文', description: '发送后触发主生成' },
-  { value: 'append', label: '仅尾附输入框', description: '交给你手动发送' },
-];
 type SettingsSectionId =
+  | 'records'
   | 'basic'
   | 'worldbooks'
   | 'debug'
   | 'root'
   | 'api'
+  | 'mcp'
   | 'chat'
   | 'media'
   | 'image'
@@ -1730,10 +1735,18 @@ const settingsSections: Array<{
     icon: 'fa-solid fa-sliders',
   },
   {
+    id: 'records',
+    name: '生成记录',
+    caption: '楼层、模块与历史补生成',
+    description: '查看正文更新记录，按时间顺序补生成缺失内容。',
+    eyebrow: 'GENERATION HISTORY',
+    icon: 'fa-solid fa-clock-rotate-left',
+  },
+  {
     id: 'chat',
     name: '聊天与行为',
     caption: '消息能力、输入与生成',
-    description: '管理发送方式、输入动作和手机提示词。',
+    description: '管理全局生成方式、输入动作和手机提示词。',
     eyebrow: 'CHAT BEHAVIOR',
     icon: 'fa-solid fa-comment-dots',
   },
@@ -1752,6 +1765,14 @@ const settingsSections: Array<{
     description: '管理生图接口，角色外貌与参考图在私聊设置中配置。',
     eyebrow: 'IMAGE GENERATION',
     icon: 'fa-solid fa-wand-magic-sparkles',
+  },
+  {
+    id: 'mcp',
+    name: 'MCP 与网页',
+    caption: '链接卡片、工具与联网检索',
+    description: '配置网页解析、远程 MCP 服务与聊天检索。',
+    eyebrow: 'MCP & WEB',
+    icon: 'fa-solid fa-network-wired',
   },
   {
     id: 'media',
@@ -1830,16 +1851,7 @@ const deviceStyle = computed<Record<string, string>>(() => {
   const fontFamily = fontFamilies[store.settings.appearance.fontFamily];
   const displayFont =
     store.settings.appearance.fontFamily === 'source_sans' ? fontFamilies.source_sans : fontFamilies.source_serif;
-  const wallpaper =
-    homePage.value === 0 ? store.settings.appearance.coverWallpaper : store.settings.appearance.desktopWallpaper;
   return {
-    ...(store.currentPage === 'home' && wallpaper
-      ? {
-          backgroundImage: `url(${JSON.stringify(wallpaper)})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }
-      : {}),
     '--wave-ui-font': fontFamily,
     '--wave-display-font': displayFont,
     '--wave-font-scale': String(store.settings.appearance.fontScale),
@@ -1918,7 +1930,7 @@ const extraHint = computed(
       红包: '发送时默认为待领取，后续状态由角色互动推进；仅用于剧情互动，不涉及真实支付。',
       转账: '只影响剧情内虚构钱包，不涉及真实支付。',
       位置: '只保存手动文本，不请求设备定位。',
-      链接: '仅允许 http/https URL。',
+      链接: '支持完整分享文案、小红书与 B 站短链、BV/av 号；自动提取可访问的网址。',
     })[extraMode.value] || '',
 );
 const regeneratingReplyIds = ref(new Set<string>());
@@ -2179,7 +2191,7 @@ function openApp(id: AppId): void {
   store.currentPage = id;
   store.markAppRead(id);
   if (id === 'music') void music.sync(store.activeSnapshot.music, store.state.activeCharKey, false, true);
-  store.scheduleSync(0);
+  // Opening an app consumes the current snapshot. Chat/generation events own synchronization.
 }
 function openAppearance(): void {
   settingsSection.value = 'appearance';
@@ -2302,9 +2314,6 @@ function resetAvatarAndReturn(): void {
 function saveProfile(): void {
   store.updateActiveIdentityProfile({ remark: profileRemark.value });
   notifySuccess('Char 信息已保存', '电波手机');
-}
-function updateSendMode(value: string): void {
-  store.settings.sendMode = value as typeof store.settings.sendMode;
 }
 
 const composerComposing = ref(false);
@@ -2868,11 +2877,16 @@ function submitExtra(): void {
       },
     };
   } else if (extraMode.value === '链接') {
-    if (!/^https?:\/\//i.test(draft.url)) {
-      toastr.error('链接仅允许 http/https');
+    const shared = parseSharedLinks(draft.url)[0];
+    if (!shared) {
+      toastr.error('没有找到可访问的网址，请粘贴完整分享文案、短链接或 BV/av 号');
       return;
     }
-    input = { type: 'link', content: draft.content || draft.url, payload: { url: draft.url, title: draft.content } };
+    input = {
+      type: 'link',
+      content: draft.content || shared.title || shared.url,
+      payload: { url: shared.url, title: draft.content || shared.title, shareText: draft.url },
+    };
   } else return;
   void sendTyped(input);
 }
@@ -3136,9 +3150,11 @@ watch(
   },
 );
 
+let phoneUnmounted = false;
 onMounted(async () => {
   systemClock.start(window.parent);
   await store.initialize();
+  if (phoneUnmounted) return;
   refreshUserProfile();
   personaEvents.push(eventOn('persona_changed', (avatarId: string) => refreshUserProfile(avatarId)));
   personaEvents.push(eventOn(tavern_events.SETTINGS_UPDATED, () => refreshUserProfile()));
@@ -3150,6 +3166,7 @@ onMounted(async () => {
   );
 });
 onUnmounted(() => {
+  phoneUnmounted = true;
   cancelAnimationFrame(threadMeasureFrame);
   cancelAvatarHome();
   cancelAvatarHome();
@@ -3190,30 +3207,81 @@ async function retrySynchronize() {
 </script>
 
 <style scoped>
-.settings-unsaved-overlay {
+#wave-phone-script-root .wave-device .settings-unsaved-overlay {
   position: absolute;
   inset: 0;
   z-index: 10000;
   display: grid;
   place-items: center;
-  background: #0006;
-  padding: 20px;
+  background: #18233855;
+  backdrop-filter: blur(4px);
+  padding: 24px;
 }
-.settings-unsaved-overlay section {
-  background: var(--wave-surface, white);
-  color: var(--wave-text, #26354d);
+#wave-phone-script-root .wave-device .settings-unsaved-overlay section {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 300px;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--wave-card, #fff);
+  color: var(--wave-ink, #374558);
   padding: 22px;
-  border-radius: 20px;
-  max-width: 100%;
+  border: 1px solid var(--wave-line, #dce3ed);
+  border-radius: 22px;
+  box-shadow: 0 18px 60px #18233822;
 }
-.settings-unsaved-overlay button {
-  border: 0;
+#wave-phone-script-root .wave-device .settings-unsaved-overlay strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+#wave-phone-script-root .wave-device .settings-unsaved-overlay p {
+  margin: 10px 0 20px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--wave-muted, #6e7682);
+}
+#wave-phone-script-root .wave-device .settings-unsaved-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+#wave-phone-script-root .wave-device .settings-unsaved-actions button {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  border: 1px solid var(--wave-line, #dce3ed);
   border-radius: 12px;
-  padding: 10px 12px;
-  margin: 5px;
-  background: #6385bd;
-  color: white;
+  padding: 11px 8px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: normal;
+  background: var(--wave-tint, #f3f3f3);
+  color: var(--wave-ink, #374558);
   cursor: pointer;
+}
+#wave-phone-script-root .wave-device .settings-unsaved-actions .settings-unsaved-discard {
+  background: transparent;
+  color: var(--wave-muted, #6e7682);
+}
+#wave-phone-script-root .wave-device .settings-unsaved-actions .settings-unsaved-save {
+  grid-column: 1 / -1;
+  background: var(--wave-blue, #5e80be);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+#wave-phone-script-root .wave-device .settings-unsaved-actions button:focus-visible {
+  outline: 2px solid var(--wave-blue-strong, #3f65a7);
+  outline-offset: 2px;
+}
+#wave-phone-script-root .wave-device .settings-unsaved-actions button:active {
+  filter: brightness(0.94);
 }
 #wave-phone-script-root .wave-device .chat-load-more-row {
   display: flex;

@@ -1,5 +1,5 @@
 /** Use the document hosting the panel, never the background script iframe. */
-export function bindPhoneViewport(root: HTMLElement): () => void {
+export function bindPhoneViewport(root: HTMLElement, requestedScale = 1): () => void {
   const view = root.ownerDocument.defaultView;
   if (!view) return () => {};
   const viewport = view.visualViewport;
@@ -39,7 +39,8 @@ export function bindPhoneViewport(root: HTMLElement): () => void {
     const gap = mobile ? 0 : 12;
     const panelWidth = mobile && portrait ? width : 390;
     const panelHeight = mobile && portrait ? height : 790;
-    const scale = mobile && portrait ? 1 : Math.max(0, Math.min(1, (width - gap * 2) / 390, (height - gap * 2) / 790));
+    const preferred = Number.isFinite(requestedScale) ? Math.max(0.7, Math.min(1.8, requestedScale)) : 1;
+    const scale = Math.max(0, Math.min(preferred, (width - gap * 2) / panelWidth, (height - gap * 2) / panelHeight));
     const size = `${width}:${height}`;
     const geometry = `${size}:${viewport?.offsetLeft || 0}:${viewport?.offsetTop || 0}:${mobile}:${portrait}`;
     if (geometry === lastGeometry) return;

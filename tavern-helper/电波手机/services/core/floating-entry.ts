@@ -1,15 +1,29 @@
 export type FloatingPosition = { x: number; y: number; edge: 'left' | 'right' | 'none' };
 export function floatingBounds(view: Window) {
   const vv = view.visualViewport;
-  const width = Math.max(1, Math.min(view.innerWidth, view.document.documentElement.clientWidth || view.innerWidth));
+  const positive = (value: number | undefined, fallback: number) =>
+    Number.isFinite(value) && value! > 0 ? value! : fallback;
+  const width = Math.max(
+    1,
+    Math.min(
+      positive(view.innerWidth, 56),
+      positive(view.document.documentElement.clientWidth, positive(view.innerWidth, 56)),
+    ),
+  );
   const height = Math.max(
     1,
-    Math.min(view.innerHeight, view.document.documentElement.clientHeight || view.innerHeight),
+    Math.min(
+      positive(view.innerHeight, 56),
+      positive(view.document.documentElement.clientHeight, positive(view.innerHeight, 56)),
+    ),
   );
-  const left = Math.max(0, Math.min(vv?.offsetLeft || 0, width - 1));
-  const top = Math.max(0, Math.min(vv?.offsetTop || 0, height - 1));
-  const right = Math.min(width, left + (vv?.width || width));
-  const bottom = Math.min(height, top + (vv?.height || height));
+  const visibleWidth = Math.min(width, positive(vv?.width, width));
+  const visibleHeight = Math.min(height, positive(vv?.height, height));
+  // Safari can retain a keyboard/pinch offset after the viewport has expanded again.
+  const left = Math.max(0, Math.min(Number.isFinite(vv?.offsetLeft) ? vv!.offsetLeft : 0, width - visibleWidth));
+  const top = Math.max(0, Math.min(Number.isFinite(vv?.offsetTop) ? vv!.offsetTop : 0, height - visibleHeight));
+  const right = left + visibleWidth;
+  const bottom = top + visibleHeight;
   const size = Math.min(56, right - left, bottom - top);
   return { left, top, size, maxX: Math.max(left, right - size), maxY: Math.max(top, bottom - size) };
 }
@@ -163,6 +177,18 @@ export function bindFloatingEntry(
     button.classList.remove('is-dragging');
     render();
   };
+  let settleTimer: number | undefined;
+  const settled = () => {
+    resize();
+    view.clearTimeout(settleTimer);
+    settleTimer = view.setTimeout(resize, 300);
+  };
+  const visibility = () => {
+    if (doc.visibilityState !== 'hidden') settled();
+  };
+  view.addEventListener('pageshow', settled);
+  view.addEventListener('orientationchange', settled);
+  doc.addEventListener('visibilitychange', visibility);
   button.addEventListener('click', click, true);
   if ('PointerEvent' in view) button.addEventListener('pointerdown', pointer);
   else {
@@ -173,8 +199,12 @@ export function bindFloatingEntry(
   view.addEventListener('blur', resize);
   view.visualViewport?.addEventListener('resize', resize);
   view.visualViewport?.addEventListener('scroll', resize);
-  render();
+  settled();
   return () => {
+    view.clearTimeout(settleTimer);
+    view.removeEventListener('pageshow', settled);
+    view.removeEventListener('orientationchange', settled);
+    doc.removeEventListener('visibilitychange', visibility);
     stopDrag?.();
     button.removeEventListener('click', click, true);
     button.removeEventListener('pointerdown', pointer);

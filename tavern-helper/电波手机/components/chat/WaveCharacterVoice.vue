@@ -105,6 +105,8 @@
   </section>
 </template>
 <script setup lang="ts">
+import { browserUuid } from '../../services/core/browser-crypto';
+
 import { computed, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import { CharacterVoiceSchema, type CharacterVoice } from '../../services/chat/speech';
@@ -136,7 +138,7 @@ function selectVoice(id: string) {
 function saveVoice() {
   if (voice.value.provider === 'off' || !voice.value.voiceId.trim()) return;
   const entry = {
-    id: selectedVoice.value?.id || crypto.randomUUID(),
+    id: selectedVoice.value?.id || browserUuid(),
     provider: voice.value.provider,
     voiceId: voice.value.voiceId.trim(),
     note: note.value.trim(),

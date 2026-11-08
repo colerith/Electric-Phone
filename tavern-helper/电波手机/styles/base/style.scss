@@ -4853,7 +4853,8 @@
   gap: 12px;
   padding: 16px;
   border-radius: 20px;
-  background: #f8fafc;
+  background: var(--wave-card, #f8fafc);
+  color: var(--wave-ink, #374558);
 }
 #wave-phone-script-root .wave-device .chat-editor-dialog.expanded {
   height: 95%;
@@ -4872,10 +4873,10 @@
   width: 100%;
   resize: none;
   padding: 12px;
-  border: 1px solid #dce3ed;
+  border: 1px solid var(--wave-line, #dce3ed);
   border-radius: 12px;
-  background: white;
-  color: #374558;
+  background: var(--wave-tint, #fff);
+  color: var(--wave-ink, #374558);
   font-size: 13px;
   line-height: 1.7;
 }
@@ -4883,8 +4884,8 @@
   padding: 7px 12px;
   border: 0;
   border-radius: 12px;
-  background: #e8eef8;
-  color: #5c80be;
+  background: var(--wave-tint, #e8eef8);
+  color: var(--wave-accent, #5c80be);
   font-size: 12px;
 }
 

@@ -1,11 +1,13 @@
 import { z } from 'zod';
 import { klona } from 'klona';
 import { WalletBookSchema, type WalletBook } from '../wallet/wallet-accounts';
+import { MomentsStateSchema } from '../space/moments';
 import type { ChatState } from '../../schemas';
 
 export const CHARACTER_DEFAULTS_KEY = 'wave_phone_character_defaults';
 export const CharacterDefaultsSchema = z
   .object({
+    momentsSettings: MomentsStateSchema.unwrap().shape.settings.optional(),
     identityAliases: z.record(z.string(), z.string()).prefault({}),
     identityRecovery: z.record(z.string(), z.unknown()).prefault({}),
     artwork: z.record(z.string(), z.record(z.string(), z.string())).prefault({}),
@@ -46,6 +48,12 @@ export function namespaceWallet(book: WalletBook, chatKey: string): WalletBook {
 
 /** Merge each old chat only once. Existing shared balances and edits take priority. */
 export function captureMissingDefaults(state: ChatState, defaults: CharacterDefaults): void {
+  // A fresh chat must not prevent migration from an older configured chat.
+  if (
+    !defaults.momentsSettings &&
+    JSON.stringify(state.moments.settings) !== JSON.stringify(MomentsStateSchema.parse({}).settings)
+  )
+    defaults.momentsSettings = klona(state.moments.settings);
   for (const [key, artwork] of Object.entries(state.appArtwork)) {
     defaults.artwork[key] = { ...artwork, ...defaults.artwork[key] };
   }
@@ -79,4 +87,5 @@ export function inheritCharacterDefaults(state: ChatState, defaults: CharacterDe
     state.appArtwork[charKey] = { ...state.appArtwork[charKey], ...artwork };
   }
   state.walletBook = klona(defaults.walletBook);
+  if (defaults.momentsSettings) state.moments.settings = klona(defaults.momentsSettings);
 }

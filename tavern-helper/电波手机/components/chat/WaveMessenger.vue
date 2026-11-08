@@ -1,15 +1,27 @@
 <template>
   <section ref="root" class="messenger-app">
-    <div v-if="searchOpen && (tab === 'messages' || tab === 'contacts') && !momentsSubpage" class="messenger-search-top">
+    <div
+      v-if="searchOpen && (tab === 'messages' || tab === 'contacts') && !momentsSubpage"
+      class="messenger-search-top"
+    >
       <label class="messenger-search">
         <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-        <input ref="searchInput" v-model="query" type="search" :placeholder="tab === 'contacts' ? '搜索联系人' : '搜索聊天'" :aria-label="tab === 'contacts' ? '搜索联系人' : '搜索聊天'" @keydown.esc.prevent="closeSearch" />
+        <input
+          ref="searchInput"
+          v-model="query"
+          type="search"
+          :placeholder="tab === 'contacts' ? '搜索联系人' : '搜索聊天'"
+          :aria-label="tab === 'contacts' ? '搜索联系人' : '搜索聊天'"
+          @keydown.esc.prevent="closeSearch"
+        />
       </label>
     </div>
     <div class="messenger-scroll">
       <div v-if="tab === 'messages'" class="messenger-profile">
         <span class="messenger-avatar large"
-          ><img v-if="userAvatar" :src="userAvatar" alt="" /><span v-else>{{ userName.slice(0, 1) }}</span></span
+          ><WaveCachedImage v-if="userAvatar" :src="userAvatar" alt="" /><span v-else>{{
+            userName.slice(0, 1)
+          }}</span></span
         >
         <div>
           <strong>{{ userName }}</strong
@@ -65,7 +77,7 @@
               @keydown.delete.prevent="revealed = row.identity.charKey"
             >
               <span class="messenger-avatar"
-                ><img
+                ><WaveCachedImage
                   v-if="row.identity.avatar"
                   :src="row.identity.avatar"
                   alt=""
@@ -133,10 +145,12 @@
                 @keydown.delete.prevent="revealed = contact.charKey"
               >
                 <span class="messenger-avatar"
-                  ><img v-if="contact.avatar" :src="contact.avatar" alt="" :style="avatarStyle(contact)" /><span
-                    v-else
-                    >{{ contact.name.slice(0, 1) }}</span
-                  ></span
+                  ><WaveCachedImage
+                    v-if="contact.avatar"
+                    :src="contact.avatar"
+                    alt=""
+                    :style="avatarStyle(contact)"
+                  /><span v-else>{{ contact.name.slice(0, 1) }}</span></span
                 ><span class="messenger-row-copy"
                   ><strong>{{ displayIdentityName(contact) }}</strong
                   ><small>{{ contact.about || '点击发起聊天' }}</small></span
@@ -196,6 +210,27 @@
             <button type="button" aria-label="关闭" @click="closeDialog">×</button>
           </div>
           <WaveNpcGenerator v-if="dialog === 'npc'" />
+          <template v-else-if="dialog === 'persona'">
+            <p>选择电波手机导出的原始 PNG，新建联系人并恢复角色聊天设置。同名角色会自动编号。</p>
+            <input
+              ref="personaFileInput"
+              type="file"
+              hidden
+              accept="image/png,.png"
+              aria-label="选择 PNG 人设卡"
+              :disabled="importingPersona"
+              @change="importPersona"
+            />
+            <button
+              type="button"
+              class="settings-save-wide"
+              :disabled="importingPersona"
+              @click="personaFileInput?.click()"
+            >
+              <i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i>
+              {{ importingPersona ? '正在导入…' : '选择 PNG 文件' }}
+            </button>
+          </template>
           <template v-else-if="dialog === 'friend'">
             <label>联系人名称<input v-model="newName" maxlength="40" placeholder="填写名称" /></label>
             <label
@@ -341,6 +376,8 @@
   </section>
 </template>
 <script setup lang="ts">
+import WaveCachedImage from '../shared/WaveCachedImage.vue';
+import { decodePersonaPng } from '../../services/chat/persona-card';
 import { readWorldbookEntries, type ReadableWorldbookEntry } from '../../services/generation/worldbook-reader';
 import { identityAvatarStyle as avatarStyle } from '../../services/core/avatar';
 import { computed, inject, nextTick, onMounted, onUnmounted, ref } from 'vue';
@@ -368,7 +405,7 @@ const emit = defineEmits<{
 const phone = usePhoneStore(),
   surface = inject(phoneSurfaceKey, ref(null));
 type Tab = 'messages' | 'contacts' | 'me';
-type Dialog = 'start' | 'friend' | 'group' | 'worldbook' | 'character' | 'npc';
+type Dialog = 'persona' | 'start' | 'friend' | 'group' | 'worldbook' | 'character' | 'npc';
 const tabs: { id: Tab; name: string; icon: string }[] = [
   { id: 'messages', name: '消息', icon: 'fa-solid fa-comment' },
   { id: 'contacts', name: '联系人', icon: 'fa-regular fa-address-book' },
@@ -383,6 +420,7 @@ const menuItems: { id: Dialog; name: string; icon: string }[] = [
   { id: 'start', name: '发起聊天', icon: 'fa-regular fa-comment' },
   { id: 'friend', name: '添加好友', icon: 'fa-solid fa-user-plus' },
   { id: 'npc', name: '自动生成 NPC', icon: 'fa-solid fa-wand-magic-sparkles' },
+  { id: 'persona', name: '从PNG导入角色', icon: 'fa-solid fa-file-import' },
   { id: 'worldbook', name: '从世界书导入角色', icon: 'fa-solid fa-book-open' },
   { id: 'character', name: '从角色卡描述导入', icon: 'fa-solid fa-id-card' },
   { id: 'group', name: '创建群聊', icon: 'fa-solid fa-user-group' },
@@ -402,7 +440,10 @@ function closeSearch(): void {
   query.value = '';
 }
 async function toggleSearch(): Promise<void> {
-  if (searchOpen.value) { closeSearch(); return; }
+  if (searchOpen.value) {
+    closeSearch();
+    return;
+  }
   menuOpen.value = false;
   searchOpen.value = true;
   await nextTick();
@@ -684,6 +725,31 @@ function pick(key: string) {
     memberKeys.value = memberKeys.value.includes(key)
       ? memberKeys.value.filter(value => value !== key)
       : [...memberKeys.value, key];
+}
+const importingPersona = ref(false);
+const personaFileInput = ref<HTMLInputElement | null>(null);
+async function importPersona(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file || importingPersona.value) return;
+  const scope = contextKey();
+  importingPersona.value = true;
+  notice.value = '';
+  try {
+    if (file.size > 32 * 1024 * 1024) throw Error('人设卡最大支持 32MB');
+    const card = decodePersonaPng(new Uint8Array(await file.arrayBuffer()));
+    if (scope !== contextKey()) throw Error('聊天已切换，请重新导入');
+    await phone.importPersonaData(card);
+    if (scope === contextKey()) {
+      closeDialog();
+      changeTab('contacts');
+    }
+  } catch (error) {
+    notice.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    importingPersona.value = false;
+    input.value = '';
+  }
 }
 function submitFriend() {
   try {

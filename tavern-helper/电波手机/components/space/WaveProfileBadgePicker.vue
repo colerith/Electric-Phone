@@ -11,7 +11,7 @@
         :aria-label="`移除${badge.label}徽章`"
         @click="toggle(badge.id)"
       >
-        <img :src="badge.url" :alt="badge.label" /><span>×</span></button
+        <img :src="badge.url" :alt="badge.label" /><span class="space-badge-remove" aria-hidden="true"></span></button
       ><small v-if="!selected.length">选择最多 4 枚，表达你的兴趣与心情</small>
     </div>
     <input v-model="query" class="space-badge-search" placeholder="搜索徽章" aria-label="搜索徽章" />

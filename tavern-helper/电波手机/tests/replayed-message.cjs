@@ -1,0 +1,13 @@
+const fs = require('fs'), ts = require('typescript'), assert = require('node:assert/strict'), path = require('path');
+require.extensions['.ts'] = (m,f) => m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,f);
+const {isReplayedMessage} = require(path.resolve(__dirname,'../services/chat/replayed-message.ts'));
+const old = {clientId:'a',sender:'char',type:'text',content:'晚安',payload:{actorKey:'actor'}};
+const msg = {client_id:'a',sender:'char',type:'text',content:'晚安',payload:{actorKey:'actor'}};
+assert(isReplayedMessage([old],msg));
+assert(!isReplayedMessage([old],{...msg,client_id:'b'}));
+assert(!isReplayedMessage([old],{...msg,content:'早安'}));
+assert(!isReplayedMessage([old],{...msg,payload:{actorKey:'other'}}));
+assert(!isReplayedMessage([old],{...msg,created_at:'2026-10-24T21:00:00Z'}));
+assert(!isReplayedMessage([old],{...msg,client_id:''}));
+assert(!isReplayedMessage([old],{...msg,sender:'user'}));
+console.log('PASS: exact replay rejected; new IDs, actors, timestamps, content and user messages preserved');

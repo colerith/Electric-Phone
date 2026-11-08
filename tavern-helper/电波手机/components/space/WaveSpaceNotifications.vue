@@ -25,7 +25,7 @@
         <p v-if="!filtered.length" class="messenger-empty">
           {{ filter === 'unread' ? '暂时没有未读消息' : '暂无这类互动消息' }}
         </p>
-        <button v-for="item in filtered" :key="item.id" type="button" class="space-notice-row" @click="visit(item)">
+        <button v-for="item in pageItems" :key="item.id" type="button" class="space-notice-row" @click="visit(item)">
           <span class="space-notice-avatar"
             ><img v-if="avatar(item)" :src="avatar(item)" alt="" /><i
               v-else
@@ -51,11 +51,14 @@
           >
         </button>
       </div>
+      <button v-if="filtered.length > limit" type="button" class="system-action" @click="limit += 30">
+        加载更多消息
+      </button>
     </template>
   </section>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useNow } from '@vueuse/core';
 import { usePhoneStore } from '../../stores/phone';
 import { parseZonePage } from '../../services/space/zone';
@@ -66,12 +69,11 @@ import type { SpaceNotice } from '../../services/space/notifications';
 defineProps<{ opened: boolean }>();
 const emit = defineEmits<{ visit: [item: SpaceNotice] }>();
 const phone = usePhoneStore(),
-  now = useNow({ interval: 1000 });
+  now = useNow({ interval: 30000 });
+const dismissed = computed(() => new Set(phone.state.spaceNotifications.dismissed));
 const visible = computed(() =>
   phone.spaceNotificationItems
-    .filter(
-      item => item.availableAt <= now.value.getTime() && !phone.state.spaceNotifications.dismissed.includes(item.id),
-    )
+    .filter(item => item.availableAt <= now.value.getTime() && !dismissed.value.has(item.id))
     .sort(
       (a, b) =>
         (phone.state.spaceNotifications.seen[b.id] || b.createdAt) -
@@ -94,6 +96,20 @@ const filtered = computed(() =>
     item => filter.value === 'all' || (filter.value === 'unread' ? !isRead(item) : item.kind === filter.value),
   ),
 );
+const limit = ref(30);
+const pageItems = computed(() => filtered.value.slice(0, limit.value));
+watch(filter, () => {
+  limit.value = 30;
+});
+const profileNames = computed(
+  () =>
+    new Map(
+      Object.entries(phone.state.snapshots).map(([key, snapshot]) => [
+        key,
+        parseZonePage(snapshot.zone || '').profile.username,
+      ]),
+    ),
+);
 function clear() {
   phone.clearSpaceNotifications(visible.value.map(item => item.id));
 }
@@ -108,7 +124,7 @@ function nameFor(item: SpaceNotice) {
   if (item.source === 'hole') return item.actorName || '匿名访客';
   const identity = phone.state.identities[item.actorKey];
   return identity
-    ? parseZonePage(phone.state.snapshots[item.actorKey]?.zone || '').profile.username || displayIdentityName(identity)
+    ? profileNames.value.get(item.actorKey) || displayIdentityName(identity)
     : phone.state.moments.npcs[item.actorKey]?.username || item.actorName || '访客';
 }
 function avatar(item: SpaceNotice) {

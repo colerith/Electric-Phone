@@ -167,7 +167,8 @@ async function readSlot(scope: string, slot: number, headerOnly: boolean): Promi
       }
       raw = await response.json();
     } catch (error) {
-      if (error instanceof SyntaxError) throw error;
+      if (error instanceof SyntaxError)
+        throw new SyntaxError(`服务器存档 ${filename(scope, slot)} 的 JSON 无效：${error.message}；未重置存档`);
       throw new StorageUnavailableError('读取服务器存档超时或中断，未覆盖存档');
     }
     if (Number((raw as { version?: number })?.version) > 1)

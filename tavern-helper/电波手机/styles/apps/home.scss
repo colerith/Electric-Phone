@@ -758,7 +758,7 @@
   }
 }
 
-// Home chrome shares the wallpaper, without separate tinted bars.
+// Keep home chrome transparent over the theme canvas; wallpapers belong to inner pages.
 #wave-phone-script-root .wave-device.page-home {
   .wave-statusbar,
   .wave-homebar,
@@ -952,7 +952,7 @@
   }
 }
 
-// Keep an opaque canvas behind wallpapers, including transparent image files.
+// Keep the outer theme canvas opaque, independent of custom inner-page wallpapers.
 #wave-phone-script-root .wave-device.page-home {
   background-color: #f2f4fb;
   &.theme-dark {

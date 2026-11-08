@@ -1,5 +1,6 @@
 <template>
   <section class="wave-app-content app-function-settings wave-settings-surface">
+    <WaveAppApiSettings v-if="apiApp && app !== 'zone'" :app="apiApp" />
     <WaveWalletWorkspace v-if="app === 'wallet'" mode="settings" />
     <WaveModuleSettings v-if="isLimitedApp(app)" :app="app" />
     <template v-if="app === 'conversation'">
@@ -106,7 +107,7 @@
           @change="$emit('service', 'browserEndpoint', ($event.target as HTMLInputElement).value)"
         /><small>留空使用维基百科；网页搜索需填写启用 JSON 与跨域访问的 SearXNG 地址。</small></label
       >
-      <button class="function-setting-row" type="button" @click="$emit('clear-history')">
+      <button class="function-setting-row browser-clear-history" type="button" @click="$emit('clear-history')">
         <i class="fa-solid fa-clock-rotate-left"></i
         ><span><strong>清空历史记录</strong><small>保留网页收藏夹</small></span>
       </button>
@@ -154,6 +155,14 @@
         </div>
       </div>
       <div class="function-section-heading"><b>音乐服务</b><small>搜索 · 封面 · 歌词</small></div>
+      <label class="toggle-row">
+        <span><strong>生成新歌自动播放</strong><small>关闭后仍同步歌曲，点击播放才开始收听</small></span>
+        <WaveToggle
+          v-model="phone.settings.musicGeneratedAutoplay"
+          aria-label="生成新歌自动播放"
+          @update:model-value="phone.saveSettings()"
+        />
+      </label>
       <WaveSelect
         :model-value="musicSource"
         :options="[
@@ -234,6 +243,7 @@
       同一角色卡的账户、余额、流水、币种和卡面在不同聊天之间共享。
     </p>
     <WaveChatCleanup v-if="app === 'conversation'" />
+    <WavePersonaExport v-if="app === 'conversation'" />
   </section>
 </template>
 <script setup lang="ts">
@@ -242,11 +252,14 @@ import WaveMoments from '../space/WaveMoments.vue';
 import WaveWalletWorkspace from '../wallet/WaveWalletWorkspace.vue';
 import WaveModuleSettings from './WaveModuleSettings.vue';
 import { isLimitedApp } from '../../services/generation/module-updates';
+import WavePersonaExport from '../chat/WavePersonaExport.vue';
 import WaveChatCleanup from '../chat/WaveChatCleanup.vue';
 import WaveChatPreferences from '../chat/WaveChatPreferences.vue';
 import WaveGroupSettings from '../chat/WaveGroupSettings.vue';
 
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import WaveAppApiSettings from './WaveAppApiSettings.vue';
+import { APP_IDS, type AppId } from '../../schemas';
 import { ScriptSettingsSchema } from '../../schemas';
 import { musicProviders } from '../../services/music/music';
 import { usePhoneStore } from '../../stores/phone';
@@ -260,7 +273,7 @@ import WaveImageUpload from '../shared/WaveImageUpload.vue';
 import WaveWeatherLocation from './WaveWeatherLocation.vue';
 import type { WeatherLocation } from '../../services/core/weather';
 import { zoneArtworks, walletArtworks, artworkUrl } from '../../services/core/artworks';
-defineProps<{
+const props = defineProps<{
   userAvatar?: string;
   app: string;
   name: string;
@@ -271,6 +284,9 @@ defineProps<{
   musicApi: string;
   musicSource: string;
 }>();
+const apiApp = computed(() =>
+  props.app === 'conversation' ? 'messages' : APP_IDS.includes(props.app as AppId) ? (props.app as AppId) : null,
+);
 const emit = defineEmits<{
   engine: [value: SearchEngine];
   service: [key: 'browserEndpoint' | 'musicApi' | 'musicSource', value: string];
@@ -366,5 +382,33 @@ defineExpose({ save });
 #wave-phone-script-root .wave-device .music-restore-confirm button.confirm {
   background: #b77792;
   color: white;
+}
+</style>
+
+<style lang="scss">
+#wave-phone-script-root .wave-device .browser-preferences {
+  padding: 20px;
+  > .browser-clear-history {
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid var(--settings-line, #dce2eb);
+    border-radius: 14px;
+    min-height: 72px;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  > .browser-clear-history > span {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    text-align: left;
+  }
+  > .browser-clear-history > i {
+    flex: 0 0 28px;
+    text-align: center;
+  }
 }
 </style>

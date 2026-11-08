@@ -17,14 +17,14 @@
       <span class="version-action-text">{{ busy ? '处理中…' : available ? '更新' : '检查更新' }}</span>
     </button>
     <span class="version-label"
-      >v{{ WAVE_PHONE_RELEASE_VERSION }} <span class="version-date">（2026.10.11）</span></span
+      >v{{ WAVE_PHONE_RELEASE_VERSION }} <span class="version-date">（{{ WAVE_PHONE_RELEASE_DATE }}）</span></span
     >
     <small v-if="status && status !== '已是最新版本'" class="version-status" role="status">{{ status }}</small>
   </div>
 </template>
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { WAVE_PHONE_RELEASE_VERSION } from '../../schemas';
+import { WAVE_PHONE_RELEASE_VERSION, WAVE_PHONE_RELEASE_DATE } from '../../schemas';
 const busy = ref(false),
   available = ref(false),
   status = ref('');

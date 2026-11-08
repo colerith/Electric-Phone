@@ -161,6 +161,15 @@ function fixture(options = {}) {
   };
 }
 (async () => {
+  const paused = fixture();
+  paused.phone.settings.musicGeneratedAutoplay = false;
+  await paused.store.sync(raw, 'a');
+  assert(paused.store.current, 'generated track is synchronized with autoplay disabled');
+  assert.equal(paused.played.length, 0, 'sync must not call audio.play when disabled');
+  assert.equal(paused.store.playing, false);
+  await paused.store.toggle();
+  assert.equal(paused.played.length, 1, 'manual play still works');
+  paused.dispose();
   const library = fixture({ account: { id: 'user', name: 'User' } });
   library.store.createPlaylist('同名歌单');
   const manual = library.phone.state.musicPlaylists.a[0];

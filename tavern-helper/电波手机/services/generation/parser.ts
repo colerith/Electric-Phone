@@ -64,8 +64,9 @@ export function mergeAppSnapshot(
       else if (appId === 'wallet') next.wallet = mergeWallet(next.wallet, value);
       else {
         const text = typeof value === 'string' ? value : JSON.stringify(value);
-        if (appId === 'status') next[appId] = text;
-        else if (text.trim() && !next[appId].split('\n').includes(text.trim()))
+        if (appId === 'status' || appId === 'music') {
+          if (text.trim() && text.trim() !== '{}') next[appId] = text;
+        } else if (text.trim() && !next[appId].split('\n').includes(text.trim()))
           next[appId] = [next[appId], text.trim()].filter(Boolean).join('\n');
       }
     });

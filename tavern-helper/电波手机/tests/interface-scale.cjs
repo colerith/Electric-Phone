@@ -1,0 +1,13 @@
+const fs=require('fs'),ts=require('typescript'),assert=require('node:assert/strict'),path=require('path');
+require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,f);
+const {JSDOM}=require('jsdom');
+const {bindPhoneViewport}=require(path.resolve(__dirname,'../services/core/viewport.ts'));
+const dom=new JSDOM('<div id="root"></div>',{pretendToBeVisual:true}), w=dom.window,root=w.document.querySelector('#root');
+w.matchMedia=()=>({matches:false});
+Object.defineProperty(w,'innerWidth',{value:1200});Object.defineProperty(w,'innerHeight',{value:1600});
+let stop=bindPhoneViewport(root,1.8);assert.equal(root.style.getPropertyValue('--wave-panel-scale'),'1.8');stop();
+stop=bindPhoneViewport(root,0.7);assert.equal(root.style.getPropertyValue('--wave-panel-scale'),'0.7');stop();
+stop=bindPhoneViewport(root,NaN);assert.equal(root.style.getPropertyValue('--wave-panel-scale'),'1');stop();
+const vv=new w.EventTarget();Object.assign(vv,{width:700,height:900,offsetLeft:0,offsetTop:0});Object.defineProperty(w,'visualViewport',{value:vv});
+stop=bindPhoneViewport(root,1.8);const scale=Number(root.style.getPropertyValue('--wave-panel-scale'));assert(scale<1.8);assert(scale*790<=876);assert(scale*390<=676);stop();dom.window.close();
+console.log('PASS: proportional scaling, default recovery, tablet enlargement and viewport cap');

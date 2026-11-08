@@ -9,7 +9,7 @@
     />
     <div class="space-scroll">
       <WaveSpaceNotifications v-if="notificationsOpen" :opened="notificationsOpen" @visit="visitNotice" />
-      <div v-show="!notificationsOpen">
+      <div v-if="!notificationsOpen">
         <template v-if="tab === 'char'">
           <div class="zone-profile-card space-char-profile">
             <button type="button" class="zone-profile-cover" aria-label="设置空间封面" @click="$emit('cover')">
@@ -73,10 +73,15 @@
           </button>
         </div>
         <p v-if="worldError && tab === 'world'" class="zone-error" role="status">{{ worldError }}</p>
-        <WaveTreeHole v-if="tab === 'hole'" ref="treeHole" @share="(post, author) => $emit('share', post, author)" />
+        <WaveTreeHole
+          v-if="tab === 'hole'"
+          ref="treeHole"
+          :target="noticeTarget?.source === 'hole' ? noticeTarget : null"
+          @share="(post, author) => $emit('share', post, author)"
+        />
         <WaveMoments
-          v-show="tab !== 'hole'"
-          :key="tab === 'hole' ? 'world' : tab"
+          v-if="tab !== 'hole'"
+          :key="tab"
           ref="moments"
           :view="tab === 'me' ? 'me' : 'feed'"
           context="space"
@@ -140,6 +145,7 @@ const moments = ref<InstanceType<typeof WaveMoments> | null>(null),
   worldError = ref('');
 const showPerson = ref(false),
   notificationsOpen = ref(false);
+const noticeTarget = ref<SpaceNotice | null>(null);
 let returningToNotifications = false;
 let notificationOrigin: 'char' | 'world' | 'hole' | 'me' = 'char';
 function openNotifications() {
@@ -147,6 +153,7 @@ function openNotifications() {
   notificationsOpen.value = true;
 }
 async function visitNotice(item: SpaceNotice) {
+  noticeTarget.value = item;
   notificationsOpen.value = false;
   returningToNotifications = true;
   tab.value = item.source === 'hole' ? 'hole' : 'world';
@@ -167,6 +174,7 @@ watch(
   () => {
     notificationsOpen.value = false;
     returningToNotifications = false;
+    noticeTarget.value = null;
   },
 );
 const query = ref(''),
@@ -211,6 +219,8 @@ function back(): boolean {
   }
   if (returningToNotifications) {
     moments.value?.back();
+    treeHole.value?.back();
+    noticeTarget.value = null;
     returningToNotifications = false;
     notificationsOpen.value = true;
     return true;

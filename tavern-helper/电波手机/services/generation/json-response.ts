@@ -15,8 +15,10 @@ export function parseJsonResponse(source: string): unknown {
           continue;
         }
         if (char === '\\') {
-          result += char;
-          escaped = true;
+          const next = source[i + 1] || '';
+          const valid = /["\\/bfnrt]/.test(next) || (next === 'u' && /^[\da-f]{4}$/i.test(source.slice(i + 2, i + 6)));
+          result += valid ? char : '\\\\';
+          escaped = valid;
           continue;
         }
         if (char === '"') inString = false;

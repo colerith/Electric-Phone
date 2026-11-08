@@ -25,7 +25,7 @@ let floorReads = 0;
 let chat = 'one',
   vars = { global: {}, script: {}, chat: {} };
 Object.assign(global, {
-  SillyTavern: { name1: 'User', getCurrentChatId: () => chat, characterId: '1' },
+  SillyTavern: { getContext: () => ({ substituteParams: x => x }), name1: 'User', getCurrentChatId: () => chat, characterId: '1' },
   getCharData: () => ({ name: 'Alice' }),
   getCharAvatarPath: () => '',
   getChatMessages: () => {
@@ -145,7 +145,8 @@ async function run() {
     appSnapshot: schema.AppSnapshotSchema.parse({}),
     latestUserText: 'hello',
   };
-  global.generateRaw = async () => 'WAVE_OK';
+  settings.api.stream = true;
+  global.generateRaw = async args => { assert.equal(args.should_stream, true); return 'WAVE_OK'; };
   assert.equal(await testSecondaryApi(settings), 'WAVE_OK');
   await assert.rejects(generatePhoneReply(input), /回复格式不匹配/);
   global.generateRaw = async () => '{"messages":[{"sender":42,"content":"hello"}]}';
@@ -169,6 +170,7 @@ async function run() {
   assert.equal(calls, 2);
   assert(diagnostics.logs.some(l => l.event === '自动重试'));
   settings.api.retryCount = 0;
+  settings.api.autoTimeout = false;
   settings.api.timeoutMs = 5;
   global.generateRaw = () => new Promise(() => {});
   for (const stop of [

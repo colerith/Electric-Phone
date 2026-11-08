@@ -13,7 +13,14 @@ export function normalizeApiBase(value: string): string {
   return url.href.replace(/\/+$/, '');
 }
 export function omitSampling(model: string): boolean {
-  return /(?:gemini|google)[^\s]*3[.-][5-8](?:[.-]|$)[^\s]*flash/i.test(model);
+  return (
+    /(?:gemini|google)[^\s]*3[.-][5-8](?:[.-]|$)[^\s]*flash/i.test(model) ||
+    /(?:^|[^a-z0-9])(?:gemini[-_ ]?)?4[-_ ]?argon(?:$|[^a-z0-9])/i.test(model)
+  );
+}
+export function effectiveTimeout(api: ScriptSettings['api']): number {
+  if (!api.autoTimeout) return api.timeoutMs;
+  return Math.min(600000, Math.max(api.timeoutMs, /4[-_ ]?argon/i.test(api.model) ? 300000 : 180000));
 }
 export function buildCustomApi(settings: ScriptSettings): CustomApiConfig {
   const api = settings.api;

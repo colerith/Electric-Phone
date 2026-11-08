@@ -10,6 +10,7 @@ const dom = new JSDOM('<div id="extensions_settings2"></div><div id="extensionsM
 });
 global.window = dom.window;
 global.document = dom.window.document;
+global.localStorage = dom.window.localStorage;
 const source = new EventEmitter();
 let context = { name1: 'A', eventSource: source, eventTypes: { CHAT_CHANGED: 'chat_changed' } };
 window.SillyTavern = { getContext: () => context };
@@ -64,10 +65,16 @@ bridge.stopExtensionEvents();
 assert.equal(source.listenerCount('event'), 0);
 let initialized = 0,
   opened = 0;
+let resumeStart;
+let holdStart = false;
 global.$ = fn => fn();
 const appMock = {
   initialize: async () => {
     initialized++;
+    if (holdStart)
+      await new Promise(resolve => {
+        resumeStart = resolve;
+      });
   },
   cleanup() {},
   openPhone() {
@@ -79,6 +86,7 @@ load('extension/index.ts', {
   '../index': appMock,
   './bridge': bridge,
   '../schemas': { WAVE_PHONE_RELEASE_VERSION: '1.3.2' },
+  '../services/core/phone-activity': load('services/core/phone-activity.ts'),
 });
 const tick = () => new Promise(r => setImmediate(r));
 (async () => {
@@ -105,6 +113,34 @@ const tick = () => new Promise(r => setImmediate(r));
   await tick();
   assert.equal(initialized, 1);
   assert.equal(opened, 2);
+  const toggle = document.querySelector('[aria-label="启用电波手机"]');
+  toggle.checked = false;
+  toggle.dispatchEvent(new window.Event('change'));
+  await tick();
+  assert.equal(document.querySelector('#wave-phone-extension-settings button').hidden, true);
+  document.querySelector('#wave-phone-extension-settings button').click();
+  await tick();
+  assert.equal(initialized, 1);
+  toggle.checked = true;
+  toggle.dispatchEvent(new window.Event('change'));
+  await tick();
+  assert.equal(initialized, 2);
+  assert.equal(document.querySelector('#wave-phone-extension-settings button').hidden, false);
+  toggle.checked = false;
+  toggle.dispatchEvent(new window.Event('change'));
+  await tick();
+  holdStart = true;
+  toggle.checked = true;
+  toggle.dispatchEvent(new window.Event('change'));
+  await tick();
+  toggle.checked = false;
+  toggle.dispatchEvent(new window.Event('change'));
+  await tick();
+  holdStart = false;
+  resumeStart();
+  await tick();
+  assert.match(document.querySelector('#wave-phone-extension-settings').textContent, /已关闭/);
+  assert.equal(localStorage.getItem('wave_phone_enabled'), 'false');
   window.dispatchEvent(new window.Event('pagehide'));
   assert.equal(document.querySelector('#wave-phone-extension-settings'), null);
   // Full compiled artifact bootstraps without iframe globals or a running helper.
@@ -117,8 +153,17 @@ const tick = () => new Promise(r => setImmediate(r));
   // jsdom eval has no ES-module loader. Supply the host module URL for this bootstrap fixture.
   // The actual unchanged artifact is also smoke-tested as a browser module.
   const artifact = fs.readFileSync(path.resolve(workspace ? 'dist/wave-extension/index.js' : 'dist/index.js'), 'utf8');
-  assert.doesNotMatch(artifact, /data:(?:image|audio|font)\/[^,;]+;base64,[A-Za-z0-9+/]{128}/, 'bundle must not embed Base64 media');
-  window.eval(artifact.replaceAll('import.meta.url', JSON.stringify('http://localhost/scripts/extensions/third-party/Electric-Phone/dist/index.js')));
+  assert.doesNotMatch(
+    artifact,
+    /data:(?:image|audio|font)\/[^,;]+;base64,[A-Za-z0-9+/]{128}/,
+    'bundle must not embed Base64 media',
+  );
+  window.eval(
+    artifact.replaceAll(
+      'import.meta.url',
+      JSON.stringify('http://localhost/scripts/extensions/third-party/Electric-Phone/dist/index.js'),
+    ),
+  );
   await new Promise(r => setTimeout(r, 100));
   assert.equal(window.Vue, undefined, 'Vue is bundled, not injected into host globals');
   assert.ok(document.querySelector('#wave-phone-extension-settings button'), 'recovery entry exists without helper');

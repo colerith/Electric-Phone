@@ -1,6 +1,10 @@
+import { phoneActivitySignal } from '../core/phone-activity';
+import { independentMessages, requestIndependentApi } from './independent-api';
 import { expandTavernMacros } from '../core/tavern-macros';
+import { searchChatContext } from '../web-tools';
 import { sampleImageCounts } from '../space/image-plan';
 import { parseJsonResponse } from './json-response';
+import { ModuleDeltaSchema } from './module-protocol';
 import { validateCommentLanguages } from '../space/comment-language';
 import {
   NpcGenerationOptionsSchema,
@@ -20,7 +24,7 @@ import { narrativePrompt } from './narrative-context';
 import { prepareContext, stripExcludedTags, isCardExcluded } from './context-controls';
 import { diagnostics, logDiagnostic } from '../core/diagnostics';
 import { describeRequestError, redactDiagnostic, type RequestStage } from '../core/request-error';
-import { buildCustomApi, fitContext } from '../core/api-config';
+import { buildCustomApi, effectiveTimeout, estimateTokens, fitContext } from '../core/api-config';
 import {
   PhoneChatResponseSchema,
   type AppSnapshot,
@@ -99,7 +103,10 @@ function extractJson(raw: string): unknown {
   return parseJsonResponse(cleaned.slice(start, end + 1));
 }
 
-const runningRequests = new Map<string, { cancelled: boolean; backendId: string }>();
+const runningRequests = new Map<
+  string,
+  { cancelled: boolean; backendId: string; webAbort: AbortController; independent: boolean }
+>();
 async function requestConfigured<T>(
   settings: ScriptSettings,
   generationId: string,
@@ -114,9 +121,22 @@ async function requestConfigured<T>(
     thread?: Thread;
     historyBeforeFloor?: number;
     onElectric?: (text: string, title: string) => void;
+    webSearchQuery?: string;
   },
 ): Promise<T> {
-  const request = { cancelled: false, backendId: generationId };
+  const activity = phoneActivitySignal();
+  const request = {
+    cancelled: false,
+    backendId: generationId,
+    webAbort: new AbortController(),
+    independent: settings.sendMode === 'secondary_api',
+  };
+  const stopForDisable = () => {
+    request.cancelled = true;
+    request.webAbort.abort();
+    void stopPhoneGeneration(generationId).catch(() => {});
+  };
+  activity.addEventListener('abort', stopForDisable, { once: true });
   let stage: RequestStage = '配置检查';
   let attempt = 0;
   let attemptStarted = Date.now();
@@ -149,15 +169,20 @@ async function requestConfigured<T>(
   runningRequests.set(generationId, request);
   try {
     ensureNamespace();
-    const api = buildCustomApi(settings);
+    const timeoutMs = effectiveTimeout(settings.api);
+    const api = settings.sendMode === 'secondary_api' ? buildCustomApi(settings) : undefined;
     const runtime = getRuntimeContext();
     if (namespace && runtime && isCardExcluded(settings, runtime.cardName))
       throw Error('当前角色卡已排除，已暂停手机生成。');
     stage = '准备上下文';
     contextStep = '读取历史楼层与世界书';
     const overrides =
-      namespace && namespace.treeHoleTopic === undefined
-        ? await prepareContext(settings, namespace.thread?.historyFloorCutoff ?? -1, namespace.historyBeforeFloor)
+      (namespace && namespace.treeHoleTopic === undefined) || api
+        ? await prepareContext(
+            api ? { ...settings, worldbooks: { ...settings.worldbooks, managed: true } } : settings,
+            namespace?.thread?.historyFloorCutoff ?? -1,
+            namespace?.historyBeforeFloor,
+          )
         : undefined;
     if (overrides && namespace?.identity?.source !== 'local_group') {
       const profile = namespace?.identity?.npcProfile?.trim() || namespace?.identity?.about?.trim();
@@ -167,9 +192,37 @@ async function requestConfigured<T>(
     const filtered = prompts.map(prompt =>
       typeof prompt === 'string'
         ? prompt
-        : { ...prompt, content: expandTavernMacros(stripExcludedTags(prompt.content, settings.basic.excludedTags)) },
+        : {
+            ...prompt,
+            content: stripExcludedTags(
+              expandTavernMacros(stripExcludedTags(prompt.content, settings.basic.excludedTags)),
+              settings.basic.excludedTags,
+            ),
+          },
     );
-    userInput = expandTavernMacros(stripExcludedTags(userInput, settings.basic.excludedTags));
+    userInput = stripExcludedTags(
+      expandTavernMacros(stripExcludedTags(userInput, settings.basic.excludedTags)),
+      settings.basic.excludedTags,
+    );
+    if (namespace?.webSearchQuery) {
+      ensureNamespace();
+      if (request.cancelled) throw Error('生成已停止。');
+      contextStep = 'MCP 网页检索';
+      const query = stripExcludedTags(namespace.webSearchQuery, settings.basic.excludedTags);
+      const external = await searchChatContext(query, request.webAbort.signal);
+      ensureNamespace();
+      if (request.cancelled) throw Error('生成已停止。');
+      const used = filtered.reduce(
+        (n, p) => n + (typeof p === 'string' ? 0 : estimateTokens(p.content) + 8),
+        estimateTokens(userInput),
+      );
+      const remaining = settings.api.contextLength - settings.api.maxTokens - used - 32;
+      if (external && remaining > 256) {
+        let bounded = external;
+        while (estimateTokens(bounded) > remaining) bounded = bounded.slice(0, Math.floor(bounded.length * 0.8));
+        filtered.push({ role: 'user', content: bounded });
+      }
+    }
     if (settings.debugEnabled) {
       diagnostics.prompt = JSON.stringify({ ordered_prompts: filtered, overrides, user_input: userInput }, null, 2);
       diagnostics.response = '';
@@ -186,7 +239,7 @@ async function requestConfigured<T>(
     logDiagnostic(
       '开始请求',
       redactDiagnostic(
-        `${generationId}｜服务：${settings.api.provider}｜模型：${api.model}｜上下文上限 ${settings.api.contextLength}｜最大回复 ${settings.api.maxTokens}｜超时 ${settings.api.timeoutMs} ms｜显式提示词 ${ordered.reduce((n, p) => n + (typeof p === 'string' ? 0 : p.content.length), userInput.length)} 字｜历史 ${overrides?.chat_history?.prompts?.length || 0} 条；原生角色卡/世界书由酒馆展开`,
+        `${generationId}｜服务：${api ? settings.api.provider : '酒馆主 API'}｜模型：${api?.model || '酒馆当前模型'}｜上下文上限 ${settings.api.contextLength}｜最大回复 ${settings.api.maxTokens}｜生效超时 ${timeoutMs} ms（设置 ${settings.api.timeoutMs} ms）｜${settings.api.stream ? '流式' : '非流式'}｜显式提示词 ${ordered.reduce((n, p) => n + (typeof p === 'string' ? 0 : p.content.length), userInput.length)} 字｜历史 ${overrides?.chat_history?.prompts?.length || 0} 条；${api ? '角色卡/世界书由手机独立组装' : '原生角色卡/世界书由酒馆展开'}`,
         secrets,
       ),
     );
@@ -198,19 +251,34 @@ async function requestConfigured<T>(
         stage = '请求接口';
         request.backendId = attempt === 0 ? generationId : `${generationId}-retry-${attempt}`;
         attemptStarted = Date.now();
-        const raw = await withTimeout(
-          generateRaw({
-            user_input: userInput || undefined,
-            ordered_prompts: formatCorrection ? [...ordered, { role: 'system', content: formatCorrection }] : ordered,
-            overrides,
-            custom_api: api,
-            should_stream: false,
-            max_chat_history: prompts.includes('chat_history') ? 'all' : 0,
-            generation_id: request.backendId,
-          }),
-          settings.api.timeoutMs,
-          request.backendId,
-        );
+        const raw = api
+          ? await requestIndependentApi(
+              settings,
+              api,
+              independentMessages(
+                settings,
+                formatCorrection ? [...ordered, { role: 'system', content: formatCorrection }] : ordered,
+                overrides,
+                userInput,
+              ),
+              request.webAbort.signal,
+            )
+          : await withTimeout(
+              () =>
+                generateRaw({
+                  user_input: userInput || undefined,
+                  ordered_prompts: formatCorrection
+                    ? [...ordered, { role: 'system', content: formatCorrection }]
+                    : ordered,
+                  overrides,
+                  custom_api: api,
+                  should_stream: settings.api.stream,
+                  max_chat_history: prompts.includes('chat_history') ? 'all' : 0,
+                  generation_id: request.backendId,
+                }),
+              timeoutMs,
+              request.backendId,
+            );
         if (request.cancelled) throw Error('生成已停止。');
         ensureNamespace();
         stage = '读取响应';
@@ -248,6 +316,7 @@ async function requestConfigured<T>(
     if (!failureLogged) throw Error(reportFailure(error).detail);
     throw error;
   } finally {
+    activity.removeEventListener('abort', stopForDisable);
     if (runningRequests.get(generationId) === request) runningRequests.delete(generationId);
   }
 }
@@ -313,13 +382,17 @@ export async function generatePhoneReply(
       }
       return response;
     },
-    input,
+    { ...input, webSearchQuery: input.latestUserText },
   );
   return { generationId, data };
 }
 export function stopPhoneGeneration(generationId: string): Promise<boolean> {
   const request = runningRequests.get(generationId);
-  if (request) request.cancelled = true;
+  if (request) {
+    request.cancelled = true;
+    request.webAbort.abort();
+    if (request.independent) return Promise.resolve(true);
+  }
   return stopBackendGeneration(request?.backendId || generationId);
 }
 export async function translatePhoneText(settings: ScriptSettings, text: string, language: string): Promise<string> {
@@ -353,6 +426,7 @@ export async function testSecondaryApi(settings: ScriptSettings): Promise<string
 function buildInputContext(input: GenerationInput): PhonePromptInput {
   return {
     ...input,
+    outputLanguage: input.settings.appearance.outputLanguage,
     replyCount: input.settings.chat,
     voiceServices: input.settings.voiceServices,
     presets: input.settings.presets,
@@ -468,6 +542,73 @@ export async function previewPhoneRequest(input: GenerationInput) {
   };
 }
 
+/** A post-narrative follow request may legitimately return no changes. */
+export async function generateFollowModules(input: GenerationInput, modules: import('../../schemas').AppId[]) {
+  if (modules.includes('zone')) input = withSpaceImagePlan(input);
+  const { buildModulePrompt } = await import('../../prompts');
+  return requestConfigured(
+    input.settings,
+    input.generationId || createPhoneGenerationId(),
+    [
+      'char_description',
+      'char_personality',
+      'scenario',
+      'persona_description',
+      'world_info_before',
+      'chat_history',
+      'world_info_after',
+      {
+        role: 'system',
+        content:
+          buildModulePrompt(buildInputContext(input), modules, true) +
+          '\n【副 API 后处理】酒馆正文已经完成。只根据已完成正文更新手机，不续写、不重写正文。只输出一个符合 wave_phone_delta 结构的 JSON 对象，不输出标签。没有新事实时返回 messages:[]、app_updates:{}。',
+      },
+      'user_input',
+    ],
+    input.latestUserText,
+    raw => {
+      const delta = ModuleDeltaSchema.parse(extractJson(raw));
+      if (delta.char_id !== (input.identity.stableId || input.identity.charKey)) throw Error('模块结果角色 ID 不匹配');
+      if (
+        Object.keys(delta.app_updates).some(key => !modules.includes(key as (typeof modules)[number])) ||
+        (!modules.includes('messages') &&
+          (delta.messages.length || delta.reactions?.length || delta.payment_actions?.length))
+      )
+        throw Error('模块结果包含未请求的更新');
+      if (input.media)
+        validateReplyMedia(delta.messages, {
+          ...input.media,
+          voice: { ...input.media.voice, min: 0 },
+          image: { ...input.media.image, min: 0 },
+        });
+      for (const module of modules) {
+        const value = delta.app_updates[module];
+        if (value === undefined) continue;
+        if (isLimitedApp(module))
+          delta.app_updates[module] = limitModulePatch(
+            module,
+            input.appSnapshot[module],
+            value,
+            resolveModuleSettings(input.settings.moduleSettings, input.chatPreferences),
+          );
+      }
+      if (delta.app_updates.wallet !== undefined) {
+        if (!input.walletAuthorization) throw Error('请先选择剧情钱包账户');
+        delta.app_updates.wallet = {
+          ...validateWalletPatch(
+            delta.app_updates.wallet,
+            input.walletAuthorization,
+            parseWallet(input.appSnapshot.wallet).balance === null,
+          ),
+          ...input.walletAuthorization,
+        };
+      }
+      return delta;
+    },
+    input,
+  );
+}
+
 export async function generatePhoneModule(input: GenerationInput, module: import('../../schemas').AppId) {
   if (module === 'zone') input = withSpaceImagePlan(input);
   const { buildModulePrompt } = await import('../../prompts');
@@ -526,7 +667,7 @@ export async function generatePhoneModule(input: GenerationInput, module: import
       }
       return delta;
     },
-    input,
+    { ...input, webSearchQuery: module === 'messages' ? input.latestUserText : undefined },
   );
 }
 
@@ -555,6 +696,7 @@ export async function generateMomentsBatch(
               input.treeHoleTopic,
               input.chatPreferences,
               input.actorLanguagePreferences,
+              input.settings.appearance.outputLanguage,
             )
           : buildMomentsPrompt(
               plan,
@@ -564,6 +706,7 @@ export async function generateMomentsBatch(
               input.chatPreferences,
               input.settings.imageServices.profiles.find(p => p.id === state.settings.imageProfileId)?.provider,
               input.actorLanguagePreferences,
+              input.settings.appearance.outputLanguage,
             )) +
         `\n这是独立生成请求，只输出最终 <${input.treeHoleTopic !== undefined ? 'wave_tree_hole' : 'wave_moments'}> 数据块，不续写酒馆正文。`,
     },
@@ -573,9 +716,10 @@ export async function generateMomentsBatch(
     input.settings,
     input.generationId || createPhoneGenerationId(),
     input.treeHoleTopic !== undefined ? prompts.filter(prompt => typeof prompt !== 'string') : prompts,
-    input.treeHoleTopic !== undefined
-      ? '生成本轮匿名树洞任务，只输出 wave_tree_hole 数据块'
-      : '手动生成一轮朋友圈动态与互动',
+    input.latestUserText ||
+      (input.treeHoleTopic !== undefined
+        ? '生成本轮匿名树洞任务，只输出 wave_tree_hole 数据块'
+        : '手动生成一轮朋友圈动态与互动'),
     raw => {
       const batch = MomentBatchSchema.parse(extractJson(raw));
       if (batch.request_id !== plan.id) throw Error('朋友圈结果 request_id 不匹配');

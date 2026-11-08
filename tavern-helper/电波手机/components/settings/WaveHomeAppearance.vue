@@ -1,6 +1,66 @@
 <template>
   <div class="home-appearance-editor">
     <section class="settings-card appearance-group">
+      <div class="wave-settings-title">App 与输出语言</div>
+      <label class="chat-setting-row appearance-language-row"
+        ><span>界面语言</span
+        ><WaveSelect
+          v-model="appearance.interfaceLanguage"
+          :options="interfaceLanguages"
+          aria-label="界面语言"
+          @update:model-value="phone.saveSettings()"
+      /></label>
+      <label class="chat-setting-row appearance-language-row"
+        ><span>默认输出语言</span
+        ><WaveSelect
+          v-model="appearance.outputLanguage"
+          :options="translationLanguages"
+          aria-label="默认输出语言"
+          @update:model-value="phone.saveSettings()"
+      /></label>
+      <p>未开启双语的 App 必须按默认输出语言生成；双语模块保留各自语言设置。仅影响后续生成，不重译已有内容。</p>
+    </section>
+    <section class="settings-card appearance-group">
+      <div class="wave-settings-title">辅助触控</div>
+      <label class="chat-setting-row assistive-setting-row"
+        ><span><strong>手机内部悬浮球</strong></span
+        ><WaveToggle
+          v-model="appearance.assistiveTouch"
+          aria-label="手机内部悬浮球"
+          @update:model-value="phone.saveSettings()"
+      /></label>
+      <p>拖动调整位置，松手后贴边收起。点击快速切换主角色、调整翻译和钱包币种。</p>
+    </section>
+    <section class="settings-card appearance-group">
+      <div class="wave-settings-title">手机界面大小</div>
+      <div class="settings-slider-row">
+        <span
+          ><strong>整体缩放</strong><b>{{ Math.round(appearance.interfaceScale * 100) }}%</b></span
+        >
+        <WaveSlider
+          v-model="appearance.interfaceScale"
+          :min="0.7"
+          :max="1.8"
+          :step="0.05"
+          aria-label="手机界面缩放"
+          @update:model-value="phone.saveSettings()"
+        />
+      </div>
+      <p>按比例调整整个手机，立即生效并保存。屏幕空间不足时自动缩小；手机竖屏最大保持满屏。</p>
+      <div class="settings-actions">
+        <button
+          type="button"
+          class="system-action"
+          @click="
+            appearance.interfaceScale = 1;
+            phone.saveSettings();
+          "
+        >
+          恢复默认大小
+        </button>
+      </div>
+    </section>
+    <section class="settings-card appearance-group">
       <div class="wave-settings-title">主题</div>
       <div class="appearance-theme-options" role="group" aria-label="主题模式">
         <button
@@ -112,7 +172,14 @@
     </section>
     <section class="settings-card appearance-group">
       <div class="wave-settings-title">主屏与桌面壁纸</div>
-      <p>主屏是角色封面页，桌面是应用列表页。</p>
+      <p>壁纸仅用于当前角色，切换角色后分别保存。主屏是角色封面页，桌面是应用列表页。</p>
+      <button
+        v-if="appearance.coverWallpaper || appearance.desktopWallpaper"
+        type="button"
+        @click="importLegacyWallpapers"
+      >
+        将旧版共用壁纸用于当前角色
+      </button>
       <div v-for="item in wallpapers" :key="item.id" class="appearance-wallpaper-row">
         <div class="appearance-wallpaper-preview">
           <img v-if="wallpaperValue(item.id)" :src="wallpaperValue(item.id)" :alt="item.name" /><i
@@ -121,7 +188,15 @@
           ></i>
         </div>
         <strong>{{ item.name }}</strong
-        ><button type="button" @click="editing = item.id">修改壁纸</button>
+        ><button
+          type="button"
+          @click="
+            editingScope = phone.wallpaperScope;
+            editing = item.id;
+          "
+        >
+          修改壁纸
+        </button>
       </div>
     </section>
     <section class="settings-card appearance-group">
@@ -160,7 +235,9 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { translationLanguages } from '../../services/generation/translation';
+const interfaceLanguages = ['简体中文', '繁体中文', '英语', '日语', '韩语'].map(value => ({ value, label: value }));
+import { computed, ref, watch } from 'vue';
 import { usePhoneStore } from '../../stores/phone';
 import WaveToggle from '../shared/WaveToggle.vue';
 import WaveSlider from '../shared/WaveSlider.vue';
@@ -232,22 +309,62 @@ const wallpapers = [
 ];
 function wallpaperValue(id: string) {
   return id === 'coverWallpaper'
-    ? appearance.value.coverWallpaper || phone.context?.avatar || ''
-    : appearance.value.desktopWallpaper;
+    ? phone.characterWallpaper.coverWallpaper || phone.context?.avatar || ''
+    : phone.characterWallpaper.desktopWallpaper;
 }
 const editing = ref('');
+const editingScope = ref('');
+watch(
+  () => phone.wallpaperScope,
+  () => {
+    editing.value = '';
+  },
+);
+function importLegacyWallpapers() {
+  for (const kind of ['coverWallpaper', 'desktopWallpaper'] as const)
+    if (appearance.value[kind]) phone.setCharacterWallpaper(kind, appearance.value[kind]);
+}
 const editingLabel = computed(() => wallpapers.find(item => item.id === editing.value)?.name || '应用图标');
 const editingValue = computed(() =>
   editing.value === 'coverWallpaper'
-    ? appearance.value.coverWallpaper
+    ? phone.characterWallpaper.coverWallpaper
     : editing.value === 'desktopWallpaper'
-      ? appearance.value.desktopWallpaper
+      ? phone.characterWallpaper.desktopWallpaper
       : appearance.value.iconImages[editing.value] || '',
 );
 function applyImage(value: { avatar: string }) {
   if (editing.value === 'coverWallpaper' || editing.value === 'desktopWallpaper')
-    appearance.value[editing.value] = value.avatar;
+    phone.setCharacterWallpaper(editing.value, value.avatar, editingScope.value);
   else appearance.value.iconImages[editing.value] = value.avatar;
   editing.value = '';
 }
 </script>
+
+<style scoped>
+.assistive-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 0;
+}
+</style>
+
+<style scoped lang="scss">
+.appearance-language-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  min-height: 64px;
+}
+.appearance-language-row > span {
+  flex: 1;
+  min-width: 0;
+}
+.appearance-language-row :deep(.wave-select) {
+  flex: 0 1 55%;
+  min-width: 0;
+}
+</style>

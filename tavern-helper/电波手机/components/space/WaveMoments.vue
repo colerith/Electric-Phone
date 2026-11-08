@@ -143,6 +143,7 @@
       </section>
     </template>
     <template v-else-if="panel === 'settings'">
+      <div class="space-api-section"><WaveAppApiSettings app="zone" /></div>
       <section class="settings-card system-settings-card moments-form space-settings-card">
         <div class="wave-settings-title">空间配图与互动</div>
         <label
@@ -356,7 +357,7 @@
       "
       class="moments-feed"
     >
-      <article v-for="post in posts" :key="post.id" class="moment-post">
+      <article v-for="post in visiblePosts" :key="post.id" class="moment-post">
         <header class="space-post-header">
           <button
             type="button"
@@ -483,8 +484,16 @@
                 </button></template
               >
             </div>
+            <button
+              v-if="commentOffsets[post.id]"
+              type="button"
+              class="system-action"
+              @click="commentOffsets[post.id] = Math.max(0, commentOffsets[post.id] - 20)"
+            >
+              查看更早评论
+            </button>
             <div
-              v-for="comment in commentsFor(post.id)"
+              v-for="comment in visibleComments(post.id)"
               :key="comment.id"
               class="moment-comment-row space-comment"
               :class="{ 'comment-jump-target': comment.id === openedCommentId }"
@@ -552,6 +561,14 @@
                 </div>
               </div>
             </div>
+            <button
+              v-if="commentsFor(post.id).length > (commentOffsets[post.id] || 0) + (commentLimits[post.id] || 20)"
+              type="button"
+              class="system-action"
+              @click="commentLimits[post.id] = (commentLimits[post.id] || 20) + 20"
+            >
+              加载更多评论
+            </button>
           </div>
           <form v-if="commenting === post.id" class="moment-comment-form" @submit.prevent="sendComment(post.id)">
             <div v-if="replyingComment" class="moment-reply-target">
@@ -578,6 +595,7 @@
           </form>
         </div>
       </article>
+      <button v-if="posts.length > postLimit" class="system-action" @click="postLimit += 20">加载更多动态</button>
       <div v-if="!posts.length" class="messenger-empty">
         {{ view === 'me' ? '还没有发布空间动态' : '还没有动态，发布第一条生活记录吧' }}
       </div>
@@ -810,6 +828,8 @@
   </div>
 </template>
 <script setup lang="ts">
+import WaveAppApiSettings from '../settings/WaveAppApiSettings.vue';
+import { messageClockTime } from '../../services/core/message-clock';
 import WaveMentionPicker from '../shared/WaveMentionPicker.vue';
 import { useSettingsForm } from '../../services/core/settings-forms';
 import WaveCloseButton from '../shared/WaveCloseButton.vue';
@@ -956,6 +976,8 @@ async function openCommentPost(postId: string, commentId: string) {
   clearTimeout(commentHighlightTimer);
   openedCommentPost.value = postId;
   openedCommentId.value = commentId;
+  commentOffsets.value[postId] = Math.max(0, commentsFor(postId).findIndex(item => item.id === commentId) - 5);
+  commentLimits.value[postId] = 20;
   await nextTick();
   const target = Array.from(viewRoot.value?.querySelectorAll<HTMLElement>('[data-comment-id]') || []).find(
     node => node.dataset.commentId === commentId,
@@ -997,32 +1019,76 @@ const posts = computed(() =>
     return post.authorKey === 'user';
   }),
 );
+const postLimit = ref(20);
+const visiblePosts = computed(() => posts.value.slice(0, postLimit.value));
+watch(
+  () => [
+    props.view,
+    props.query,
+    props.authorKey,
+    props.likedOnly,
+    profileFilter.value,
+    openedCommentPost.value,
+    phone.context?.chatKey,
+  ],
+  () => {
+    postLimit.value = 20;
+  },
+);
+const zonePages = computed(
+  () =>
+    new Map(Object.entries(phone.state.snapshots).map(([key, snapshot]) => [key, parseZonePage(snapshot.zone || '')])),
+);
+const zoneTitles = computed(
+  () =>
+    new Map<string, string>(
+      [...zonePages.value].flatMap(([key, page]) =>
+        page.posts.map(post => [`zone:${key}:${post.id}`, post.title] as const),
+      ),
+    ),
+);
+const interactionIndex = computed(() => {
+  const likes = new Map<string, typeof phone.momentsFeed.likes>();
+  const comments = new Map<string, typeof phone.momentsFeed.comments>();
+  for (const like of phone.momentsFeed.likes)
+    if (like.availableAt <= now.value) {
+      const bucket = likes.get(like.postId) || [];
+      bucket.push(like);
+      likes.set(like.postId, bucket);
+    }
+  for (const comment of phone.momentsFeed.comments)
+    if (comment.availableAt <= now.value) {
+      const bucket = comments.get(comment.postId) || [];
+      bucket.push(comment);
+      comments.set(comment.postId, bucket);
+    }
+  return { likes, comments };
+});
 function legacyTitle(post: MomentPost): string {
-  if (!post.id.startsWith(`zone:${post.authorKey}:`)) return '';
-  const id = post.id.slice(`zone:${post.authorKey}:`.length);
-  return (
-    parseZonePage(phone.state.snapshots[post.authorKey]?.zone || '').posts.find(item => item.id === id)?.title || ''
-  );
+  return zoneTitles.value.get(post.id) || '';
 }
 function likesFor(id: string) {
-  return phone.momentsFeed.likes.filter(like => like.postId === id && like.availableAt <= now.value);
+  return interactionIndex.value.likes.get(id) || [];
+}
+const commentOffsets = ref<Record<string, number>>({});
+const commentLimits = ref<Record<string, number>>({});
+function visibleComments(id: string) {
+  const offset = commentOffsets.value[id] || 0;
+  return commentsFor(id).slice(offset, offset + (commentLimits.value[id] || 20));
 }
 function commentsFor(id: string) {
-  return phone.momentsFeed.comments.filter(comment => comment.postId === id && comment.availableAt <= now.value);
+  return interactionIndex.value.comments.get(id) || [];
 }
 function nameFor(key: string, fallback: string) {
   return key === 'user'
     ? props.userName
     : phone.state.identities[key]
-      ? parseZonePage(phone.state.snapshots[key]?.zone || '').profile.username ||
-        displayIdentityName(phone.state.identities[key])
+      ? zonePages.value.get(key)?.profile.username || displayIdentityName(phone.state.identities[key])
       : phone.state.moments.npcs[key]?.username || fallback;
 }
 function accountFor(key: string) {
   return (
-    key === 'user'
-      ? phone.state.moments.profile.account
-      : parseZonePage(phone.state.snapshots[key]?.zone || '').profile.handle || ''
+    key === 'user' ? phone.state.moments.profile.account : zonePages.value.get(key)?.profile.handle || ''
   ).replace(/^@+/, '');
 }
 function avatarToken(key: string, fallbackSeed: string): string {
@@ -1047,7 +1113,7 @@ function markAvatarFailed(key: string, fallbackSeed: string): void {
 }
 function timeLabel(value: number) {
   if (!value) return '此前';
-  const minutes = Math.max(0, Math.floor((now.value - value) / 60000));
+  const minutes = Math.max(0, Math.floor((messageClockTime(phone.settings.basic.systemClock) - value) / 60000));
   return minutes < 1
     ? '刚刚'
     : minutes < 60
@@ -1066,6 +1132,15 @@ function visibilityLabel(post: MomentPost) {
   return visibilityOptions.find(option => option.value === post.visibility)?.label || '';
 }
 const profileDraft = reactive(MomentUserProfileSchema.parse({}));
+watch(
+  () => phone.state.moments.profileOwnerKey,
+  () => {
+    Object.assign(profileDraft, klona(phone.state.moments.profile));
+    if (panel.value === 'profile') panel.value = 'home';
+    notice.value = '';
+  },
+  { flush: 'sync' },
+);
 function openProfile() {
   phone.ensureAnonymousProfile();
   Object.assign(profileDraft, klona(phone.state.moments.profile));
@@ -1107,7 +1182,7 @@ function saveSettings() {
       targetLanguage: settings.value.targetLanguage,
     });
     phone.saveSettings();
-    phone.state.moments.settings = validatedSettings;
+    phone.saveMomentSettings(validatedSettings);
     phone.saveMoments();
     notice.value = '互动设置已保存';
     settingsForm.markSaved();
@@ -1636,5 +1711,9 @@ defineExpose({
 }
 #wave-phone-script-root .space-moments .space-settings-card > .wave-settings-title + label {
   padding-top: 0;
+}
+#wave-phone-script-root .space-moments .space-api-section {
+  margin-bottom: 16px;
+  min-width: 0;
 }
 </style>
