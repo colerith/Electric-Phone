@@ -308,6 +308,25 @@ function state(content) {
   await storage.preparePhoneChat(getRuntimeContext());
   assert.deepEqual(vars.chat[schema.CHAT_VARIABLE_KEY].musicFavorites.alice, []);
   assert.deepEqual(vars.chat[schema.CHAT_VARIABLE_KEY].musicPlaylists.alice, []);
+  // A branch switch saves pending data and keeps a separate immutable checkpoint.
+  storage.writePhoneChat(state('before branch switch'));
+  await storage.preparePhoneRelease();
+  const checkpoints = [...server].filter(([name]) => name.startsWith('wave-phone-release-'));
+  assert(checkpoints.some(([, value]) => JSON.parse(value).scope === 'global'));
+  assert(checkpoints.some(([, value]) => value.includes('before branch switch')));
+  vars.chat = {};
+  storage = restart();
+  await storage.preparePhoneChat(getRuntimeContext());
+  assert(JSON.stringify(vars.chat).includes('before branch switch'));
+  const beforeCheckpoint = uploads;
+  await storage.preparePhoneRelease();
+  await storage.preparePhoneRelease();
+  assert.equal(uploads, beforeCheckpoint + 2, 'same unchanged release only creates one global/chat checkpoint');
+  storage = restart();
+  failUpload = true;
+  await assert.rejects(storage.preparePhoneRelease(), /备份保存失败/);
+  failUpload = false;
+  for (const [name, value] of checkpoints) assert.equal(server.get(name), value);
   console.log(
     'PASS: server recovery without browser state, two snapshots, retry, deliberate deletion, corrupt data and chat-switch isolation.',
   );

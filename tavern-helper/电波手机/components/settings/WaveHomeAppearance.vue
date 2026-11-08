@@ -2,7 +2,7 @@
   <div class="home-appearance-editor">
     <section class="settings-card appearance-group">
       <div class="wave-settings-title">App 与输出语言</div>
-      <label class="chat-setting-row appearance-language-row"
+      <label class="system-toggle-row appearance-language-row"
         ><span>界面语言</span
         ><WaveSelect
           v-model="appearance.interfaceLanguage"
@@ -10,7 +10,7 @@
           aria-label="界面语言"
           @update:model-value="phone.saveSettings()"
       /></label>
-      <label class="chat-setting-row appearance-language-row"
+      <label class="system-toggle-row appearance-language-row"
         ><span>默认输出语言</span
         ><WaveSelect
           v-model="appearance.outputLanguage"
@@ -22,7 +22,7 @@
     </section>
     <section class="settings-card appearance-group">
       <div class="wave-settings-title">辅助触控</div>
-      <label class="chat-setting-row assistive-setting-row"
+      <label class="system-toggle-row assistive-setting-row"
         ><span><strong>手机内部悬浮球</strong></span
         ><WaveToggle
           v-model="appearance.assistiveTouch"
@@ -47,7 +47,7 @@
         />
       </div>
       <p>按比例调整整个手机，立即生效并保存。屏幕空间不足时自动缩小；手机竖屏最大保持满屏。</p>
-      <div class="settings-actions">
+      <div class="settings-actions appearance-scale-actions">
         <button
           type="button"
           class="system-action"
@@ -176,6 +176,7 @@
       <button
         v-if="appearance.coverWallpaper || appearance.desktopWallpaper"
         type="button"
+        class="system-action settings-refresh-action appearance-import-wallpaper"
         @click="importLegacyWallpapers"
       >
         将旧版共用壁纸用于当前角色

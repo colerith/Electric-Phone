@@ -85,7 +85,9 @@ legacy.enabled = true;
 load('extension/index.ts', {
   './settings.scss': {},
   './update-controls': load('extension/update-controls.ts', {
-    '../services/core/extension-update': load('services/core/extension-update.ts'),
+    '../services/core/extension-update': load('services/core/extension-update.ts', {
+      './durable-storage': { preparePhoneRelease: async () => {}, flushPhoneStorage: async () => {} },
+    }),
   }),
   '../index': appMock,
   './bridge': bridge,

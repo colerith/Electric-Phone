@@ -1,5 +1,6 @@
 import {
   branchChoices,
+  preparePhoneRelease,
   checkExtensionUpdate,
   updateExtension,
   extensionRequest,
@@ -123,7 +124,11 @@ export function installUpdateControls(container: HTMLElement): void {
     const name = select.value;
     if (name) void run(() => switchBranch(name));
   };
-  reload.onclick = () => window.location.reload();
+  reload.onclick = () =>
+    void run(async () => {
+      await preparePhoneRelease();
+      window.location.reload();
+    });
   render();
   check.click();
 }

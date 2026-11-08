@@ -1435,6 +1435,9 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       mergedIdentity.relationshipToUser = previous.relationshipToUser;
       mergedIdentity.npcProfile = previous.npcProfile;
       mergedIdentity.about = previous.about || mergedIdentity.about;
+      // Replaying unchanged floors/rosters is not a contact edit. Keep revisions stable.
+      if (_.isEqual(_.omit(previous, 'updatedAt'), _.omit(mergedIdentity, 'updatedAt')))
+        mergedIdentity.updatedAt = previous.updatedAt;
     }
     nextState.identities[mergedIdentity.charKey] = mergedIdentity;
     const thread = ensureThread(nextState, runtime, mergedIdentity);
@@ -1584,10 +1587,25 @@ export const usePhoneStore = defineStore('wave-phone', () => {
       if (runtime.chatKey && SillyTavern.getCurrentChatId?.()) await ensurePhoneRegexes();
       if (token !== syncToken) return;
       if (isCardExcluded(settings.value, runtime.cardName)) {
+        // Exclusion pauses automation; it must not replace saved contacts with an empty state.
+        await preparePhoneChat(runtime);
+        if (
+          token !== syncToken ||
+          getRuntimeContext()?.cardKey !== runtime.cardKey ||
+          getRuntimeContext()?.chatKey !== runtime.chatKey
+        )
+          return;
+        if (migratePhoneCardNamespace(runtime)) characterProfiles.value = readCharacterProfiles();
+        const savedState = readChatState(runtime);
+        applyMomentUserProfile(savedState);
+        hydrateCardRoster(savedState, runtime);
+        hydrateCharacterDefaults(savedState, runtime);
+        if (!savedState.identities[savedState.activeCharKey])
+          savedState.activeCharKey = Object.keys(savedState.identities)[0] || '';
         context.value = runtime;
-        state.value = ChatStateSchema.parse({ cardKey: runtime.cardKey, chatKey: runtime.chatKey });
+        state.value = savedState;
         isReady.value = true;
-        syncError.value = '当前角色卡已排除，已暂停同步与生成';
+        syncError.value = '当前角色卡已排除，已暂停同步与生成；已有联系人和存档仍可查看';
         logDiagnostic('同步跳过', syncError.value);
         return;
       }

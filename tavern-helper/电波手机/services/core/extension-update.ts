@@ -1,3 +1,5 @@
+import { preparePhoneRelease, flushPhoneStorage } from './durable-storage';
+export { preparePhoneRelease };
 type ExtensionTarget = { extensionName: string; global: boolean };
 export type ExtensionVersion = {
   currentBranchName: string;
@@ -31,6 +33,7 @@ export async function extensionRequest<T>(
   action: 'version' | 'update' | 'branches' | 'switch',
   extra: { branch?: string } = {},
 ): Promise<T> {
+  if (action === 'switch' || action === 'update') await preparePhoneRelease();
   const body = await locate();
   const host = (window as any).SillyTavern?.getContext?.();
   if (!host?.getRequestHeaders) throw Error('酒馆接口未就绪，请刷新后重试');
@@ -89,4 +92,5 @@ export async function updateExtension(): Promise<void> {
   await extensionRequest('update');
   const data = await extensionRequest<ExtensionVersion>('version');
   if (!data.remoteUrl || !data.isUpToDate) throw Error('更新后仍未与远端同步，请重试或查看酒馆日志');
+  await flushPhoneStorage();
 }

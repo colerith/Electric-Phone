@@ -61,6 +61,17 @@ global.fetch = async (url, options = {}) => {
   }
   throw Error(url);
 };
+let preparations = 0,
+  failSave = false;
+require.cache[require.resolve('../services/core/durable-storage.ts')] = {
+  exports: {
+    preparePhoneRelease: async () => {
+      preparations++;
+      if (failSave) throw Error('备份保存失败');
+    },
+    flushPhoneStorage: async () => {},
+  },
+};
 const { installUpdateControls } = require('../extension/update-controls.ts');
 installUpdateControls(document.querySelector('main'));
 const get = s => document.querySelector(s),
@@ -76,6 +87,14 @@ const get = s => document.querySelector(s),
   assert.equal(get('.wave-ext-new').hidden, false);
   assert.match(get('.wave-ext-update-banner strong').textContent, /1\.14\.2/);
   assert.equal(get('[data-branch="main"]').disabled, true);
+  await tick();
+  failSave = true;
+  const beforeFailedSave = calls.length;
+  get('[data-branch=beta]').click();
+  await tick();
+  assert(!calls.slice(beforeFailedSave).some(c => c.action === 'switch'));
+  assert.equal(reloads, 0);
+  failSave = false;
   get('.wave-ext-update').click();
   await tick();
   assert.equal(reloads, 1);

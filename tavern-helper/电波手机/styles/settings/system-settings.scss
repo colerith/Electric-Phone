@@ -235,3 +235,40 @@
     font-size: 14px;
   }
 }
+
+// Keep appearance controls in the same left-label/right-control layout as entry settings.
+#wave-phone-script-root .wave-device .home-appearance-editor {
+  .appearance-language-row,
+  .assistive-setting-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+    > span {
+      flex: 1;
+      min-width: 0;
+      text-align: left;
+    }
+    > .wave-select {
+      flex: 0 1 55%;
+      min-width: 0;
+      margin: 0;
+    }
+    > .wave-toggle-control {
+      flex: 0 0 auto;
+      margin: 0;
+    }
+  }
+  .appearance-scale-actions {
+    display: flex;
+    justify-content: center;
+    > button {
+      width: min(100%, 220px);
+    }
+  }
+  .appearance-import-wallpaper {
+    margin: 12px 0;
+    white-space: normal;
+  }
+}

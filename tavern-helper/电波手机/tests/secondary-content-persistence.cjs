@@ -122,6 +122,33 @@ const delta = {
     '真正修改正文',
   );
   assert.deepEqual(withSecondaryResults([], store.state.secondaryResults), []);
+  // Repeated read-only synchronization must not rewrite upload revisions.
+  await store.synchronize();
+  const content = () =>
+    JSON.parse(
+      JSON.stringify(vars, (key, value) => (/^wave_phone_(?:global_)?saved_at$/.test(key) ? undefined : value)),
+    );
+  const persisted = content();
+  await new Promise(resolve => setTimeout(resolve, 15));
+  await store.synchronize();
+  const differences = (a, b, path = '') => {
+    if (_.isEqual(a, b)) return [];
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return [path];
+    return [...new Set([...Object.keys(a), ...Object.keys(b)])].flatMap(key =>
+      differences(a[key], b[key], path + '/' + key),
+    );
+  };
+  assert.deepEqual(differences(content(), persisted), [], 'unchanged synchronization produces no changed content');
+  store.settings.basic.excludedCards = ['Alice'];
+  store.saveSettings();
+  const contacts = Object.keys(store.state.identities);
+  await store.synchronize();
+  assert.deepEqual(Object.keys(store.state.identities), contacts, 'excluded cards retain their contacts');
+  assert.equal(store.state.identities[bob].name, 'Bob');
+  chat = 'new-excluded-chat';
+  vars.chat = {};
+  await store.synchronize();
+  assert.equal(store.state.identities[bob].name, 'Bob', 'excluded new chats inherit the card roster');
   store.context.cardKey = 'another-card';
   assert.equal(store.characterWallpaper.coverWallpaper, '', 'same character key on another card is isolated');
   console.log(

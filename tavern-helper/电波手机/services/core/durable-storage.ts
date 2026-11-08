@@ -489,3 +489,51 @@ export async function flushPhoneStorage(drain = true): Promise<void> {
   if (pending.size && drain) await flushPhoneStorage();
   else scheduleStorage();
 }
+
+let releaseCheckpoint: Array<{ scope: string; data: Record<string, unknown> }> | undefined;
+/** Await durable writes before navigation and retain immutable raw snapshots across downgrades. */
+export async function preparePhoneRelease(): Promise<void> {
+  if (!supported()) throw Error('酒馆存储尚未就绪，已停止更新或切换分支');
+  await preparePhoneStorage();
+  const context = getRuntimeContext();
+  if (context) await preparePhoneChat(context);
+  await flushPhoneStorage();
+  const copies: Snapshot[] = [];
+  const globals = globalsOnly(readPhoneGlobals());
+  if (Object.keys(globals).length)
+    copies.push({ identifier: WAVE_PHONE_IDENTIFIER, version: 1, scope: 'global', savedAt: Date.now(), data: globals });
+  if (context) {
+    const current = getRuntimeContext();
+    if (!current || chatScope(current) !== chatScope(context)) throw Error('聊天已切换，请重试操作');
+    const raw = getVariables({ type: 'chat' })[CHAT_VARIABLE_KEY];
+    if (raw)
+      copies.push({
+        identifier: WAVE_PHONE_IDENTIFIER,
+        version: 1,
+        scope: chatScope(context),
+        savedAt: Date.now(),
+        data: klona(raw),
+      });
+  }
+  const contents = copies.map(({ scope, data }) => ({ scope, data }));
+  if (isEqual(releaseCheckpoint, contents)) return;
+  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  for (const snapshot of copies) {
+    validate(snapshot);
+    const bytes = new TextEncoder().encode(JSON.stringify(snapshot));
+    const chunks: string[] = [];
+    for (let offset = 0; offset < bytes.length; offset += 8192)
+      chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 8192)));
+    const response = await request('/api/files/upload', {
+      method: 'POST',
+      headers: SillyTavern.getRequestHeaders(),
+      body: JSON.stringify({
+        name: `wave-phone-release-${stamp}-${filename(snapshot.scope, 0)}`,
+        data: btoa(chunks.join('')),
+      }),
+    });
+    if (!response.ok || !(await response.json()).path) throw Error('切换前备份保存失败，已停止操作，请重试');
+  }
+  await flushPhoneStorage();
+  releaseCheckpoint = klona(contents);
+}
