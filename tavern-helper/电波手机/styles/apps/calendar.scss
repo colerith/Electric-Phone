@@ -496,3 +496,130 @@
     color: #acb7c6;
   }
 }
+
+// Calendar controls share theme tokens with the surrounding phone settings.
+#wave-phone-script-root .wave-device {
+  .calendar-weather-metrics {
+    border-top-color: var(--wave-line, #e4e9f0);
+  }
+  .calendar-weather-metrics > span + span {
+    border-left: 1px solid var(--wave-line, #e4e9f0);
+  }
+  .calendar-day-controls {
+    padding-top: 8px;
+    border-top: 1px solid var(--wave-line, #e4e9f0);
+    margin-top: 12px;
+  }
+  .calendar-day-controls button,
+  .calendar-weather-card > header > button:last-child {
+    min-width: 32px;
+    min-height: 32px;
+  }
+  .calendar-date-shortcuts {
+    gap: 6px;
+  }
+  .calendar-date-shortcuts button,
+  .calendar-timeline-card header > button {
+    padding: 7px 10px;
+    border: 1px solid var(--wave-line, #e4e9f0);
+    background: var(--wave-tint, #f3f6fa);
+  }
+  .calendar-timeline-node::after {
+    box-sizing: content-box;
+    width: 7px;
+    height: 7px;
+    border-width: 3px;
+    z-index: 1;
+  }
+  .calendar-timeline-node::before {
+    width: 1px;
+    top: 12px;
+  }
+  .calendar-location-settings {
+    gap: 16px;
+    .weather-location-current {
+      border: 1px solid var(--wave-line, #e4e9f0);
+    }
+    .weather-location-current > span,
+    .weather-location-results button > span {
+      min-width: 0;
+    }
+    button {
+      appearance: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      margin: 0;
+      padding: 9px 14px;
+      border: 1px solid var(--wave-line, #e4e9f0);
+      border-radius: 12px;
+      background: var(--wave-tint, #f3f6fa);
+      color: var(--wave-ink, #405572);
+      font: inherit;
+      cursor: pointer;
+      box-shadow: none;
+    }
+    .weather-location-current button {
+      margin-left: auto;
+      flex-shrink: 0;
+      font-size: 12px;
+    }
+    .weather-name-editor {
+      display: grid;
+      gap: 10px;
+      padding: 16px 0;
+      border-block: 1px solid var(--wave-line, #e4e9f0);
+    }
+    .weather-name-editor > button {
+      width: 100%;
+      min-height: 42px;
+      color: var(--wave-blue, #59769c);
+    }
+    .weather-name-editor > small {
+      line-height: 1.6;
+      color: var(--wave-muted, #7c8899);
+    }
+    .weather-location-search {
+      align-items: stretch;
+      gap: 8px;
+    }
+    .weather-location-search input {
+      appearance: none;
+      box-sizing: border-box;
+      margin: 0;
+      border: 1px solid var(--wave-line, #e4e9f0);
+      border-radius: 14px;
+      background: var(--wave-card, #fff);
+      color: var(--wave-ink, #405572);
+      box-shadow: none;
+    }
+    .weather-location-search input:focus-visible {
+      outline: 2px solid var(--wave-blue, #7896c3);
+      outline-offset: 2px;
+    }
+    .weather-location-search button {
+      flex: 0 0 auto;
+      min-width: 64px;
+      background: #597cad;
+      border-color: transparent;
+      color: #fff;
+    }
+    .weather-location-results:empty {
+      display: none;
+    }
+    .weather-location-results button {
+      justify-content: flex-start;
+      text-align: left;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
+  .calendar-page button:focus-visible,
+  .calendar-location-settings button:focus-visible {
+    outline: 2px solid var(--wave-blue, #7896c3);
+    outline-offset: 3px;
+  }
+}

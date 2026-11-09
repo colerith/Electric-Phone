@@ -714,7 +714,12 @@
   margin: 6px 0 0;
   padding: 0;
 }
-#wave-phone-script-root .wave-phone-host .wave-device .space-app :is(.moment-comment-actions, .hole-comment-actions) > button {
+#wave-phone-script-root
+  .wave-phone-host
+  .wave-device
+  .space-app
+  :is(.moment-comment-actions, .hole-comment-actions)
+  > button {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
@@ -732,7 +737,13 @@
   font-size: 11px;
   line-height: 18px;
 }
-#wave-phone-script-root .wave-phone-host .wave-device .space-app :is(.moment-comment-actions, .hole-comment-actions) > button i {
+#wave-phone-script-root
+  .wave-phone-host
+  .wave-device
+  .space-app
+  :is(.moment-comment-actions, .hole-comment-actions)
+  > button
+  i {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -740,4 +751,55 @@
   margin: 0;
   font-size: 11px;
   line-height: 1;
+}
+
+#wave-phone-script-root .wave-phone-host .wave-device.theme-dark {
+  .calendar-weather-metrics,
+  .calendar-weather-metrics > span + span,
+  .calendar-day-controls,
+  .weather-name-editor {
+    border-color: #36465d;
+  }
+  .calendar-location-settings button,
+  .calendar-date-shortcuts button,
+  .calendar-timeline-card header > button {
+    background: #2c3a4f;
+    color: #c3d5ee;
+    border: 1px solid #425470;
+  }
+  .calendar-location-settings .weather-location-search button {
+    background: #486996;
+    color: #f1f6ff;
+    border-color: #5f7fa9;
+  }
+  .weather-location-current strong,
+  .weather-location-results strong,
+  .calendar-days-card > header > label {
+    color: #c3d5ee;
+  }
+  .weather-location-current small,
+  .weather-location-results small,
+  .calendar-weather-metrics small,
+  .calendar-day-controls small,
+  .calendar-weather-card > footer,
+  .calendar-weather-card > footer a {
+    color: #9badc5;
+  }
+  .calendar-timeline-node::before {
+    background: #425470;
+  }
+  .calendar-timeline-node::after {
+    background: #9ebbe5;
+    border-color: #29374c;
+  }
+  .calendar-timeline-event.important .calendar-timeline-node::after {
+    background: #d0a0b4;
+    border-color: #46384a;
+  }
+  .calendar-timeline-event > div > strong {
+    color: #b9ceec;
+  }
+  .calendar-timeline-event.important > div > strong {
+    color: #dfb5c6;
+  }
 }
