@@ -1,3 +1,4 @@
+import { sameSource } from './secondary-results';
 import { APP_IDS } from '../../schemas';
 import { appApiMode } from './app-api';
 import { watchEffect } from 'vue';
@@ -95,7 +96,7 @@ export function registerSecondaryFollow(
           !active.signal.aborted &&
           enabled()?.key === captured.key &&
           SillyTavern.chat?.[id]?.swipe_id === swipe &&
-          readChatFloor(id)?.message === message.message;
+          sameSource(readChatFloor(id)?.message || '', message.message);
         if (!isCurrent()) {
           logDiagnostic('副 API 跟随取消', '聊天、回复或生成设置已变化');
           return;

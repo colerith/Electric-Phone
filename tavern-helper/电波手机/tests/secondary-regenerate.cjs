@@ -77,7 +77,7 @@ global.setChatMessages = async rows => {
     emit('CHARACTER_MESSAGE_RENDERED', row.message_id);
   }
 };
-const base = path.resolve('src/util/酒馆助手脚本/电波手机');
+const base = path.resolve(__dirname, '..');
 const vue = require('vue'),
   { createPinia } = require('pinia');
 const { APP_IDS, ScriptSettingsSchema } = require(base + '/schemas.ts');
@@ -103,33 +103,56 @@ const waitFor = async fn => {
   throw Error('timed out');
 };
 (async () => {
-  const {registerSecondaryFollow} = require(base + '/services/generation/secondary-follow.ts');
-  const settings = ScriptSettingsSchema.parse({ sendMode: 'secondary_api', generation: {followEnabled:true, requiredModules:['status'],modules:[]} });
-  let runs = 0;
-  const stop = registerSecondaryFollow(() => ({key:'test',settings}), async job => {
-    assert.equal(job.message.message, '重新生成的新正文');
-    assert(job.isCurrent()); runs++;
+  const { registerSecondaryFollow } = require(base + '/services/generation/secondary-follow.ts');
+  const settings = ScriptSettingsSchema.parse({
+    sendMode: 'secondary_api',
+    generation: { followEnabled: true, requiredModules: ['status'], modules: [] },
   });
-  floors = [{message_id:0,role:'assistant',message:'旧正文'}];
-  emit('GENERATION_AFTER_COMMANDS','regenerate',{},false);
+  let runs = 0;
+  const stop = registerSecondaryFollow(
+    () => ({ key: 'test', settings }),
+    async job => {
+      assert.equal(job.message.message, '重新生成的新正文');
+      assert(job.isCurrent());
+      floors[0].message += '<!--wave-phone-card:start-->legacy<!--wave-phone-card:end-->';
+      assert(job.isCurrent(), 'automatic legacy card changes preserve in-flight replies');
+      floors[0].message = '真正修改正文';
+      assert(!job.isCurrent(), 'real narrative edits still reject stale replies');
+      floors[0].message = job.message.message;
+      runs++;
+    },
+  );
+  floors = [{ message_id: 0, role: 'assistant', message: '旧正文' }];
+  emit('GENERATION_AFTER_COMMANDS', 'regenerate', {}, false);
   floors = [];
-  emit('MESSAGE_DELETED',0);
-  floors = [{message_id:0,role:'assistant',message:'重新生成的新正文'}];
-  emit('CHARACTER_MESSAGE_RENDERED',0);
+  emit('MESSAGE_DELETED', 0);
+  floors = [{ message_id: 0, role: 'assistant', message: '重新生成的新正文' }];
+  emit('CHARACTER_MESSAGE_RENDERED', 0);
   await wait(20);
-  assert.equal(runs,1,'expected regenerate deletion preserves pending job');
-  emit('CHARACTER_MESSAGE_RENDERED',0);
-  await wait(10);assert.equal(runs,1,'duplicate render cannot trigger another job');
-  emit('GENERATION_AFTER_COMMANDS','normal',{},false);
-  emit('MESSAGE_DELETED',0);
-  floors.push({message_id:1,role:'assistant',message:'unexpected'});
-  emit('CHARACTER_MESSAGE_RENDERED',1);
-  await wait(10);assert.equal(runs,1,'manual deletion still cancels');
-  emit('GENERATION_AFTER_COMMANDS','regenerate',{},false);
-  emit('MESSAGE_DELETED',1);emit('MESSAGE_DELETED',0);
-  emit('CHARACTER_MESSAGE_RENDERED',1);
-  await wait(10);assert.equal(runs,1,'only one expected deletion is permitted');
-  stop();app.unmount();dom.window.close();
-  console.log('PASS: regenerated reply survives expected deletion, duplicate renders and unrelated deletes remain guarded');
+  assert.equal(runs, 1, 'expected regenerate deletion preserves pending job');
+  emit('CHARACTER_MESSAGE_RENDERED', 0);
+  await wait(10);
+  assert.equal(runs, 1, 'duplicate render cannot trigger another job');
+  emit('GENERATION_AFTER_COMMANDS', 'normal', {}, false);
+  emit('MESSAGE_DELETED', 0);
+  floors.push({ message_id: 1, role: 'assistant', message: 'unexpected' });
+  emit('CHARACTER_MESSAGE_RENDERED', 1);
+  await wait(10);
+  assert.equal(runs, 1, 'manual deletion still cancels');
+  emit('GENERATION_AFTER_COMMANDS', 'regenerate', {}, false);
+  emit('MESSAGE_DELETED', 1);
+  emit('MESSAGE_DELETED', 0);
+  emit('CHARACTER_MESSAGE_RENDERED', 1);
+  await wait(10);
+  assert.equal(runs, 1, 'only one expected deletion is permitted');
+  stop();
+  app.unmount();
+  dom.window.close();
+  console.log(
+    'PASS: regenerated reply survives expected deletion, duplicate renders and unrelated deletes remain guarded',
+  );
   process.exit(0);
-})().catch(e => {console.error(e);process.exit(1)});
+})().catch(e => {
+  console.error(e);
+  process.exit(1);
+});

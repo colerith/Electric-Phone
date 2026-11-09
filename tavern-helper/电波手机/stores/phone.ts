@@ -2851,6 +2851,40 @@ export const usePhoneStore = defineStore('wave-phone', () => {
     };
     try {
       const blocks: string[] = [];
+      let savedBlockCount = 0;
+      const persistCompletedBlocks = async () => {
+        if (!current()) {
+          logDiagnostic(
+            '副 API 结果未写入',
+            `第 ${job.message.message_id} 楼：正文、聊天或生成任务已变化；已写入 ${savedBlockCount} 块`,
+          );
+          return;
+        }
+        if (savedBlockCount === blocks.length) return;
+        pendingModulePolicy = {
+          namespace: `${runtime.input.cardKey}:${runtime.input.chatKey}`,
+          after: job.message.message_id - 1,
+          settings: klona(runtime.settings.moduleSettings),
+          wallet: runtime.input.walletAuthorization,
+          wallets: Object.fromEntries(
+            runtime.followInputs.flatMap(actor =>
+              actor.walletAuthorization ? [[actor.identity.charKey, actor.walletAuthorization]] : [],
+            ),
+          ),
+        };
+        saveSecondaryResult(state.value.secondaryResults, job.message, blocks.slice(savedBlockCount).join('\n'));
+        savedBlockCount = blocks.length;
+        saveChat();
+        await flushPhoneStorage();
+        if (!current()) return;
+        await synchronize();
+        refreshGenerationRecords();
+        logDiagnostic(
+          '副 API 结果已写入',
+          `第 ${job.message.message_id} 楼：累计 ${savedBlockCount} 块，已保存并同步手机`,
+        );
+      };
+
       const groups = new Map<string, AppId[]>();
       for (const module of modules) {
         const key = appApiGroup(runtime.settings, module);
@@ -2862,7 +2896,17 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             { ...input, ...klona(actorInput), settings: klona(appApiSettings(runtime.settings, group[0])) },
             group,
           );
-          if (!current()) return;
+          logDiagnostic(
+            '副 API 回复内容',
+            `${actorInput.identity.name}：消息 ${delta.messages.length} 条；App ${Object.keys(delta.app_updates).join('、') || '无'}`,
+          );
+          if (!current()) {
+            logDiagnostic(
+              '副 API 结果未写入',
+              `第 ${job.message.message_id} 楼：${actorInput.identity.name} 的回复已返回，但正文或任务已变化`,
+            );
+            return;
+          }
           delta.messages = normalizeGroupReplies(actorInput.identity, delta.messages);
           if (
             delta.messages.length ||
@@ -2871,6 +2915,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
             Object.keys(delta.app_updates).length
           )
             blocks.push(serializeDelta(delta));
+          await persistCompletedBlocks();
         }
       }
       if (momentPlan) {
@@ -2929,21 +2974,7 @@ export const usePhoneStore = defineStore('wave-phone', () => {
         activity.requests[holePlan.id] = holePlan;
         activity.lastRequestAt = holePlan.createdAt;
       }
-      pendingModulePolicy = {
-        namespace: `${runtime.input.cardKey}:${runtime.input.chatKey}`,
-        after: job.message.message_id - 1,
-        settings: klona(runtime.settings.moduleSettings),
-        wallet: runtime.input.walletAuthorization,
-        wallets: Object.fromEntries(
-          runtime.followInputs.flatMap(actor =>
-            actor.walletAuthorization ? [[actor.identity.charKey, actor.walletAuthorization]] : [],
-          ),
-        ),
-      };
-      if (!current()) return;
-      saveSecondaryResult(state.value.secondaryResults, job.message, blocks.join('\n'));
-      saveChat();
-      await flushPhoneStorage();
+      await persistCompletedBlocks();
       if (job.signal.aborted) return;
       const saved = readChatFloors().find(f => f.message_id === job.message.message_id);
       if (saved && floorSource(saved.message) === floorSource(job.message.message)) {

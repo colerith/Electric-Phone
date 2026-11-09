@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { stripInlineCards } from './inline-cards';
 
 // Automatic removal of our legacy display card does not change the originating story.
-function sameSource(left: string, right: string): boolean {
+export function sameSource(left: string, right: string): boolean {
   return stripInlineCards(left).replace(/\r\n/g, '\n').trim() === stripInlineCards(right).replace(/\r\n/g, '\n').trim();
 }
 
