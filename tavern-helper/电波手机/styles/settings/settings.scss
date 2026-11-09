@@ -1,5 +1,8 @@
 // 设置页的唯一布局规则；仅选择具体组件，不用泛化 button 覆盖子组件。
 #wave-phone-script-root .wave-device {
+  --settings-label-size: calc(13px * var(--wave-font-scale, 1));
+  --settings-label-weight: 600;
+  --settings-help-size: calc(11px * var(--wave-font-scale, 1));
   --settings-text: var(--wave-ink, #374558);
   --settings-muted: var(--wave-muted, #6e7682);
   --settings-accent: var(--wave-blue, #5e80be);

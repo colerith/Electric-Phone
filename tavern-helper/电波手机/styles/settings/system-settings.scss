@@ -272,3 +272,28 @@
     white-space: normal;
   }
 }
+
+// Match language/assistive labels to the entry rows, overriding legacy 9px labels.
+#wave-phone-script-root .wave-device .home-appearance-editor .system-toggle-row {
+  > span {
+    font-size: var(--settings-label-size) !important;
+    font-weight: var(--settings-label-weight);
+    line-height: 1.5;
+    color: var(--settings-text);
+    text-align: left;
+  }
+  > span > strong {
+    font-size: inherit !important;
+    font-weight: inherit;
+    line-height: inherit;
+  }
+  > span > small {
+    display: block;
+    margin-top: 4px;
+    font-size: var(--settings-help-size) !important;
+    font-weight: 400;
+    line-height: 1.65;
+    color: var(--settings-muted);
+    text-align: left;
+  }
+}
