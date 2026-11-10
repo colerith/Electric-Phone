@@ -529,7 +529,7 @@ export const BUILTIN_PRESET_ENTRIES: readonly PresetEntry[] = [
     name: '💬多说多写',
     enabled: false,
     kind: 'custom',
-    content: '- 每次回复最少10句，最多20句，每次回复10-15字',
+    content: '- 每轮回复 10–20 条消息，每条消息 30–80 字\n- 允许标点符号，可用逗号分句，少用句号\n- 同一轮各条消息的长度禁止相同，长短错落，保持自然聊天的活人感\n- 按完整语意拆分消息，不为凑条数重复内容或生硬拆句',
     scope: 'all',
   },
   {
@@ -537,7 +537,7 @@ export const BUILTIN_PRESET_ENTRIES: readonly PresetEntry[] = [
     name: '💬多说少写',
     enabled: true,
     kind: 'custom',
-    content: '- 每次回复最少10句，最多20句，每次回复5-10字',
+    content: '- 每轮回复 10–20 条消息，每条消息 5–30 字\n- 允许标点符号，可用逗号分句，少用句号\n- 同一轮各条消息的长度禁止相同，长短错落，保持自然聊天的活人感\n- 按完整语意拆分消息，不为凑条数重复内容或生硬拆句',
     scope: 'all',
   },
   {
@@ -545,7 +545,7 @@ export const BUILTIN_PRESET_ENTRIES: readonly PresetEntry[] = [
     name: '💬少说少写',
     enabled: false,
     kind: 'custom',
-    content: '- 每次回复最少3句，最多6句，每次回复5-30字',
+    content: '- 每轮回复 3–6 条消息，每条消息 5–30 字\n- 允许标点符号，可用逗号分句，少用句号\n- 同一轮各条消息的长度禁止相同，长短错落，保持自然聊天的活人感\n- 按完整语意拆分消息，不为凑条数重复内容或生硬拆句',
     scope: 'all',
   },
   {
