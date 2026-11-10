@@ -26,7 +26,7 @@
         maxlength="12000"
         :placeholder="
           purpose === 'avatar'
-            ? '选填；始终保留角色外观设定，可补充服装、表情、风格与背景。'
+            ? '选填；始终保留角色外观设定，可补充服装、表情、风格及符合世界观、故事与人物调性的背景。'
             : '选填；描述封面的场景、物品、色彩与风格。默认横向无人物封面。'
         "
       />
@@ -106,6 +106,7 @@ async function run(kind: 'polish' | 'generate') {
     identity?.about,
     card?.data?.description || card?.description,
     card?.data?.personality || card?.personality,
+    card?.data?.scenario || card?.scenario,
   ]
     .filter(Boolean)
     .join('\n');

@@ -1,6 +1,6 @@
 {
   "name": "electric-phone",
-  "version": "1.14.9",
+  "version": "1.14.10",
   "private": true,
   "description": "电波手机 SillyTavern 前端扩展",
   "engines": {
