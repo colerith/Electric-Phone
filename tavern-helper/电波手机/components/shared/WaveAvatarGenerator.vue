@@ -26,7 +26,7 @@
         maxlength="12000"
         :placeholder="
           purpose === 'avatar'
-            ? '选填；留空时读取角色描述。可补充服装、风格、背景。'
+            ? '选填；始终保留角色外观设定，可补充服装、表情、风格与背景。'
             : '选填；描述封面的场景、物品、色彩与风格。默认横向无人物封面。'
         "
       />
@@ -57,6 +57,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { klona } from 'klona';
 import { usePhoneStore } from '../../stores/phone';
 import { createPhoneGenerationId, polishAvatarPrompt, stopPhoneGeneration } from '../../services/generation/generation';
+import { avatarPrompt, AVATAR_NEGATIVE } from '../../services/image/avatar-prompt';
 import { generateImage } from '../../services/image/generate';
 import { CharacterImageSchema } from '../../services/image/schema';
 import WaveSelect from './WaveSelect.vue';
@@ -120,7 +121,9 @@ async function run(kind: 'polish' | 'generate') {
     (props.purpose === 'artwork' ? `${props.label}，横向风景或抽象图案，干净留白，无文字水印，无人物` : avatarFallback);
   const runToken = ++token;
   const selected = klona(profile.value),
-    text = prompt.value.trim() || fallback,
+    text = props.purpose === 'avatar'
+      ? avatarPrompt(avatarFallback, [props.seed, prompt.value.trim()].filter(Boolean).join('\n'), identity?.source === 'local_group')
+      : prompt.value.trim() || fallback,
     settings = klona(phone.settings);
   busy.value = true;
   status.value = kind === 'polish' ? '副 API 正在润色提示词…' : `正在生成${props.label}，请稍候…`;
@@ -139,6 +142,7 @@ async function run(kind: 'polish' | 'generate') {
           width: props.purpose === 'avatar' ? 1024 : 1536,
           height: 1024,
           vibes: [],
+          negative: props.purpose === 'avatar' ? [selected.negative, AVATAR_NEGATIVE].filter(Boolean).join(', ') : selected.negative,
           prefix: props.purpose === 'artwork' ? '' : selected.prefix,
         },
         CharacterImageSchema.parse({ enabled: true }),
