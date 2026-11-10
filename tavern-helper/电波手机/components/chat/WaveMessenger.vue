@@ -76,7 +76,7 @@
               @pointercancel="swipe = null"
               @keydown.delete.prevent="revealed = row.identity.charKey"
             >
-              <span class="messenger-avatar"
+              <span class="messenger-avatar-wrap"><span class="messenger-avatar"
                 ><WaveCachedImage
                   v-if="row.identity.avatar"
                   :src="row.identity.avatar"
@@ -87,7 +87,7 @@
                   :group="row.identity"
                   :user-avatar="userAvatar"
                 /><span v-else>{{ displayIdentityName(row.identity).slice(0, 1) }}</span
-                ><b v-if="row.thread?.unread">{{ row.thread.unread > 99 ? '99+' : row.thread.unread }}</b></span
+                ></span><b v-if="row.thread?.unread" class="messenger-unread-badge">{{ row.thread.unread > 99 ? '99+' : row.thread.unread }}</b></span
               >
               <span class="messenger-row-copy"
                 ><strong>{{ displayIdentityName(row.identity) }}</strong
