@@ -83,6 +83,21 @@ const delta = {
   const before = { ...store.activeSnapshot };
   const memo = store.activeSnapshot.memo;
   assert(memo.includes('新增备忘'));
+  const story = floors[0].message;
+  for (const image of [
+    '<img src="/user/images/result.png" alt="generated" data-prompt="a > b">',
+    '![generated](/user/images/result.png)',
+    '![generated](/user/images/result(2).png "image")',
+  ]) {
+    floors[0].message = `${story}\n\n${image}`;
+    await store.synchronize();
+    for (const app of ['memo', 'status', 'calendar', 'browse', 'music', 'zone'])
+      assert.equal(store.activeSnapshot[app], before[app], app + ' survives image writeback');
+  }
+  const { sameSource } = require(base + '/services/generation/secondary-results.ts');
+  assert(sameSource('正文<img src="old.png">', '正文<img src="new.png">'));
+  assert(!sameSource('正文<img src="old.png">', '改写正文<img src="new.png">'));
+  floors[0].message = story;
   store.currentPage = 'memo';
   store.markAppRead('memo');
   await store.synchronize();

@@ -1,9 +1,23 @@
 import { z } from 'zod';
 import { stripInlineCards } from './inline-cards';
 
-// Automatic removal of our legacy display card does not change the originating story.
+// Image extensions write their result into the same floor after phone generation.
+// Compare story text, not image URLs/attributes; keep all other markup and text so
+// real edits still invalidate the result. This also works for previously saved sources.
+function sourceStory(source: string): string {
+  return stripInlineCards(source)
+    .replace(/\r\n/g, '\n')
+    .replace(/<img\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi, '')
+    .replace(/!\[(?:\\.|[^\]\\])*\]\(\s*(?:<[^>\n]*>|(?:\\.|[^\s()\\]|\([^()]*\))*)(?:\s+["'][^\n]*?["'])?\s*\)/g, '')
+    .split('\n')
+    .map(line => line.trimEnd())
+    .filter(line => line.trim())
+    .join('\n')
+    .trim();
+}
+
 export function sameSource(left: string, right: string): boolean {
-  return stripInlineCards(left).replace(/\r\n/g, '\n').trim() === stripInlineCards(right).replace(/\r\n/g, '\n').trim();
+  return sourceStory(left) === sourceStory(right);
 }
 
 export const SecondaryResultsSchema = z
